@@ -2088,108 +2088,109 @@ function loadScenario(id) {
 const ECG_IMAGES = {
   // Key: lowercase regex-friendly strings matched against v.Rhythm
   // Value: { url, page, label }
+  // URLs use Special:FilePath for reliable, cache-independent hotlinking
   'sinus tachycardia': {
-    url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/d/d0/Sinus_Tachycardia_%286_seconds%29.svg/800px-Sinus_Tachycardia_%286_seconds%29.svg.png',
+    url: 'https://commons.wikimedia.org/wiki/Special:FilePath/Sinus_Tachycardia_(6_seconds).svg?width=800',
     page: 'https://commons.wikimedia.org/wiki/File:Sinus_Tachycardia_(6_seconds).svg',
     label: 'Sinus Tachycardia'
   },
   'sinus bradycardia': {
-    url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/44/Sinus_Bradycardia_%286_seconds%29.svg/800px-Sinus_Bradycardia_%286_seconds%29.svg.png',
+    url: 'https://commons.wikimedia.org/wiki/Special:FilePath/Sinus_Bradycardia_(6_seconds).svg?width=800',
     page: 'https://commons.wikimedia.org/wiki/File:Sinus_Bradycardia_(6_seconds).svg',
     label: 'Sinus Bradycardia'
   },
   'normal sinus': {
-    url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/bd/Normal_Sinus_Rhythm_Unlabeled.jpg/800px-Normal_Sinus_Rhythm_Unlabeled.jpg',
+    url: 'https://commons.wikimedia.org/wiki/Special:FilePath/Normal_Sinus_Rhythm_Unlabeled.jpg?width=800',
     page: 'https://commons.wikimedia.org/wiki/File:Normal_Sinus_Rhythm_Unlabeled.jpg',
     label: 'Normal Sinus Rhythm'
   },
   'sinus rhythm': {
-    url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/bd/Normal_Sinus_Rhythm_Unlabeled.jpg/800px-Normal_Sinus_Rhythm_Unlabeled.jpg',
+    url: 'https://commons.wikimedia.org/wiki/Special:FilePath/Normal_Sinus_Rhythm_Unlabeled.jpg?width=800',
     page: 'https://commons.wikimedia.org/wiki/File:Normal_Sinus_Rhythm_Unlabeled.jpg',
     label: 'Normal Sinus Rhythm'
   },
   'atrial fibrillation': {
-    url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/3/34/Afib_small_%28CardioNetworks_ECGpedia%29.svg/800px-Afib_small_%28CardioNetworks_ECGpedia%29.svg.png',
+    url: 'https://commons.wikimedia.org/wiki/Special:FilePath/Afib_small_(CardioNetworks_ECGpedia).svg?width=800',
     page: 'https://commons.wikimedia.org/wiki/File:Afib_small_(CardioNetworks_ECGpedia).svg',
     label: 'Atrial Fibrillation'
   },
   'atrial flutter': {
-    url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/a/ac/Afl_small_%28CardioNetworks_ECGpedia%29.svg/800px-Afl_small_%28CardioNetworks_ECGpedia%29.svg.png',
+    url: 'https://commons.wikimedia.org/wiki/Special:FilePath/Afl_small_(CardioNetworks_ECGpedia).svg?width=800',
     page: 'https://commons.wikimedia.org/wiki/File:Afl_small_(CardioNetworks_ECGpedia).svg',
     label: 'Atrial Flutter'
   },
   'svt': {
-    url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/d/dc/Supraventricular_Tachycardia.svg/800px-Supraventricular_Tachycardia.svg.png',
+    url: 'https://commons.wikimedia.org/wiki/Special:FilePath/Supraventricular_Tachycardia.svg?width=800',
     page: 'https://commons.wikimedia.org/wiki/File:Supraventricular_Tachycardia.svg',
     label: 'Supraventricular Tachycardia (SVT)'
   },
   'supraventricular tachycardia': {
-    url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/d/dc/Supraventricular_Tachycardia.svg/800px-Supraventricular_Tachycardia.svg.png',
+    url: 'https://commons.wikimedia.org/wiki/Special:FilePath/Supraventricular_Tachycardia.svg?width=800',
     page: 'https://commons.wikimedia.org/wiki/File:Supraventricular_Tachycardia.svg',
     label: 'Supraventricular Tachycardia (SVT)'
   },
   'ventricular tachycardia': {
-    url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/48/Ventricular_Tachycardia.svg/800px-Ventricular_Tachycardia.svg.png',
+    url: 'https://commons.wikimedia.org/wiki/Special:FilePath/Ventricular_Tachycardia.svg?width=800',
     page: 'https://commons.wikimedia.org/wiki/File:Ventricular_Tachycardia.svg',
     label: 'Ventricular Tachycardia (VT)'
   },
   'ventricular fibrillation': {
-    url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/17/Ventricular_Fibrillation.svg/800px-Ventricular_Fibrillation.svg.png',
+    url: 'https://commons.wikimedia.org/wiki/Special:FilePath/Ventricular_Fibrillation.svg?width=800',
     page: 'https://commons.wikimedia.org/wiki/File:Ventricular_Fibrillation.svg',
     label: 'Ventricular Fibrillation (VF)'
   },
   'complete heart block': {
-    url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/0/02/Completeheartblock.jpg/800px-Completeheartblock.jpg',
+    url: 'https://commons.wikimedia.org/wiki/Special:FilePath/Completeheartblock.jpg?width=800',
     page: 'https://commons.wikimedia.org/wiki/File:Completeheartblock.jpg',
     label: 'Complete (3rd Degree) Heart Block'
   },
   '3rd degree': {
-    url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/0/02/Completeheartblock.jpg/800px-Completeheartblock.jpg',
+    url: 'https://commons.wikimedia.org/wiki/Special:FilePath/Completeheartblock.jpg?width=800',
     page: 'https://commons.wikimedia.org/wiki/File:Completeheartblock.jpg',
     label: 'Complete (3rd Degree) Heart Block'
   },
   'third degree': {
-    url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/0/02/Completeheartblock.jpg/800px-Completeheartblock.jpg',
+    url: 'https://commons.wikimedia.org/wiki/Special:FilePath/Completeheartblock.jpg?width=800',
     page: 'https://commons.wikimedia.org/wiki/File:Completeheartblock.jpg',
     label: 'Complete (3rd Degree) Heart Block'
   },
   'torsades': {
-    url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/ca/Torsades_de_Pointes_%28polymorphic_VT%29.svg/800px-Torsades_de_Pointes_%28polymorphic_VT%29.svg.png',
+    url: 'https://commons.wikimedia.org/wiki/Special:FilePath/Torsades_de_Pointes_(polymorphic_VT).svg?width=800',
     page: 'https://commons.wikimedia.org/wiki/File:Torsades_de_Pointes_(polymorphic_VT).svg',
     label: 'Torsades de Pointes'
   },
   'pulseless electrical activity': {
-    url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/bd/Normal_Sinus_Rhythm_Unlabeled.jpg/800px-Normal_Sinus_Rhythm_Unlabeled.jpg',
+    url: 'https://commons.wikimedia.org/wiki/Special:FilePath/Normal_Sinus_Rhythm_Unlabeled.jpg?width=800',
     page: 'https://commons.wikimedia.org/wiki/File:Normal_Sinus_Rhythm_Unlabeled.jpg',
     label: 'PEA (Organised Rhythm — No Pulse)'
   },
   'pea': {
-    url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/bd/Normal_Sinus_Rhythm_Unlabeled.jpg/800px-Normal_Sinus_Rhythm_Unlabeled.jpg',
+    url: 'https://commons.wikimedia.org/wiki/Special:FilePath/Normal_Sinus_Rhythm_Unlabeled.jpg?width=800',
     page: 'https://commons.wikimedia.org/wiki/File:Normal_Sinus_Rhythm_Unlabeled.jpg',
     label: 'PEA (Organised Rhythm — No Pulse)'
   },
   'asystole': {
-    url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/6/6e/Asystole_2009.jpg/800px-Asystole_2009.jpg',
+    url: 'https://commons.wikimedia.org/wiki/Special:FilePath/Asystole_2009.jpg?width=800',
     page: 'https://commons.wikimedia.org/wiki/File:Asystole_2009.jpg',
     label: 'Asystole'
   },
   '1st degree': {
-    url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/6/6e/First_degree_heart_block.svg/800px-First_degree_heart_block.svg.png',
+    url: 'https://commons.wikimedia.org/wiki/Special:FilePath/First_degree_heart_block.svg?width=800',
     page: 'https://commons.wikimedia.org/wiki/File:First_degree_heart_block.svg',
     label: '1st Degree AV Block'
   },
   'first degree': {
-    url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/6/6e/First_degree_heart_block.svg/800px-First_degree_heart_block.svg.png',
+    url: 'https://commons.wikimedia.org/wiki/Special:FilePath/First_degree_heart_block.svg?width=800',
     page: 'https://commons.wikimedia.org/wiki/File:First_degree_heart_block.svg',
     label: '1st Degree AV Block'
   },
   'premature ventricular': {
-    url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/7/7d/Premature_Ventricular_Complex.svg/800px-Premature_Ventricular_Complex.svg.png',
+    url: 'https://commons.wikimedia.org/wiki/Special:FilePath/Premature_Ventricular_Complex.svg?width=800',
     page: 'https://commons.wikimedia.org/wiki/File:Premature_Ventricular_Complex.svg',
     label: 'Premature Ventricular Complex (PVC)'
   },
   'pvc': {
-    url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/7/7d/Premature_Ventricular_Complex.svg/800px-Premature_Ventricular_Complex.svg.png',
+    url: 'https://commons.wikimedia.org/wiki/Special:FilePath/Premature_Ventricular_Complex.svg?width=800',
     page: 'https://commons.wikimedia.org/wiki/File:Premature_Ventricular_Complex.svg',
     label: 'Premature Ventricular Complex (PVC)'
   },
@@ -2205,15 +2206,8 @@ function getECGImage(rhythmStr) {
 }
 
 async function embedECGImage(imgEl, url) {
-  // Try to fetch as blob for true embedding; fall back to direct src
-  try {
-    const resp = await fetch(url, { mode: 'cors' });
-    if (!resp.ok) throw new Error('fetch failed');
-    const blob = await resp.blob();
-    imgEl.src = URL.createObjectURL(blob);
-  } catch {
-    imgEl.src = url; // fallback to hotlink
-  }
+  imgEl.referrerPolicy = 'no-referrer';
+  imgEl.src = url;
 }
 
 // ============================================================
@@ -2417,7 +2411,7 @@ function renderScenario(s) {
     <div class="section-body open" id="sec-flags">
       <ul class="flags-list">${flagsHtml}</ul>
       ${(s.provisional||s.ddx)?`<div class="ddx-info"><strong>Provisional Dx:</strong> ${s.provisional||'—'}<br><strong>DDx:</strong> ${(s.ddx||[]).join(' / ')||'—'}</div>`:''}
-      ${(()=>{ const ecg = getECGImage(s.vitals&&s.vitals.Rhythm); if(!ecg) return ''; return `<div class="ecg-strip-section"><div class="ecg-strip-label">📈 Reference ECG Strip — ${ecg.label}</div><img class="ecg-strip-img" id="ecg-img-${s.id}" alt="${ecg.label}" onerror="this.style.opacity=0.3"><div class="ecg-strip-caption">Source: <a href="${ecg.page}" target="_blank" rel="noopener">Wikimedia Commons</a> — CC BY-SA / Public Domain</div></div>`; })()}
+      ${(()=>{ const ecg = getECGImage(s.vitals&&s.vitals.Rhythm); if(!ecg) return ''; return `<div class="ecg-strip-section"><div class="ecg-strip-label">📈 Reference ECG Strip — ${ecg.label}</div><img class="ecg-strip-img" id="ecg-img-${s.id}" alt="${ecg.label}" referrerpolicy="no-referrer" onerror="this.style.opacity=0.3"><div class="ecg-strip-caption">Source: <a href="${ecg.page}" target="_blank" rel="noopener">Wikimedia Commons</a> — CC BY-SA / Public Domain</div></div>`; })()}
     </div>
   </div>
 
