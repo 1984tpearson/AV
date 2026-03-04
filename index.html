@@ -538,10 +538,10 @@ body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background
       <div class="api-key-section">
         <h3>🔑 AI Provider</h3>
         <div style="display:flex;gap:8px;margin-bottom:10px">
-          <button id="api-tab-anthropic" class="api-tab-btn active" onclick="switchAPITab('anthropic')">Anthropic (Paid)</button>
-          <button id="api-tab-gemini" class="api-tab-btn" onclick="switchAPITab('gemini')">Google Gemini (Free)</button>
+          <button id="api-tab-gemini" class="api-tab-btn active" onclick="switchAPITab('gemini')">Google Gemini (Free)</button>
+          <button id="api-tab-anthropic" class="api-tab-btn" onclick="switchAPITab('anthropic')">Anthropic (Paid)</button>
         </div>
-        <div id="api-panel-anthropic">
+        <div id="api-panel-anthropic" style="display:none">
           <p style="font-size:12px;color:#7D6608;margin-bottom:8px">Your key is used for this session only and never stored. <a href="https://console.anthropic.com" target="_blank" style="color:var(--amber)">Get a key ↗</a></p>
           <div class="form-group" style="margin-bottom:8px"><input type="password" id="api-key-input" placeholder="sk-ant-api03-…" style="font-family:monospace"></div>
           <div style="display:flex;align-items:center;gap:8px">
@@ -549,7 +549,7 @@ body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background
             <span id="unlock-status" style="font-size:12px;white-space:nowrap"></span>
           </div>
         </div>
-        <div id="api-panel-gemini" style="display:none">
+        <div id="api-panel-gemini">
           <p style="font-size:12px;color:#7D6608;margin-bottom:8px">Free tier via Google AI Studio — get a free key in under a minute.</p>
           <div style="background:var(--blue-light);border:1px solid #AED6F1;border-radius:7px;padding:9px 12px;font-size:12px;color:#1a5276;margin-bottom:10px;line-height:1.6">
             <strong>Steps:</strong> 1. Go to <a href="https://aistudio.google.com/apikey" target="_blank" style="color:var(--blue);font-weight:700">aistudio.google.com/apikey</a> &nbsp;2. Sign in with Google &nbsp;3. Click <strong>Create API key</strong> &nbsp;4. Paste it below
@@ -604,7 +604,7 @@ body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background
       <div style="background:var(--blue-light);border:1px solid #AED6F1;border-radius:8px;padding:10px 14px;font-size:12px;color:#1a5276;margin-bottom:14px">
         📋 Scenarios are generated with reference to <strong>AV Clinical Practice Guidelines Version 3.13.0</strong>. AI-generated content should be independently verified against the current published edition before use in any formal assessment.
       </div>
-      <button class="modal-submit-btn navy" id="generate-scenario-btn" onclick="generateAIScenario()">✦ Generate Scenario</button>
+      <button class="modal-submit-btn navy" id="generate-scenario-btn" onclick="generateAIScenario()">✦ Generate with Gemini (Free)</button>
       <div id="ai-status"></div>
       <div class="save-scenario-bar" id="ai-save-bar">
         <p>✓ Scenario generated! Save it to your permanent library?</p>
@@ -3179,7 +3179,7 @@ function updateScoreSheet() {
 // ============================================================
 // AI MODAL
 // ============================================================
-let currentAPITab = 'anthropic';
+let currentAPITab = 'gemini';
 
 function switchAPITab(tab) {
   currentAPITab = tab;
@@ -3208,7 +3208,7 @@ async function generateAIScenario() {
   btn.textContent = 'Generating…';
   document.getElementById('ai-save-bar').classList.remove('visible');
   lastAIScenario = null;
-  showAIStatus('loading','✦ Generating scenario… this may take 15–30 seconds.');
+  showAIStatus('loading', currentAPITab === 'gemini' ? '✦ Connecting to Gemini… trying available models for your region.' : '✦ Generating scenario… this may take 15–30 seconds.');
 
   const complaintLine = complaint ? `The scenario should involve: ${complaint}.` : `Choose a realistic and educationally valuable ${category} — ${subcategory} presentation.`;
   const patient = randomAustralianPatient();
@@ -3257,20 +3257,41 @@ async function generateWithGemini(systemPrompt, userPrompt) {
   if (!geminiKey) {
     throw new Error('Please paste your Gemini API key above. Get one free at aistudio.google.com/apikey');
   }
-  const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiKey}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      system_instruction: { parts: [{ text: systemPrompt }] },
-      contents: [{ role: 'user', parts: [{ text: userPrompt }] }],
-      generationConfig: { responseMimeType: 'application/json', temperature: 0.7, maxOutputTokens: 4000 }
-    })
-  });
-  if (!response.ok) { const e=await response.json().catch(()=>({})); throw new Error(e.error?.message||`Gemini API error ${response.status}`); }
-  const data = await response.json();
-  const raw = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-  if (!raw) throw new Error('Gemini returned empty response');
-  return JSON.parse(raw.replace(/```json|```/g,'').trim());
+  // Try models in order — free tier availability varies by region
+  const models = ['gemini-1.5-flash', 'gemini-1.5-flash-8b', 'gemini-2.0-flash-lite'];
+  let lastError = null;
+  for (const model of models) {
+    try {
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${geminiKey}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          system_instruction: { parts: [{ text: systemPrompt }] },
+          contents: [{ role: 'user', parts: [{ text: userPrompt }] }],
+          generationConfig: { responseMimeType: 'application/json', temperature: 0.7, maxOutputTokens: 4000 }
+        })
+      });
+      if (!response.ok) {
+        const e = await response.json().catch(()=>({}));
+        const msg = e.error?.message || `HTTP ${response.status}`;
+        // If quota/region issue, try next model
+        if (msg.includes('quota') || msg.includes('limit') || response.status === 429 || response.status === 403) {
+          lastError = `${model}: quota/region issue`; continue;
+        }
+        throw new Error(msg);
+      }
+      const data = await response.json();
+      const raw = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+      if (!raw) { lastError = `${model}: empty response`; continue; }
+      return JSON.parse(raw.replace(/```json|```/g,'').trim());
+    } catch(e) {
+      if (e.message && (e.message.includes('quota') || e.message.includes('limit'))) {
+        lastError = e.message; continue;
+      }
+      throw e;
+    }
+  }
+  throw new Error(`All Gemini free-tier models unavailable in your region. Try using the Anthropic tab instead, or use a VPN set to US. (${lastError})`);
 }
 
 function saveLastAIScenario() {
