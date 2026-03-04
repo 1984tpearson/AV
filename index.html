@@ -3257,8 +3257,13 @@ async function generateWithGemini(systemPrompt, userPrompt) {
   if (!geminiKey) {
     throw new Error('Please paste your Gemini API key above. Get one free at aistudio.google.com/apikey');
   }
-  // Try models in order — free tier availability varies by region
-  const models = ['gemini-1.5-flash', 'gemini-1.5-flash-8b', 'gemini-2.0-flash-lite'];
+  // Try models in order — naming varies by API version; use latest aliases
+  const models = [
+    'gemini-1.5-flash-latest',
+    'gemini-1.5-flash-8b-latest',
+    'gemini-2.0-flash-lite',
+    'gemini-1.5-pro-latest',
+  ];
   let lastError = null;
   for (const model of models) {
     try {
@@ -3275,8 +3280,8 @@ async function generateWithGemini(systemPrompt, userPrompt) {
         const e = await response.json().catch(()=>({}));
         const msg = e.error?.message || `HTTP ${response.status}`;
         // If quota/region issue, try next model
-        if (msg.includes('quota') || msg.includes('limit') || response.status === 429 || response.status === 403) {
-          lastError = `${model}: quota/region issue`; continue;
+        if (msg.includes('quota') || msg.includes('limit') || msg.includes('not found') || msg.includes('not supported') || response.status === 429 || response.status === 403 || response.status === 404) {
+          lastError = `${model}: ${msg.slice(0,80)}`; continue;
         }
         throw new Error(msg);
       }
@@ -3285,8 +3290,8 @@ async function generateWithGemini(systemPrompt, userPrompt) {
       if (!raw) { lastError = `${model}: empty response`; continue; }
       return JSON.parse(raw.replace(/```json|```/g,'').trim());
     } catch(e) {
-      if (e.message && (e.message.includes('quota') || e.message.includes('limit'))) {
-        lastError = e.message; continue;
+      if (e.message && (e.message.includes('quota') || e.message.includes('limit') || e.message.includes('not found') || e.message.includes('not supported'))) {
+        lastError = e.message.slice(0,80); continue;
       }
       throw e;
     }
