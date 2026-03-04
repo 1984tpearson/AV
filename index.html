@@ -634,7 +634,7 @@ body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background
       </div>
       <div class="form-group">
         <label>Your name <span style="color:var(--red)">*</span></label>
-        <input type="text" id="identity-name-input" placeholder="e.g. Tim, Paramedic Trainer…" style="font-size:16px" maxlength="40">
+        <input type="text" id="identity-name-input" placeholder="e.g. CI Smith, PE Johnson…" style="font-size:16px" maxlength="40">
       </div>
       <button class="modal-submit-btn navy" onclick="saveIdentityAndStart()" style="width:100%;margin-top:8px">Get Started →</button>
       <p style="font-size:11px;color:var(--grey);margin-top:10px;text-align:center">Your name is stored on this device only and attached to scenarios you create.</p>
@@ -3447,7 +3447,7 @@ async function generateAIScenario() {
     } else if (currentAPITab === 'groq') {
       scenario = await generateWithGroq(systemPrompt, userPrompt);
     } else {
-      const apiKey = unlockedKey || document.getElementById('api-key-input').value.trim();
+      const apiKey = document.getElementById('api-key-input').value.trim();
       if (!apiKey) { showAIStatus('error','⚠️ Please enter your Anthropic API key (or switch to Free Gemini tab).'); btn.textContent = origLabel; btn.disabled = false; return; }
       scenario = await generateWithAnthropic(apiKey, systemPrompt, userPrompt);
     }
@@ -4041,21 +4041,13 @@ async function revertScenarioEdits() {
 // ============================================================
 // HIDDEN API UNLOCK
 // ============================================================
-const PRELOADED_KEY = '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';
 let unlockedKey = null;
 
 function checkUnlockCode(val) {
+  // Access code feature removed — API key must be entered manually
   const status = document.getElementById('unlock-status');
-  const keyInput = document.getElementById('api-key-input');
-  if (val === 'humeavtest') {
-    unlockedKey = PRELOADED_KEY;
-    if (status) { status.textContent = '✓ Access granted'; status.style.color = 'var(--green)'; }
-    if (keyInput) { keyInput.value = ''; keyInput.placeholder = 'Access code active — no key needed'; keyInput.disabled = true; }
-  } else {
-    unlockedKey = null;
-    if (status) { status.textContent = ''; }
-    if (keyInput) { keyInput.disabled = false; keyInput.placeholder = 'sk-ant-api03-…'; }
-  }
+  if (status) status.textContent = '';
+  unlockedKey = null;
 }
 
 // ============================================================
