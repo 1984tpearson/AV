@@ -622,6 +622,26 @@ body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background
   </div>
 </div>
 
+<!-- Identity Modal -->
+<div class="modal-overlay" id="identity-modal">
+  <div class="modal-inner" style="max-width:420px">
+    <div class="modal-header" style="background:var(--navy)">
+      <h2>👋 Welcome to AV Scenario Trainer</h2>
+    </div>
+    <div class="modal-body">
+      <div class="form-info" style="background:var(--blue-light);border-color:#AED6F1;color:#1a5276;margin-bottom:16px">
+        Scenarios are shared across all users. Enter your name so others can see who created a scenario.
+      </div>
+      <div class="form-group">
+        <label>Your name <span style="color:var(--red)">*</span></label>
+        <input type="text" id="identity-name-input" placeholder="e.g. Tim, Paramedic Trainer…" style="font-size:16px" maxlength="40">
+      </div>
+      <button class="modal-submit-btn navy" onclick="saveIdentityAndStart()" style="width:100%;margin-top:8px">Get Started →</button>
+      <p style="font-size:11px;color:var(--grey);margin-top:10px;text-align:center">Your name is stored on this device only and attached to scenarios you create.</p>
+    </div>
+  </div>
+</div>
+
 <!-- Feedback Modal -->
 <div class="modal-overlay" id="feedback-modal">
   <div class="modal-inner" style="max-width:480px">
@@ -1916,44 +1936,201 @@ let sectionScores = {};
 let kqScores = {};
 
 // ============================================================
-// SHARED STORAGE — custom scenarios persist across devices
-// Uses window.storage (shared=true) so all users see same library
-// Falls back to localStorage if window.storage unavailable
+// SUPABASE — shared cloud storage for all users
 // ============================================================
-const STORAGE_KEY = 'av_custom_scenarios_v1';
-const SHARED_KEY = 'scenarios';
+const SUPABASE_URL  = 'https://befsjenbaruxqrntuhpn.supabase.co';
+const SUPABASE_KEY  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJlZnNqZW5iYXJ1eHFybnR1aHBuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI2MjA5MjAsImV4cCI6MjA4ODE5NjkyMH0.hOFFbIvd1wAgu-QyghupQ-7ttSpg7sxz_UsJbXyXztA';
+const ADMIN_UUID    = 'fe1f2d3f-2139-44ec-bbe0-14ad6bb748ac';
 
-async function loadCustomScenarios() {
-  try {
-    if (window.storage) {
-      const result = await window.storage.get(SHARED_KEY, true);
-      customScenarios = result ? JSON.parse(result.value) : [];
-    } else {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      customScenarios = raw ? JSON.parse(raw) : [];
+// Soft identity — persists in localStorage
+function getIdentity() {
+  let uuid = localStorage.getItem('av_user_uuid');
+  let name = localStorage.getItem('av_user_name');
+  if (!uuid) {
+    uuid = crypto.randomUUID();
+    localStorage.setItem('av_user_uuid', uuid);
+  }
+  return { uuid, name };
+}
+function setIdentityName(name) {
+  localStorage.setItem('av_user_name', name);
+}
+function isAdmin() {
+  return getIdentity().uuid === ADMIN_UUID;
+}
+function canEdit(scenario) {
+  if (!scenario) return false;
+  const { uuid } = getIdentity();
+  return uuid === ADMIN_UUID || scenario.creator_uuid === uuid;
+}
+
+async function sbFetch(path, opts = {}) {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
+    ...opts,
+    headers: {
+      'apikey': SUPABASE_KEY,
+      'Authorization': `Bearer ${SUPABASE_KEY}`,
+      'Content-Type': 'application/json',
+      'Prefer': opts.prefer || 'return=representation',
+      ...(opts.headers || {})
     }
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.message || `Supabase error ${res.status}`);
+  }
+  const text = await res.text();
+  return text ? JSON.parse(text) : [];
+}
+
+// Convert a JS scenario object → Supabase row shape
+function toRow(s, overrides = {}) {
+  return {
+    id:           String(s.id),
+    title:        s.title || '',
+    subtitle:     s.subtitle || '',
+    category:     s.category || 'Custom',
+    subcategory:  s.subcategory || '',
+    type:         s.type || 'medical',
+    cpg:          s.cpg || '',
+    level:        s.level || 'C/D',
+    dispatch:     s.dispatch || '',
+    vitals:       s.vitals || {},
+    key_hx:       s.key_hx || '',
+    flags:        s.flags || [],
+    ddx:          s.ddx || [],
+    provisional:  s.provisional || '',
+    treatment:    s.treatment || [],
+    kq:           s.kq || [],
+    creator_uuid: s.creator_uuid || getIdentity().uuid,
+    creator_name: s.creator_name || getIdentity().name || 'Anonymous',
+    ai_generated: !!s.ai_generated,
+    is_builtin:   !!s.is_builtin,
+    ...overrides
+  };
+}
+
+// Convert a Supabase row → JS scenario shape
+function fromRow(r) {
+  return {
+    id:           r.id,
+    title:        r.title,
+    subtitle:     r.subtitle,
+    category:     r.category,
+    subcategory:  r.subcategory,
+    type:         r.type,
+    cpg:          r.cpg,
+    level:        r.level,
+    dispatch:     r.dispatch,
+    vitals:       r.vitals || {},
+    key_hx:       r.key_hx,
+    flags:        r.flags || [],
+    ddx:          r.ddx || [],
+    provisional:  r.provisional,
+    treatment:    r.treatment || [],
+    kq:           r.kq || [],
+    creator_uuid: r.creator_uuid,
+    creator_name: r.creator_name,
+    ai_generated: r.ai_generated,
+    is_builtin:   r.is_builtin,
+    custom:       !r.is_builtin
+  };
+}
+
+// Seed the 30 built-in scenarios into Supabase if not already there
+async function seedBuiltinsIfNeeded() {
+  try {
+    const existing = await sbFetch('scenarios?is_builtin=eq.true&select=id', { prefer: 'return=representation' });
+    if (existing.length >= SCENARIOS.length) return; // already seeded
+    const existingIds = new Set(existing.map(r => String(r.id)));
+    const toInsert = SCENARIOS
+      .filter(s => !existingIds.has(String(s.id)))
+      .map(s => toRow(s, { is_builtin: true, creator_uuid: ADMIN_UUID, creator_name: 'AV Trainer (Built-in)' }));
+    if (toInsert.length === 0) return;
+    // Insert in batches of 10
+    for (let i = 0; i < toInsert.length; i += 10) {
+      await sbFetch('scenarios', {
+        method: 'POST',
+        prefer: 'return=minimal',
+        body: JSON.stringify(toInsert.slice(i, i + 10))
+      });
+    }
+    console.log(`Seeded ${toInsert.length} built-in scenarios`);
   } catch(e) {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      customScenarios = raw ? JSON.parse(raw) : [];
-    } catch(e2) { customScenarios = []; }
+    console.warn('Seed failed, falling back to local SCENARIOS array', e);
+  }
+}
+
+// Load all scenarios from Supabase
+async function loadAllScenariosFromCloud() {
+  try {
+    const rows = await sbFetch('scenarios?order=is_builtin.desc,created_at.asc&select=*');
+    return rows.map(fromRow);
+  } catch(e) {
+    console.warn('Cloud load failed, using local SCENARIOS', e);
+    return null;
+  }
+}
+
+// customScenarios = non-builtin scenarios loaded from cloud (for backward compat with rest of code)
+async function loadCustomScenarios() {
+  const all = await loadAllScenariosFromCloud();
+  if (all) {
+    customScenarios = all.filter(s => !s.is_builtin);
+  } else {
+    customScenarios = [];
   }
   updateCustomCount();
 }
 
+// Save a single new scenario to Supabase
+async function saveScenarioToCloud(scenario) {
+  const row = toRow(scenario);
+  await sbFetch('scenarios', {
+    method: 'POST',
+    prefer: 'return=minimal',
+    body: JSON.stringify(row)
+  });
+}
+
+// Update an existing scenario in Supabase
+async function updateScenarioInCloud(scenario) {
+  const row = toRow(scenario);
+  await sbFetch(`scenarios?id=eq.${encodeURIComponent(String(scenario.id))}`, {
+    method: 'PATCH',
+    prefer: 'return=minimal',
+    body: JSON.stringify(row)
+  });
+}
+
+// Delete a scenario from Supabase
+async function deleteScenarioFromCloud(id) {
+  await sbFetch(`scenarios?id=eq.${encodeURIComponent(String(id))}`, {
+    method: 'DELETE',
+    prefer: 'return=minimal'
+  });
+}
+
+// Legacy compat — called by old code paths after mutations
 async function saveCustomScenarios() {
-  try {
-    if (window.storage) {
-      await window.storage.set(SHARED_KEY, JSON.stringify(customScenarios), true);
-    } else {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(customScenarios));
-    }
-  } catch(e) {
-    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(customScenarios)); } catch(e2) {}
-  }
   updateCustomCount();
   buildHomeCategoryCards();
 }
+
+function updateCustomCount() {
+  const el = document.getElementById('custom-count');
+  if (el) el.textContent = customScenarios.length;
+}
+
+function getAllScenarios() {
+  // If cloud loaded, customScenarios is non-builtins; builtins come from cloud too
+  // but we also always merge with local SCENARIOS as fallback
+  const cloudIds = new Set(customScenarios.map(s => String(s.id)));
+  // Use local SCENARIOS for any builtin not overridden by a cloud custom edit
+  const localBuiltins = SCENARIOS.filter(s => !cloudIds.has(String(s.id)));
+  return [...localBuiltins, ...customScenarios];
+}
+
 
 function updateCustomCount() {
   const el = document.getElementById('custom-count');
@@ -2010,14 +2187,50 @@ function getOverallScore() {
 // INIT
 // ============================================================
 document.addEventListener('DOMContentLoaded', async () => {
+  // Ensure user has an identity
+  const identity = getIdentity();
+  if (!identity.name) {
+    // Show identity prompt before anything else
+    document.getElementById('identity-modal').classList.add('open');
+  } else {
+    await initApp();
+  }
+});
+
+async function initApp() {
+  showToast('☁️ Loading scenarios…', 3000);
+  await seedBuiltinsIfNeeded();
   await loadCustomScenarios();
+
+  // After cloud load, rebuild getAllScenarios to use cloud data properly
+  try {
+    const allCloud = await loadAllScenariosFromCloud();
+    if (allCloud && allCloud.length > 0) {
+      // Override customScenarios with full cloud set (non-builtins)
+      customScenarios = allCloud.filter(s => !s.is_builtin);
+      // Replace getAllScenarios to return full cloud set
+      window._cloudScenarios = allCloud;
+    }
+  } catch(e) {}
+
   buildSidebar(getAllScenarios());
   buildHomeCategoryCards();
-  // Show disclaimer unless user has previously accepted it
+  updateCustomCount();
+
+  // Show disclaimer unless accepted
   if (!localStorage.getItem('av_disclaimer_accepted')) {
     document.getElementById('disclaimer-modal').classList.add('open');
   }
-});
+}
+
+// Override getAllScenarios to use cloud cache when available
+const _originalGetAllScenarios = getAllScenarios;
+function getAllScenarios() {
+  if (window._cloudScenarios && window._cloudScenarios.length > 0) {
+    return window._cloudScenarios;
+  }
+  return _originalGetAllScenarios();
+}
 
 // ============================================================
 // SIDEBAR
@@ -2142,7 +2355,7 @@ function buildSidebar(scenarios) {
               <div class="si-title">${s.title}</div>
               <div class="si-sub">${s.subtitle||''}</div>
               <div class="si-cpg">${s.cpg||''}</div>
-              <div class="si-badges">${s.ai_generated?'<span class="si-badge ai">AI</span>':''}${s.custom&&!s.ai_generated?'<span class="si-badge custom">Custom</span>':''}${s._edited?'<span class="si-badge" style="background:#16A085;color:white">Edited</span>':''}</div>
+              <div class="si-badges">${s.ai_generated?'<span class="si-badge ai">AI</span>':''  }${!s.is_builtin&&!s.ai_generated?'<span class="si-badge custom">Custom</span>':''  }${s.creator_name&&!s.is_builtin?`<span class="si-badge" style="background:#EBF5FB;color:var(--blue);border:1px solid #AED6F1">${s.creator_name}</span>`:''}</div>
             </div>`).join('')}
           </div>
         </div>`;
@@ -3345,18 +3558,32 @@ async function generateWithGroq(systemPrompt, userPrompt) {
 }
 
 
-function saveLastAIScenario() {
+async function saveLastAIScenario() {
   if (!lastAIScenario) return;
-  // Check not already saved
   if (customScenarios.find(x => x.id === lastAIScenario.id)) {
     showToast('Already saved!');
     return;
   }
-  customScenarios.push(lastAIScenario);
-  saveCustomScenarios();
-  buildSidebar(getAllScenarios());
-  document.getElementById('ai-save-bar').innerHTML = '<p style="color:var(--green)">✓ Saved to your permanent library! Find it in the sidebar.</p>';
-  showToast('✓ Scenario saved to library');
+  const { uuid, name } = getIdentity();
+  lastAIScenario.creator_uuid = uuid;
+  lastAIScenario.creator_name = name || 'Anonymous';
+  lastAIScenario.is_builtin = false;
+  lastAIScenario.custom = true;
+  const btn = document.querySelector('#ai-save-bar button');
+  if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
+  try {
+    await saveScenarioToCloud(lastAIScenario);
+    customScenarios.push(lastAIScenario);
+    if (window._cloudScenarios) window._cloudScenarios.push(lastAIScenario);
+    buildSidebar(getAllScenarios());
+    buildHomeCategoryCards();
+    updateCustomCount();
+    document.getElementById('ai-save-bar').innerHTML = '<p style="color:var(--green)">✓ Saved to shared library! Everyone can see it in the sidebar.</p>';
+    showToast('✓ Scenario saved to shared library');
+  } catch(e) {
+    if (btn) { btn.disabled = false; btn.textContent = '💾 Save to Library'; }
+    showToast('⚠️ Save failed: ' + e.message);
+  }
 }
 
 function showAIStatus(type, msg) {
@@ -3430,7 +3657,7 @@ function setKQMax(idx, val) {
   document.getElementById(`kqmb-${idx}-2`).classList.toggle('active', val===2);
 }
 
-function saveManualScenario() {
+async function saveManualScenario() {
   const title = document.getElementById('c-title').value.trim();
   const catVal = document.getElementById('c-category').value;
   const [category, subcategory] = catVal.includes('|') ? catVal.split('|') : [catVal, catVal];
@@ -3472,14 +3699,23 @@ function saveManualScenario() {
     }).filter(Boolean)
   };
 
-  customScenarios.push(scenario);
-  saveCustomScenarios();
-  buildSidebar(getAllScenarios());
-  closeCreateModal();
-  showToast('✓ Scenario saved to library!');
+  const { uuid, name } = getIdentity();
+  scenario.creator_uuid = uuid;
+  scenario.creator_name = name || 'Anonymous';
 
-  // Auto-load it
-  loadScenario(scenario.id);
+  try {
+    await saveScenarioToCloud(scenario);
+    customScenarios.push(scenario);
+    if (window._cloudScenarios) window._cloudScenarios.push(scenario);
+    buildSidebar(getAllScenarios());
+    buildHomeCategoryCards();
+    updateCustomCount();
+    closeCreateModal();
+    showToast('✓ Scenario saved to shared library!');
+    loadScenario(scenario.id);
+  } catch(e) {
+    showToast('⚠️ Save failed: ' + e.message);
+  }
 }
 
 // ============================================================
@@ -3494,8 +3730,12 @@ document.getElementById('manage-modal').addEventListener('click', e => { if(e.ta
 
 function renderManageModal() {
   const body = document.getElementById('manage-modal-body');
+  const { uuid, name } = getIdentity();
+  const adminBadge = isAdmin() ? ' 🔑 Admin' : '';
+  const cloudBanner = `<div style="background:#E8F8F5;border:1px solid #A2D9CE;border-radius:8px;padding:8px 12px;font-size:12px;color:#1E8449;margin-bottom:12px">☁️ <strong>Supabase sync active</strong> — scenarios shared with all users.${adminBadge ? `<span style="color:var(--amber);font-weight:700"> ${adminBadge}</span>` : ''}<br><span style="color:var(--grey)">You: ${name || 'Anonymous'}</span></div>`;
+
   if (customScenarios.length === 0) {
-    body.innerHTML = `<div class="no-custom-msg">
+    body.innerHTML = `${cloudBanner}<div class="no-custom-msg">
       <div style="font-size:36px;margin-bottom:12px">📋</div>
       <p>No custom scenarios yet.</p>
       <p style="margin-top:6px">Use the AI Generator or Create Manually to add scenarios.</p>
@@ -3506,28 +3746,41 @@ function renderManageModal() {
     </div>`;
     return;
   }
-  body.innerHTML = `
-    <p style="font-size:12px;color:var(--grey);margin-bottom:12px">${customScenarios.length} custom scenario${customScenarios.length>1?'s':''} saved to this device.</p>
+  body.innerHTML = `${cloudBanner}
+    <p style="font-size:12px;color:var(--grey);margin-bottom:12px">${customScenarios.length} custom scenario${customScenarios.length>1?'s':''} saved.</p>
     ${customScenarios.map(s=>`
       <div class="manage-scenario-item">
         <div class="msi-info">
           <div class="msi-title">${s.title}</div>
-          <div class="msi-sub">${s.subtitle||s.category} ${s.ai_generated?'· AI generated':'· Manual'}</div>
+          <div class="msi-sub">${s.subtitle||s.category} · ${s.ai_generated?'AI':'Manual'} · <em>${s.creator_name||'Unknown'}</em></div>
         </div>
         <button class="action-btn" onclick="closeManageModal();loadScenario('${s.id}')" style="margin-right:4px">Load</button>
-        <button class="msi-delete-btn" onclick="deleteCustomScenario('${s.id}')">Delete</button>
+        ${canEdit(s) ? `<button class="msi-delete-btn" onclick="deleteCustomScenario('${s.id}')">Delete</button>` : ''}
       </div>`).join('')}
     <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--border)">
       <button onclick="if(confirm('Delete ALL custom scenarios?')){customScenarios=[];saveCustomScenarios();buildSidebar(getAllScenarios());renderManageModal();}" style="width:100%;padding:12px;background:var(--red-light);color:var(--red);border:1px solid #F5B7B1;border-radius:8px;font-weight:700;cursor:pointer;font-size:13px">🗑 Delete All Custom Scenarios</button>
     </div>`;
 }
 
-function deleteCustomScenario(id) {
-  customScenarios = customScenarios.filter(s => String(s.id) !== String(id));
-  saveCustomScenarios();
-  buildSidebar(getAllScenarios());
-  renderManageModal();
-  showToast('Scenario deleted');
+async function deleteCustomScenario(id) {
+  const scenario = [...customScenarios, ...(window._cloudScenarios||[])].find(s => String(s.id) === String(id));
+  if (scenario && !canEdit(scenario)) {
+    showToast('⚠️ You can only delete your own scenarios');
+    return;
+  }
+  if (!confirm('Delete this scenario for everyone?')) return;
+  try {
+    await deleteScenarioFromCloud(id);
+    customScenarios = customScenarios.filter(s => String(s.id) !== String(id));
+    if (window._cloudScenarios) window._cloudScenarios = window._cloudScenarios.filter(s => String(s.id) !== String(id));
+    buildSidebar(getAllScenarios());
+    buildHomeCategoryCards();
+    updateCustomCount();
+    renderManageModal();
+    showToast('✓ Scenario deleted');
+  } catch(e) {
+    showToast('⚠️ Delete failed: ' + e.message);
+  }
 }
 
 // ============================================================
@@ -3656,7 +3909,7 @@ function getRepListValues(listId) {
   return Array.from(document.querySelectorAll(`#${listId} .repeating-item input`)).map(i=>i.value.trim()).filter(Boolean);
 }
 
-function saveEditedScenario() {
+async function saveEditedScenario() {
   if (!currentScenario) return;
   const orig = currentScenario;
 
@@ -3695,16 +3948,40 @@ function saveEditedScenario() {
     }).filter(Boolean)
   };
 
-  // Store in custom scenarios (keyed by original ID so it overrides)
-  const existingIdx = customScenarios.findIndex(s => s._originalId === edited._originalId || s.id === orig.id);
-  if (existingIdx >= 0) {
-    customScenarios[existingIdx] = edited;
+  // Preserve creator info — only update if we own it, or make a clone
+  const { uuid, name } = getIdentity();
+  if (!canEdit(orig)) {
+    // Not owner — clone as new scenario instead of overwriting
+    edited.id = 'custom_' + Date.now();
+    edited.creator_uuid = uuid;
+    edited.creator_name = name || 'Anonymous';
+    edited._clonedFrom = orig.id;
+    edited.is_builtin = false;
+    edited.custom = true;
+    delete edited._edited;
+    delete edited._originalId;
+    try {
+      await saveScenarioToCloud(edited);
+      customScenarios.push(edited);
+      if (window._cloudScenarios) window._cloudScenarios.push(edited);
+      showToast('✓ Saved as your own copy');
+    } catch(e) { showToast('⚠️ Save failed: ' + e.message); return; }
   } else {
-    // For built-in scenarios, store with original id so it takes precedence
-    edited.id = orig.id; // keep same id so sidebar item loads it
-    customScenarios.push(edited);
+    // Owner — update in place
+    edited.creator_uuid = orig.creator_uuid || uuid;
+    edited.creator_name = orig.creator_name || name;
+    try {
+      await updateScenarioInCloud(edited);
+      const existingIdx = customScenarios.findIndex(s => String(s.id) === String(edited.id));
+      if (existingIdx >= 0) customScenarios[existingIdx] = edited;
+      else customScenarios.push(edited);
+      if (window._cloudScenarios) {
+        const ci = window._cloudScenarios.findIndex(s => String(s.id) === String(edited.id));
+        if (ci >= 0) window._cloudScenarios[ci] = edited; else window._cloudScenarios.push(edited);
+      }
+      showToast('✓ Scenario updated');
+    } catch(e) { showToast('⚠️ Update failed: ' + e.message); return; }
   }
-  saveCustomScenarios();
   buildSidebar(getAllScenarios());
   closeEditModal();
 
@@ -3725,16 +4002,22 @@ function saveEditedScenario() {
   showToast('✓ Scenario saved — edits applied');
 }
 
-function revertScenarioEdits() {
+async function revertScenarioEdits() {
   if (!currentScenario) return;
   const origId = currentScenario._originalId || currentScenario.id;
-  const confirmed = confirm('Revert to the original built-in version? Your edits to this scenario will be deleted.');
+  const confirmed = confirm('Delete this scenario? This cannot be undone.');
   if (!confirmed) return;
-  customScenarios = customScenarios.filter(s => s._originalId !== origId && s.id !== origId);
-  saveCustomScenarios();
+  try {
+    // Only delete if it is a custom/non-builtin scenario
+    if (!currentScenario.is_builtin) {
+      await deleteScenarioFromCloud(currentScenario.id);
+      customScenarios = customScenarios.filter(s => String(s.id) !== String(currentScenario.id));
+      if (window._cloudScenarios) window._cloudScenarios = window._cloudScenarios.filter(s => String(s.id) !== String(currentScenario.id));
+    }
+  } catch(e) { showToast('⚠️ Error: ' + e.message); return; }
   closeEditModal();
-  // Reload original
-  const orig = SCENARIOS.find(s => s.id === origId || String(s.id) === String(origId));
+  // Try to reload the original builtin from cloud
+  const orig = (window._cloudScenarios || SCENARIOS).find(s => String(s.id) === String(origId));
   if (orig) {
     buildSidebar(getAllScenarios());
     currentScenario = orig;
@@ -3747,8 +4030,11 @@ function revertScenarioEdits() {
       if (h) h.classList.add('open');
     });
     showStickyBar(orig);
-    showToast('↺ Reverted to original');
   }
+  buildSidebar(getAllScenarios());
+  buildHomeCategoryCards();
+  updateCustomCount();
+  showToast('✓ Scenario deleted');
 }
 
 
@@ -3963,9 +4249,26 @@ function acceptDisclaimer() {
 }
 
 // ============================================================
+// IDENTITY
+// ============================================================
+function saveIdentityAndStart() {
+  const name = (document.getElementById('identity-name-input').value || '').trim();
+  if (!name) { showToast('⚠️ Please enter your name'); return; }
+  setIdentityName(name);
+  document.getElementById('identity-modal').classList.remove('open');
+  initApp();
+}
+
+// Allow pressing Enter in the name field
+document.addEventListener('DOMContentLoaded', () => {
+  const inp = document.getElementById('identity-name-input');
+  if (inp) inp.addEventListener('keydown', e => { if (e.key === 'Enter') saveIdentityAndStart(); });
+});
+
+// ============================================================
 // TOAST
 // ============================================================
-function showToast(msg) {
+function showToast(msg, duration) {
   const t = document.getElementById('toast');
   t.textContent = msg;
   t.classList.add('show');
