@@ -99,10 +99,11 @@ body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background
 .welcome-header { background: var(--navy); color: white; border-radius: 12px; padding: 24px 24px; margin-bottom: 16px; }
 .welcome-header h2 { font-size: 20px; font-weight: 700; margin-bottom: 6px; }
 .welcome-header p { font-size: 13px; opacity: 0.8; }
-.stats-grid { display: grid; grid-template-columns: repeat(5,1fr); gap: 6px; margin-bottom: 14px; }
-.stat-card { background: white; border-radius: 8px; padding: 8px 6px; text-align: center; border: 1px solid var(--border); box-shadow: var(--shadow); }
-.stat-card .stat-num { font-size: 18px; font-weight: 800; line-height: 1; }
-.stat-card .stat-label { font-size: 10px; color: var(--grey); margin-top: 3px; text-transform: uppercase; letter-spacing: 0.3px; }
+.stats-grid { display: grid; grid-template-columns: repeat(2,1fr); gap: 10px; margin-bottom: 16px; }
+@media (min-width: 600px) { .stats-grid { grid-template-columns: repeat(4,1fr); } }
+.stat-card { background: white; border-radius: 10px; padding: 14px; text-align: center; border: 1px solid var(--border); box-shadow: var(--shadow); }
+.stat-card .stat-num { font-size: 26px; font-weight: 800; line-height: 1; }
+.stat-card .stat-label { font-size: 11px; color: var(--grey); margin-top: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
 .stat-card.navy .stat-num { color: var(--navy); }
 .stat-card.red .stat-num { color: var(--red); }
 .stat-card.blue .stat-num { color: var(--blue); }
@@ -307,14 +308,14 @@ body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background
 .save-scenario-bar { background: var(--green-light); border: 1px solid #A9DFBF; border-radius: 8px; padding: 12px 14px; margin-top: 14px; display: none; flex-direction: column; gap: 8px; }
 .save-scenario-bar.visible { display: flex; }
 .save-scenario-bar p { font-size: 12px; color: var(--green); font-weight: 600; }
-.recent-scenarios-section { margin-bottom: 8px; }
-.recent-scenarios-title { font-size: 11px; font-weight: 700; color: var(--grey); text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 10px; }
-.recent-scenario-item { display: flex; align-items: center; gap: 12px; padding: 13px 15px; background: white; border: 1.5px solid #e0e6ed; border-radius: 10px; margin-bottom: 7px; cursor: pointer; transition: background 0.15s, border-color 0.15s, box-shadow 0.15s; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
-.recent-scenario-item:hover { background: #f0f4f8; border-color: var(--navy); box-shadow: 0 2px 8px rgba(0,40,80,0.1); }
-.recent-si-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
-.recent-si-title { font-size: 15px; font-weight: 700; color: var(--navy); flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.recent-si-sub { font-size: 12px; color: var(--grey); flex-shrink: 0; font-weight: 500; }
-.recent-si-badge { font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 5px; flex-shrink: 0; }
+.recent-scenarios-section { margin-bottom: 6px; }
+.recent-scenarios-title { font-size: 12px; font-weight: 700; color: var(--grey); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px; }
+.recent-scenario-item { display: flex; align-items: center; gap: 10px; padding: 9px 12px; background: white; border: 1px solid #e8ecf0; border-radius: 8px; margin-bottom: 5px; cursor: pointer; transition: background 0.15s, border-color 0.15s; }
+.recent-scenario-item:hover { background: #f0f4f8; border-color: var(--navy); }
+.recent-si-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.recent-si-title { font-size: 13px; font-weight: 600; color: var(--navy); flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.recent-si-sub { font-size: 11px; color: var(--grey); flex-shrink: 0; }
+.recent-si-badge { font-size: 10px; font-weight: 700; padding: 1px 5px; border-radius: 4px; flex-shrink: 0; }
 .recent-si-badge.ai { background: #FEF9E7; color: var(--amber); border: 1px solid #F9E79F; }
 .recent-si-badge.custom { background: #EBF5FB; color: var(--blue); border: 1px solid #AED6F1; }
 .save-btn { padding: 10px 18px; background: var(--green); color: white; border: none; border-radius: 8px; font-weight: 700; font-size: 13px; cursor: pointer; min-height: var(--tap); align-self: flex-start; }
@@ -516,7 +517,7 @@ body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background
         <div class="stat-card purple"><div class="stat-num">4</div><div class="stat-label">Maternity</div></div>
         <div class="stat-card green" id="custom-stat"><div class="stat-num" id="custom-count">0</div><div class="stat-label">Custom</div></div>
       </div>
-      <div id="home-recent-scenarios" style="margin:14px 0 6px">
+      <div id="home-recent-scenarios" style="margin:18px 0 4px">
         <!-- populated by buildRecentScenariosList() -->
       </div>
       <div class="category-overview" id="home-category-overview">
@@ -3575,6 +3576,13 @@ document.getElementById('ai-modal').addEventListener('click', e => { if(e.target
 // AV CPG PACKAGES + COMBINATIONS — v3.13.1 (December 2025)
 // Inlined from cpg_packages.js for AI scenario grounding
 // ============================================================
+// ============================================================
+// AV CPG CLINICAL PACKAGES - Version 3.13.1 (December 2025)
+// Source: cpg_packages.js + cpg_packages_extended.js
+// ⚠️  DO NOT MODIFY clinical content without explicit instruction from Tim.
+//     All content must be traceable to a specific AV CPG version.
+//     Do not invent, infer, or add guidelines without being asked.
+// ============================================================
 const CPG_PACKAGES = {
 
   // ─────────────────────────────────────────────
@@ -4098,6 +4106,272 @@ const CPG_PACKAGES = {
     sceneSafety: "Uncapped sharps. PPE. Multi-casualty potential."
   },
 
+
+  // ═══════════════════════════════════════════════
+  // TOXICOLOGY — from CPG_PACKAGES_EXTENDED (AV CPG v3.13.1)
+  // ═══════════════════════════════════════════════
+
+  tca_toxicity: {
+    cpg: "A0723",
+    version: "4.1.1",
+    title: "Tricyclic Antidepressant (TCA) Toxicity",
+    patientGroup: "All patients with suspected TCA toxicity",
+    careObjectives: [
+      "Management with Sodium Bicarbonate",
+      "Supportive management of airway, perfusion, and seizures"
+    ],
+    commonTCAs: "Amitriptyline (Endep, Entrip) — most common. Also: clomipramine, dosulepin, doxepin, imipramine, nortriptyline.",
+    pathophysiology: "Sodium channel blockade → QRS widening + myocardial dysfunction. Alpha-adrenergic blockade → hypotension. Anticholinergic effects.",
+    toxicityRisk: "Onset 30–90 min. >10 mg/kg potentially toxic. Severe toxicity >20 mg/kg.",
+    clinicalFeatures: {
+      mildModerate: "Sedation, tachycardia, anticholinergic toxidrome (mydriasis, warm dry skin, dry mouth, urinary retention, delirium)",
+      severe: "Rapid sedation → coma, seizures. QRS widening + tachycardia (early). Progressive QRS widening + bradycardia + ventricular arrhythmias + hypotension (late). Respiratory depression."
+    },
+    management: {
+      sodiumBicarbonate_indications: "QRS widening, hypotension, ventricular arrhythmias (NOT QT prolongation alone)",
+      sodiumBicarbonate_dose: "8.4% Sodium Bicarbonate 1–2 mL/kg (up to 100 mL) IV every 3–5 min. Max total 6 mL/kg. Aim pH 7.50–7.55 if iSTAT available. Max 2 doses without consult.",
+      sodiumBicarbonate_preIntubation: "Give 100 mL NaHCO3 IV just prior to intubation to limit acidosis",
+      airway: "Consider intubation (ETT) if unable to support own airway + severe toxicity persists",
+      seizures: "Midazolam as per seizures CPG"
+    },
+    pitfalls: [
+      "QT prolongation alone is NOT an indication for NaHCO3 — only QRS widening",
+      "Rapid deterioration — QRS widening → seizures → cardiac arrest possible quickly",
+      "Acidosis worsens toxicity — hyperventilate and give NaHCO3 prior to intubation"
+    ]
+  },
+
+  beta_blocker_toxicity: {
+    cpg: "A0717",
+    version: "1.1.2",
+    title: "Beta-Blocker Toxicity",
+    patientGroup: "Patients with suspected beta-blocker toxicity",
+    careObjectives: [
+      "Targeted management of bradycardia and inadequate perfusion",
+      "Early consultation with VPIC",
+      "Supportive management of hypoglycaemia and seizures"
+    ],
+    pathophysiology: "Beta-blockade → bradyarrhythmias + reduced cardiac output. Propranolol also has Na channel effects (QRS widening). Sotalol has K channel effects (QT prolongation).",
+    toxicityRisk: "Onset 1–2 hours (delayed in modified release). Propranolol and sotalol most toxic. Elderly, cardiac disease, co-ingestion with CV medications = higher risk at lower doses.",
+    clinicalFeatures: {
+      allBetaBlockers: "Bradycardia, hypotension, pulmonary oedema, 1st/2nd/3rd degree heart block. Hypoglycaemia (metabolic).",
+      sotalol: "Prolonged QT, Torsade de Pointes",
+      propranolol: "Widened QRS complex, ventricular arrhythmias, seizures (Na channel effect)"
+    },
+    management: {
+      atropine: "600 mcg IV/IO, repeat once if inadequate response",
+      fluidResuscitation: "Normal Saline titrated to response. Standard max 2000 mL, fluid overload risk max 1000 mL.",
+      vasopressors: "Adrenaline infusion if atropine ineffective",
+      hypoglycaemia: "Treat as per Hypoglycaemia CPG",
+      seizures: "Midazolam as per Seizures CPG",
+      ecmo: "Consider ECMO centre transport if severe cardiogenic shock or cardiac arrest — consult VPIC",
+      consultation: "VPIC early — especially co-ingestion, refractory hypotension, arrhythmias"
+    },
+    pitfalls: [
+      "Consult VPIC early — management is complex",
+      "Modified release preparations: onset may be delayed",
+      "Sotalol → TdP — do NOT give amiodarone",
+      "Propranolol → QRS widening (sodium channel) — consider NaHCO3 consult"
+    ]
+  },
+
+  ccb_toxicity: {
+    cpg: "A0718",
+    version: "1.2.0",
+    title: "Calcium Channel Blocker (CCB) Toxicity",
+    patientGroup: "Patients with suspected CCB toxicity",
+    careObjectives: [
+      "Targeted management of bradycardia and inadequate perfusion",
+      "Early administration of calcium gluconate",
+      "Early consultation with VPIC"
+    ],
+    classification: {
+      nonDihydropyridine: "Verapamil, diltiazem — cardioselective, most toxic. Bradycardia + heart block + myocardial depression.",
+      dihydropyridine: "Amlodipine, felodipine, lercanidipine, nifedipine, nimodipine — vasoselective. Hypotension, tachycardia (reflex), less bradycardia."
+    },
+    toxicityRisk: "2–3x usual dose = serious toxicity. >10 tablets can be life-threatening. Onset 1–2 hrs (delayed up to 12 hrs for modified release). One diltiazem/verapamil SR tablet can be fatal in children.",
+    clinicalFeatures: {
+      all: "Hypotension, shock, altered GCS, hyperglycaemia, lactic acidosis, nausea/vomiting",
+      nonDihydropyridine: "Bradycardia/bradyarrhythmias, 1st degree heart block, pulmonary oedema"
+    },
+    management: {
+      calciumGluconate: "10% Calcium Gluconate 30 mL (3 g) IV over 3–5 min. Repeat once if inadequate response.",
+      atropine: "600 mcg IV. Atropine often inadequate in CCB toxicity — do not delay calcium for atropine. Max total 3000 mcg if patient initially responds but not sustained.",
+      fluids: "Normal Saline titrated. Standard max 2000 mL, fluid overload max 1000 mL.",
+      vasopressors: "Adrenaline or noradrenaline if calcium + fluids insufficient",
+      consultation: "VPIC early. For cardiac arrest — consider mechanical CPR to closest ED (consult VPIC)."
+    },
+    pitfalls: [
+      "Symptoms may be delayed 12 hours with modified release — monitor prolonged period",
+      "Atropine often inadequate — do not rely on it, do not delay calcium",
+      "Hyperglycaemia expected — CCBs inhibit insulin secretion",
+      "ECMO or mechanical support may be required — consult VPIC early"
+    ]
+  },
+
+  organophosphate_toxicity: {
+    cpg: "A0709",
+    version: "5.1.1",
+    title: "Organophosphate Toxicity",
+    patientGroup: "All patients with suspected organophosphate toxicity",
+    careObjectives: [
+      "Recognise organophosphate toxicity / cholinergic toxidrome",
+      "Ensure scene safety and decontamination where required",
+      "Administer atropine and ensure sufficient supply"
+    ],
+    sceneSafety: "Dynamic risk assessment. PPE. Consider deliberate act. Multi-casualty potential.",
+    pathophysiology: "Inhibits acetylcholinesterase → excess acetylcholine → cholinergic toxidrome",
+    toxidrome: {
+      nicotinic: "Tachycardia, hypertension, muscle fasciculations, weakness, paralysis",
+      muscarinic: "SLUDGE (salivation, lacrimation, urination, defecation, GI distress, emesis), bronchorrhea, bronchospasm, bradycardia, hypotension, miosis, diaphoresis",
+      cns: "Confusion, agitation, seizures, coma"
+    },
+    management: {
+      decontamination: "Remove clothing → plastic bag. Wash skin with soap and water. Isolate emesis. Adequate ventilation.",
+      atropine_dose: "Atropine IV every 5 minutes, doubling previous dose: 1200 mcg → 2400 mcg → 4800 mcg etc. Up to 25 mg. Paediatric: 50 mcg/kg doubling same pattern.",
+      atropine_endpoint: "Drying of secretions, not HR or pupil size",
+      atropine_infusion: "10–20% of total atropine used, per hour (consult VPIC via AV Clinician)",
+      supportCare: "Airway, seizures (midazolam), fluids",
+      consultation: "VPIC via AV Clinician for inadequate response or complex presentations"
+    },
+    pitfalls: [
+      "Source sufficient atropine early — very large doses required",
+      "Do NOT use atropine HR as endpoint — secretion control is the target",
+      "Smell from patient is usually solvent, not secondary OP poisoning risk"
+    ]
+  },
+
+  cyanide_toxicity: {
+    cpg: "A0720",
+    version: "1.1.0",
+    title: "Cyanide Toxicity",
+    patientGroup: "All patients with suspected cyanide toxicity",
+    careObjectives: [
+      "Recognise cyanide toxicity",
+      "Early administration of antidote (hydroxocobalamin)",
+      "Provide perfusion support if necessary",
+      "Transport to nearest ED"
+    ],
+    sceneSafety: "Dynamic risk assessment. PPE. Consider deliberate act. Multi-casualty potential.",
+    pathophysiology: "Blocks oxygen use at cellular level → intracellular hypoxia → anaerobic metabolism → lactic acidosis → widespread cellular hypoxia → respiratory/cardiac arrest. 1 mg/kg ingestion may be lethal. Onset within 30 minutes.",
+    sources: "House fires (burning plastics, polyurethane), industrial (mining, electroplating), stone fruit seeds (crushed/blended), cassava root (incorrect preparation)",
+    management: {
+      antidote: "Hydroxocobalamin (Cyanokit) 5 g (2 vials) IV over 15 minutes. NOT standard AV supply — may be available at high-risk industrial sites.",
+      supportive: "Oxygen (100%), IV fluids, vasopressors if required",
+      houseFires: "Always consider concurrent carbon monoxide poisoning"
+    },
+    pitfalls: [
+      "Consider in ALL house fire patients with unexplained altered GCS or cardiovascular collapse",
+      "Hydroxocobalamin not on ambulance — locate at scene (industrial sites may have it)",
+      "Concurrent CO poisoning common in house fires"
+    ]
+  },
+
+  drug_induced_hyperthermia: {
+    cpg: "A0719",
+    version: "1.0.3",
+    title: "Drug Induced Hyperthermia (Serotonin Syndrome / Stimulant Toxidrome)",
+    patientGroup: "Patients ≥16 years with suspected drug induced hyperthermia",
+    careObjectives: [
+      "Early identification",
+      "Control temperature — sedate, cool, hydrate",
+      "Supportive care"
+    ],
+    keyFeatures: "Hyperthermia + altered mental status + neuromuscular excitation (tremor, increased tone)",
+    causativeAgents: "Amphetamines (ice, speed), cocaine, MDMA (XTC), SSRIs, SNRIs, MAO inhibitors, lithium, tramadol, PCP",
+    severity: {
+      mild: "Tremor, tachycardia, anxiety, hyperreflexia, dilated pupils, dry mouth, flushed skin",
+      moderate: "Agitation, increased muscle tone, tachycardia, hyperthermia <39°C",
+      severe: "Hyperthermia ≥39°C, muscle rigidity, seizures, confusion, severe agitation. Clonus may be present."
+    },
+    management: {
+      mild: "Monitor for deterioration. Reduce stimulus — calming environment. Transport.",
+      moderate_sedate: "Midazolam — reduces physical activity/tremor/clonus contributing to hyperthermia AND manages ABD. Do NOT use physical restraints without sedation.",
+      moderate_cool: "Active cooling — strip/spray/fan. IV fluids.",
+      severe_sedate: "Midazolam — titrate to effect",
+      severe_cool: "Aggressive active cooling. Ice bath if available.",
+      severe_airway: "RSI/intubation may be required — neuromuscular paralysis assists cooling in toxin-induced cases",
+      consultation: "VPIC mandatory for moderate/severe"
+    },
+    pitfalls: [
+      "Physical restraints without sedation are dangerous — exertion worsens hyperthermia",
+      "Standard cooling less effective without addressing underlying toxin — may need RSI for neuromuscular paralysis",
+      "Clonus is a key diagnostic feature — rhythmic involuntary muscle contractions"
+    ]
+  },
+
+  quetiapine_toxicity: {
+    cpg: "A0721",
+    version: "1.2.1",
+    title: "Quetiapine Toxicity",
+    patientGroup: "Patients with suspected quetiapine toxicity",
+    careObjectives: [
+      "Airway management",
+      "Management of inadequate perfusion"
+    ],
+    brands: "Seroquel (most common), Kaptan, Quetia, Syquet, Quepine XR, Quetia XR, Tevatiapine XR",
+    pathophysiology: "Anticholinergic properties + CNS depression + cardiovascular instability in large doses. Immediate-release and extended-release (XR) available.",
+    toxicityRisk: "Adults: >3 g associated with severe CNS depression/hypotension. Onset <4 hrs (standard release), up to 12 hrs (XR). Coma may last >72 hrs after large ingestions.",
+    clinicalFeatures: "Tachycardia, hypotension, sedation → coma, respiratory depression, anticholinergic delirium/urinary retention. Seizures rare.",
+    management: {
+      inadequatePerfusion: "IV fluids first line. Metaraminol or noradrenaline as first-line vasopressors if hypotension persists. Adrenaline with caution (may worsen hypotension via beta-mediated vasodilation) — only after VPIC consultation.",
+      airway: "Monitor closely. Intubate if unable to protect airway.",
+      general: "Notify hospital early even when symptoms not yet severe."
+    },
+    pitfalls: [
+      "Avoid adrenaline as first-line vasopressor — may worsen hypotension",
+      "XR preparation can have delayed onset up to 12 hrs — prolonged observation required",
+      "Coma may last >72 hrs — early hospital notification essential"
+    ]
+  },
+
+  alcohol_intoxication: {
+    cpg: "A0726",
+    version: "1.1.0",
+    title: "Acute Alcohol Intoxication (Ethanol)",
+    patientGroup: "Patients ≥16 years with suspected acute ethanol intoxication, no other acute medical conditions",
+    careObjectives: [
+      "Identify and assess severity of ethanol toxicity",
+      "Protect and support patient dignity",
+      "Manage symptoms as required",
+      "Low-moderate risk: self-care or sobering services | High risk: transport to ED"
+    ],
+    differentials: "Always exclude: seizure/postictal, hypoglycaemia, hypoxia, co-ingestion, acute withdrawal, head trauma, infection/sepsis, psychiatric, stroke/TIA, Wernicke encephalopathy",
+    management: {
+      lowModerateRisk: "Supportive care. Monitor. Consider sobering services.",
+      highRisk: "Transport to ED. Manage complications (airway, hypoglycaemia, seizure).",
+      wernickePrevention: "Thiamine IV 200 mg for chronic alcohol users at risk of Wernicke encephalopathy."
+    },
+    pitfalls: [
+      "Chronic alcohol users at risk of withdrawal syndrome even when intoxicated — screen carefully",
+      "Toxic alcohols (methanol, ethylene glycol) require VPIC consultation — do NOT manage under this CPG",
+      "Always exclude head injury and hypoglycaemia before attributing solely to alcohol"
+    ]
+  },
+
+  alcohol_withdrawal: {
+    cpg: "A0727",
+    version: "1.0.0",
+    title: "Alcohol Withdrawal Syndrome",
+    patientGroup: "Patients ≥16 years with alcohol withdrawal syndrome",
+    careObjectives: [
+      "Identify and assess severity",
+      "Symptomatic management",
+      "Mild/moderate without complex features: community withdrawal | Moderate with complex features/severe: transport to ED"
+    ],
+    overview: "Up to 50% of alcohol use disorder patients will experience withdrawal when stopping or reducing. Onset 6–24 hours after last drink. Peak 36–72 hours.",
+    management: {
+      benzodiazepines: "Midazolam IV preferred for significant distress/agitation. Goal: rousable drowsiness (SAT 0 or -1). Symptom-based dosing.",
+      antiemetic: "As per N&V CPG",
+      analgesia: "As per Pain Relief CPG"
+    },
+    pitfalls: [
+      "Withdrawal can occur despite appearing intoxicated in high-volume chronic users",
+      "Screen for concurrent mental health conditions",
+      "Delirium Tremens risk with score >14"
+    ]
+  },
+
   // ─────────────────────────────────────────────
   // HYPERKALAEMIA (CPG A0724)
   // ─────────────────────────────────────────────
@@ -4120,6 +4394,583 @@ const CPG_PACKAGES = {
       intracellularShift: "Salbutamol 10–20 mg nebulised (activates Na/K pumps). Dextrose + insulin (hospital). Sodium bicarbonate if severe acidosis.",
       transport: "Urgent to ICU-capable facility"
     }
+  },
+
+  // ═══════════════════════════════════════════════
+  // EXTENDED PACKAGES — from CPG_PACKAGES_EXTENDED (AV CPG v3.13.1)
+  // ⚠️  DO NOT MODIFY clinical content without explicit instruction.
+  // Source: ALS-MICA Clinical Practice Guidelines v3.13.1
+  // ═══════════════════════════════════════════════
+
+  acute_behavioural_disturbance: {
+    cpg: "A0708",
+    version: "6.5.0",
+    title: "Acute Behavioural Disturbance",
+    patientGroup: "Patients ≥16 years with agitation, aggression, or violent behaviour",
+    careObjectives: [
+      "Maintain safe environment for patients, staff, and bystanders",
+      "Use least restrictive means possible; maintain verbal and environmental de-escalation throughout",
+      "Consider clinical causes of acute behavioural disturbance"
+    ],
+    agitationSeverity: {
+      mild: "Able to cooperate, not aggressive. Anxious, pacing, restless, hypervigilant, rapid shallow breathing.",
+      moderate: "Loud outbursts, frequent non-purposeful movements. Not aggressive or violent.",
+      severe: "Combative, violent, immediate danger. Unable to cooperate. Yelling, verbally abusive."
+    },
+    causes: [
+      "Physical injury / pain (e.g. head injury)",
+      "Acute medical conditions (e.g. hypoglycaemia, postictal state)",
+      "Unmet needs (e.g. bladder distension, hunger, alcohol/nicotine withdrawal)",
+      "Substance abuse / poisoning (e.g. methamphetamine, alcohol)",
+      "Acute mental health condition (e.g. panic attack, acute mania)",
+      "Dementia / delirium",
+      "Neurodiversity (e.g. autism, ADHD) — especially in young patients"
+    ],
+    management: {
+      deEscalation: [
+        "Nominate one person to build rapport and communicate",
+        "Non-threatening stance; quiet, calm, reassuring voice",
+        "Reduce stimulus — noise, light, crowding",
+        "Use patient's name; give simple one-at-a-time instructions",
+        "No threats, ultimatums, or show of force"
+      ],
+      sedation: {
+        mildAgitation: "Verbal/environmental de-escalation only",
+        moderateAgitation: "Consider oral olanzapine or droperidol IM",
+        severeAgitation: "Droperidol IM first line. Midazolam IM if droperidol unavailable or contraindicated.",
+        drugs: {
+          droperidol: "10 mg IM. Onset 5–10 min.",
+          midazolam: "10 mg IM (or 5 mg IV/IO). Use if droperidol unavailable.",
+          olanzapine: "10 mg IM or oral. Do NOT combine with benzodiazepines (respiratory depression risk)."
+        },
+        safetyNote: "Do not apply physical restraints without concurrent sedation. Physical exertion against restraint worsens risk."
+      }
+    },
+    pitfalls: [
+      "Always exclude medical causes — hypoglycaemia, head injury, postictal state mimic ABD",
+      "Never olanzapine + benzodiazepine simultaneously — high risk respiratory depression",
+      "Neurodiversity requires adapted communication — seek family/carer input",
+      "Assessment is ongoing — severity is dynamic"
+    ]
+  },
+
+  mental_health_conditions: {
+    cpg: "A0107",
+    version: "2.3.1",
+    title: "Mental Health Conditions",
+    note: "Framework CPG. Key guidance: olanzapine-only sedation patients may not require transport — TelePROMPT can advise community-based care. Use Mental Health Destination Tool / VACIS for appropriate ED destination.",
+    disposition: "Use Mental Health Destination Tool, VACIS, or AV Clinician to select appropriate destination"
+  },
+
+  syncope: {
+    cpg: "A0725",
+    version: "1.0.1",
+    title: "Syncope",
+    patientGroup: "Patients ≥16 years with transient loss of consciousness",
+    careObjectives: [
+      "Identify patients suffering from syncope",
+      "Symptomatic management if required",
+      "Identify appropriate care pathway based on risk profile"
+    ],
+    overview: "Syncope = transient loss of consciousness due to cerebral hypoperfusion. Rapid onset, short duration, spontaneous complete recovery.",
+    classification: {
+      reflex: "Vasovagal — preceded by unpleasant stimulus, prolonged standing, meals. Autonomic symptoms (pallor, sweating, nausea). Recurrent history. No pre-existing heart disease.",
+      orthostatic: "Occurs on standing or immediately post-exertion. Systolic drop ≥20 mmHg or diastolic drop ≥10 mmHg on standing.",
+      cardiovascular: "During exertion or when supine. Sudden onset palpitations immediately before collapse. Structural heart or coronary artery disease. Concerning ECG findings."
+    },
+    highRiskFeatures: [
+      "Syncope during exertion",
+      "Syncope when supine",
+      "Family history of unexplained sudden death at young age",
+      "Structural heart or coronary artery disease",
+      "Bradycardia not explained by conditioning",
+      "2nd or 3rd degree AV block",
+      "SVT or paroxysmal AF",
+      "Pre-excited QRS complexes (WPW)"
+    ],
+    management: {
+      lowRisk: "Refer to VVED. Must send 12-lead ECG with VVED referral. Self-care: lie flat, elevate feet, move slowly when standing.",
+      highRisk: "Transport to ED. Manage as per appropriate CPG for underlying condition."
+    },
+    differentials: "Syncope may mimic seizure (tonic-clonic movements) — look for tongue biting, incontinence, postictal phase. May also mimic TIA/stroke."
+  },
+
+  pulmonary_embolism: {
+    cpg: "A0605",
+    version: "1.0.0",
+    title: "Pulmonary Embolism",
+    patientGroup: "All patients with suspected PE",
+    careObjectives: [
+      "Identify patients in whom PE is a likely diagnosis",
+      "Maintain adequate oxygenation and perfusion through supportive care",
+      "Targeted management in setting of cardiac arrest"
+    ],
+    riskFactors: [
+      "Previous DVT/PE",
+      "Immobilisation or surgery within 4 weeks",
+      "Malignancy within 6 months",
+      "Oral contraceptive or oestrogen use",
+      "Pregnancy",
+      "Known thrombophilia"
+    ],
+    diagnosis: {
+      commonSigns: "Dyspnoea, tachypnoea, pleuritic pain — at least one present in >90% of patients with PE",
+      ecgFindings: "Sinus tachycardia most common. T wave inversion V1-V4 and Lead III, RBBB, right axis deviation, S1Q3T3 (uncommon). ~25% have no ECG changes."
+    },
+    management: [
+      "Oxygen as per CPG A0001",
+      "Avoid NIV if PE is the most likely cause and perfusion is borderline — positive pressure worsens preload",
+      "NIV acceptable if other causes more probable and perfusion adequate",
+      "Caution with intubation — right heart strain patients prone to sudden decompensation",
+      "Manage shock as per Cardiogenic/Inadequate Perfusion CPG",
+      "Cardiac arrest: consult AV Clinician for thrombolysis consideration if witnessed arrest due to known/strongly suspected PE. Requires resources for 60 min CPR post-thrombolysis.",
+      "ECMO eligible — consult AV Clinician early"
+    ]
+  },
+
+  upper_airway_obstruction: {
+    cpg: "A0603",
+    version: "2.0.0",
+    title: "Upper Airway Obstruction",
+    patientGroup: "Patients aged ≥12 with stridor",
+    careObjectives: ["Urgently identify and manage airway obstruction indicated by stridor"],
+    overview: "Stridor = obstruction of ≥50% of internal upper airway diameter. Always an emergency. Can be mistaken for asthma — bronchodilators will NOT help.",
+    causes: {
+      acute: "Infectious (epiglottitis, Ludwig's angina), foreign body, allergic reaction, airway burns",
+      chronic: "Structural abnormalities, tumours. Inducible laryngeal obstruction (vocal cord dysfunction)."
+    },
+    management: [
+      "Follow patient's action plan if they have one",
+      "Degree of respiratory distress dictates urgency",
+      "Intubation is likely to be difficult — prepare dual setup (CPG A0303 Difficult Airway)",
+      "Supraglottic techniques unlikely to be effective",
+      "Inter-hospital transfer without intubation: notify Adult Retrieval Victoria and formulate airway plan"
+    ]
+  },
+
+  dyspnoea: {
+    cpg: "A0604",
+    version: "1.0.0",
+    title: "Dyspnoea (Undifferentiated)",
+    patientGroup: "Patients aged ≥16 years with dyspnoea",
+    careObjectives: [
+      "Assess and identify most likely cause; manage as per appropriate guideline",
+      "Manage respiratory distress and hypoxia with oxygen or NIV if required"
+    ],
+    overview: "Dyspnoea is a subjective sensation of breathing discomfort. Wide range of causes. May not be possible to confirm diagnosis in prehospital setting.",
+    differentials: {
+      respiratory: "Asthma, COPD, pneumonia, PE, pneumothorax, upper airway obstruction, pleural effusion",
+      cardiac: "ACS, APO, arrhythmia, cardiac tamponade",
+      other: "Stroke, DKA, sepsis, anaphylaxis, toxidromes, anaemia, anxiety/hyperventilation"
+    },
+    keyDifferentiation: {
+      asthma: "Minutes to hours onset. Wheeze/cough/chest tightness. Known history, triggers.",
+      copd: "Hours to days. Progressive dyspnoea, increased sputum. Known COPD, smoker.",
+      apoCPO: "Hours to days. Pink frothy sputum, orthopnoea. History of cardiac failure.",
+      pe: "Acute onset. Pleuritic pain, tachypnoea. Risk factors (DVT, surgery, malignancy)."
+    },
+    note: "This is a framework CPG — direct to specific CPG once likely cause identified."
+  },
+
+  hyperglycaemia: {
+    cpg: "A0713",
+    version: "2.0.0",
+    title: "Hyperglycaemia and Ketosis (DKA/HHS)",
+    patientGroup: "All patients with hyperglycaemia",
+    careObjectives: [
+      "Identification of high-risk hyperglycaemia",
+      "Hydration where indicated"
+    ],
+    overview: "DKA and HHS are the two most serious metabolic complications of diabetes. DKA = hyperglycaemia + elevated ketones + metabolic acidosis. HHS = severe hyperglycaemia + profound dehydration without elevated ketones.",
+    diagnosis: {
+      dka: {
+        definition: "Ketones >3 mmol/L. Classic signs: dehydration, polyuria, polydipsia, tachypnoea, nausea/vomiting, abdominal pain, altered GCS.",
+        ketoneThresholds: "Normal <0.6 | Needs medical review 0.6–3 | DKA suspected >3",
+        notes: "DKA can occur at BGL 11–29 mmol/L (euglycaemic DKA possible with SGLT2i). Can occur in undiagnosed diabetes."
+      },
+      hhs: {
+        definition: "Severe hyperglycaemia + profound dehydration, without elevated ketones. Mostly type 2 diabetes. Mortality 5–20%."
+      },
+      euglycaemicDKA: "SGLT2i (dapagliflozin/empagliflozin) patients can have DKA with near-normal BGL. Check ketones if on SGLT2i and unwell."
+    },
+    management: [
+      "Adequate fluid replacement is the goal of pre-hospital care",
+      "Normal Saline: standard patients max 2000 mL, fluid overload risk max 1000 mL, administer over 1 hour if BP >90 mmHg otherwise bolus",
+      "Do NOT administer insulin prehospital — worsens clinical status without blood chemistry",
+      "Do NOT encourage patient to self-administer insulin prior to transport",
+      "Intubate only if unable to maintain airway or severely decompensating respiratorily — tachypnoea manages metabolic acidosis",
+      "Transport to ED"
+    ],
+    pitfalls: [
+      "SGLT2i patients can have DKA with normal BGL — always check ketones if on these drugs and unwell",
+      "DKA is NOT only young type 1 diabetics — occurs in type 2, elderly, pregnancy",
+      "Withholding patient's usual long-acting insulin not recommended"
+    ]
+  },
+
+  nausea_vomiting: {
+    cpg: "A0701",
+    version: "3.1.0",
+    title: "Nausea and Vomiting",
+    patientGroup: "All patients with nausea/vomiting",
+    management: {
+      general: [
+        "If nausea/vomiting tolerated — basic care and referral/transport only",
+        "IV Normal Saline reduces nausea regardless of antiemetic (avoid in cardiac/renal failure history)",
+        "Pregnant patients: prefer fluid rehydration first; consider severity before ondansetron"
+      ],
+      ondansetron: {
+        route: "ODT (oral disintegrating tablet) preferred. IV available. IM permissible if oral/IV impossible: 4 mg IM (8 mg max).",
+        contraindications: "Long QT syndrome — do NOT give. If VT/TdP follows ondansetron, do NOT give amiodarone (further QT prolongation). Cardiovert instead.",
+        interaction: "Do NOT use ondansetron for tramadol-induced nausea — antagonises analgesia at same receptor."
+      },
+      prochlorperazine: "IM route only"
+    },
+    vvedReferral: "Viral gastroenteritis, influenza-like illness, UTI, food poisoning, medication side effects, hyperemesis of pregnancy, migraine, inner ear disorders, heat illness — all suitable if adequate social support."
+  },
+
+  headache: {
+    cpg: "A0502",
+    version: "2.0.0",
+    title: "Headache",
+    patientGroup: "Patients ≥16 years with headache",
+    careObjectives: [
+      "Risk stratify patients with headache",
+      "High-risk: transport to ED. Low-moderate risk: VVED referral"
+    ],
+    classification: {
+      primary: "No identifiable pathology — tension, migraine, cluster. Painful but benign.",
+      secondary: "Underlying pathology — ranges from life-threatening (ICH, meningitis) to benign (URTI)."
+    },
+    highRiskFeatures: [
+      "Thunderclap headache (sudden onset, worst of life)",
+      "New onset ≥50 years",
+      "Headache with fever, neck stiffness, photophobia (meningitis)",
+      "Progressive headache over days/weeks",
+      "Headache after head trauma",
+      "Associated neurological symptoms",
+      "Headache with immunosuppression or known malignancy",
+      "Worsened by position change, coughing, sneezing"
+    ],
+    migraine: {
+      history: "Onset typically adolescence. Recurrent episodes 4–72 hours. Family history common. May have aura.",
+      pitfall: "Migraine can mimic stroke, ICH, meningitis. Do NOT attribute symptoms to migraine without previous diagnosis."
+    },
+    management: {
+      highRisk: "Transport to ED",
+      lowModerateRisk: "VVED referral. Analgesia as per CPG A0501-1 Pain Relief."
+    }
+  },
+
+  pain_relief: {
+    cpg: "A0501-1",
+    version: "Current",
+    title: "Pain Relief",
+    careObjectives: ["Reduce pain to a degree the patient is comfortable"],
+    approach: "Multi-modal analgesia preferred — smaller doses of multiple agents rather than large doses of single agent",
+    management: {
+      moderate: {
+        withIVAccess: "IV opioids + paracetamol preferred. IV preferred in elderly/frail.",
+        withoutIVAccess: "IN fentanyl or IN ketamine + paracetamol"
+      },
+      severe: {
+        firstLine: "IV morphine or IV fentanyl titrated to effect. Consult for further doses beyond maximum.",
+        ketamineIndications: "Limited effect from opioids, opioids contraindicated, opioid tolerant, patient declines opioids"
+      },
+      ketamine: {
+        cautions: "Anxiety/psychosis history — use with caution. Elderly/frail — prefer IN fentanyl.",
+        monitoring: "ETCO2 monitoring and line-of-sight required when ketamine used."
+      },
+      intranasal: "Half dose each nostril. Max 1 mL per nostril per dose. Add 0.1 mL for dead space in small doses.",
+      monitoring: "Minimum every 15 minutes: airway, RR, SpO2, HR, BP, SAT score"
+    },
+    contraindications: {
+      morphine: "Hypotension, nausea/vomiting, severe headache. If contraindicated IM: use fentanyl IM."
+    }
+  },
+
+  burns: {
+    cpg: "A0805",
+    version: "3.2.1",
+    title: "Burns",
+    careObjectives: [
+      "Identify and manage potential airway burns as priority",
+      "Maintain tissue perfusion, minimise pain, cool burns appropriately, minimise heat loss"
+    ],
+    airwayBurnSigns: [
+      "Burns to upper torso, neck, face",
+      "Facial and upper airway oedema",
+      "Sooty sputum",
+      "Burns in enclosed space",
+      "Singed facial hair (nasal, eyebrows, eyelashes)",
+      "Respiratory distress, stridor",
+      "Hypoxia (restlessness, irritability, cyanosis, decreased GCS)"
+    ],
+    management: {
+      cooling: "Running water 5–15°C for 20 minutes. Stop if shivering or temp ≤35°C. No ice/iced water. Dirty water avoided. Chemical burns: irrigate until pain resolves.",
+      dressing: "Cling wrap applied longitudinally (allows for swelling). Preferred for all burns.",
+      heatLoss: "Normothermia is vital. Assess temperature early. Remove burnt/chemical clothing when safe — do not remove adhered matter.",
+      fluids: "Volume replacement calculated for burn only. Electrical burns: extra fluid for rhabdomyolysis risk.",
+      analgesia: "As per CPG A0501-1"
+    },
+    wallaceNines: "Head 9%, Torso front 18%, Torso back 18%, Each arm 9%, Each leg 18%, Groin 1%",
+    transport: {
+      criteria: ">20% TBSA, suspected airway burns, >1000V electrical burns — transport to Alfred Hospital if within 60 min. >60 min: nearest highest trauma service.",
+      faceHandsFeetGenitalsJoints: "Assess at major burns service (not necessarily Alfred if distance prohibitive — secondary transfer acceptable)"
+    },
+    pitfalls: [
+      "Intubation + paralysis increases hypothermia risk — temperature management becomes critical",
+      "Electrical burns underestimate injury — high rhabdomyolysis risk, extra fluids"
+    ]
+  },
+
+  chest_injury: {
+    cpg: "A0802",
+    version: "7.0.1",
+    title: "Chest Injury",
+    patientGroup: "Patients ≥16 with chest injury",
+    careObjectives: [
+      "Adequate oxygenation",
+      "Effective pain relief to maintain adequate ventilation",
+      "Early identification and management of tension pneumothorax"
+    ],
+    pathologies: {
+      ribFractures: ">3 fractures associated with higher complication rates. Flail segment: multiple fractures in >1 location each, segment moves paradoxically on inspiration.",
+      pneumothorax: "Air in pleural cavity → partial lung collapse. Simple/open/closed. Monitor for tension progression.",
+      haemothorax: "Blood in pleural cavity. Massive >1500 mL can cause tension and hypovolaemia.",
+      tensionPneumothorax: "Air valve → progressive expansion → mediastinal shift → obstructive shock + cardiac arrest."
+    },
+    tensionDiagnosis: {
+      spontaneouslyBreathing: "Progressive worsening. Predominantly hypoxaemia and increasing respiratory distress. Haemodynamic compromise is a late sign.",
+      ventilated: "Rapid (seconds to minutes). Predominantly haemodynamic compromise + hypoxaemia. Increased peak inspiratory pressure, decreased ETCO2. High index of suspicion post-CPR or in major trauma."
+    },
+    tensionSigns: "Inadequate perfusion, increasing respiratory distress, SpO2 <92% on O2, distended neck veins, tracheal deviation (unreliable late signs)",
+    management: {
+      tensionPneumothorax: "Needle decompression (2nd ICS midclavicular line or 4th/5th ICS anterior axillary line). Finger thoracostomy in intubated patients.",
+      openWound: "Chest seal (vented preferred). Monitor for tension development.",
+      pain: "Adequate analgesia essential — pain limits ventilation. IV opioids + paracetamol.",
+      rib: "Monitor and supportive care. High index of suspicion for underlying pneumothorax."
+    },
+    pitfalls: [
+      "Equal air entry does NOT exclude pneumothorax — referred sounds in ventilated patients",
+      "Subcutaneous emphysema not always present in pneumothorax",
+      "Ventilated patients develop tension rapidly — always high suspicion in major trauma with chest injury"
+    ]
+  },
+
+  hypothermia: {
+    cpg: "A0901",
+    version: "3.0.1",
+    title: "Hypothermia / Cold Exposure",
+    patientGroup: "Patients ≥16 years with hypothermia",
+    classification: {
+      mild: "32–35°C",
+      moderate: "28–32°C",
+      severe: "<28°C"
+    },
+    careObjectives: [
+      "Identify and appropriately manage hypothermic patients",
+      "Minimise risk of major trauma patients becoming hypothermic"
+    ],
+    management: {
+      allPatients: [
+        "Ambulance patient compartment target ≥24°C",
+        "Remove wet clothes, dry patient, thermal protection",
+        "Warm IV fluids via fluid warmer if available",
+        "Do not microwave IV fluid bags"
+      ],
+      cardiacArrhythmias: "Arrhythmias associated with <33°C. Gentle handling essential. Atrial arrhythmias/bradycardia resolve on rewarming — no antiarrhythmics unless decompensation. Defibrillation and cardioactive drugs may be ineffective at <30°C.",
+      cardiacArrest: "If temp <30°C, double interval between adrenaline and amiodarone doses (as per cardiac arrest CPG). VF may resolve spontaneously on rewarming."
+    },
+    pitfalls: [
+      "Hypothermia is insidious — consider in elderly regardless of presenting complaint",
+      "Potential major trauma patients get thermal management regardless of temperature",
+      "Do not give antiarrhythmics routinely — arrhythmias usually resolve on rewarming"
+    ]
+  },
+
+  hyperthermia_environmental: {
+    cpg: "A0902",
+    version: "4.1.0",
+    title: "Hyperthermia / Heat Stress",
+    careObjectives: [
+      "Identify and appropriately manage hyperthermic patients",
+      "Aggressive cooling is the focus"
+    ],
+    definition: "Heat stroke = temperature >40°C with CNS dysfunction. Urgent medical emergency. Treat aggressively if symptoms consistent even if exact temperature not met.",
+    management: {
+      cooling: "Strip / spray / fan. Vigorous active fanning required — passive AC inadequate. Ice bath if available (especially exertional). Target temperature <40°C within 30 minutes.",
+      fluids: "Cold IV fluid titrated to perfusion. Slower rate in elderly or impaired cardiac/renal function. Cold oral fluids if patient able.",
+      position: "Flat or lateral. Avoid head-up — worsens hypotension.",
+      toxinInduced: "Standard cooling less effective if toxin not addressed. RSI/neuromuscular paralysis may be appropriate in severe toxin-induced hyperthermia — see CPG A0719 Drug Induced Hyperthermia."
+    },
+    riskGroups: "Elderly ≥65 — independent risk factor for hospital/ICU admission and death. Low threshold for transport.",
+    exertionalGroups: "Groups affected (e.g. events) — request ice/water resources for multiple patients"
+  },
+
+  maternity_patient: {
+    cpg: "M0101-1",
+    title: "The Maternity Patient — General Assessment Framework",
+    definitions: {
+      term: "37–42 weeks",
+      preterm: "23–<37 weeks",
+      show: "Vaginal discharge of mucous and blood",
+      srom: "Spontaneous rupture of membranes — gush of clear/pink fluid",
+      meconium: "Greenish/brown stained amniotic fluid",
+      firstStage: "Onset of regular contractions (every 2–20 min, 20–60 sec duration) to full cervical dilatation",
+      secondStage: "Full cervical dilatation to birth. Primipara 1–2 hours, Multipara 15–45 minutes.",
+      imminentBirth: "Active pushing/grunting, rectal pressure, bulging perineum, presenting part crowning, mother states 'I'm going to have the baby'",
+      precipitateBirth: "Unusually rapid labour <4 hours. Rapid intrauterine pressure change may cause cerebral irritation in newborn."
+    },
+    homeBirthRole: "AV paramedic works with hospital-endorsed midwives. Paramedic takes clinical lead in non-hospital-program home births. PIPER for obstetric emergencies."
+  },
+
+  preeclampsia_eclampsia: {
+    cpg: "M0202",
+    version: "2.0.1",
+    title: "Pre-eclampsia / Eclampsia",
+    overview: "Time-critical emergencies. Early recognition + intervention + prompt transport reduces mortality.",
+    preeclampsiaFeatures: "Headache, cerebral irritability/agitation, visual disturbances (flashing lights), nausea/vomiting, heartburn/epigastric pain, hyper-reflexia. BP elevation of ≥20 mmHg above normal may indicate pre-eclampsia if other signs present.",
+    eclampsia: {
+      overview: "Most common cause of seizures in pregnancy = pre-existing epilepsy. New onset seizures in latter half of pregnancy most commonly eclampsia.",
+      seizures: "Usually <90 seconds and self-limiting. May occur up to 48 hours post-birth. No reliable clinical predictor.",
+      definitiveRx: "Birth of the baby"
+    },
+    management: {
+      field: "Supportive care. Early hospital notification. Consult PIPER via Clinician or 1300 137 650.",
+      iht_micaOnly: {
+        nifedipine: "10 mg oral, repeat after 30 minutes if inadequate",
+        magnesiumSulphate: "4 g IV over 10–15 min loading (or IM). Maintenance 1 g/hr for ≥24 hrs post-delivery or last seizure. Dedicated line + controlled infusion device + ECG monitoring.",
+        labetalol: "20 mg IV over 2 min. Repeat every 10 min to max 300 mg. Or 20–160 mg/hr infusion.",
+        hydralazine: "5–10 mg IV bolus"
+      }
+    },
+    consultation: "PIPER via AV Clinician or 1300 137 650"
+  },
+
+  normal_birth: {
+    cpg: "M0301",
+    version: "2",
+    title: "Normal Birth",
+    note: "Flowchart-based CPG. Key: imminent birth signs → prepare equipment → warm environment → controlled delivery → clamp and cut cord → assess newborn (CPG N0101) → placenta delivery → PIPER consult if complications."
+  },
+
+  breech_birth: {
+    cpg: "M0302",
+    version: "2",
+    title: "Breech / Compound Presentation",
+    types: {
+      frankBreech: "Buttocks first, flexed hips, extended legs. Most common = 50% of all breech.",
+      completeBreech: "Buttocks first, flexed hips and knees.",
+      footling: "One or both feet presenting."
+    },
+    keyPrinciples: [
+      "Hands-off approach — encourage spontaneous birth. Do not pull baby.",
+      "Only touch to gently support.",
+      "Meconium passage is normal as buttocks are compressed.",
+      "Cord prolapse more common with breech — be vigilant.",
+      "If birth not imminent and known breech: transport to obstetric unit with surgical capacity.",
+      "Warm environment essential — cool air can stimulate breathing before head delivered.",
+      "Prepare for newborn resuscitation as per CPG N0201."
+    ],
+    position: "Lithotomy position on stretcher/bed or kneeling on all fours if back not uppermost."
+  },
+
+  cord_prolapse: {
+    cpg: "M0304",
+    version: "2.1.0",
+    title: "Cord Prolapse",
+    overview: "Time-critical emergency. Early diagnosis + immediate intervention + prompt transport reduces perinatal mortality. Notify hospital early.",
+    management: [
+      "If birth imminent with crowning: encourage pushing — prepare for newborn resuscitation",
+      "Otherwise: relieve cord compression — elevate presenting part off cord manually",
+      "Minimise cord handling — vasospasm/contraction risk",
+      "Urgent transport to obstetric facility with surgical capability (C-section preferred delivery method)",
+      "PIPER consult via Clinician or 1300 137 650"
+    ],
+    keyHistory: "Time membranes ruptured, duration cord visible, due date, fetal movement, onset of labour, contractions, fetal presentation, PV bleeding"
+  },
+
+  shoulder_dystocia: {
+    cpg: "M0305",
+    version: "2",
+    title: "Shoulder Dystocia",
+    overview: "Time-critical — 5–7 minutes to deliver due to cord compression against pelvic rim. Newborn likely compromised — prepare resuscitation.",
+    management: [
+      "Explain situation to mother — maximise cooperation",
+      "HELPERR mnemonic approach",
+      "McRoberts manoeuvre (hyperflexion of hips) first line",
+      "Suprapubic pressure — directed downward",
+      "Internal rotational manoeuvres (Rubin, Woods screw)",
+      "Deliver posterior arm",
+      "If unsuccessful: consult PIPER regarding transport",
+      "Document times: head born, manoeuvres used, body delivered"
+    ],
+    note: "May cause clavicle fracture — manage with arm immobilisation",
+    consultation: "PIPER via Clinician or 1300 137 650"
+  },
+
+  the_newborn: {
+    cpg: "N0101",
+    version: "2.3.0",
+    title: "The Newborn Baby",
+    careObjectives: [
+      "Establish and maintain effective respiration",
+      "Prevent hypothermia",
+      "Transport to appropriate facility"
+    ],
+    normalValues: {
+      weight: "3.5 kg avg full term",
+      bloodVolume: "80 mL/kg",
+      hr: "110–170",
+      rr: "25–60",
+      temp: "36.5–37.5°C",
+      bgl: "2.6–3.2 mmol/L"
+    },
+    targetSpO2: {
+      min1: "60–70%",
+      min3: "70–90%",
+      min5: "80–90%",
+      min7to10: ">90%"
+    },
+    oxygenNote: "Supplemental O2 not required if breathing effectively and HR >100. Pulse oximeter: right wrist/hand (pre-ductal).",
+    appearance: "Dusky/peripherally cyanosed normal in first few minutes. Blue-ish hands/feet normal first 24 hours.",
+    initialAssessment: "Heart rate = most important indicator of effective ventilation. If not breathing effectively + good tone with drying/stimulation → CPG N0201 Newborn Resuscitation.",
+    transport: "≥37 weeks no complications → appropriate maternity service. Preterm or required resuscitation → higher level of care. Consult PIPER.",
+    viability: "Withhold resuscitation at <22 weeks gestation regardless of signs of life. Consult PIPER for uncertainty."
+  },
+
+  newborn_resuscitation: {
+    cpg: "N0201",
+    version: "3.0.0",
+    title: "Newborn Resuscitation",
+    patientGroup: "Newborns requiring resuscitation after birth (first 24 hours of life)",
+    coreprinciples: [
+      "VENTILATION + TEMPERATURE are the most important principles",
+      "Supplemental oxygen, IV access, adrenaline are less important and add little value if at expense of ventilation and temperature",
+      "Escalate early — call PIPER. Newborn resuscitation = complex, high-acuity, low-frequency skill."
+    ],
+    initialCare: {
+      term32to42wks: "Skin-to-skin on mother. Dry simultaneously. Cover with towels/blanket/bubble wrap. Place beanie.",
+      veryPreterm32wksWitnessed: "Leave wet (fluid still warm). Straight into polyethylene bag (hole for head). Dry head and place beanie.",
+      veryPreterm32wksUnwitnessed: "Fluid likely cold — dry. Into polyethylene bag with head hole. Beanie."
+    },
+    initialAssessment: {
+      focus: "Adequacy of breathing (regular spontaneous breathing within 15–30 sec with stimulation) + muscle tone (all limbs moving, flexed posture)",
+      goodToneAdequateBreathing: "Unlikely to need resuscitation",
+      inadequate: "Position in resuscitation area → assess HR → commence positive pressure ventilation if HR <100"
+    },
+    resuscitationSteps: [
+      "Warm and dry",
+      "Position airway, suction if required",
+      "Stimulate",
+      "Positive pressure ventilation (PPV) if HR <100 or inadequate breathing",
+      "SpO2 monitoring (right wrist pre-ductal)",
+      "Cardiac monitoring",
+      "If HR <60 despite PPV: commence chest compressions (3:1 ratio)",
+      "IV/IO access — adrenaline 10–30 mcg/kg if HR <60 despite compressions"
+    ],
+    consultation: "PIPER via Clinician or 1300 137 650"
   },
 
   // ─────────────────────────────────────────────
@@ -4308,47 +5159,55 @@ const CPG_COMBINATIONS = {
 const CATEGORY_TO_CPG = {
   // Adult
   'Adult|Cardiac Arrest':    ['cardiac_arrest'],
-  'Adult|Airway Management': [],
-  'Adult|Cardiac':           ['acs_stemi', 'bradycardia', 'tachycardia_narrow', 'tachycardia_broad'],
-  'Adult|Pain Relief':       [],
-  'Adult|Respiratory':       ['asthma', 'copd', 'pulmonary_oedema'],
-  'Adult|Medical':           ['seizures', 'hypoglycaemia', 'stroke', 'anaphylaxis', 'hyperkalaemia'],
+  'Adult|Airway Management': ['upper_airway_obstruction', 'dyspnoea'],
+  'Adult|Cardiac':           ['acs_stemi', 'bradycardia', 'tachycardia_narrow', 'tachycardia_broad', 'syncope', 'pulmonary_embolism'],
+  'Adult|Pain Relief':       ['pain_relief'],
+  'Adult|Respiratory':       ['asthma', 'copd', 'pulmonary_oedema', 'chest_injury'],
+  'Adult|Medical':           ['seizures', 'hypoglycaemia', 'stroke', 'anaphylaxis', 'hyperkalaemia', 'hyperglycaemia', 'headache', 'nausea_vomiting'],
   'Adult|Infection':         ['sepsis'],
-  'Adult|Mental Health':     [],
-  'Adult|Trauma':            ['major_trauma', 'head_injury', 'shock'],
-  'Adult|Environment':       [],
-  'Adult|Toxicology':        ['opioid_toxicity'],
+  'Adult|Mental Health':     ['acute_behavioural_disturbance', 'mental_health_conditions'],
+  'Adult|Trauma':            ['major_trauma', 'head_injury', 'shock', 'burns', 'chest_injury'],
+  'Adult|Environment':       ['hypothermia', 'hyperthermia_environmental'],
+  'Adult|Toxicology':        ['opioid_toxicity', 'tca_toxicity', 'beta_blocker_toxicity', 'ccb_toxicity', 'organophosphate_toxicity', 'drug_induced_hyperthermia', 'quetiapine_toxicity', 'alcohol_intoxication', 'alcohol_withdrawal', 'cyanide_toxicity'],
   // Paediatric
   'Paediatric|Cardiac Arrest':    ['cardiac_arrest'],
-  'Paediatric|Airway Management': [],
-  'Paediatric|Pain Relief':       [],
-  'Paediatric|Respiratory':       ['asthma'],
-  'Paediatric|Medical':           ['seizures', 'hypoglycaemia', 'anaphylaxis'],
+  'Paediatric|Airway Management': ['upper_airway_obstruction'],
+  'Paediatric|Pain Relief':       ['pain_relief'],
+  'Paediatric|Respiratory':       ['asthma', 'upper_airway_obstruction'],
+  'Paediatric|Medical':           ['seizures', 'hypoglycaemia', 'anaphylaxis', 'hyperglycaemia'],
   'Paediatric|Infection':         ['sepsis'],
-  'Paediatric|Trauma':            ['major_trauma', 'head_injury', 'shock'],
-  'Paediatric|Environment':       [],
-  'Paediatric|Toxicology':        ['opioid_toxicity'],
+  'Paediatric|Trauma':            ['major_trauma', 'head_injury', 'shock', 'burns', 'chest_injury'],
+  'Paediatric|Environment':       ['hypothermia', 'hyperthermia_environmental'],
+  'Paediatric|Toxicology':        ['opioid_toxicity', 'tca_toxicity', 'alcohol_intoxication', 'organophosphate_toxicity', 'drug_induced_hyperthermia'],
   // Maternity
-  'Maternity|Antepartum Haemorrhage':           ['shock'],
-  'Maternity|Pre-eclampsia / Eclampsia':        ['seizures'],
-  'Maternity|Normal Birth':                      [],
-  'Maternity|Breech / Compound':                 [],
-  'Maternity|Preterm Labour':                    [],
-  'Maternity|Cord Prolapse':                     [],
-  'Maternity|Shoulder Dystocia':                 [],
-  'Maternity|Primary Postpartum Haemorrhage':    ['shock'],
-  'Maternity|Miscarriage':                       [],
+  'Maternity|Antepartum Haemorrhage':           ['shock', 'maternity_patient'],
+  'Maternity|Pre-eclampsia / Eclampsia':        ['preeclampsia_eclampsia', 'seizures'],
+  'Maternity|Normal Birth':                      ['normal_birth', 'maternity_patient', 'the_newborn'],
+  'Maternity|Breech / Compound':                 ['breech_birth', 'maternity_patient', 'the_newborn'],
+  'Maternity|Preterm Labour':                    ['maternity_patient', 'the_newborn'],
+  'Maternity|Cord Prolapse':                     ['cord_prolapse', 'maternity_patient'],
+  'Maternity|Shoulder Dystocia':                 ['shoulder_dystocia', 'maternity_patient'],
+  'Maternity|Primary Postpartum Haemorrhage':    ['shock', 'maternity_patient'],
+  'Maternity|Miscarriage':                       ['maternity_patient'],
   // Other
-  'Newborn|Newborn Resuscitation': ['cardiac_arrest'],
+  'Newborn|Newborn Resuscitation': ['newborn_resuscitation', 'the_newborn'],
   'Treat and Refer|Epistaxis':     [],
-  'Treat and Refer|Minor Burns':   [],
+  'Treat and Refer|Minor Burns':   ['burns'],
 };
 
 // Returns a structured CPG context string for prompt injection
 function buildCPGContext(catVal1, catVal2) {
   const keys1 = CATEGORY_TO_CPG[catVal1] || [];
   const keys2 = catVal2 ? (CATEGORY_TO_CPG[catVal2] || []) : [];
-  const allKeys = [...new Set([...keys1, ...keys2])];
+
+  // For single-category (no catVal2) calls with multiple options, pick one randomly
+  // so the AI doesn't default to the first entry every time
+  let selectedKeys1 = keys1;
+  if (!catVal2 && keys1.length > 1) {
+    selectedKeys1 = [keys1[Math.floor(Math.random() * keys1.length)]];
+  }
+
+  const allKeys = [...new Set([...selectedKeys1, ...keys2])];
 
   if (allKeys.length === 0) return '';
 
@@ -4413,9 +5272,28 @@ async function generateAIScenario() {
     categoryLabel += ` + ${cat2} — ${sub2}`;
   }
 
+  // For toxicology, explicitly name the type injected via CPG context to prevent opioid bias
+  const toxSubtypeHint = (subcategory === 'Toxicology' && cpgContext)
+    ? (() => {
+        if (cpgContext.includes('Tricyclic Antidepressant')) return 'tricyclic antidepressant (TCA) overdose';
+        if (cpgContext.includes('Beta-Blocker Toxicity')) return 'beta-blocker toxicity';
+        if (cpgContext.includes('Calcium Channel Blocker')) return 'calcium channel blocker (CCB) toxicity';
+        if (cpgContext.includes('Organophosphate')) return 'organophosphate toxicity';
+        if (cpgContext.includes('Drug Induced Hyperthermia')) return 'drug-induced hyperthermia / stimulant toxidrome (serotonin syndrome)';
+        if (cpgContext.includes('Quetiapine')) return 'quetiapine (antipsychotic) toxicity';
+        if (cpgContext.includes('Acute Alcohol Intoxication')) return 'acute alcohol intoxication';
+        if (cpgContext.includes('Alcohol Withdrawal')) return 'alcohol withdrawal syndrome';
+        if (cpgContext.includes('Cyanide')) return 'cyanide toxicity';
+        if (cpgContext.includes('Opioid Toxicity')) return 'opioid toxicity';
+        return null;
+      })()
+    : null;
+
   const complaintLine = complaint
     ? `The scenario should involve: ${complaint}.`
-    : `Choose a realistic and educationally valuable ${categoryLabel} presentation.`;
+    : toxSubtypeHint
+      ? `The scenario must be a ${toxSubtypeHint} presentation — this is the toxicology type provided in the CPG context. Do NOT default to opioids unless the CPG context specifies opioid toxicity.`
+      : `Choose a realistic and educationally valuable ${categoryLabel} presentation.`;
   // Use the most specific patient category for age generation
   // (Paediatric/Newborn/Maternity override Adult if present in combo)
   const SPECIFIC_CATS = ['Paediatric', 'Newborn', 'Maternity'];
@@ -4438,7 +5316,7 @@ async function generateAIScenario() {
     ? `You MUST use the exact drug doses, thresholds, and management steps from the CPG content provided below. Do not invent doses or deviate from the provided protocol.${cpgContext}`
     : 'Use your knowledge of AV CPGs to generate an accurate scenario.';
 
-  const systemPrompt = `You are a clinical scenario writer for Ambulance Victoria (AV) paramedic education. Write accurate ALS (Level C/D) verbal assessment scenarios based strictly on AV Clinical Practice Guidelines v3.13.1 (December 2025). Respond with valid JSON only — no markdown, no preamble. For the dispatch field: write a terse, clinical dispatch summary — no radio preamble like "Ambulance Victoria this is dispatch", no sign-off phrases like "please respond with haste". Just the essential facts: location, patient demographics, presenting complaint, relevant history, current signs/symptoms, any bystander interventions. Example style: "Response to a restaurant in Lygon Street. 6-year-old female, known peanut allergy, possible peanut exposure. Now with hives, vomiting and difficulty breathing. Parents present. Epipen used by parents approximately 5 minutes ago." ${cpgInstruction}`;
+  const systemPrompt = `You are a clinical scenario writer for Ambulance Victoria (AV) paramedic education. Write accurate ALS (Level C/D) verbal assessment scenarios based strictly on AV Clinical Practice Guidelines v3.13.1 (December 2025). Respond with valid JSON only — no markdown, no preamble. ${cpgInstruction}`;
 
   const userPrompt = `Generate an ALS (Level C/D) verbal scenario for Ambulance Victoria.
 Category: ${categoryLabel}
@@ -5107,17 +5985,6 @@ function updatePaedAge(ageVal) {
   const subEl = document.getElementById('sh-subtitle-display');
   if (subEl) subEl.textContent = newSubtitle;
 
-  // Update dispatch text — replace age references throughout
-  if (currentScenario.dispatch) {
-    let d = currentScenario.dispatch;
-    d = d.replace(/\b\d+[\s\-]months?[\s\-]old\b/gi, ageLabel + '-old');
-    d = d.replace(/\b\d+[\s\-]years?[\s\-]old\b/gi, ageLabel + '-old');
-    d = d.replace(/\b\d+(?=\s*(?:yo\b|y\.o\.?\s|year))/gi, age < 1 ? Math.round(age*12) + 'mo' : String(Math.floor(age)));
-    currentScenario.dispatch = d;
-    const dcText = document.querySelector('.dc-text');
-    if (dcText) dcText.textContent = d;
-  }
-
   // Update vitals grid in dispatch card
   const vitalsGrid = document.querySelector('.vitals-grid');
   if (vitalsGrid) {
@@ -5167,39 +6034,19 @@ function onEditSubtitleChange(val) {
   const cat = document.getElementById('e-category')?.value || '';
   const isPaed = cat.startsWith('Paediatric') || cat.startsWith('Newborn');
 
-  // Sync age in ALL editable text fields whenever subtitle changes
-  const newAge = parseAgeFromSubtitle(val);
-  if (newAge !== null) {
-    const ageYrs = newAge >= 1 ? Math.round(newAge) : null;
-    const ageMos = newAge < 1 ? Math.round(newAge * 12) : null;
-    const ageLabel = ageMos ? `${ageMos}-month-old` : `${ageYrs}-year-old`;
-    const shortAge = ageYrs ? `${ageYrs}yo` : `${Math.round(newAge * 12)}mo`;
-    function replaceAgeInStr(str) {
-      if (!str || typeof str !== 'string') return str;
-      return str
+  // Sync age in dispatch text whenever subtitle changes
+  const dispatchEl = document.getElementById('e-dispatch');
+  if (dispatchEl && dispatchEl.value) {
+    const newAge = parseAgeFromSubtitle(val);
+    if (newAge !== null) {
+      // Replace age patterns in dispatch: "X-year-old", "Xyo", "X year old", "X month old" etc.
+      const ageYrs = newAge >= 1 ? Math.round(newAge) : null;
+      const ageMos = newAge < 1 ? Math.round(newAge * 12) : null;
+      const ageLabel = ageMos ? `${ageMos}-month-old` : `${ageYrs}-year-old`;
+      dispatchEl.value = dispatchEl.value
         .replace(/\d+[-\s]month[-\s]old/gi, ageLabel)
         .replace(/\d+[-\s]year[-\s]old/gi, ageLabel)
-        .replace(/\b\d+\s*(?:yo|y\/o)\b/gi, shortAge)
-        .replace(/\bAge\s+\d+\b/gi, `Age ${ageYrs || Math.round(newAge * 12)}`);
-    }
-    function replaceAgeInEl(elId) {
-      const el = document.getElementById(elId);
-      if (el && el.value) el.value = replaceAgeInStr(el.value);
-    }
-    // Update all main text fields
-    ['e-dispatch', 'e-keyhx', 'e-provisional'].forEach(replaceAgeInEl);
-    // Update treatment list items
-    document.querySelectorAll('[id^="e-treatment-"]').forEach(el => {
-      if (el && el.value) el.value = replaceAgeInStr(el.value);
-    });
-    // Update flags
-    document.querySelectorAll('[id^="e-flag-"]').forEach(el => {
-      if (el && el.value) el.value = replaceAgeInStr(el.value);
-    });
-    // Update in-memory scenario so saved copy is consistent
-    if (currentScenario) {
-      if (currentScenario.dispatch) currentScenario.dispatch = replaceAgeInStr(currentScenario.dispatch);
-      if (currentScenario.key_hx) currentScenario.key_hx = replaceAgeInStr(currentScenario.key_hx);
+        .replace(/\b\d+\s*yo\b/gi, `${ageYrs || Math.round(newAge * 12)}yo`);
     }
   }
 
