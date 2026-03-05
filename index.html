@@ -558,7 +558,7 @@ body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background
           <p style="font-size:11px;color:var(--grey);margin-top:6px">🔒 Your key is saved on this device — you won't need to re-enter it.</p>
         </div>
       </div>
-      <div class="form-group"><label>Category</label><select id="gen-category"><optgroup label="Adult">
+      <div class="form-group"><label>Primary Category</label><select id="gen-category"><optgroup label="Adult">
           <option value="Adult|Cardiac Arrest">Adult — Cardiac Arrest</option>
           <option value="Adult|Airway Management">Adult — Airway Management</option>
           <option value="Adult|Cardiac">Adult — Cardiac</option>
@@ -600,10 +600,58 @@ body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background
           <option value="Treat and Refer|Epistaxis">Treat and Refer — Epistaxis</option>
           <option value="Treat and Refer|Minor Burns">Treat and Refer — Minor Burns</option>
         </optgroup></select></div>
+      <div class="form-group">
+        <label>Secondary Category <span style="font-weight:400;color:var(--grey);font-size:11px">(optional — creates a multi-CPG scenario)</span></label>
+        <select id="gen-category-2">
+          <option value="__none__">— None (single scenario) —</option>
+          <optgroup label="Adult">
+          <option value="Adult|Cardiac Arrest">Adult — Cardiac Arrest</option>
+          <option value="Adult|Airway Management">Adult — Airway Management</option>
+          <option value="Adult|Cardiac">Adult — Cardiac</option>
+          <option value="Adult|Pain Relief">Adult — Pain Relief</option>
+          <option value="Adult|Respiratory">Adult — Respiratory</option>
+          <option value="Adult|Medical">Adult — Medical</option>
+          <option value="Adult|Infection">Adult — Infection</option>
+          <option value="Adult|Mental Health">Adult — Mental Health</option>
+          <option value="Adult|Trauma">Adult — Trauma</option>
+          <option value="Adult|Environment">Adult — Environment</option>
+          <option value="Adult|Toxicology">Adult — Toxicology</option>
+        </optgroup>
+        <optgroup label="Paediatric">
+          <option value="Paediatric|Cardiac Arrest">Paediatric — Cardiac Arrest</option>
+          <option value="Paediatric|Airway Management">Paediatric — Airway Management</option>
+          <option value="Paediatric|Pain Relief">Paediatric — Pain Relief</option>
+          <option value="Paediatric|Respiratory">Paediatric — Respiratory</option>
+          <option value="Paediatric|Medical">Paediatric — Medical</option>
+          <option value="Paediatric|Infection">Paediatric — Infection</option>
+          <option value="Paediatric|Trauma">Paediatric — Trauma</option>
+          <option value="Paediatric|Environment">Paediatric — Environment</option>
+          <option value="Paediatric|Toxicology">Paediatric — Toxicology</option>
+        </optgroup>
+        <optgroup label="Maternity">
+          <option value="Maternity|Antepartum Haemorrhage">Maternity — Antepartum Haemorrhage</option>
+          <option value="Maternity|Pre-eclampsia / Eclampsia">Maternity — Pre-eclampsia / Eclampsia</option>
+          <option value="Maternity|Normal Birth">Maternity — Normal Birth</option>
+          <option value="Maternity|Breech / Compound">Maternity — Breech / Compound</option>
+          <option value="Maternity|Preterm Labour">Maternity — Preterm Labour</option>
+          <option value="Maternity|Cord Prolapse">Maternity — Cord Prolapse</option>
+          <option value="Maternity|Shoulder Dystocia">Maternity — Shoulder Dystocia</option>
+          <option value="Maternity|Primary Postpartum Haemorrhage">Maternity — Primary PPH</option>
+          <option value="Maternity|Miscarriage">Maternity — Miscarriage</option>
+        </optgroup>
+        <optgroup label="Newborn">
+          <option value="Newborn|Newborn Resuscitation">Newborn — Resuscitation</option>
+        </optgroup>
+        <optgroup label="Treat and Refer">
+          <option value="Treat and Refer|Epistaxis">Treat and Refer — Epistaxis</option>
+          <option value="Treat and Refer|Minor Burns">Treat and Refer — Minor Burns</option>
+        </optgroup>
+        </select>
+      </div>
       <div class="form-group"><label>Presentation (optional)</label><input type="text" id="gen-complaint" placeholder="e.g. chest pain, altered consciousness…"><div class="hint">Leave blank for a random presentation.</div></div>
       <div class="form-group"><label>Complexity</label><select id="gen-complexity"><option value="standard">Standard — core presentation</option><option value="complex">Complex — complication or comorbidity</option><option value="high-acuity">High acuity — multi-system, time-critical</option></select></div>
       <div style="background:var(--blue-light);border:1px solid #AED6F1;border-radius:8px;padding:10px 14px;font-size:12px;color:#1a5276;margin-bottom:14px">
-        📋 Scenarios are generated with reference to <strong>AV Clinical Practice Guidelines Version 3.13.0</strong>. AI-generated content should be independently verified against the current published edition before use in any formal assessment.
+        📋 Scenarios are generated with reference to <strong>AV Clinical Practice Guidelines Version 3.13.1 (December 2025)</strong>. AI-generated content should be independently verified against the current published edition before use in any formal assessment.
       </div>
       <button class="modal-submit-btn navy" id="generate-scenario-btn" onclick="generateAIScenario()">✦ Generate with Groq (Free)</button>
       <div id="ai-status"></div>
@@ -3422,10 +3470,821 @@ function openAIModal() { document.getElementById('ai-modal').classList.add('open
 function closeAIModal() { document.getElementById('ai-modal').classList.remove('open'); }
 document.getElementById('ai-modal').addEventListener('click', e => { if(e.target===document.getElementById('ai-modal')) closeAIModal(); });
 
+// ============================================================
+// AV CPG PACKAGES + COMBINATIONS — v3.13.1 (December 2025)
+// Inlined from cpg_packages.js for AI scenario grounding
+// ============================================================
+const CPG_PACKAGES = {
+
+  // ─────────────────────────────────────────────
+  // ANAPHYLAXIS (CPG A0704 / P0704)
+  // ─────────────────────────────────────────────
+  anaphylaxis: {
+    cpg: "A0704",
+    version: "7.1.0",
+    title: "Anaphylaxis",
+    patientGroup: "≥16 years (adult); paediatric version P0704",
+    careObjectives: [
+      "Adrenaline (IM) with minimal delay",
+      "Airway and perfusion support",
+      "Hospital-based observation (minimum 4 hours)"
+    ],
+    diagnosis: {
+      definition: "Severe, potentially life-threatening systemic hypersensitivity reaction. Rapid onset (usually within 30 min, up to 4 hours). Two or more systemic manifestations = accept anaphylaxis.",
+      systems: {
+        respiratory: "Respiratory distress, SOB, wheeze, cough, stridor (bronchoconstriction or upper airway oedema)",
+        cardiovascular: "Hypotension (vasodilation/hyperpermeability)",
+        skin: "Hives, welts, flushing, angioedema (lips/tongue)",
+        abdominal: "Pain, nausea, vomiting, diarrhoea"
+      },
+      commonAllergens: ["insect stings (bees, wasps, jack jumper ants)", "food (peanuts, tree nuts, egg, shellfish, dairy, sesame)", "medications (antibiotics, anaesthetic agents, IV contrast)", "exercise-induced (rare)", "idiopathic (rare)"],
+      riskFactorsForRefractory: ["BP <90 mmHg", "respiratory symptoms/distress", "medication as cause (antibiotics, IV contrast)", "history of asthma or refractory anaphylaxis", "no response to initial IM adrenaline"]
+    },
+    management: {
+      firstLine: "Adrenaline 500 mcg (0.5 mg) IM anterolateral mid-thigh. Repeat every 5 min if no improvement.",
+      adrenalineInfusion: "If 2 x IM doses ineffective: Adrenaline infusion (MICA). IM adrenaline every 5 min while infusion being prepared.",
+      ivAdrenaline: "Only if extremely poor perfusion or cardiac arrest imminent. Always after IM adrenaline.",
+      bronchospasm: "If bronchospasm persists after adrenaline: Salbutamol nebulised + Ipratropium bromide + Dexamethasone. These are NEVER first-line.",
+      fluidResuscitation: "Normal saline IV if hypotension persists",
+      glucagonIndication: "Persistent hypotension after 2 x adrenaline doses if patient has heart failure OR is on beta blockers",
+      positioning: "Supine. Sitting if severe respiratory distress. Semi-recumbent in pregnancy.",
+      transport: "All patients transport to hospital for minimum 4-hour observation"
+    },
+    pitfalls: [
+      "Asthma history increases fatal anaphylaxis risk — maintain high suspicion",
+      "ACE-inhibitor angioedema does NOT respond to adrenaline",
+      "Adrenaline toxicity mimics worsening anaphylaxis (nausea, tachycardia, shaking) — reassess before repeating"
+    ]
+  },
+
+  // ─────────────────────────────────────────────
+  // SEIZURES (CPG A0703) — adult
+  // ─────────────────────────────────────────────
+  seizures: {
+    cpg: "A0703",
+    version: "6.1.0",
+    title: "Seizures",
+    patientGroup: "All patients experiencing seizure (excluding resolved febrile seizure age 6 months–6 years → CPG P0719)",
+    careObjectives: [
+      "Early termination of status epilepticus",
+      "Appropriate disposition based on risk profile"
+    ],
+    diagnosis: {
+      statusEpilepticus: "Convulsive SE (CSE): motor symptoms + loss of consciousness ≥5 min, OR repeated without return to baseline. Non-convulsive SE (NCSE): altered consciousness without prominent motor symptoms >10 min.",
+      keyHistory: ["exact description of events from bystanders", "aura or pre-seizure symptoms", "nature: tonic-clonic vs focal vs irregular", "duration and postictal state", "sweating, pallor, incontinence, fever"],
+      precipitants: ["metabolic (hypoglycaemia, hypo-Na)", "drugs/withdrawal (alcohol, benzos, TCAs, tramadol)", "intracranial pathology", "infection", "eclampsia (pregnant/postpartum → CPG M0202)"],
+      bslMandatory: "Check BSL in ALL seizure patients — hypoglycaemia is a common and reversible cause",
+      functionalSeizure: "Suggested by: closed eyelids at seizure peak, fluctuating intensity, intense rotation, emotional distress post-event, asynchronous limb movement, side-to-side head shaking. Do NOT attempt harm-causing manoeuvres."
+    },
+    management: {
+      firstLineBenzo: "Midazolam: IM 10 mg (adult ≥40 kg) OR IV 5 mg. May repeat once.",
+      secondLine: "If 2 doses midazolam (IV + IM) insufficient: Levetiracetam IV 60 mg/kg (max 4500 mg) infusion over 5 min.",
+      airway: "Position lateral. Suction if required. High-flow O2. Only use OPA/NPA if needed.",
+      bsl: "If BSL <4 mmol/L: treat hypoglycaemia concurrently",
+      postIctal: "Postictal aggression is usually self-limiting (<30 min) and rarely requires sedation",
+      patientPlan: "Some patients have neurologist-prescribed plans — follow if available, consult AV Clinician if uncertain"
+    },
+    drugs: {
+      midazolam: "5 mg/mL. IM onset 3–5 min; IV onset 1–3 min. Duration IM 30 min, IV 20 min.",
+      levetiracetam: "500 mg/5 mL vial. 60 mg/kg IV infusion over 5 min (≥40 kg: undiluted; <40 kg: dilute 1:1 with NS)"
+    }
+  },
+
+  // ─────────────────────────────────────────────
+  // HYPOGLYCAEMIA (CPG A0702)
+  // ─────────────────────────────────────────────
+  hypoglycaemia: {
+    cpg: "A0702",
+    version: "6.1.0",
+    title: "Hypoglycaemia",
+    patientGroup: "Patients >24 hours old with hypoglycaemia",
+    careObjectives: [
+      "Identify high-risk hypoglycaemia",
+      "Normalise blood glucose level",
+      "Identify appropriate patient disposition"
+    ],
+    diagnosis: {
+      threshold: "BGL <4 mmol/L",
+      symptoms: ["diaphoresis (most common)", "tremors", "tachycardia", "altered conscious state", "slurred speech", "seizures", "loss of consciousness"],
+      commonCauses: ["excess insulin/oral hypoglycaemics", "exercise/fasting", "alcohol", "intercurrent illness (sepsis, renal impairment)", "intentional/accidental overdose"],
+      paediatricNote: "Accelerated starvation ketosis — hypoglycaemia + elevated ketones without diabetes. Treat nausea first, then oral glucose. Glucagon unlikely helpful."
+    },
+    management: {
+      conscious_canEat: "Oral glucose (15–20 g fast-acting carbohydrate). Repeat if BSL <4 after 15 min.",
+      conscious_cannotEat: "Dextrose 10% IV: 200 mL (20 g) slow IV push. Reassess BSL. Repeat if needed.",
+      unconscious_ivAccess: "Dextrose 10% IV 200 mL. Reassess BSL in 5 min.",
+      unconscious_noIvAccess: "Glucagon 1 mg IM. Onset 5–10 min. Lay patient lateral (risk of vomiting).",
+      targetBGL: "≥4 mmol/L before considering referral away from ED",
+      disposition: "Patients may be suitable for community management following resolution if: insulin-related, BGL normalised, able to eat, responsible adult present, no high-risk features"
+    },
+    drugs: {
+      dextrose10: "250 mL bag (25 g). IV/IO. Onset 3 min. Administer via large vein (risk of thrombophlebitis).",
+      glucagon: "1 mg vial. Reconstitute with supplied water. IM. Onset 5–10 min. Duration 12–25 min. Reduced effect in alcohol-induced hypoglycaemia, chronic liver disease."
+    },
+    highRiskFeatures: ["elderly or frail", "unknown cause", "prolonged hypoglycaemia", "recurrent episode", "BSL difficult to normalise", "on long-acting insulin or sulphonylureas", "alcohol co-ingestion"]
+  },
+
+  // ─────────────────────────────────────────────
+  // MEDICAL CARDIAC ARREST (CPG A0201-1)
+  // ─────────────────────────────────────────────
+  cardiac_arrest: {
+    cpg: "A0201-1",
+    version: "8.2.0",
+    title: "Medical Cardiac Arrest",
+    patientGroup: "≥16 years in cardiac arrest",
+    careObjectives: [
+      "High quality chest compressions with minimal interruptions",
+      "Rapid defibrillation of VF/pulseless VT",
+      "Advanced care (adrenaline, antiarrhythmics, intubation) without interrupting CPR",
+      "Address correctable causes (4H/4T)"
+    ],
+    cpr: {
+      rate: "100–120 compressions/min",
+      depth: "≥5 cm with full recoil",
+      ratio: "30:2 (no advanced airway). Continuous with ETT/SGA in situ.",
+      rotations: "2-minute compressor rotations",
+      interruptions: "Minimise to ≤3 seconds",
+      ventilations: "1 second per breath. 6–8/min with advanced airway."
+    },
+    defibrillation: {
+      timeToFirst: "≤2 minutes from arrival",
+      refractoryVF: "After 3 shocks: consider double sequential defibrillation (MICA). Adjust pad placement.",
+      padPlacement: "Sternal: right chest below clavicle above nipple. Apex: left mid-axillary 6th ICS."
+    },
+    drugs: {
+      adrenaline: {
+        shockable: "1 mg IV/IO after 3rd shock, then every 3rd shock (5th, 7th, 9th)",
+        nonShockable: "1 mg IV/IO immediately, then every 3–5 min",
+        route: "IV or IO"
+      },
+      amiodarone: {
+        dose: "300 mg IV/IO after 3rd shock (refractory VF/VT). 150 mg after 5th shock.",
+        notes: "Compatible with D5W only (not normal saline for infusion). C/I in TCA toxicity, QTc >500ms."
+      },
+      lidocaine: "Alternative to amiodarone if not available"
+    },
+    capnography: {
+      use: "ETCO2 as surrogate for CPR quality and cardiac output",
+      gradualFall: "suggests CPR fatigue",
+      suddenRise: "suggests ROSC"
+    },
+    ecmoEligibility: {
+      criteria: ["age 16–70", "suspected cardiac cause", "bystander or paramedic witnessed", "initial rhythm VF/VT", "no major co-morbidities", "collapse-to-ED <60 min achievable"],
+      centres: ["Alfred Hospital (24/7)", "Austin", "Box Hill", "Royal Melbourne", "St Vincent's", "Victorian Heart Hospital", "Geelong University Hospital"]
+    },
+    airway: "SGA appropriate initially for continuous compressions. ETT should not interrupt compressions.",
+    fluid: "Shockable rhythms: limit to medication flush and TKVO only"
+  },
+
+  // ─────────────────────────────────────────────
+  // ACS / STEMI (CPG A0401 / A0408)
+  // ─────────────────────────────────────────────
+  acs_stemi: {
+    cpg: "A0401 / A0408",
+    version: "2.1.1 / 4.4.1",
+    title: "Acute Coronary Syndrome / STEMI",
+    careObjectives: [
+      "Rapid STEMI identification for timely reperfusion (PCI or pre-hospital thrombolysis)",
+      "Antiplatelet therapy (aspirin)",
+      "Reduce cardiac workload — treat pain, nausea, LVF"
+    ],
+    diagnosis: {
+      spectrum: "UA → NSTEACS → STEMI",
+      atypicalGroups: "Elderly, female, diabetic patients may not present with chest pain",
+      ecg: "Absence of ischaemic ECG changes does NOT exclude AMI",
+      stemi: "12-lead ECG showing ST elevation meeting standard criteria",
+      vaccineMyo: "Chest pain 1–10 days post mRNA vaccine (Pfizer/Moderna), especially males 12–29. Usually self-resolves. Low-risk young patients without ECG changes → GP review 24 hrs."
+    },
+    management: {
+      aspirin: "300 mg chewable/soluble PO. Supplement if lower dose already given prehospital.",
+      gtn: "GTN S/L 300–600 mcg. Repeat every 3–5 min if BP ≥100 mmHg. C/I: BP <100, HR <50 or >150, VT, PDE5 inhibitors.",
+      pain: "GTN first. If unresolved: opioids as per CPG A0501.",
+      nausea: "As per CPG A0701",
+      lvf: "As per CPG A0406 Cardiogenic Pulmonary Oedema",
+      oxygen: "NOT routine. Only if SpO2 <94% as per CPG A0001. Hyperoxia detrimental in STEMI.",
+      heparin: "Per CPG D038 — for eligible STEMI patients pre-thrombolysis"
+    },
+    thrombolysis: {
+      drug: "Tenecteplase (TNK) IV bolus",
+      dosing: "<60 kg: 30 mg | 60–69 kg: 35 mg | 70–79 kg: 40 mg | 80–89 kg: 45 mg | ≥90 kg: 50 mg",
+      ageOver75: "HALVE the dose. Requires consultation.",
+      indication: "STEMI where PCI not achievable within recommended timeframe",
+      destination: "Post-thrombolysis: transport to nearest PCI centre"
+    },
+    transport: "PCI centre if within timeframe. Pre-notification mandatory."
+  },
+
+  // ─────────────────────────────────────────────
+  // ASTHMA (CPG A0601) — adult
+  // ─────────────────────────────────────────────
+  asthma: {
+    cpg: "A0601",
+    version: "7.0.0",
+    title: "Asthma",
+    patientGroup: "≥16 years with acute asthma",
+    careObjectives: [
+      "Assess severity",
+      "Bronchodilation: inhaled if adequate ventilation, parenteral adrenaline if inadequate",
+      "NIV or early intubation in respiratory failure unresponsive to treatment",
+      "Magnesium for severe/life-threatening",
+      "Corticosteroids for all but mildest presentations"
+    ],
+    severity: {
+      mild: "Talking in sentences. SpO2 ≥95%. HR <100. No accessory muscle use.",
+      moderate: "Talking in phrases. SpO2 92–95%. HR 100–120. Some accessory muscle use.",
+      severe: "Talking in words. SpO2 <92%. HR >120. Marked accessory muscle use. PEFR <50%.",
+      lifeThreatening: "Silent chest, cyanosis, altered consciousness, unable to speak, SpO2 <90%, bradycardia, exhaustion"
+    },
+    diagnosis: {
+      silentChest: "No wheeze = insufficient airflow = imminent respiratory arrest — do NOT reassure",
+      anaphylaxisDD: "Always consider anaphylaxis: sudden onset, no asthma history, skin symptoms, hypotension, food/medication trigger",
+      spO2Caution: "Normal SpO2 does NOT rule out severe asthma"
+    },
+    management: {
+      mild: "Salbutamol 2.5–5 mg nebulised or pMDI + spacer (4–8 puffs). Dexamethasone 8 mg PO/IV.",
+      moderate: "Salbutamol 5 mg neb + Ipratropium 500 mcg neb. Dexamethasone 8 mg. Repeat salbutamol every 20 min.",
+      severe: "As moderate PLUS: Adrenaline 500 mcg IM (anterolateral thigh). IV access. Prepare for deterioration.",
+      lifeThreatening: "Adrenaline IM/IV. IV adrenaline if IM not effective (ALS consult with Clinician). Magnesium sulfate IV (MICA). BiPAP NIV.",
+      corticosteroids: "Dexamethasone 8 mg PO/IV/IM for all but mildest presentations",
+      magnesium: "Magnesium sulfate 2.5 g IV over 20 min (MICA). Do not delay other priorities.",
+      niv: "BiPAP for respiratory failure. C/I if altered consciousness. Continuous monitoring mandatory."
+    },
+    extrication: "Patients with severe/life-threatening asthma: treat BEFORE extrication. IV access, adrenaline drawn up, resuscitation ready.",
+    drugs: {
+      salbutamol: "5 mg/2.5 mL nebule or 100 mcg/dose pMDI. Onset 5–15 min. Duration 15–30 min.",
+      ipratropium: "500 mcg (adult) nebulised. Used with salbutamol in moderate–severe.",
+      adrenaline_im: "500 mcg (0.5 mg) IM anterolateral thigh for life-threatening asthma.",
+      dexamethasone: "8 mg PO/IV/IM"
+    }
+  },
+
+  // ─────────────────────────────────────────────
+  // COPD (CPG A0602)
+  // ─────────────────────────────────────────────
+  copd: {
+    cpg: "A0602",
+    version: "2.0.0",
+    title: "COPD Exacerbation",
+    patientGroup: "≥16 years with exacerbation of COPD",
+    careObjectives: [
+      "Bronchodilators to reduce airflow obstruction",
+      "Controlled oxygen therapy to avoid hypercapnia",
+      "Corticosteroids to reduce inflammation",
+      "NIV for respiratory failure unresponsive to initial treatment",
+      "Appropriate disposition"
+    ],
+    oxygenTarget: "SpO2 88–92% (controlled O2 — avoid over-oxygenation causing hypercapnia)",
+    management: {
+      bronchodilators: "Salbutamol 5 mg neb + Ipratropium 500 mcg neb. Repeat salbutamol every 20 min if needed.",
+      corticosteroids: "Dexamethasone 8 mg PO/IV/IM",
+      niv: "CPAP/BiPAP for respiratory failure (respiratory acidosis, fatigue, inadequate response to treatment). Bring patient's own home NIV machine.",
+      oxygen: "Target 88–92% — use controlled low-flow. Over-oxygenation → hypercapnia → respiratory depression."
+    },
+    differentials: "Consider concurrent heart failure, pneumonia, PE, pneumothorax",
+    disposition: "Most patients require hospital. VVED if mild, responsive, no high-risk features."
+  },
+
+  // ─────────────────────────────────────────────
+  // CARDIOGENIC PULMONARY OEDEMA (CPG A0406)
+  // ─────────────────────────────────────────────
+  pulmonary_oedema: {
+    cpg: "A0406",
+    version: "6.0.0",
+    title: "Cardiogenic Pulmonary Oedema",
+    patientGroup: "≥16 years with cardiogenic pulmonary oedema",
+    careObjectives: [
+      "Oxygen therapy if hypoxic",
+      "NIV (CPAP/BiPAP) for respiratory failure",
+      "GTN to reduce preload and afterload",
+      "Furosemide as second line for fluid overload",
+      "Adrenaline infusion for cardiogenic shock"
+    ],
+    diagnosis: {
+      features: ["acute dyspnoea", "bilateral fine crackles on auscultation", "orthopnoea / PND history", "raised JVP, peripheral oedema", "frothy/pink sputum", "history of heart failure"],
+      ecg: "12-lead mandatory — exclude AMI or arrhythmia as precipitant",
+      nonCardiogenic: "Non-cardiogenic APO (smoke inhalation, near-drowning, anaphylaxis) — GTN and furosemide NOT indicated. Manage as CPG A0604 Dyspnoea."
+    },
+    management: {
+      gtn: "GTN S/L 400–800 mcg. Repeat every 3–5 min. Infusion if on NIV and requiring ongoing doses. C/I: BP <100, HR <50 or >150.",
+      niv: "CPAP 5–10 cmH2O or BiPAP. First-line respiratory support. Do not interrupt for GTN once NIV applied if patient responding.",
+      furosemide: "40–80 mg IV if clear fluid overload and responding to GTN/NIV. Second-line.",
+      cardiogenicShock: "Adrenaline infusion (MICA): vasopressor/inotrope support"
+    }
+  },
+
+  // ─────────────────────────────────────────────
+  // BRADYCARDIA (CPG A0402)
+  // ─────────────────────────────────────────────
+  bradycardia: {
+    cpg: "A0402",
+    version: "7.0.1",
+    title: "Bradycardia",
+    careObjectives: ["Increase HR where bradycardia causes haemodynamic compromise, heart failure or life-threatening arrhythmia"],
+    threshold: "HR <60 bpm. Practical management threshold ~50 bpm. Asymptomatic HR >50 may need monitoring only.",
+    management: {
+      firstLine: "Atropine 600 mcg IV. Repeat up to total 3000 mcg (5 doses of 600 mcg).",
+      atropineLimitations: "Unlikely effective in Mobitz II or 3rd degree (complete) heart block — but still give. Ineffective AND harmful post cardiac transplant. Caution in MI — tachycardia worsens ischaemia.",
+      secondLine: "Adrenaline infusion: 3 mg in 50 mL D5W/NS. 1 mL/hr = 1 mcg/min. Titrate to response. Start 2–10 mcg/min.",
+      pacing: "If no HR increase after adrenaline 10 mcg/min → commence transthoracic pacing (MICA)"
+    }
+  },
+
+  // ─────────────────────────────────────────────
+  // TACHYCARDIA — NARROW COMPLEX (CPG A0403)
+  // ─────────────────────────────────────────────
+  tachycardia_narrow: {
+    cpg: "A0403",
+    version: "7.1.0",
+    title: "Tachycardia — Narrow Complex (SVT/AF/Flutter)",
+    careObjectives: [
+      "Rapid termination of life-threatening arrhythmias",
+      "Transport to definitive care facility"
+    ],
+    unstableFeatures: ["inadequate perfusion/shock", "acutely altered consciousness", "ischaemic chest pain", "APO", "usually with HR ≥150 bpm"],
+    stable_svt: {
+      valsalva: "Modified Valsalva: semi-recumbent 45°, forced expiration, lay flat + raise legs 45° for 15 sec. Only if SBP ≥90 mmHg. Superior reversion rates.",
+      adenosine: "6 mg rapid IV push through large proximal vein (e.g. antecubital fossa) + NS flush. If no effect: 12 mg. Record 12-lead ECG first.",
+      notes: "12-lead ECG mandatory before treatment unless immediate Mx required."
+    },
+    unstable: "Synchronised cardioversion: sedate first (midazolam ± fentanyl). 200J. Repeat if needed.",
+    af_flutter_arrest: "Synchronised cardioversion 200J if deteriorating to cardiac arrest"
+  },
+
+  // ─────────────────────────────────────────────
+  // TACHYCARDIA — BROAD COMPLEX (CPG A0404)
+  // ─────────────────────────────────────────────
+  tachycardia_broad: {
+    cpg: "A0404",
+    version: "7.0.1",
+    title: "Tachycardia — Broad Complex (VT)",
+    vtDefinition: "Duration >30 sec, rate >100, QRS >0.12 sec, regular (mostly), AV dissociation or absent P waves",
+    rule: "Treat regular broad complex tachycardia as VT until proven otherwise",
+    unstableFeatures: ["hypotension/shock", "altered consciousness", "ischaemic chest pain", "APO"],
+    management: {
+      stable: "Amiodarone 150 mg IV over 10 min (MICA). Consult AV Clinician (ALS).",
+      unstable: "Synchronised cardioversion 200J after sedation.",
+      pulseless: "Treat as VF — defibrillation as per CPG A0201-1"
+    },
+    notes: "Consider time to MICA support vs time to hospital — these patients can deteriorate rapidly."
+  },
+
+  // ─────────────────────────────────────────────
+  // SHOCK (CPG A0705)
+  // ─────────────────────────────────────────────
+  shock: {
+    cpg: "A0705",
+    version: "5.3.0",
+    title: "Shock",
+    patientGroup: "≥16 years with inadequate perfusion not addressed by a specific CPG",
+    careObjectives: ["Achieve perfusion target appropriate to patient and presentation"],
+    definition: "Cellular/tissue hypoxia from reduced O2 delivery, increased consumption, or inadequate utilisation. Signs: profound hypotension, compensatory tachycardia, altered consciousness, tachypnoea, diaphoresis, pallor, cold peripheries.",
+    management: {
+      ivAccess: "18G or larger. Large proximal vein for vasopressors/inotropes.",
+      fluidNormal: "Normal saline IV. Titrate to response. Max 2000 mL.",
+      fluidHighRisk: "Cardiac failure, chronic renal failure, elderly: max 1000 mL. Titrate.",
+      metaraminol: "Boluses if: inadequate response after 500–1000 mL NS, OR profound hypotension (BP <70 mmHg, altered mental status, no radial pulse) — can give in parallel with fluid.",
+      noradrenaline: "MICA. 18G cannula or larger in large proximal vein. Risk of tissue necrosis if extravasation.",
+      target: "Perfusion adequate for presentation — not a specific BP number in all cases"
+    }
+  },
+
+  // ─────────────────────────────────────────────
+  // SUSPECTED STROKE / TIA (CPG A0711)
+  // ─────────────────────────────────────────────
+  stroke: {
+    cpg: "A0711",
+    version: "2.2.2",
+    title: "Suspected Stroke or TIA",
+    careObjectives: [
+      "Assess using MASS (Melbourne Ambulance Stroke Screen)",
+      "Transport to appropriate destination (thrombolysis / ECR / neurosurgical centre)",
+      "Hospital pre-notification"
+    ],
+    assessment: {
+      mass: "MASS: Face (droop), Arm (drift), Speech (slurred/absent), Time (onset)",
+      actFast: "ACT-FAST: additional assessment for Large Vessel Occlusion (LVO) — used in SCA catchment",
+      onsetTime: "Thrombolysis window: up to 12 hours from last seen well. ECR: up to 24 hours.",
+    },
+    strokeMimics: ["hypoglycaemia", "seizure/postictal", "migraine", "sepsis", "intoxication", "brain tumour", "vertigo", "subdural haematoma", "syncope", "electrolyte disturbance", "MS"],
+    ich: {
+      likelihood: "ICH more likely with: rapid deterioration, GCS <8, severe headache, nausea/vomiting, bradycardia/hypertension",
+      transport: {
+        awake: "Nearest stroke hospital",
+        comatose: "Neurosurgical centre (RMH, SVH, Austin, Alfred, MMC in metro)"
+      }
+    },
+    management: {
+      oxygen: "Only if SpO2 <92%",
+      bsl: "Mandatory — exclude hypoglycaemia as mimic",
+      bp: "Do not aggressively lower BP prehospital. Post-intubation target 120–140 mmHg.",
+      opioids: "Caution — risk of consciousness deterioration",
+      notification: "Pre-notification mandatory for MASS positive patients"
+    }
+  },
+
+  // ─────────────────────────────────────────────
+  // SEPSIS (CPG A0729)
+  // ─────────────────────────────────────────────
+  sepsis: {
+    cpg: "A0729",
+    version: "1.0.0",
+    title: "Sepsis and Infection",
+    patientGroup: "≥16 years with suspected infection or sepsis",
+    careObjectives: [
+      "Identify and treat patients with clear signs of sepsis",
+      "Risk stratify for appropriate disposition"
+    ],
+    diagnosis: {
+      definition: "Life-threatening organ dysfunction caused by dysregulated response to infection",
+      qSOFA: "2 of 3: SBP ≤100 mmHg, GCS <15, RR ≥22 — in context of suspected infection",
+      septicShock: "Persistent hypotension needing vasopressors to maintain MAP >65 mmHg OR BP ≥100 mmHg AND lactate >2 mmol/L. Mortality >40%.",
+      signsOfInfection: ["fever/chills/rigors", "altered mental status", "productive cough/dyspnoea", "abdominal pain/tenderness", "dysuria/frequency", "wound/cellulitis"]
+    },
+    management: {
+      oxygen: "Target SpO2 ≥94% (88–92% if COPD)",
+      ivAccess: "18G or larger",
+      fluid: "Normal saline IV 500–1000 mL bolus if hypotensive. Titrate.",
+      vasopressors: "Metaraminol or noradrenaline if fluid inadequate. MICA preferred.",
+      antibiotics: "Not prehospital — prioritise transport",
+      transport: "Urgent. Pre-notification where possible."
+    }
+  },
+
+  // ─────────────────────────────────────────────
+  // MAJOR TRAUMA (CPG A0810)
+  // ─────────────────────────────────────────────
+  major_trauma: {
+    cpg: "A0810",
+    version: "1.3.0",
+    title: "Major Trauma",
+    patientGroup: "≥16 years with traumatic injuries",
+    careObjectives: [
+      "Immediate control of major haemorrhage",
+      "Airway patency, oxygenation, ventilation",
+      "Adequate circulation for presentation",
+      "Prioritise transport — minimise scene time"
+    ],
+    priorities: "HAEMORRHAGE → AIRWAY → BREATHING → CIRCULATION → TRANSPORT",
+    haemorrhage: {
+      control: "Direct pressure, wound packing, tourniquets for limb haemorrhage. Pelvic binder for suspected pelvic fracture.",
+      txa: "Tranexamic acid 1 g IV/IO infusion over 10 min (or slow push). C/I if injury >2 hours ago. IM alternative if IV delayed.",
+      fluidTarget: "Hypotensive resuscitation for penetrating truncal trauma. Target radial pulse present or MAP ~50–65 mmHg."
+    },
+    tbi: {
+      target_bp: "Normal or supranormal BP — maintain MAP to counter raised ICP",
+      oxygen: "Target SpO2 94–98%, ETCO2 35–45 mmHg",
+      position: "Head of stretcher 10–15° to aid venous drainage"
+    },
+    transport: {
+      priority: "Shocked or penetrating truncal trauma: transport immediately, treat only immediately life-threatening conditions en route",
+      destination: "Major trauma centre"
+    },
+    drugs: {
+      txa: "1 g / 10 mL. IV/IO infusion: add 1 g to 100 mL D5W or NS, infuse over 10 min. IM: 2 x 5 mL injections lateral upper thigh.",
+      morphine_fentanyl: "Pain management — cautious use if hypotensive"
+    }
+  },
+
+  // ─────────────────────────────────────────────
+  // TRAUMATIC HEAD INJURY (CPG A0803)
+  // ─────────────────────────────────────────────
+  head_injury: {
+    cpg: "A0803",
+    version: "6.0.1",
+    title: "Traumatic Head Injury",
+    patientGroup: "≥16 years with potential traumatic head injury",
+    careObjectives: {
+      moderate_severe: ["Optimise airway, oxygenation, ventilation, and cerebral perfusion pressure to prevent secondary brain injury"],
+      mild: ["Identify high-risk → neurosurgical facility", "Moderate risk → ED for CT/observation", "Low risk → community with self-care advice"]
+    },
+    secondary_brain_injury: "Caused by hypoxia, hypercapnia, hypotension. Primary injury = fixed. Secondary = preventable.",
+    management: {
+      airway: "Maintain with positioning/adjuncts. RSI if indicated (GCS <8 or airway threat).",
+      oxygen: "Target SpO2 94–98%. Avoid hypoxia AND hyperoxia.",
+      ventilation: "Target ETCO2 35–45 mmHg. Avoid hypocapnia.",
+      bp: "Target normal/supranormal MAP — counteracts elevated ICP. Avoid hypotension.",
+      position: "Head of stretcher 10–15° if no spinal precautions preclude it.",
+      gcs: "GCS reduction ≥2 points is significant. GCS <13 = significant TBI until proven otherwise."
+    },
+    riskCategories: {
+      high: "GCS <13, focal neurology, seizure, suspected open/depressed skull fracture, penetrating injury → neurosurgical centre",
+      moderate: "GCS 13–14, loss of consciousness, amnesia, vomiting >1 episode, age >65 → ED for CT",
+      low: "GCS 15, no LOC, no amnesia, no high-risk features → self-care advice"
+    },
+    contraindications: "Naloxone should NOT be given post head injury"
+  },
+
+  // ─────────────────────────────────────────────
+  // OPIOID TOXICITY (CPG A0722)
+  // ─────────────────────────────────────────────
+  opioid_toxicity: {
+    cpg: "A0722",
+    version: "4.2.0",
+    title: "Opioid Toxicity",
+    careObjectives: [
+      "Airway patency and adequate ventilation",
+      "Reverse opioid action sufficiently for adequate spontaneous respiration WITHOUT causing withdrawal"
+    ],
+    signs: ["respiratory depression (SpO2 <92% on room air) or apnoea", "CNS depression (drowsiness to coma)", "miosis (often but not always)", "prolonged QT (methadone, oxycodone, loperamide)"],
+    management: {
+      airway: "BVM ventilation first. Position patient. Suction if needed.",
+      naloxone_heroin: "0.4 mg IV/IM. Titrate to adequate respiration (not full reversal — avoid precipitating withdrawal and aggression). May repeat. Duration 30–45 min — shorter than most opioids.",
+      naloxone_other: "Smaller titrated doses. Higher risk of rebound toxicity with long-acting opioids (methadone, slow-release oxycodone).",
+      naloxone_CI: "Do NOT give naloxone following opioid-associated cardiac arrest (maintain ventilation). Do NOT give after head injury.",
+      referral: "Isolated heroin: may be left with carer if complete reversal and carer present for 4 hours + take-home naloxone."
+    },
+    differentials: "AEIOUTIPS: Alcohol, Epilepsy, Insulin/metabolic, Overdose/oxygen, Underdose/withdrawal, Trauma, Infection, Psychiatric, Stroke",
+    sceneSafety: "Uncapped sharps. PPE. Multi-casualty potential."
+  },
+
+  // ─────────────────────────────────────────────
+  // HYPERKALAEMIA (CPG A0724)
+  // ─────────────────────────────────────────────
+  hyperkalaemia: {
+    cpg: "A0724",
+    version: "1.0.0",
+    title: "Hyperkalaemia",
+    patientGroup: "≥16 years with suspected or confirmed hyperkalaemia",
+    careObjectives: [
+      "Identification of suspected hyperkalaemia",
+      "Membrane stabilisation (calcium gluconate)",
+      "Intracellular shifting of potassium",
+      "Transport to ICU-capable facility"
+    ],
+    suspectIn: ["known renal failure/dialysis patients", "severe crush injury/rhabdomyolysis", "severe burns", "patients on potassium-sparing diuretics, ACE inhibitors, ARBs"],
+    ecgChanges: ["tall peaked T waves (early)", "prolonged PR interval", "absent P waves", "widened QRS", "sine wave pattern (pre-arrest)", "bradyarrhythmia"],
+    note: "ECG changes do NOT correlate with specific potassium levels. Progression of changes = urgent management.",
+    management: {
+      membraneStabilisation: "Calcium gluconate 10 mL (931 mg) IV over 2–5 min (may be faster in arrest). C/I in digoxin toxicity.",
+      intracellularShift: "Salbutamol 10–20 mg nebulised (activates Na/K pumps). Dextrose + insulin (hospital). Sodium bicarbonate if severe acidosis.",
+      transport: "Urgent to ICU-capable facility"
+    }
+  },
+
+  // ─────────────────────────────────────────────
+  // DRUG REFERENCE — Key Drugs
+  // ─────────────────────────────────────────────
+  drug_reference: {
+    adrenaline: {
+      presentation: "1 mg/mL ampoule",
+      routes: "IM / IV / IO / infusion",
+      doses: {
+        anaphylaxis_IM: "500 mcg (0.5 mg) IM anterolateral thigh. Repeat 5-minutely.",
+        cardiac_arrest: "1 mg IV/IO per cardiac arrest protocol",
+        bradycardia_infusion: "3 mg in 50 mL D5W/NS. 1 mL/hr = 1 mcg/min. Titrate 2–10 mcg/min.",
+        asthma_severe_IM: "500 mcg IM",
+        croup_nebulised: "5 mg in 5 mL NS nebulised"
+      },
+      CI: "None absolute",
+      cautions: "MAOIs, TCAs (potentiate effects). Beta blockers (may blunt response). Hypovolaemia (treat first). Quetiapine toxicity."
+    },
+    midazolam: {
+      presentation: "5 mg/1 mL or 15 mg/3 mL",
+      routes: "IM / IV",
+      doses: {
+        seizure_IM: "10 mg IM (≥40 kg adult)",
+        seizure_IV: "5 mg IV",
+        sedation_cardioversion: "Per procedural sedation protocol"
+      },
+      onset: "IM 3–5 min. IV 1–3 min.",
+      duration: "IM 30 min. IV 20 min.",
+      CI: "Benzodiazepine hypersensitivity",
+      cautions: "Respiratory depression. Incompatible with dexamethasone, furosemide, hydrocortisone, NaHCO3."
+    },
+    levetiracetam: {
+      presentation: "500 mg/5 mL vial (100 mg/mL)",
+      route: "IV infusion",
+      dose: "60 mg/kg (max 4500 mg). ≥40 kg: undiluted. <40 kg: dilute 1:1 with NS. Infuse over 5 min via pump.",
+      indication: "Status epilepticus — second line after 2 doses of midazolam failed"
+    },
+    dextrose10: {
+      presentation: "250 mL bag (25 g)",
+      route: "IV/IO",
+      dose: "200 mL (20 g) for adult hypoglycaemia",
+      onset: "3 min",
+      caution: "Risk of vein irritation/thrombophlebitis. Do not co-administer with blood products."
+    },
+    glucagon: {
+      presentation: "1 mg vial + 1 mL water for injection (reconstitute before use)",
+      route: "IM",
+      dose: "1 mg IM",
+      onset: "5–10 min",
+      duration: "12–25 min",
+      indication: "Hypoglycaemia with no IV access, OR anaphylaxis with persistent hypotension + beta blocker use/heart failure after 2x adrenaline",
+      cautions: "Reduced effect in alcohol-induced hypoglycaemia, chronic liver disease. Nausea/vomiting common — position lateral."
+    },
+    gtn: {
+      presentation: "Spray 400 mcg/dose. Tablets 300 mcg and 600 mcg.",
+      route: "Sublingual (or buccal substitute)",
+      dose: "300–600 mcg SL. Repeat every 3–5 min.",
+      CI: "BP <100, HR <50 or >150, VT, PDE5 inhibitors (sildenafil/tadalafil), riociguat, bleeding in pregnancy",
+      cautions: "Elderly/no prior GTN exposure/recent MI: start 300 mcg. RV infarction/inferior STEMI + SBP <160: use cautiously."
+    },
+    aspirin: {
+      presentation: "300 mg chewable or soluble tablet",
+      route: "Oral",
+      dose: "300 mg PO",
+      indication: "ACS (antiplatelet)",
+      CI: "Aspirin hypersensitivity, active peptic ulcer bleeding, bleeding disorders, suspected dissecting aortic aneurysm, psychostimulant OD with SBP >160 mmHg"
+    },
+    amiodarone: {
+      presentation: "150 mg/3 mL ampoule",
+      route: "IV/IO",
+      doses: {
+        cardiac_arrest_3rd_shock: "300 mg IV/IO",
+        cardiac_arrest_5th_shock: "150 mg IV/IO",
+        stable_VT: "150 mg IV over 10 min"
+      },
+      CI: "TCA toxicity, QTc >500 ms, VT post-ondansetron, pregnancy (unless arrest)",
+      compatibility: "D5W only for infusion. Flush thoroughly before/after if line used for dexamethasone, heparin, hydrocortisone, NaHCO3."
+    },
+    atropine: {
+      presentation: "0.6 mg/mL or 1.2 mg/mL polyamp",
+      route: "IV",
+      dose: "600 mcg IV. Repeat to max 3000 mcg (5 doses).",
+      onset: "<2 min. Duration 2–6 hours.",
+      CI: "Cardiac transplant",
+      cautions: "Mobitz II and 3rd degree block: unlikely effective but still give. Do not increase HR >100 bpm (except paeds <6 yr). Flush with 10 mL NS before IV adrenaline if both being given."
+    },
+    naloxone: {
+      presentation: "0.4 mg/mL ampoule",
+      route: "IV / IM",
+      dose: "0.4 mg IV/IM. Titrate to adequate respiration.",
+      onset: "1–3 min (both routes). Duration 30–45 min.",
+      note: "Duration shorter than most opioids — re-sedation possible. Avoid full reversal (precipitates withdrawal/aggression in opioid-dependent patients). Do NOT give in opioid arrest or head injury."
+    },
+    morphine: {
+      presentation: "10 mg/mL ampoule",
+      route: "IV / IM / SC",
+      dose: "2.5–5 mg IV titrated. IM 5–10 mg.",
+      onset: "IV 2–5 min. IM 10–30 min.",
+      CI: "Morphine hypersensitivity, renal failure, late second stage labour",
+      cautions: "Elderly, hypotension, respiratory depression, asthma, alcohol"
+    },
+    fentanyl: {
+      presentation: "100 mcg/2 mL ampoule",
+      route: "IN / IM / SC / IV / IO",
+      dose: "1 mcg/kg IV titrated. 1.5 mcg/kg IM/IN.",
+      onset: "Immediate (IV). Duration 30–60 min.",
+      CI: "Serotonin toxicity, MAOIs within 14 days, late second stage labour",
+      note: "Not compatible with hydroxocobalamin. Risk of chest wall rigidity with rapid IV push — give slowly."
+    },
+    calcium_gluconate: {
+      presentation: "931 mg/10 mL (2.2 mmol)",
+      route: "Slow IV into large peripheral vein",
+      dose: "10 mL over 2–5 min (may be faster in arrest)",
+      indication: "Hyperkalaemia with ECG changes, calcium channel blocker toxicity, post-PRBC transfusion",
+      CI: "Suspected digoxin toxicity",
+      cautions: "Tissue necrosis if extravasation. Rapid administration → bradycardia, hypotension, arrhythmias."
+    },
+    tranexamic_acid: {
+      presentation: "1 g/10 mL",
+      route: "IV/IO infusion or slow push. IM as alternative.",
+      dose: "1 g IV over 10 min. Add to 100 mL D5W or NS.",
+      im_dose: "Two 5 mL injections lateral upper thigh",
+      CI: "Injury >2 hours ago",
+      indications: "Major trauma at risk of acute traumatic coagulopathy. Severe postpartum haemorrhage.",
+      cautions: "Rapid administration → hypotension. Do not co-administer with blood products or penicillins through same line."
+    }
+  }
+};
+
+// ─────────────────────────────────────────────
+// MULTI-CPG COMBINATION GUIDANCE
+// For complex/comorbid scenarios
+// ─────────────────────────────────────────────
+const CPG_COMBINATIONS = {
+  seizure_hypoglycaemia: {
+    cpgs: ["A0703", "A0702"],
+    note: "Hypoglycaemia is a common seizure precipitant. BSL mandatory in ALL seizure patients. If BSL <4: treat hypoglycaemia concurrently with seizure management. Dextrose 10% IV 200 mL while managing airway. Midazolam still indicated if actively seizing.",
+    priority: "Both simultaneously — airway + glucose correction + seizure termination"
+  },
+  anaphylaxis_asthma: {
+    cpgs: ["A0704", "A0601"],
+    note: "Asthma + food allergy in adolescents frequently co-present. Bronchospasm may be anaphylaxis — maintain high index of suspicion. Adrenaline IM is first-line for BOTH. Do NOT manage bronchospasm with salbutamol alone if anaphylaxis is possible.",
+    priority: "Adrenaline IM immediately. Salbutamol adjunct only after adrenaline."
+  },
+  acs_cardiac_arrest: {
+    cpgs: ["A0401", "A0201-1"],
+    note: "STEMI or ACS can rapidly deteriorate to VF arrest. Treat ACS if perfusing; transition to cardiac arrest CPG if arrest occurs.",
+    priority: "Definitive rhythm management. If VF: defibrillation → CPR → drugs."
+  },
+  stemi_apulmonary_oedema: {
+    cpgs: ["A0401", "A0408", "A0406"],
+    note: "STEMI with acute LVF (Killip class III/IV). Treat STEMI (aspirin, GTN cautiously, heparin) AND APO (NIV, GTN). STEMI activation and transport priority.",
+    priority: "STEMI pathway. APO management concurrent. Aggressive GTN use in LVF STEMI — but cautious in RV infarction."
+  },
+  trauma_head_injury: {
+    cpgs: ["A0810", "A0803"],
+    note: "Major trauma with TBI. HAEMORRHAGE control first. Then optimise physiology for brain: normotension (or supranormal), SpO2 94–98%, ETCO2 35–45. Avoid hypotension AND excessive fluid.",
+    priority: "Haemorrhage → airway → BP maintenance → ventilation targets → urgent transport."
+  },
+  sepsis_shock: {
+    cpgs: ["A0729", "A0705"],
+    note: "Septic shock: sepsis + persistent hypotension despite fluid. qSOFA ≥2 in suspected infection = high risk. Fluid resuscitation + vasopressors if inadequate. Urgent transport.",
+    priority: "IV access → fluid → vasopressors if inadequate → transport."
+  },
+  stroke_hypoglycaemia: {
+    cpgs: ["A0711", "A0702"],
+    note: "Hypoglycaemia is one of the most common stroke mimics. BSL mandatory in all suspected stroke patients. Treat hypoglycaemia first — neurological deficits may resolve completely.",
+    priority: "BSL check immediately. Treat hypoglycaemia if present before labelling as stroke."
+  },
+  bradycardia_hyperkalaemia: {
+    cpgs: ["A0402", "A0724"],
+    note: "Hyperkalaemia causes bradyarrhythmia and can progress to sine wave pattern and cardiac arrest. In renal failure patients with bradycardia + ECG changes: suspect hyperkalaemia. Calcium gluconate first (membrane stabilisation), then salbutamol (shift K+ intracellularly). Atropine less effective for hyperkalaemic bradycardia.",
+    priority: "Calcium gluconate → salbutamol neb → transport urgently."
+  },
+  opioid_seizure: {
+    cpgs: ["A0722", "A0703"],
+    note: "Opioid toxicity can cause seizures (especially tramadol, meperidine). Also consider hypoxia from opioid-induced respiratory depression as seizure cause. Naloxone for respiratory depression. Midazolam if actively seizing.",
+    priority: "Airway/ventilation first. Naloxone for respiratory depression. Midazolam for active seizure."
+  }
+};
+
+// Export for use in scenario generator
+
+// ── Category → CPG key mapping ─────────────────────────────────────────────
+const CATEGORY_TO_CPG = {
+  // Adult
+  'Adult|Cardiac Arrest':    ['cardiac_arrest'],
+  'Adult|Airway Management': [],
+  'Adult|Cardiac':           ['acs_stemi', 'bradycardia', 'tachycardia_narrow', 'tachycardia_broad'],
+  'Adult|Pain Relief':       [],
+  'Adult|Respiratory':       ['asthma', 'copd', 'pulmonary_oedema'],
+  'Adult|Medical':           ['seizures', 'hypoglycaemia', 'stroke', 'anaphylaxis', 'hyperkalaemia'],
+  'Adult|Infection':         ['sepsis'],
+  'Adult|Mental Health':     [],
+  'Adult|Trauma':            ['major_trauma', 'head_injury', 'shock'],
+  'Adult|Environment':       [],
+  'Adult|Toxicology':        ['opioid_toxicity'],
+  // Paediatric
+  'Paediatric|Cardiac Arrest':    ['cardiac_arrest'],
+  'Paediatric|Airway Management': [],
+  'Paediatric|Pain Relief':       [],
+  'Paediatric|Respiratory':       ['asthma'],
+  'Paediatric|Medical':           ['seizures', 'hypoglycaemia', 'anaphylaxis'],
+  'Paediatric|Infection':         ['sepsis'],
+  'Paediatric|Trauma':            ['major_trauma', 'head_injury', 'shock'],
+  'Paediatric|Environment':       [],
+  'Paediatric|Toxicology':        ['opioid_toxicity'],
+  // Maternity
+  'Maternity|Antepartum Haemorrhage':           ['shock'],
+  'Maternity|Pre-eclampsia / Eclampsia':        ['seizures'],
+  'Maternity|Normal Birth':                      [],
+  'Maternity|Breech / Compound':                 [],
+  'Maternity|Preterm Labour':                    [],
+  'Maternity|Cord Prolapse':                     [],
+  'Maternity|Shoulder Dystocia':                 [],
+  'Maternity|Primary Postpartum Haemorrhage':    ['shock'],
+  'Maternity|Miscarriage':                       [],
+  // Other
+  'Newborn|Newborn Resuscitation': ['cardiac_arrest'],
+  'Treat and Refer|Epistaxis':     [],
+  'Treat and Refer|Minor Burns':   [],
+};
+
+// Returns a structured CPG context string for prompt injection
+function buildCPGContext(catVal1, catVal2) {
+  const keys1 = CATEGORY_TO_CPG[catVal1] || [];
+  const keys2 = catVal2 ? (CATEGORY_TO_CPG[catVal2] || []) : [];
+  const allKeys = [...new Set([...keys1, ...keys2])];
+
+  if (allKeys.length === 0) return '';
+
+  const packageSections = allKeys.map(k => {
+    const pkg = CPG_PACKAGES[k];
+    if (!pkg) return '';
+    return `--- CPG: ${pkg.title} (${pkg.cpg}) ---\n` +
+      `Care objectives: ${pkg.careObjectives?.join('; ')}\n` +
+      `Management: ${JSON.stringify(pkg.management)}\n` +
+      `Drugs: ${JSON.stringify(pkg.drugs || {})}\n` +
+      (pkg.pitfalls ? `Pitfalls: ${pkg.pitfalls.join('; ')}\n` : '') +
+      (pkg.highRiskFeatures ? `High-risk features: ${pkg.highRiskFeatures.join(', ')}\n` : '');
+  }).filter(Boolean).join('\n');
+
+  // Check for a combination note
+  let comboNote = '';
+  if (catVal2 && keys1.length && keys2.length) {
+    const comboKey = Object.keys(CPG_COMBINATIONS).find(k => {
+      const combo = CPG_COMBINATIONS[k];
+      return keys1.some(a => combo.cpgs?.some(c => CPG_PACKAGES[a]?.cpg === c)) &&
+             keys2.some(b => combo.cpgs?.some(c => CPG_PACKAGES[b]?.cpg === c));
+    });
+    if (comboKey) {
+      const combo = CPG_COMBINATIONS[comboKey];
+      comboNote = `\n--- COMBINATION GUIDANCE ---\n${combo.note}\nManagement priority: ${combo.priority}\n`;
+    }
+  }
+
+  return `\n\nRELEVANT AV CPG CONTENT (v3.13.1) — use these exact doses and thresholds:\n${packageSections}${comboNote}`;
+}
+
 const SCENARIO_JSON_TEMPLATE = `{"title":"","subtitle":"","category":"CAT","subcategory":"SUB","type":"","cpg":"","level":"C/D","dispatch":"","vitals":{"GCS":"","SpO2":"","RR":"","HR":"","BP":"","Temp":"","BGL":"","Rhythm":""},"key_hx":"","flags":["","","",""],"ddx":["","","",""],"provisional":"","treatment":["","","","","","","","","",""],"kq":[{"q":"","max":2,"answer":""},{"q":"","max":2,"answer":""},{"q":"","max":1,"answer":""}]}`;
 
 async function generateAIScenario() {
   const catVal = document.getElementById('gen-category').value;
+  const catVal2El = document.getElementById('gen-category-2');
+  const catVal2 = catVal2El && catVal2El.value !== '__none__' ? catVal2El.value : null;
   const [category, subcategory] = catVal.includes('|') ? catVal.split('|') : [catVal, catVal];
   const complaint = document.getElementById('gen-complaint').value.trim();
   const complexity = document.getElementById('gen-complexity').value;
@@ -3437,12 +4296,41 @@ async function generateAIScenario() {
   lastAIScenario = null;
   showAIStatus('loading', '✦ Generating scenario… this may take 15–30 seconds.');
 
-  const complaintLine = complaint ? `The scenario should involve: ${complaint}.` : `Choose a realistic and educationally valuable ${category} — ${subcategory} presentation.`;
+  // Build CPG context for prompt injection
+  const cpgContext = buildCPGContext(catVal, catVal2);
+
+  // Determine effective category label (single or combo)
+  let categoryLabel = `${category} — ${subcategory}`;
+  if (catVal2) {
+    const [cat2, sub2] = catVal2.includes('|') ? catVal2.split('|') : [catVal2, catVal2];
+    categoryLabel += ` + ${cat2} — ${sub2}`;
+  }
+
+  const complaintLine = complaint
+    ? `The scenario should involve: ${complaint}.`
+    : `Choose a realistic and educationally valuable ${categoryLabel} presentation.`;
   const patient = randomAustralianPatient();
-  const complexityNote = {standard:'Standard, core presentation with typical management.',complex:'Include a complicating factor — comorbidity, atypical feature, or medication interaction.','high-acuity':'High acuity, time-critical, multi-system with at least one life-threatening element.'}[complexity];
+  const complexityNote = {
+    standard:     'Standard, core presentation with typical management.',
+    complex:      'Include a complicating factor — comorbidity, atypical feature, or medication interaction.',
+    'high-acuity':'High acuity, time-critical, multi-system with at least one life-threatening element.'
+  }[complexity];
   const patientNote = `Patient demographics: ${patient.age}yo ${patient.gender}, name: ${patient.name}. Use this name and demographics in the dispatch and scenario.`;
-  const systemPrompt = 'You are a clinical scenario writer for Ambulance Victoria (AV) paramedic education. Write accurate ALS (Level C/D) verbal assessment scenarios based strictly on AV CPGs. Respond with valid JSON only — no markdown, no preamble.';
-  const userPrompt = `Generate an ALS (Level C/D) verbal scenario for Ambulance Victoria.\nCategory: ${category} — ${subcategory}\n${complaintLine}\n${complexityNote}\n${patientNote}\nReturn ONLY a valid JSON object:\n${SCENARIO_JSON_TEMPLATE.replace('CAT',category).replace('SUB',subcategory)}`;
+
+  const cpgInstruction = cpgContext
+    ? `You MUST use the exact drug doses, thresholds, and management steps from the CPG content provided below. Do not invent doses or deviate from the provided protocol.${cpgContext}`
+    : 'Use your knowledge of AV CPGs to generate an accurate scenario.';
+
+  const systemPrompt = `You are a clinical scenario writer for Ambulance Victoria (AV) paramedic education. Write accurate ALS (Level C/D) verbal assessment scenarios based strictly on AV Clinical Practice Guidelines v3.13.1 (December 2025). Respond with valid JSON only — no markdown, no preamble. ${cpgInstruction}`;
+
+  const userPrompt = `Generate an ALS (Level C/D) verbal scenario for Ambulance Victoria.
+Category: ${categoryLabel}
+${complaintLine}
+${complexityNote}
+${patientNote}
+The treatment array must reflect the exact AV CPG management steps for this presentation, including correct drug names, doses, routes, and repeat criteria.
+Return ONLY a valid JSON object:
+${SCENARIO_JSON_TEMPLATE.replace('CAT', category).replace('SUB', subcategory)}`;
 
   try {
     let scenario;
