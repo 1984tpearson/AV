@@ -99,11 +99,10 @@ body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background
 .welcome-header { background: var(--navy); color: white; border-radius: 12px; padding: 24px 24px; margin-bottom: 16px; }
 .welcome-header h2 { font-size: 20px; font-weight: 700; margin-bottom: 6px; }
 .welcome-header p { font-size: 13px; opacity: 0.8; }
-.stats-grid { display: grid; grid-template-columns: repeat(2,1fr); gap: 10px; margin-bottom: 16px; }
-@media (min-width: 600px) { .stats-grid { grid-template-columns: repeat(4,1fr); } }
-.stat-card { background: white; border-radius: 10px; padding: 14px; text-align: center; border: 1px solid var(--border); box-shadow: var(--shadow); }
-.stat-card .stat-num { font-size: 26px; font-weight: 800; line-height: 1; }
-.stat-card .stat-label { font-size: 11px; color: var(--grey); margin-top: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+.stats-grid { display: grid; grid-template-columns: repeat(5,1fr); gap: 6px; margin-bottom: 14px; }
+.stat-card { background: white; border-radius: 8px; padding: 8px 6px; text-align: center; border: 1px solid var(--border); box-shadow: var(--shadow); }
+.stat-card .stat-num { font-size: 18px; font-weight: 800; line-height: 1; }
+.stat-card .stat-label { font-size: 10px; color: var(--grey); margin-top: 3px; text-transform: uppercase; letter-spacing: 0.3px; }
 .stat-card.navy .stat-num { color: var(--navy); }
 .stat-card.red .stat-num { color: var(--red); }
 .stat-card.blue .stat-num { color: var(--blue); }
@@ -308,14 +307,14 @@ body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background
 .save-scenario-bar { background: var(--green-light); border: 1px solid #A9DFBF; border-radius: 8px; padding: 12px 14px; margin-top: 14px; display: none; flex-direction: column; gap: 8px; }
 .save-scenario-bar.visible { display: flex; }
 .save-scenario-bar p { font-size: 12px; color: var(--green); font-weight: 600; }
-.recent-scenarios-section { margin-bottom: 6px; }
-.recent-scenarios-title { font-size: 12px; font-weight: 700; color: var(--grey); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px; }
-.recent-scenario-item { display: flex; align-items: center; gap: 10px; padding: 9px 12px; background: white; border: 1px solid #e8ecf0; border-radius: 8px; margin-bottom: 5px; cursor: pointer; transition: background 0.15s, border-color 0.15s; }
-.recent-scenario-item:hover { background: #f0f4f8; border-color: var(--navy); }
-.recent-si-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
-.recent-si-title { font-size: 13px; font-weight: 600; color: var(--navy); flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.recent-si-sub { font-size: 11px; color: var(--grey); flex-shrink: 0; }
-.recent-si-badge { font-size: 10px; font-weight: 700; padding: 1px 5px; border-radius: 4px; flex-shrink: 0; }
+.recent-scenarios-section { margin-bottom: 8px; }
+.recent-scenarios-title { font-size: 11px; font-weight: 700; color: var(--grey); text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 10px; }
+.recent-scenario-item { display: flex; align-items: center; gap: 12px; padding: 13px 15px; background: white; border: 1.5px solid #e0e6ed; border-radius: 10px; margin-bottom: 7px; cursor: pointer; transition: background 0.15s, border-color 0.15s, box-shadow 0.15s; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+.recent-scenario-item:hover { background: #f0f4f8; border-color: var(--navy); box-shadow: 0 2px 8px rgba(0,40,80,0.1); }
+.recent-si-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.recent-si-title { font-size: 15px; font-weight: 700; color: var(--navy); flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.recent-si-sub { font-size: 12px; color: var(--grey); flex-shrink: 0; font-weight: 500; }
+.recent-si-badge { font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 5px; flex-shrink: 0; }
 .recent-si-badge.ai { background: #FEF9E7; color: var(--amber); border: 1px solid #F9E79F; }
 .recent-si-badge.custom { background: #EBF5FB; color: var(--blue); border: 1px solid #AED6F1; }
 .save-btn { padding: 10px 18px; background: var(--green); color: white; border: none; border-radius: 8px; font-weight: 700; font-size: 13px; cursor: pointer; min-height: var(--tap); align-self: flex-start; }
@@ -517,7 +516,7 @@ body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background
         <div class="stat-card purple"><div class="stat-num">4</div><div class="stat-label">Maternity</div></div>
         <div class="stat-card green" id="custom-stat"><div class="stat-num" id="custom-count">0</div><div class="stat-label">Custom</div></div>
       </div>
-      <div id="home-recent-scenarios" style="margin:18px 0 4px">
+      <div id="home-recent-scenarios" style="margin:14px 0 6px">
         <!-- populated by buildRecentScenariosList() -->
       </div>
       <div class="category-overview" id="home-category-overview">
@@ -4439,7 +4438,7 @@ async function generateAIScenario() {
     ? `You MUST use the exact drug doses, thresholds, and management steps from the CPG content provided below. Do not invent doses or deviate from the provided protocol.${cpgContext}`
     : 'Use your knowledge of AV CPGs to generate an accurate scenario.';
 
-  const systemPrompt = `You are a clinical scenario writer for Ambulance Victoria (AV) paramedic education. Write accurate ALS (Level C/D) verbal assessment scenarios based strictly on AV Clinical Practice Guidelines v3.13.1 (December 2025). Respond with valid JSON only — no markdown, no preamble. ${cpgInstruction}`;
+  const systemPrompt = `You are a clinical scenario writer for Ambulance Victoria (AV) paramedic education. Write accurate ALS (Level C/D) verbal assessment scenarios based strictly on AV Clinical Practice Guidelines v3.13.1 (December 2025). Respond with valid JSON only — no markdown, no preamble. For the dispatch field: write a terse, clinical dispatch summary — no radio preamble like "Ambulance Victoria this is dispatch", no sign-off phrases like "please respond with haste". Just the essential facts: location, patient demographics, presenting complaint, relevant history, current signs/symptoms, any bystander interventions. Example style: "Response to a restaurant in Lygon Street. 6-year-old female, known peanut allergy, possible peanut exposure. Now with hives, vomiting and difficulty breathing. Parents present. Epipen used by parents approximately 5 minutes ago." ${cpgInstruction}`;
 
   const userPrompt = `Generate an ALS (Level C/D) verbal scenario for Ambulance Victoria.
 Category: ${categoryLabel}
@@ -5108,6 +5107,17 @@ function updatePaedAge(ageVal) {
   const subEl = document.getElementById('sh-subtitle-display');
   if (subEl) subEl.textContent = newSubtitle;
 
+  // Update dispatch text — replace age references throughout
+  if (currentScenario.dispatch) {
+    let d = currentScenario.dispatch;
+    d = d.replace(/\b\d+[\s\-]months?[\s\-]old\b/gi, ageLabel + '-old');
+    d = d.replace(/\b\d+[\s\-]years?[\s\-]old\b/gi, ageLabel + '-old');
+    d = d.replace(/\b\d+(?=\s*(?:yo\b|y\.o\.?\s|year))/gi, age < 1 ? Math.round(age*12) + 'mo' : String(Math.floor(age)));
+    currentScenario.dispatch = d;
+    const dcText = document.querySelector('.dc-text');
+    if (dcText) dcText.textContent = d;
+  }
+
   // Update vitals grid in dispatch card
   const vitalsGrid = document.querySelector('.vitals-grid');
   if (vitalsGrid) {
@@ -5157,19 +5167,39 @@ function onEditSubtitleChange(val) {
   const cat = document.getElementById('e-category')?.value || '';
   const isPaed = cat.startsWith('Paediatric') || cat.startsWith('Newborn');
 
-  // Sync age in dispatch text whenever subtitle changes
-  const dispatchEl = document.getElementById('e-dispatch');
-  if (dispatchEl && dispatchEl.value) {
-    const newAge = parseAgeFromSubtitle(val);
-    if (newAge !== null) {
-      // Replace age patterns in dispatch: "X-year-old", "Xyo", "X year old", "X month old" etc.
-      const ageYrs = newAge >= 1 ? Math.round(newAge) : null;
-      const ageMos = newAge < 1 ? Math.round(newAge * 12) : null;
-      const ageLabel = ageMos ? `${ageMos}-month-old` : `${ageYrs}-year-old`;
-      dispatchEl.value = dispatchEl.value
+  // Sync age in ALL editable text fields whenever subtitle changes
+  const newAge = parseAgeFromSubtitle(val);
+  if (newAge !== null) {
+    const ageYrs = newAge >= 1 ? Math.round(newAge) : null;
+    const ageMos = newAge < 1 ? Math.round(newAge * 12) : null;
+    const ageLabel = ageMos ? `${ageMos}-month-old` : `${ageYrs}-year-old`;
+    const shortAge = ageYrs ? `${ageYrs}yo` : `${Math.round(newAge * 12)}mo`;
+    function replaceAgeInStr(str) {
+      if (!str || typeof str !== 'string') return str;
+      return str
         .replace(/\d+[-\s]month[-\s]old/gi, ageLabel)
         .replace(/\d+[-\s]year[-\s]old/gi, ageLabel)
-        .replace(/\b\d+\s*yo\b/gi, `${ageYrs || Math.round(newAge * 12)}yo`);
+        .replace(/\b\d+\s*(?:yo|y\/o)\b/gi, shortAge)
+        .replace(/\bAge\s+\d+\b/gi, `Age ${ageYrs || Math.round(newAge * 12)}`);
+    }
+    function replaceAgeInEl(elId) {
+      const el = document.getElementById(elId);
+      if (el && el.value) el.value = replaceAgeInStr(el.value);
+    }
+    // Update all main text fields
+    ['e-dispatch', 'e-keyhx', 'e-provisional'].forEach(replaceAgeInEl);
+    // Update treatment list items
+    document.querySelectorAll('[id^="e-treatment-"]').forEach(el => {
+      if (el && el.value) el.value = replaceAgeInStr(el.value);
+    });
+    // Update flags
+    document.querySelectorAll('[id^="e-flag-"]').forEach(el => {
+      if (el && el.value) el.value = replaceAgeInStr(el.value);
+    });
+    // Update in-memory scenario so saved copy is consistent
+    if (currentScenario) {
+      if (currentScenario.dispatch) currentScenario.dispatch = replaceAgeInStr(currentScenario.dispatch);
+      if (currentScenario.key_hx) currentScenario.key_hx = replaceAgeInStr(currentScenario.key_hx);
     }
   }
 
