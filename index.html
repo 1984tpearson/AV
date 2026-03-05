@@ -2713,12 +2713,43 @@ function weightedRandomName(gender) {
   return { first, last, full: `${first} ${last}` };
 }
 
-function randomAustralianPatient() {
+function randomAustralianPatient(category) {
   // ABS 2021: 49.3% male, 50.7% female; include small non-binary weight for representation
   const genderRoll = Math.random();
-  const gender = genderRoll < 0.493 ? 'Male' : genderRoll < 0.985 ? 'Female' : 'Non-binary';
+  let gender, age;
+
+  if (category === 'Paediatric') {
+    // Paediatric: 1 month–15 years. Weighted toward school-age for richer scenarios.
+    gender = Math.random() < 0.5 ? 'Male' : 'Female';
+    const ageRanges = [
+      { min: 0.1, max: 1,  label: 'months', weight: 1 },  // infant
+      { min: 1,   max: 4,  label: 'years',  weight: 2 },  // toddler
+      { min: 5,   max: 11, label: 'years',  weight: 4 },  // school-age
+      { min: 12,  max: 15, label: 'years',  weight: 3 },  // adolescent
+    ];
+    const totalW = ageRanges.reduce((s, r) => s + r.weight, 0);
+    let roll = Math.random() * totalW;
+    let chosen = ageRanges[ageRanges.length - 1];
+    for (const r of ageRanges) { roll -= r.weight; if (roll <= 0) { chosen = r; break; } }
+    if (chosen.label === 'months') {
+      const months = Math.floor(Math.random() * 11) + 1;
+      age = `${months} month${months > 1 ? 's' : ''}`;
+    } else {
+      age = Math.floor(Math.random() * (chosen.max - chosen.min + 1)) + chosen.min;
+    }
+  } else if (category === 'Maternity') {
+    gender = 'Female';
+    age = Math.floor(Math.random() * 22) + 18; // 18–39
+  } else if (category === 'Newborn') {
+    gender = Math.random() < 0.5 ? 'Male' : 'Female';
+    age = 'newborn';
+  } else {
+    // Adult default: 18–87
+    gender = genderRoll < 0.493 ? 'Male' : genderRoll < 0.985 ? 'Female' : 'Non-binary';
+    age = Math.floor(Math.random() * 70) + 18;
+  }
+
   const name = weightedRandomName(gender);
-  const age = Math.floor(Math.random() * 70) + 18; // 18–87
   return { name: name.full, gender, age };
 }
 
@@ -4254,10 +4285,13 @@ function buildCPGContext(catVal1, catVal2) {
   const packageSections = allKeys.map(k => {
     const pkg = CPG_PACKAGES[k];
     if (!pkg) return '';
+    // Render management and drugs as readable key: value lines (not JSON.stringify — avoids prompt corruption)
+    const mgmtLines = Object.entries(pkg.management || {}).map(([mk, mv]) => `  ${mk}: ${mv}`).join('\n');
+    const drugLines = Object.entries(pkg.drugs || {}).map(([dk, dv]) => `  ${dk}: ${dv}`).join('\n');
     return `--- CPG: ${pkg.title} (${pkg.cpg}) ---\n` +
       `Care objectives: ${pkg.careObjectives?.join('; ')}\n` +
-      `Management: ${JSON.stringify(pkg.management)}\n` +
-      `Drugs: ${JSON.stringify(pkg.drugs || {})}\n` +
+      `Management:\n${mgmtLines}\n` +
+      (drugLines ? `Drugs:\n${drugLines}\n` : '') +
       (pkg.pitfalls ? `Pitfalls: ${pkg.pitfalls.join('; ')}\n` : '') +
       (pkg.highRiskFeatures ? `High-risk features: ${pkg.highRiskFeatures.join(', ')}\n` : '');
   }).filter(Boolean).join('\n');
@@ -4309,13 +4343,16 @@ async function generateAIScenario() {
   const complaintLine = complaint
     ? `The scenario should involve: ${complaint}.`
     : `Choose a realistic and educationally valuable ${categoryLabel} presentation.`;
-  const patient = randomAustralianPatient();
+  const patient = randomAustralianPatient(category);
   const complexityNote = {
     standard:     'Standard, core presentation with typical management.',
     complex:      'Include a complicating factor — comorbidity, atypical feature, or medication interaction.',
     'high-acuity':'High acuity, time-critical, multi-system with at least one life-threatening element.'
   }[complexity];
-  const patientNote = `Patient demographics: ${patient.age}yo ${patient.gender}, name: ${patient.name}. Use this name and demographics in the dispatch and scenario.`;
+  const ageStr = (category === 'Newborn') ? 'newborn'
+    : (typeof patient.age === 'string' && patient.age.includes('month')) ? `${patient.age} old`
+    : `${patient.age}yo`;
+  const patientNote = `Patient demographics: ${ageStr} ${patient.gender}, name: ${patient.name}. Use this name and demographics in the dispatch and scenario. Do NOT change the patient age — use exactly ${ageStr}.`;
 
   const cpgInstruction = cpgContext
     ? `You MUST use the exact drug doses, thresholds, and management steps from the CPG content provided below. Do not invent doses or deviate from the provided protocol.${cpgContext}`
