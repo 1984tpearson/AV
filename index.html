@@ -571,7 +571,10 @@ body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background
           <p style="font-size:11px;color:var(--grey);margin-top:6px">🔒 Your key is saved on this device — you won't need to re-enter it.</p>
         </div>
       </div>
-      <div class="form-group"><label>Primary Category</label><select id="gen-category"><optgroup label="Adult">
+      <div class="form-group">
+        <label>Primary Category</label>
+        <select id="gen-category" onchange="updateCPGSubtypeDropdown('gen-category','gen-subtype-group','gen-cpg-subtype')">
+        <optgroup label="Adult">
           <option value="Adult|Cardiac Arrest">Adult — Cardiac Arrest</option>
           <option value="Adult|Airway Management">Adult — Airway Management</option>
           <option value="Adult|Cardiac">Adult — Cardiac</option>
@@ -612,10 +615,18 @@ body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background
         <optgroup label="Treat and Refer">
           <option value="Treat and Refer|Epistaxis">Treat and Refer — Epistaxis</option>
           <option value="Treat and Refer|Minor Burns">Treat and Refer — Minor Burns</option>
-        </optgroup></select></div>
+        </optgroup>
+        </select>
+      </div>
+      <div class="form-group" id="gen-subtype-group" style="display:none">
+        <label>Presentation Type <span style="font-weight:400;color:var(--grey);font-size:11px">(optional — leave on Random for variety)</span></label>
+        <select id="gen-cpg-subtype">
+          <option value="__random__">🎲 Random — surprise me</option>
+        </select>
+      </div>
       <div class="form-group">
         <label>Secondary Category <span style="font-weight:400;color:var(--grey);font-size:11px">(optional — creates a multi-CPG scenario)</span></label>
-        <select id="gen-category-2">
+        <select id="gen-category-2" onchange="updateCPGSubtypeDropdown('gen-category-2','gen-subtype-group-2','gen-cpg-subtype-2')">
           <option value="__none__">— None (single scenario) —</option>
           <optgroup label="Adult">
           <option value="Adult|Cardiac Arrest">Adult — Cardiac Arrest</option>
@@ -659,6 +670,12 @@ body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background
           <option value="Treat and Refer|Epistaxis">Treat and Refer — Epistaxis</option>
           <option value="Treat and Refer|Minor Burns">Treat and Refer — Minor Burns</option>
         </optgroup>
+        </select>
+      </div>
+      <div class="form-group" id="gen-subtype-group-2" style="display:none">
+        <label>Presentation Type <span style="font-weight:400;color:var(--grey);font-size:11px">(optional)</span></label>
+        <select id="gen-cpg-subtype-2">
+          <option value="__random__">🎲 Random — surprise me</option>
         </select>
       </div>
       <div class="form-group"><label>Presentation (optional)</label><input type="text" id="gen-complaint" placeholder="e.g. chest pain, altered consciousness…"><div class="hint">Leave blank for a random presentation.</div></div>
@@ -5195,19 +5212,130 @@ const CATEGORY_TO_CPG = {
   'Treat and Refer|Minor Burns':   ['burns'],
 };
 
+// ── CPG subtype labels for the presentation-type dropdown ──────────────────
+const CPG_SUBTYPE_LABELS = {
+  // Toxicology
+  opioid_toxicity:          'Opioid Toxicity',
+  tca_toxicity:             'Tricyclic Antidepressant (TCA) Overdose',
+  beta_blocker_toxicity:    'Beta-Blocker Toxicity',
+  ccb_toxicity:             'Calcium Channel Blocker Toxicity',
+  organophosphate_toxicity: 'Organophosphate / Pesticide Toxicity',
+  drug_induced_hyperthermia:'Drug-Induced Hyperthermia / Stimulant Toxidrome',
+  quetiapine_toxicity:      'Quetiapine (Antipsychotic) Toxicity',
+  alcohol_intoxication:     'Acute Alcohol Intoxication',
+  alcohol_withdrawal:       'Alcohol Withdrawal Syndrome',
+  cyanide_toxicity:         'Cyanide Toxicity',
+  // Cardiac
+  acs_stemi:                'ACS / STEMI',
+  bradycardia:              'Bradycardia',
+  tachycardia_narrow:       'Narrow Complex Tachycardia (SVT/AF)',
+  tachycardia_broad:        'Broad Complex Tachycardia (VT)',
+  syncope:                  'Syncope',
+  pulmonary_embolism:       'Pulmonary Embolism',
+  // Medical
+  seizures:                 'Seizures / Status Epilepticus',
+  hypoglycaemia:            'Hypoglycaemia',
+  stroke:                   'Suspected Stroke / TIA',
+  anaphylaxis:              'Anaphylaxis',
+  hyperkalaemia:            'Hyperkalaemia',
+  hyperglycaemia:           'Hyperglycaemia / DKA / HHS',
+  headache:                 'Headache',
+  nausea_vomiting:          'Nausea and Vomiting',
+  // Respiratory
+  asthma:                   'Asthma',
+  copd:                     'COPD Exacerbation',
+  pulmonary_oedema:         'Cardiogenic Pulmonary Oedema',
+  chest_injury:             'Chest Injury',
+  upper_airway_obstruction: 'Upper Airway Obstruction',
+  dyspnoea:                 'Undifferentiated Dyspnoea',
+  // Mental Health
+  acute_behavioural_disturbance: 'Acute Behavioural Disturbance',
+  mental_health_conditions: 'Mental Health Conditions',
+  // Trauma
+  major_trauma:             'Major Trauma',
+  head_injury:              'Traumatic Head Injury',
+  shock:                    'Shock',
+  burns:                    'Burns',
+  // Environment
+  hypothermia:              'Hypothermia',
+  hyperthermia_environmental: 'Heat Stress / Heat Stroke',
+  // Maternity
+  maternity_patient:        'General Maternity Assessment',
+  preeclampsia_eclampsia:   'Pre-eclampsia / Eclampsia',
+  normal_birth:             'Normal Birth',
+  breech_birth:             'Breech / Compound Presentation',
+  cord_prolapse:            'Cord Prolapse',
+  shoulder_dystocia:        'Shoulder Dystocia',
+  // Newborn
+  newborn_resuscitation:    'Newborn Resuscitation',
+  the_newborn:              'Newborn Assessment',
+  // Infection
+  sepsis:                   'Sepsis',
+};
+
+function updateCPGSubtypeDropdown(catId, groupId, selectId) {
+  // Defaults for primary category (called without args from legacy paths)
+  catId    = catId    || 'gen-category';
+  groupId  = groupId  || 'gen-subtype-group';
+  selectId = selectId || 'gen-cpg-subtype';
+
+  const catEl   = document.getElementById(catId);
+  const group   = document.getElementById(groupId);
+  const select  = document.getElementById(selectId);
+  if (!catEl || !group || !select) return;
+
+  const catVal = catEl.value;
+
+  // For secondary category, hide subtype if no category selected
+  if (catVal === '__none__') {
+    group.style.display = 'none';
+    select.innerHTML = '<option value="__random__">🎲 Random — surprise me</option>';
+    return;
+  }
+
+  const keys = CATEGORY_TO_CPG[catVal] || [];
+
+  // Only show if there are multiple options
+  if (keys.length <= 1) {
+    group.style.display = 'none';
+    select.innerHTML = '<option value="__random__">🎲 Random — surprise me</option>';
+    return;
+  }
+
+  group.style.display = '';
+  select.innerHTML = '<option value="__random__">🎲 Random — surprise me</option>' +
+    keys.map(k => {
+      const label = CPG_SUBTYPE_LABELS[k] || k;
+      return `<option value="${k}">${label}</option>`;
+    }).join('');
+}
+
 // Returns a structured CPG context string for prompt injection
 function buildCPGContext(catVal1, catVal2) {
   const keys1 = CATEGORY_TO_CPG[catVal1] || [];
   const keys2 = catVal2 ? (CATEGORY_TO_CPG[catVal2] || []) : [];
 
-  // For single-category (no catVal2) calls with multiple options, pick one randomly
-  // so the AI doesn't default to the first entry every time
+  // For single-category calls: use selected subtype if set, otherwise random
   let selectedKeys1 = keys1;
-  if (!catVal2 && keys1.length > 1) {
-    selectedKeys1 = [keys1[Math.floor(Math.random() * keys1.length)]];
+  if (keys1.length > 1) {
+    const subtypeEl = document.getElementById('gen-cpg-subtype');
+    const chosen = subtypeEl && subtypeEl.value !== '__random__' ? subtypeEl.value : null;
+    selectedKeys1 = chosen && keys1.includes(chosen)
+      ? [chosen]
+      : [keys1[Math.floor(Math.random() * keys1.length)]];
   }
 
-  const allKeys = [...new Set([...selectedKeys1, ...keys2])];
+  // For secondary category: use selected subtype-2 if set, otherwise random
+  let selectedKeys2 = keys2;
+  if (catVal2 && keys2.length > 1) {
+    const subtype2El = document.getElementById('gen-cpg-subtype-2');
+    const chosen2 = subtype2El && subtype2El.value !== '__random__' ? subtype2El.value : null;
+    selectedKeys2 = chosen2 && keys2.includes(chosen2)
+      ? [chosen2]
+      : [keys2[Math.floor(Math.random() * keys2.length)]];
+  }
+
+  const allKeys = [...new Set([...selectedKeys1, ...selectedKeys2])];
 
   if (allKeys.length === 0) return '';
 
@@ -5272,19 +5400,23 @@ async function generateAIScenario() {
     categoryLabel += ` + ${cat2} — ${sub2}`;
   }
 
-  // For toxicology, explicitly name the type injected via CPG context to prevent opioid bias
-  const toxSubtypeHint = (subcategory === 'Toxicology' && cpgContext)
+  // Name the specific CPG subtype to prevent the AI defaulting to opioids
+  // First check if user explicitly selected a subtype; otherwise infer from injected CPG context
+  const subtypeEl = document.getElementById('gen-cpg-subtype');
+  const explicitSubtype = subtypeEl && subtypeEl.value !== '__random__' ? subtypeEl.value : null;
+  const toxSubtypeHint = (subcategory === 'Toxicology' || explicitSubtype) && cpgContext
     ? (() => {
-        if (cpgContext.includes('Tricyclic Antidepressant')) return 'tricyclic antidepressant (TCA) overdose';
-        if (cpgContext.includes('Beta-Blocker Toxicity')) return 'beta-blocker toxicity';
-        if (cpgContext.includes('Calcium Channel Blocker')) return 'calcium channel blocker (CCB) toxicity';
-        if (cpgContext.includes('Organophosphate')) return 'organophosphate toxicity';
-        if (cpgContext.includes('Drug Induced Hyperthermia')) return 'drug-induced hyperthermia / stimulant toxidrome (serotonin syndrome)';
-        if (cpgContext.includes('Quetiapine')) return 'quetiapine (antipsychotic) toxicity';
-        if (cpgContext.includes('Acute Alcohol Intoxication')) return 'acute alcohol intoxication';
-        if (cpgContext.includes('Alcohol Withdrawal')) return 'alcohol withdrawal syndrome';
-        if (cpgContext.includes('Cyanide')) return 'cyanide toxicity';
-        if (cpgContext.includes('Opioid Toxicity')) return 'opioid toxicity';
+        if (explicitSubtype && CPG_SUBTYPE_LABELS[explicitSubtype]) return CPG_SUBTYPE_LABELS[explicitSubtype];
+        if (cpgContext.includes('Tricyclic Antidepressant')) return 'Tricyclic Antidepressant (TCA) Overdose';
+        if (cpgContext.includes('Beta-Blocker Toxicity')) return 'Beta-Blocker Toxicity';
+        if (cpgContext.includes('Calcium Channel Blocker')) return 'Calcium Channel Blocker (CCB) Toxicity';
+        if (cpgContext.includes('Organophosphate')) return 'Organophosphate Toxicity';
+        if (cpgContext.includes('Drug Induced Hyperthermia')) return 'Drug-Induced Hyperthermia / Stimulant Toxidrome';
+        if (cpgContext.includes('Quetiapine')) return 'Quetiapine Toxicity';
+        if (cpgContext.includes('Acute Alcohol Intoxication')) return 'Acute Alcohol Intoxication';
+        if (cpgContext.includes('Alcohol Withdrawal')) return 'Alcohol Withdrawal Syndrome';
+        if (cpgContext.includes('Cyanide')) return 'Cyanide Toxicity';
+        if (cpgContext.includes('Opioid Toxicity')) return 'Opioid Toxicity';
         return null;
       })()
     : null;
