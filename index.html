@@ -2259,8 +2259,9 @@ function renderSection2(s) {
       <td class="tick-col">${mkTick(id,'incomplete')}</td>
       <td class="tick-col">${mkTick(id,'complete')}</td>
     </tr>`;
-  const treatAlsHtml = (s.treatment_als||s.treatment||[]).filter(Boolean).map(t=>`<li>${t}</li>`).join('');
-  const treatMicaHtml = (s.treatment_mica||[]).filter(Boolean).map(t=>`<li>${t}</li>`).join('');
+  const allSteps = [...(s.treatment_als||s.treatment||[]), ...(s.treatment_mica||[])].filter(Boolean);
+  const treatAlsHtml = allSteps.filter(t => !t.includes('(MICA)')).map(t=>`<li>${t}</li>`).join('');
+  const treatMicaHtml = allSteps.filter(t => t.includes('(MICA)')).map(t=>`<li>${t}</li>`).join('');
 
   return `
   <div class="section">
@@ -2336,7 +2337,7 @@ function renderSection2(s) {
       </table>
 
       ${treatAlsHtml ? `<div class="treatment-box"><h4>✅ ALS Expected Treatment — ${s.cpg||'Scenario'}</h4><ol>${treatAlsHtml}</ol></div>` : ''}
-      ${treatMicaHtml ? `<div class="treatment-mica-box"><h4>🔵 MICA Management — for discussion only</h4><ol>${treatMicaHtml}</ol></div>` : ''}
+      ${treatMicaHtml ? `<div class="treatment-mica-box"><h4>🔵 MICA Management</h4><ol>${treatMicaHtml}</ol></div>` : ''}
       ${(s.discussion&&s.discussion.length) ? `<div class="discussion-box"><div class="discussion-header"><span class="discussion-label">💬 Beyond AV Scope — CI Discussion Prompts</span><span class="discussion-note">Not assessable · AI-suggested · not part of AV management</span></div><ul>${s.discussion.map(d=>`<li>${d}</li>`).join('')}</ul></div>` : ''}
 
       <div style="margin-top:12px">
