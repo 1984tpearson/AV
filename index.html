@@ -2124,17 +2124,15 @@ function renderSection1(s, isTrauma) {
 
   // Life threat rows — pull first 3 steps from CPG package management
   const _ltPkgKeys = (() => {
+    const cpgCodes = (s.cpg || '').split(/[,/]/).map(c => c.trim()).filter(Boolean);
+    if (cpgCodes.length) {
+      const matched = cpgCodes.map(code =>
+        Object.keys(CPG_PACKAGES).find(k => CPG_PACKAGES[k]?.cpg === code)
+      ).filter(Boolean);
+      if (matched.length) return matched;
+    }
     const catVal = s.category && s.subcategory ? `${s.category}|${s.subcategory}` : '';
-    const keys = (CATEGORY_TO_CPG[catVal] || []);
-    if (s.cpg && keys.length > 1) {
-      const match = keys.find(k => CPG_PACKAGES[k]?.cpg === s.cpg);
-      if (match) return [match];
-    }
-    if (s.cpg && keys.length === 0) {
-      const found = Object.keys(CPG_PACKAGES).find(k => CPG_PACKAGES[k]?.cpg === s.cpg);
-      if (found) return [found];
-    }
-    return keys.length ? keys : [];
+    return CATEGORY_TO_CPG[catVal] || [];
   })();
   const _ltSteps = (() => {
     if (!_ltPkgKeys.length) return s.treatment_als || s.treatment || [];
@@ -2285,20 +2283,18 @@ function renderSection2(s) {
       <td class="tick-col">${mkTick(id,'complete')}</td>
     </tr>`;
   // Resolve CPG package keys for this scenario
+  // Primary: match cpg code(s) directly against all packages
+  // Fallback: use category|subcategory mapping
   const _scenPkgKeys = (() => {
+    const cpgCodes = (s.cpg || '').split(/[,/]/).map(c => c.trim()).filter(Boolean);
+    if (cpgCodes.length) {
+      const matched = cpgCodes.map(code =>
+        Object.keys(CPG_PACKAGES).find(k => CPG_PACKAGES[k]?.cpg === code)
+      ).filter(Boolean);
+      if (matched.length) return matched;
+    }
     const catVal = s.category && s.subcategory ? `${s.category}|${s.subcategory}` : '';
-    const keys = (CATEGORY_TO_CPG[catVal] || []);
-    // Try to match the scenario's cpg code to a specific key
-    if (s.cpg && keys.length > 1) {
-      const match = keys.find(k => CPG_PACKAGES[k]?.cpg === s.cpg);
-      if (match) return [match];
-    }
-    // Fallback: search all packages for matching cpg code
-    if (s.cpg && keys.length === 0) {
-      const found = Object.keys(CPG_PACKAGES).find(k => CPG_PACKAGES[k]?.cpg === s.cpg);
-      if (found) return [found];
-    }
-    return keys.length ? keys : [];
+    return CATEGORY_TO_CPG[catVal] || [];
   })();
   const { alsHtml: treatAlsHtml, micaHtml: treatMicaHtml } = _scenPkgKeys.length
     ? buildManagementFromCPG(_scenPkgKeys)
