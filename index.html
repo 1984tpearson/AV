@@ -2948,16 +2948,13 @@ function buildCPGContext(catVal1, catVal2) {
   const packageSections = allKeys.map(k => {
     const pkg = CPG_PACKAGES[k];
     if (!pkg) return '';
-    const mgmtLines = Array.isArray(pkg.management)
-      ? pkg.management.map(s => `  • ${s}`).join('\n')
-      : '';
-    const micaLines = Array.isArray(pkg.management_mica) && pkg.management_mica.length
-      ? pkg.management_mica.map(s => `  • ${s}`).join('\n')
-      : '';
+    // Render management and drugs as readable key: value lines (not JSON.stringify — avoids prompt corruption)
+    const mgmtLines = Object.entries(pkg.management || {}).map(([mk, mv]) => `  ${mk}: ${mv}`).join('\n');
+    const drugLines = Object.entries(pkg.drugs || {}).map(([dk, dv]) => `  ${dk}: ${dv}`).join('\n');
     return `--- CPG: ${pkg.title} (${pkg.cpg}) ---\n` +
-      `Care objectives: ${(pkg.careObjectives||[]).join('; ')}\n` +
-      `ALS Management:\n${mgmtLines}\n` +
-      (micaLines ? `MICA Management:\n${micaLines}\n` : '') +
+      `Care objectives: ${pkg.careObjectives?.join('; ')}\n` +
+      `Management:\n${mgmtLines}\n` +
+      (drugLines ? `Drugs:\n${drugLines}\n` : '') +
       (pkg.pitfalls ? `Pitfalls: ${pkg.pitfalls.join('; ')}\n` : '') +
       (pkg.highRiskFeatures ? `High-risk features: ${pkg.highRiskFeatures.join(', ')}\n` : '');
   }).filter(Boolean).join('\n');
@@ -3089,7 +3086,6 @@ ${complaintLine}
 ${complexityNote}
 ${patientNote}
 Do NOT generate treatment or management steps — these are supplied from official CPG data. Leave treatment_als and treatment_mica out of the JSON entirely. Focus on generating an accurate, realistic scenario with correct vitals, flags, ddx, provisional diagnosis, and knowledge questions.
-For the "cpg" field: if this is a single-condition scenario, provide only that one CPG code (e.g. "A0723"). If this scenario deliberately combines two conditions, provide exactly two CPG codes separated by a slash (e.g. "A0723/A0601") — one per condition, no more than two. Do NOT list three or more codes.
 For medical_conditions: provide a concise array of conditions only — no explanations unless clinically essential (e.g. ["Epilepsy (breakthrough seizure last month)", "Type 2 Diabetes", "Hypertension"]). Max 4 items.
 For medications: provide a concise array of medication names with doses — no extra description (e.g. ["Levetiracetam 500mg BD", "Metformin 500mg daily", "Amlodipine 10mg"]). Max 6 items. Use empty array if none.
 For allergies: approximately 25% of patients have allergies. Vary the allergen — do NOT default to penicillin every time. Use realistic Australian options: morphine, aspirin, ibuprofen, sulfonamides, latex, bee stings, nuts, shellfish, contrast dye, codeine, tramadol, or others as clinically plausible. For anaphylaxis scenarios always include the relevant allergen. Most patients (75%) have no allergy — return "" in those cases.
