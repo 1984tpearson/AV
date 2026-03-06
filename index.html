@@ -2817,17 +2817,23 @@ function extractCPGManagement(pkgKey) {
 
   const als = [], mica = [], principles = [];
 
-  // Recursively flatten a value into strings
-  function flatten(val, depth) {
+  // Flatten a value into strings, preserving key name as prefix for object values
+  function flatten(val, depth, keyPrefix) {
     if (!val || depth > 4) return;
     if (typeof val === 'string' && val.length > 3) {
-      if (val.includes('(MICA)') || val.endsWith('(MICA)')) mica.push(val);
-      else als.push(val);
+      const s = keyPrefix ? `${keyPrefix}: ${val}` : val;
+      if (val.includes('(MICA)')) mica.push(s);
+      else als.push(s);
     } else if (Array.isArray(val)) {
-      val.forEach(v => flatten(v, depth));
+      val.forEach(v => flatten(v, depth, ''));
     } else if (typeof val === 'object') {
       Object.entries(val).forEach(([k, v]) => {
-        if (!SKIP_KEYS.has(k)) flatten(v, depth + 1);
+        if (!SKIP_KEYS.has(k)) {
+          // For simple string values in a named object, pass key as prefix
+          // For nested objects/arrays, don't pass prefix (avoid double-prefixing)
+          const pfx = (typeof v === 'string') ? k : '';
+          flatten(v, depth + 1, pfx);
+        }
       });
     }
   }
@@ -2839,20 +2845,20 @@ function extractCPGManagement(pkgKey) {
   if (pkg.keyPrinciples) pkg.keyPrinciples.forEach(s => principles.push(s));
 
   // resuscitationSteps → als
-  if (pkg.resuscitationSteps) pkg.resuscitationSteps.forEach(s => flatten(s, 0));
+  if (pkg.resuscitationSteps) pkg.resuscitationSteps.forEach(s => flatten(s, 0, ''));
 
   // note → principles (for note-only packages)
   if (pkg.note && !pkg.management && !pkg.keyPrinciples && !pkg.resuscitationSteps)
     principles.push(pkg.note);
 
   // management field (object or array)
-  if (pkg.management) flatten(pkg.management, 0);
+  if (pkg.management) flatten(pkg.management, 0, '');
 
   // For packages with no management field, flatten clinical fields
   const CLINICAL_FIELDS = ['cpr','defibrillation','drugs','airway','fluid','haemorrhage',
     'tbi','transport','priorities','stable_svt','unstable','af_flutter_arrest',
     'firstLine','secondLine','cpr_quality','pacing'];
-  CLINICAL_FIELDS.forEach(f => { if (pkg[f]) flatten(pkg[f], 0); });
+  CLINICAL_FIELDS.forEach(f => { if (pkg[f]) flatten(pkg[f], 0, ''); });
 
   return { als, mica, principles, label: `${pkg.title} (${pkg.cpg})` };
 }
