@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>AV Verbal Scenario Assessment Tool</title>
+<title>AV Verbal Scenario Assessment Tool v15</title>
 <style>
 :root {
   --navy: #1C3A6E; --navy-dark: #122849; --navy-light: #2A4F8F;
@@ -2860,6 +2860,14 @@ async function generateAIScenario() {
   // (save bar removed — auto-save on generation)
   lastAIScenario = null;
   showAIStatus('loading', '✦ Generating scenario… this may take 15–30 seconds.');
+
+  // Guard: check CPG package data is loaded
+  if (typeof CPG_PACKAGES === 'undefined') {
+    showAIStatus('error', '✕ Error: CPG package data failed to load (cpg_packages_combined.js not found). Ensure the file is in the same folder as index.html.');
+    btn.textContent = origLabel;
+    btn.disabled = false;
+    return;
+  }
 
   // Build CPG context for prompt injection
   const cpgContext = buildCPGContext(catVal, catVal2);
