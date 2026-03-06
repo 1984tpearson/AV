@@ -1252,26 +1252,9 @@ function updateCustomCount() {
   if (el) el.textContent = customScenarios.length;
 }
 
-function getAllScenarios() {
-  // If cloud loaded, customScenarios is non-builtins; builtins come from cloud too
-  // but we also always merge with local SCENARIOS as fallback
-  const cloudIds = new Set(customScenarios.map(s => String(s.id)));
-  // Use local SCENARIOS for any builtin not overridden by a cloud custom edit
-  const localBuiltins = SCENARIOS.filter(s => !cloudIds.has(String(s.id)));
-  return [...localBuiltins, ...customScenarios];
-}
-
-
 function updateCustomCount() {
   const el = document.getElementById('custom-count');
   if (el) el.textContent = customScenarios.length;
-}
-
-function getAllScenarios() {
-  // Custom/edited scenarios with same ID as a built-in override the built-in
-  const overriddenIds = new Set(customScenarios.map(s => s._originalId || (s.id && !s.id.toString().startsWith('custom_') && !s.id.toString().startsWith('ai_') ? s.id : null)).filter(Boolean));
-  const builtins = SCENARIOS.filter(s => !overriddenIds.has(s.id));
-  return [...builtins, ...customScenarios];
 }
 
 // ============================================================
@@ -1356,14 +1339,16 @@ async function initApp() {
   // Disclaimer is now part of the first-run identity modal — no separate popup needed
 }
 
-// Override getAllScenarios to use cloud cache when available
-const _originalGetAllScenarios = getAllScenarios;
+// Get all scenarios — cloud cache if available, otherwise local builtin + custom merge
 function getAllScenarios() {
   let base;
   if (window._cloudScenarios && window._cloudScenarios.length > 0) {
     base = window._cloudScenarios;
   } else {
-    base = _originalGetAllScenarios();
+    // Local fallback: custom/edited scenarios override builtins with matching ID
+    const overriddenIds = new Set(customScenarios.map(s => s._originalId || (s.id && !s.id.toString().startsWith('custom_') && !s.id.toString().startsWith('ai_') ? s.id : null)).filter(Boolean));
+    const builtins = SCENARIOS.filter(s => !overriddenIds.has(s.id));
+    base = [...builtins, ...customScenarios];
   }
   // Always include a pending (unsaved) AI scenario so loadScenario() can find it
   // after generation but before the user saves it to the library
