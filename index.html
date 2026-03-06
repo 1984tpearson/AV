@@ -1131,6 +1131,7 @@ function toRow(s, overrides = {}) {
     provisional:  s.provisional || '',
     treatment:    s.treatment || [],
     kq:           s.kq || [],
+    discussion:   s.discussion || [],
     creator_uuid: s.creator_uuid || getIdentity().uuid,
     creator_name: s.creator_name || getIdentity().name || 'Anonymous',
     ai_generated: !!s.ai_generated,
@@ -1158,6 +1159,7 @@ function fromRow(r) {
     provisional:  r.provisional,
     treatment:    r.treatment || [],
     kq:           r.kq || [],
+    discussion:   r.discussion || [],
     creator_uuid: r.creator_uuid,
     creator_name: r.creator_name,
     ai_generated: r.ai_generated,
@@ -2945,6 +2947,7 @@ ${SCENARIO_JSON_TEMPLATE.replace('CAT', category).replace('SUB', subcategory)}`;
     scenario.ai_generated = true;
     scenario.custom = true;
     if (!scenario.level) scenario.level = 'C/D';
+    if (!Array.isArray(scenario.discussion)) scenario.discussion = [];
     lastAIScenario = scenario;
     btn.textContent = origLabel;
     btn.disabled = false;
