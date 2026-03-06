@@ -17,7 +17,7 @@
 // Used to ground AI scenario generation in accurate AV CPG content
 // ============================================================
 
-const CPG_PACKAGES = {
+var CPG_PACKAGES = {
 
   // ─────────────────────────────────────────────
   // ANAPHYLAXIS (CPG A0704 / P0704)
@@ -1603,7 +1603,7 @@ const CPG_PACKAGES = {
 // ADDITIONAL DRUG REFERENCE (extended)
 // ═══════════════════════════════════════════════
 
-const DRUG_REFERENCE_EXTENDED = {
+var DRUG_REFERENCE_EXTENDED = {
   ondansetron: {
     indications: "Nausea and vomiting",
     routes: "ODT (oral disintegrating tablet), IV, IM",
@@ -1669,7 +1669,7 @@ const DRUG_REFERENCE_EXTENDED = {
   module.exports = { CPG_PACKAGES_EXTENDED, DRUG_REFERENCE_EXTENDED };
 }
 
-const CPG_COMBINATIONS = {
+var CPG_COMBINATIONS = {
   seizure_hypoglycaemia: {
     cpgs: ["A0703", "A0702"],
     note: "Hypoglycaemia is a common seizure precipitant. BSL mandatory in ALL seizure patients. If BSL <4: treat hypoglycaemia concurrently with seizure management. Dextrose 10% IV 200 mL while managing airway. Midazolam still indicated if actively seizing.",
