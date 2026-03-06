@@ -141,42 +141,20 @@ const CPG_PACKAGES = {
       "Advanced care (adrenaline, antiarrhythmics, intubation) without interrupting CPR",
       "Address correctable causes (4H/4T)"
     ],
-    cpr: {
-      rate: "100–120 compressions/min",
-      depth: "≥5 cm with full recoil",
-      ratio: "30:2 (no advanced airway). Continuous with ETT/SGA in situ.",
-      rotations: "2-minute compressor rotations",
-      interruptions: "Minimise to ≤3 seconds",
-      ventilations: "1 second per breath. 6–8/min with advanced airway."
-    },
-    defibrillation: {
-      timeToFirst: "≤2 minutes from arrival",
-      refractoryVF: "After 3 shocks: consider double sequential defibrillation (MICA). Adjust pad placement.",
-      padPlacement: "Sternal: right chest below clavicle above nipple. Apex: left mid-axillary 6th ICS."
-    },
-    drugs: {
-      adrenaline: {
-        shockable: "1 mg IV/IO after 2nd shock, then after 3rd, 5th, 7th, 9th shock",
-        nonShockable: "1 mg IV/IO as soon as resources allow without interrupting HP-CPR",
-        route: "IV or IO"
-      },
-      amiodarone: {
-        dose: "300 mg IV/IO after 3rd shock (refractory VF/VT). 150 mg after 5th shock.",
-        notes: "Compatible with D5W only (not normal saline for infusion). C/I in TCA toxicity, QTc >500ms."
-      },
-      lidocaine: "Alternative to amiodarone if not available"
-    },
-    capnography: {
-      use: "ETCO2 as surrogate for CPR quality and cardiac output",
-      gradualFall: "suggests CPR fatigue",
-      suddenRise: "suggests ROSC"
-    },
-    ecmoEligibility: {
-      criteria: ["age 16–70", "suspected cardiac cause", "bystander or paramedic witnessed", "initial rhythm VF/VT", "no major co-morbidities", "collapse-to-ED <60 min achievable"],
-      centres: ["Alfred Hospital (24/7)", "Austin", "Box Hill", "Royal Melbourne", "St Vincent's", "Victorian Heart Hospital", "Geelong University Hospital"]
-    },
-    airway: "SGA appropriate initially for continuous compressions. ETT should not interrupt compressions.",
-    fluid: "Shockable rhythms: limit to medication flush and TKVO only"
+    management: [
+      "CPR: 100–120 compressions/min, ≥5 cm depth, full recoil. 30:2 ratio (no advanced airway); continuous with ETT/SGA in situ.",
+      "2-minute compressor rotations. Minimise interruptions to ≤3 seconds.",
+      "Defibrillation: first shock ≤2 minutes from arrival. Pad placement: sternal right chest below clavicle; apex left mid-axillary 6th ICS.",
+      "After 3 shocks: consider double sequential defibrillation (MICA). Adjust pad placement.",
+      "Airway: SGA appropriate initially for continuous compressions. ETT should not interrupt compressions.",
+      "Adrenaline 1 mg IV/IO — shockable: after 2nd shock, then 3rd, 5th, 7th, 9th shock. Non-shockable: as soon as resources allow without interrupting HP-CPR.",
+      "Amiodarone 150 mg IV over 10 min (MICA). Consult AV Clinician (ALS).",
+      "Amiodarone 300 mg IV/IO after 3rd shock (refractory VF/VT); 150 mg after 5th shock. Compatible with D5W only. C/I in TCA toxicity, QTc >500ms.",
+      "Lidocaine: alternative to amiodarone if not available.",
+      "Fluids — shockable rhythms: limit to medication flush and TKVO only.",
+      "Capnography: ETCO2 as surrogate for CPR quality. Gradual fall = CPR fatigue; sudden rise = ROSC.",
+      "ECMO eligibility: age 16–70, suspected cardiac cause, witnessed arrest, initial rhythm VF/VT, collapse-to-ED <60 min achievable. Centres: Alfred (24/7), Austin, Box Hill, Royal Melbourne, St Vincent's, Victorian Heart Hospital, Geelong."
+    ]
   },
 
   // ─────────────────────────────────────────────
