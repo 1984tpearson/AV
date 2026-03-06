@@ -272,6 +272,11 @@ body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background
 .treatment-box { background: var(--green-light); border: 1px solid #A9DFBF; border-radius: 8px; padding: 12px 14px; margin: 10px 0; }
 .treatment-box h4 { font-size: 11px; font-weight: 700; color: var(--green); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
 .treatment-box ol { margin-left: 18px; font-size: 13px; line-height: 1.7; }
+.discussion-box { background: #FEF9F0; border: 1px dashed #F0A500; border-radius: 8px; padding: 12px 14px; margin: 10px 0; }
+.discussion-box .discussion-header { display: flex; align-items: baseline; gap: 8px; margin-bottom: 8px; }
+.discussion-box .discussion-label { font-size: 11px; font-weight: 700; color: #B7770D; text-transform: uppercase; letter-spacing: 0.5px; }
+.discussion-box .discussion-note { font-size: 10px; color: #999; font-style: italic; }
+.discussion-box ul { margin-left: 18px; font-size: 13px; line-height: 1.7; color: #5D4037; }
 
 /* ============================================================ MODAL BASE */
 .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 200; align-items: center; justify-content: center; padding: 16px; }
@@ -2338,6 +2343,7 @@ function renderSection2(s) {
       </table>
 
       ${treatHtml ? `<div class="treatment-box"><h4>Expected Treatment — ${s.cpg||'Scenario'}</h4><ol>${treatHtml}</ol></div>` : ''}
+      ${(s.discussion&&s.discussion.length) ? `<div class="discussion-box"><div class="discussion-header"><span class="discussion-label">💬 Beyond AV Scope — CI Discussion Prompts</span><span class="discussion-note">Not assessable · AI-suggested · not part of AV management</span></div><ul>${s.discussion.map(d=>`<li>${d}</li>`).join('')}</ul></div>` : ''}
 
       <div style="margin-top:12px">
         <table class="asmt-table">
@@ -2835,7 +2841,7 @@ function buildCPGContext(catVal1, catVal2) {
   return `\n\nRELEVANT AV CPG CONTENT (v3.13.1) — use these exact doses and thresholds:\n${packageSections}${comboNote}`;
 }
 
-const SCENARIO_JSON_TEMPLATE = `{"title":"","subtitle":"","category":"CAT","subcategory":"SUB","type":"","cpg":"","level":"C/D","dispatch":"","vitals":{"GCS":"","SpO2":"","RR":"","HR":"","BP":"","Temp":"","BGL":"","Rhythm":""},"key_hx":"","medical_conditions":["","",""],"medications":["","",""],"allergies":"","flags":["","","",""],"ddx":["","","",""],"provisional":"","treatment":["","","","","","","","","",""],"kq":[{"q":"","max":2,"answer":""},{"q":"","max":2,"answer":""},{"q":"","max":1,"answer":""}]}`;
+const SCENARIO_JSON_TEMPLATE = `{"title":"","subtitle":"","category":"CAT","subcategory":"SUB","type":"","cpg":"","level":"C/D","dispatch":"","vitals":{"GCS":"","SpO2":"","RR":"","HR":"","BP":"","Temp":"","BGL":"","Rhythm":""},"key_hx":"","medical_conditions":["","",""],"medications":["","",""],"allergies":"","flags":["","","",""],"ddx":["","","",""],"provisional":"","treatment":["","","","","","","","","",""],"kq":[{"q":"","max":2,"answer":""},{"q":"","max":2,"answer":""},{"q":"","max":1,"answer":""}],"discussion":[]}`;
 // Note: medical_conditions = short list e.g. ["Asthma (previous ICU admission)", "Type 2 Diabetes", "Hypertension"]
 // medications = short list e.g. ["Metoprolol 50mg daily", "Aspirin 100mg", "Candesartan 8mg"]
 // key_hx = legacy field kept for backwards compat with built-in scenarios
@@ -2913,7 +2919,7 @@ async function generateAIScenario() {
     ? `You MUST use the exact drug doses, thresholds, and management steps from the CPG content provided below. Do not invent doses or deviate from the provided protocol.${cpgContext}`
     : 'Use your knowledge of AV CPGs to generate an accurate scenario.';
 
-  const systemPrompt = `You are a clinical scenario writer for Ambulance Victoria (AV) paramedic education. Write accurate ALS (Level C/D) verbal assessment scenarios based strictly on AV Clinical Practice Guidelines v3.13.1 (December 2025). Respond with valid JSON only — no markdown, no preamble. ${cpgInstruction}`;
+  const systemPrompt = `You are a clinical scenario writer for Ambulance Victoria (AV) paramedic education. Write accurate ALS (Level C/D) verbal assessment scenarios based strictly on AV Clinical Practice Guidelines v3.13.1 (December 2025). Respond with valid JSON only — no markdown, no preamble. CRITICAL RULE: All clinical content (treatment, drug doses, management steps, assessment criteria, key questions and answers) must be drawn exclusively from the AV CPG content provided. Do NOT add management steps, drug doses, or clinical guidance that are not explicitly stated in the CPGs — not even if they are standard clinical practice. The ONLY exception is the "discussion" field, which is intentionally separate and may draw on broader clinical knowledge. AUSTRALIAN TERMINOLOGY: Use Australian medical terminology and drug names throughout (e.g. adrenaline not epinephrine, paracetamol not acetaminophen, salbutamol not albuterol). Use mmol/L for BGL. Use Australian English spelling. This is an Ambulance Victoria scenario — do not use US EMS terminology, ACLS protocols, or American drug names anywhere in the output. ${cpgInstruction}`;
 
   const userPrompt = `Generate an ALS (Level C/D) verbal scenario for Ambulance Victoria.
 Category: ${categoryLabel}
@@ -2923,6 +2929,7 @@ ${patientNote}
 The treatment array must reflect the exact AV CPG management steps for this presentation, including correct drug names, doses, routes, and repeat criteria.
 For medical_conditions: provide a concise array of conditions only — no explanations unless clinically essential (e.g. ["Epilepsy (breakthrough seizure last month)", "Type 2 Diabetes", "Hypertension"]). Max 4 items.
 For medications: provide a concise array of medication names with doses — no extra description (e.g. ["Levetiracetam 500mg BD", "Metformin 500mg daily", "Amlodipine 10mg"]). Max 6 items. Use empty array if none.
+For the "discussion" field: provide 2–4 brief bullet points about management or considerations that are BEYOND AV scope — e.g. in-hospital treatment, specialist interventions, or relevant clinical nuance not covered by AV CPGs. These are suggested discussion prompts for the CI to use with the student. They are NOT assessable and NOT part of AV management. Label them clearly as beyond-scope. Return as an array of strings.
 Return ONLY a valid JSON object:
 ${SCENARIO_JSON_TEMPLATE.replace('CAT', category).replace('SUB', subcategory)}`;
 
