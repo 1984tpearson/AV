@@ -689,18 +689,13 @@ const CPG_PACKAGES = {
       "Neurodiversity (e.g. autism, ADHD) — especially in young patients"
     ],
     management: [
-      "De escalation: Nominate one person to build rapport and communicate",
-      "De escalation: Non-threatening stance; quiet, calm, reassuring voice",
-      "De escalation: Reduce stimulus — noise, light, crowding",
-      "De escalation: Use patient's name; give simple one-at-a-time instructions",
-      "De escalation: No threats, ultimatums, or show of force",
-      "Sedation: Verbal/environmental de-escalation only",
-      "Sedation: Consider oral olanzapine or droperidol IM",
-      "Sedation: Droperidol IM first line. Midazolam IM if droperidol unavailable or contraindicated.",
-      "Sedation: 10 mg IM. Onset 5–10 min.",
-      "Sedation: 10 mg IM (or 5 mg IV/IO). Use if droperidol unavailable.",
-      "Sedation: 10 mg IM or oral. Do NOT combine with benzodiazepines (respiratory depression risk).",
-      "Sedation: Do not apply physical restraints without concurrent sedation. Physical exertion against restraint worsens risk."
+      "De-escalation: nominate one person to build rapport and communicate. Non-threatening stance; quiet, calm, reassuring voice.",
+      "De-escalation: reduce stimulus — noise, light, crowding. Use patient's name; give simple one-at-a-time instructions. No threats or ultimatums.",
+      "Oral sedation: olanzapine wafer (if cooperative).",
+      "IM sedation first line: droperidol IM. Midazolam IM if droperidol unavailable or contraindicated.",
+      "IV sedation: droperidol IV or midazolam IV if IV access established (MICA).",
+      "Chemical restraint: ketamine IM/IV for severe, refractory ABD (MICA).",
+      "Monitor: ECG (QTc), SpO2, conscious state post-sedation. Airway positioning."
     ],
     pitfalls: [
       "Always exclude medical causes — hypoglycaemia, head injury, postictal state mimic ABD",
@@ -1097,10 +1092,10 @@ const CPG_PACKAGES = {
       severe: "Rapid sedation → coma, seizures. QRS widening + tachycardia (early). Progressive QRS widening + bradycardia + ventricular arrhythmias + hypotension (late). Respiratory depression."
     },
     management: [
-      "Soduim bicarbonate: QRS widening, hypotension, ventricular arrhythmias (NOT QT prolongation alone)",
-      "Soduim bicarbonate: 8.4% Sodium Bicarbonate 1–2 mL/kg (up to 100 mL) IV every 3–5 min. Max total 6 mL/kg. Aim pH 7.50–7.55 if iSTAT available. Max 2 doses without consult.",
-      "Soduim bicarbonate: Give 100 mL NaHCO3 IV just prior to intubation to limit acidosis",
-      "Airway: Consider intubation (ETT) if unable to support own airway + severe toxicity persists",
+      "Indications for Sodium Bicarbonate: QRS widening, hypotension, ventricular arrhythmias (NOT QT prolongation alone)",
+      "Sodium Bicarbonate 8.4%: 1–2 mL/kg (up to 100 mL) IV every 3–5 min. Max total 6 mL/kg. Aim pH 7.50–7.55 if iSTAT available. Max 2 doses without consult.",
+      "Pre-intubation: Give 100 mL NaHCO3 IV just prior to intubation to limit acidosis",
+      "Airway: Consider intubation (ETT) if unable to support own airway + severe toxicity persists (MICA)",
       "Seizures: Midazolam as per seizures CPG"
     ],
     pitfalls: [
@@ -1130,8 +1125,8 @@ const CPG_PACKAGES = {
     management: [
       "Atropine: Treat bradycardia with IV fluids and atropine. Administer through a free-running IV line. An adequate response is not common — further doses may delay progression to other care. If patient initially responds but effect not sustained: repeat 600 mcg to a max total of 3000 mcg.",
       "Fluid resuscitation: Normal Saline titrated to response. Standard max 2000 mL, fluid overload risk max 1000 mL.",
-      "Vasopressors: Commence adrenaline if symptoms persist despite atropine.",
-      "Pacing: May be required if pharmacological chronotropy fails.",
+      "Vasopressors: Commence adrenaline infusion if symptoms persist despite atropine (MICA).",
+      "Pacing: Transthoracic pacing may be required if pharmacological chronotropy fails (MICA).",
       "Hypoglycaemia: Treat as per Hypoglycaemia CPG",
       "Seizures: Midazolam as per Seizures CPG",
       "Ecmo: Consider ECMO centre transport if severe cardiogenic shock or cardiac arrest — consult VPIC",
@@ -1168,7 +1163,7 @@ const CPG_PACKAGES = {
       "Calcium gluconate: 10% Calcium Gluconate 30 mL (3 g) IV over 3–5 min. Repeat once if inadequate response.",
       "Atropine: 600 mcg IV. Atropine often inadequate in CCB toxicity — do not delay calcium for atropine. Max total 3000 mcg if patient initially responds but not sustained.",
       "Fluids: Normal Saline titrated. Standard max 2000 mL, fluid overload max 1000 mL.",
-      "Vasopressors: Adrenaline or noradrenaline if calcium + fluids insufficient (MICA preferred)",
+      "Vasopressors: Adrenaline or noradrenaline infusion if calcium + fluids insufficient (MICA)",
       "Consultation: VPIC early. For cardiac arrest — consider mechanical CPR to closest ED (consult VPIC).",
       "Note: Graduated approach: calcium → IV fluids → vasopressors/inotropes"
     ],
