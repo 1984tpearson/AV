@@ -2259,9 +2259,26 @@ function renderSection2(s) {
       <td class="tick-col">${mkTick(id,'incomplete')}</td>
       <td class="tick-col">${mkTick(id,'complete')}</td>
     </tr>`;
-  const allSteps = [...(s.treatment_als||s.treatment||[]), ...(s.treatment_mica||[])].filter(Boolean);
-  const treatAlsHtml = allSteps.filter(t => !t.includes('(MICA)')).map(t=>`<li>${t}</li>`).join('');
-  const treatMicaHtml = allSteps.filter(t => t.includes('(MICA)')).map(t=>`<li>${t}</li>`).join('');
+  // Resolve CPG package keys for this scenario
+  const _scenPkgKeys = (() => {
+    const catVal = s.category && s.subcategory ? `${s.category}|${s.subcategory}` : '';
+    const keys = (CATEGORY_TO_CPG[catVal] || []);
+    // Try to match the scenario's cpg code to a specific key
+    if (s.cpg && keys.length > 1) {
+      const match = keys.find(k => CPG_PACKAGES[k]?.cpg === s.cpg);
+      if (match) return [match];
+    }
+    // Fallback: search all packages for matching cpg code
+    if (s.cpg && keys.length === 0) {
+      const found = Object.keys(CPG_PACKAGES).find(k => CPG_PACKAGES[k]?.cpg === s.cpg);
+      if (found) return [found];
+    }
+    return keys.length ? keys : [];
+  })();
+  const { alsHtml: treatAlsHtml, micaHtml: treatMicaHtml } = _scenPkgKeys.length
+    ? buildManagementFromCPG(_scenPkgKeys)
+    : { alsHtml: (s.treatment_als||s.treatment||[]).filter(Boolean).map(t=>`<li>${t}</li>`).join(''),
+        micaHtml: (s.treatment_mica||[]).filter(Boolean).map(t=>`<li>${t}</li>`).join('') };
 
   return `
   <div class="section">
@@ -2336,8 +2353,8 @@ function renderSection2(s) {
         </tbody>
       </table>
 
-      ${treatAlsHtml ? `<div class="treatment-box"><h4>✅ ALS Expected Treatment — ${s.cpg||'Scenario'}</h4><ol>${treatAlsHtml}</ol></div>` : ''}
-      ${treatMicaHtml ? `<div class="treatment-mica-box"><h4>🔵 MICA Management</h4><ol>${treatMicaHtml}</ol></div>` : ''}
+      ${treatAlsHtml ? `<div class="treatment-box"><h4>✅ ALS Management — ${s.cpg||'Scenario'}</h4>${treatAlsHtml}</div>` : ''}
+      ${treatMicaHtml ? `<div class="treatment-mica-box"><h4>🔵 MICA Management</h4>${treatMicaHtml}</div>` : ''}
       ${(s.discussion&&s.discussion.length) ? `<div class="discussion-box"><div class="discussion-header"><span class="discussion-label">💬 Beyond AV Scope — CI Discussion Prompts</span><span class="discussion-note">Not assessable · AI-suggested · not part of AV management</span></div><ul>${s.discussion.map(d=>`<li>${d}</li>`).join('')}</ul></div>` : ''}
 
       <div style="margin-top:12px">
@@ -2783,6 +2800,96 @@ function updateCPGSubtypeDropdown(catId, groupId, selectId) {
 }
 
 // Returns a structured CPG context string for prompt injection
+// ============================================================
+// CPG MANAGEMENT EXTRACTOR
+// Pulls management steps and principles from CPG package data.
+// Returns { als: [], mica: [], principles: [], label: "" }
+// ============================================================
+function extractCPGManagement(pkgKey) {
+  const pkg = CPG_PACKAGES[pkgKey];
+  if (!pkg) return null;
+
+  const SKIP_KEYS = new Set(['cpg','version','title','patientGroup','diagnosis','pitfalls',
+    'highRiskFeatures','clinicalFeatures','pathophysiology','commonTCAs','toxicityRisk',
+    'unstableFeatures','types','normalValues','targetSpO2','oxygenNote','ecmoEligibility',
+    'capnography','vtDefinition','rule','note','consultation','coreprinciples',
+    'initialAssessment','initialCare','severity','extrication','patientPlan']);
+
+  const als = [], mica = [], principles = [];
+
+  // Recursively flatten a value into strings
+  function flatten(val, depth) {
+    if (!val || depth > 4) return;
+    if (typeof val === 'string' && val.length > 3) {
+      if (val.includes('(MICA)') || val.endsWith('(MICA)')) mica.push(val);
+      else als.push(val);
+    } else if (Array.isArray(val)) {
+      val.forEach(v => flatten(v, depth));
+    } else if (typeof val === 'object') {
+      Object.entries(val).forEach(([k, v]) => {
+        if (!SKIP_KEYS.has(k)) flatten(v, depth + 1);
+      });
+    }
+  }
+
+  // careObjectives → principles
+  if (pkg.careObjectives) pkg.careObjectives.forEach(s => principles.push(s));
+
+  // keyPrinciples → principles
+  if (pkg.keyPrinciples) pkg.keyPrinciples.forEach(s => principles.push(s));
+
+  // resuscitationSteps → als
+  if (pkg.resuscitationSteps) pkg.resuscitationSteps.forEach(s => flatten(s, 0));
+
+  // note → principles (for note-only packages)
+  if (pkg.note && !pkg.management && !pkg.keyPrinciples && !pkg.resuscitationSteps)
+    principles.push(pkg.note);
+
+  // management field (object or array)
+  if (pkg.management) flatten(pkg.management, 0);
+
+  // For packages with no management field, flatten clinical fields
+  const CLINICAL_FIELDS = ['cpr','defibrillation','drugs','airway','fluid','haemorrhage',
+    'tbi','transport','priorities','stable_svt','unstable','af_flutter_arrest',
+    'firstLine','secondLine','cpr_quality','pacing'];
+  CLINICAL_FIELDS.forEach(f => { if (pkg[f]) flatten(pkg[f], 0); });
+
+  return { als, mica, principles, label: `${pkg.title} (${pkg.cpg})` };
+}
+
+// Build management HTML for one or more CPG packages
+function buildManagementFromCPG(pkgKeys) {
+  const results = pkgKeys.map(k => extractCPGManagement(k)).filter(Boolean);
+  if (!results.length) return { alsHtml: '', micaHtml: '' };
+
+  let alsHtml = '', micaHtml = '';
+
+  results.forEach(r => {
+    const hasSteps = r.als.length > 0;
+    const hasMica  = r.mica.length > 0;
+    const hasPrinc = r.principles.length > 0;
+    const multiCPG = results.length > 1;
+    const labelHdr = multiCPG ? `<div style="font-size:10px;font-weight:800;color:var(--green);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;border-bottom:1px solid #A9DFBF;padding-bottom:4px">${r.label}</div>` : '';
+    const micaLabelHdr = multiCPG ? `<div style="font-size:10px;font-weight:800;color:#1A6F9A;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;border-bottom:1px solid #86D2F1;padding-bottom:4px">${r.label}</div>` : '';
+
+    if (hasSteps || hasPrinc) {
+      let inner = labelHdr;
+      if (hasSteps) inner += `<ol>${r.als.map(s=>`<li>${s}</li>`).join('')}</ol>`;
+      if (hasPrinc) {
+        const princLabel = hasPrinc && !hasSteps ? 'Management Principles' : 'Care Objectives';
+        inner += `<div style="font-size:11px;font-weight:700;color:var(--green);text-transform:uppercase;margin:${hasSteps?'10px':'0'} 0 4px">${princLabel}</div>`;
+        inner += `<ul style="margin-left:16px;font-size:12px;line-height:1.6;color:#2C5F2E">${r.principles.map(p=>`<li>${p}</li>`).join('')}</ul>`;
+      }
+      alsHtml += inner;
+    }
+    if (hasMica) {
+      micaHtml += micaLabelHdr + `<ol>${r.mica.map(s=>`<li>${s}</li>`).join('')}</ol>`;
+    }
+  });
+
+  return { alsHtml, micaHtml };
+}
+
 function buildCPGContext(catVal1, catVal2) {
   const keys1 = CATEGORY_TO_CPG[catVal1] || [];
   const keys2 = catVal2 ? (CATEGORY_TO_CPG[catVal2] || []) : [];
@@ -2842,7 +2949,7 @@ function buildCPGContext(catVal1, catVal2) {
   return `\n\nRELEVANT AV CPG CONTENT (v3.13.1) — use these exact doses and thresholds:\n${packageSections}${comboNote}`;
 }
 
-const SCENARIO_JSON_TEMPLATE = `{"title":"","subtitle":"","category":"CAT","subcategory":"SUB","type":"","cpg":"","level":"C/D","dispatch":"","vitals":{"GCS":"","SpO2":"","RR":"","HR":"","BP":"","Temp":"","BGL":"","Rhythm":""},"key_hx":"","medical_conditions":["","",""],"medications":["","",""],"allergies":"","flags":["","","",""],"ddx":["","","",""],"provisional":"","treatment_als":["","","","","","",""],"treatment_mica":["","",""],"kq":[{"q":"","max":2,"answer":""},{"q":"","max":2,"answer":""},{"q":"","max":1,"answer":""}],"discussion":[]}`;
+const SCENARIO_JSON_TEMPLATE = `{"title":"","subtitle":"","category":"CAT","subcategory":"SUB","type":"","cpg":"","level":"C/D","dispatch":"","vitals":{"GCS":"","SpO2":"","RR":"","HR":"","BP":"","Temp":"","BGL":"","Rhythm":""},"key_hx":"","medical_conditions":["","",""],"medications":["","",""],"allergies":"","flags":["","","",""],"ddx":["","","",""],"provisional":"","kq":[{"q":"","max":2,"answer":""},{"q":"","max":2,"answer":""},{"q":"","max":1,"answer":""}],"discussion":[]}`;
 // Note: medical_conditions = short list e.g. ["Asthma (previous ICU admission)", "Type 2 Diabetes", "Hypertension"]
 // medications = short list e.g. ["Metoprolol 50mg daily", "Aspirin 100mg", "Candesartan 8mg"]
 // key_hx = legacy field kept for backwards compat with built-in scenarios
@@ -2951,7 +3058,7 @@ Category: ${categoryLabel}
 ${complaintLine}
 ${complexityNote}
 ${patientNote}
-Put ALL treatment steps (both ALS and MICA) into the treatment_als array. Leave treatment_mica as an empty array. For any step that is MICA (Level E) scope only — such as RSI, intubation, adrenaline infusion, noradrenaline, metaraminol infusion, magnesium sulfate IV, sodium bicarbonate IV, pacing, rocuronium, ketamine IV, propofol, BiPAP, or any intervention not available to ALS paramedics — you MUST append " (MICA)" to the end of that step's string. ALS steps must NOT have "(MICA)" appended. This tagging is critical for correct display.
+Do NOT generate treatment or management steps — these are supplied from official CPG data. Leave treatment_als and treatment_mica out of the JSON entirely. Focus on generating an accurate, realistic scenario with correct vitals, flags, ddx, provisional diagnosis, and knowledge questions.
 For medical_conditions: provide a concise array of conditions only — no explanations unless clinically essential (e.g. ["Epilepsy (breakthrough seizure last month)", "Type 2 Diabetes", "Hypertension"]). Max 4 items.
 For medications: provide a concise array of medication names with doses — no extra description (e.g. ["Levetiracetam 500mg BD", "Metformin 500mg daily", "Amlodipine 10mg"]). Max 6 items. Use empty array if none.
 For allergies: approximately 30–40% of patients have allergies — include a realistic allergy string only if this patient would plausibly have one, OR if this is an anaphylaxis scenario in which case always include the relevant allergen. Use Australian drug/substance names. If no allergy, return allergies as an empty string "".
