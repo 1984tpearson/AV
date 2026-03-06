@@ -322,13 +322,13 @@ const CPG_PACKAGES = {
       "Transport to definitive care facility"
     ],
     unstableFeatures: ["inadequate perfusion/shock", "acutely altered consciousness", "ischaemic chest pain", "APO", "usually with HR ≥150 bpm"],
-    stable_svt: {
-      valsalva: "Modified Valsalva: semi-recumbent 45°, forced expiration, lay flat + raise legs 45° for 15 sec. Only if SBP ≥90 mmHg. Superior reversion rates.",
-      adenosine: "6 mg rapid IV push through large proximal vein (e.g. antecubital fossa) + NS flush. If no effect: 12 mg. Record 12-lead ECG first.",
-      notes: "12-lead ECG mandatory before treatment unless immediate Mx required."
-    },
-    unstable: "Synchronised cardioversion: sedate first (midazolam ± fentanyl). 200J. Repeat if needed.",
-    af_flutter_arrest: "Synchronised cardioversion 200J if deteriorating to cardiac arrest"
+    management: [
+      "Stable SVT — Modified Valsalva: semi-recumbent 45°, forced expiration, lay flat + raise legs 45° for 15 sec. Only if SBP ≥90 mmHg.",
+      "Stable SVT — Adenosine 6 mg rapid IV push through large proximal vein + NS flush. If no effect: 12 mg. Record 12-lead ECG first.",
+      "Stable SVT — 12-lead ECG mandatory before treatment unless immediate management required.",
+      "Unstable SVT/AF/Flutter — Synchronised cardioversion 200J after sedation (midazolam ± fentanyl). Repeat if needed.",
+      "AF/Flutter deteriorating to cardiac arrest — Synchronised cardioversion 200J."
+    ]
   },
 
   // ─────────────────────────────────────────────
@@ -446,24 +446,14 @@ const CPG_PACKAGES = {
       "Prioritise transport — minimise scene time"
     ],
     priorities: "HAEMORRHAGE → AIRWAY → BREATHING → CIRCULATION → TRANSPORT",
-    haemorrhage: {
-      control: "Direct pressure, wound packing, tourniquets for limb haemorrhage. Pelvic binder for suspected pelvic fracture.",
-      txa: "Tranexamic acid 1 g IV/IO infusion over 10 min (or slow push). C/I if injury >2 hours ago. IM alternative if IV delayed.",
-      fluidTarget: "Hypotensive resuscitation for penetrating truncal trauma. Target radial pulse present or MAP ~50–65 mmHg."
-    },
-    tbi: {
-      target_bp: "Normal or supranormal BP — maintain MAP to counter raised ICP",
-      oxygen: "Target SpO2 94–98%, ETCO2 35–45 mmHg",
-      position: "Head of stretcher 10–15° to aid venous drainage"
-    },
-    transport: {
-      priority: "Shocked or penetrating truncal trauma: transport immediately, treat only immediately life-threatening conditions en route",
-      destination: "Major trauma centre"
-    },
-    drugs: {
-      txa: "1 g / 10 mL. IV/IO infusion: add 1 g to 100 mL D5W or NS, infuse over 10 min. IM: 2 x 5 mL injections lateral upper thigh.",
-      morphine_fentanyl: "Pain management — cautious use if hypotensive"
-    }
+    management: [
+      "Haemorrhage control: direct pressure, wound packing, tourniquets for limb haemorrhage. Pelvic binder for suspected pelvic fracture.",
+      "Tranexamic acid (TXA) 1 g IV/IO infusion over 10 min (or slow push). C/I if injury >3 hours ago. IM alternative (2 x 5 mL injections lateral upper thigh) if IV delayed.",
+      "Fluid: hypotensive resuscitation for penetrating truncal trauma. Target radial pulse present or MAP ~50–65 mmHg.",
+      "TBI: maintain normal or supranormal BP. Target SpO2 94–98%, ETCO2 35–45 mmHg. Head of stretcher 10–15°.",
+      "Transport: shocked or penetrating truncal trauma — transport immediately, treat only immediately life-threatening conditions en route. Destination: major trauma centre.",
+      "Analgesia: morphine/fentanyl — cautious use if hypotensive."
+    ]
   },
 
   // ─────────────────────────────────────────────
