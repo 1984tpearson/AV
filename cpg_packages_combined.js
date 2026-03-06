@@ -1666,8 +1666,6 @@ const DRUG_REFERENCE_EXTENDED = {
     note: "Used as first-line vasopressor in quetiapine toxicity alongside metaraminol"
   }
 };
-  module.exports = { CPG_PACKAGES_EXTENDED, DRUG_REFERENCE_EXTENDED };
-}
 
 const CPG_COMBINATIONS = {
   seizure_hypoglycaemia: {
