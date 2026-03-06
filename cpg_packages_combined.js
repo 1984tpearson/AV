@@ -17,7 +17,7 @@
 // Used to ground AI scenario generation in accurate AV CPG content
 // ============================================================
 
-var CPG_PACKAGES = {
+const CPG_PACKAGES = {
 
   // ─────────────────────────────────────────────
   // ANAPHYLAXIS (CPG A0704 / P0704)
@@ -250,7 +250,7 @@ var CPG_PACKAGES = {
       lifeThreatening: "Adrenaline IM/IV. IV adrenaline if IM not effective (ALS consult with Clinician). Magnesium sulfate IV (MICA). BiPAP NIV.",
       corticosteroids: "Dexamethasone 8 mg PO/IV/IM for all but mildest presentations",
       magnesium: "Magnesium sulfate 2.5 g IV over 20 min (MICA). Do not delay other priorities.",
-      niv: "BiPAP for respiratory failure. C/I if altered consciousness. Continuous monitoring mandatory."
+      niv: "BiPAP for respiratory failure (MICA). C/I if altered consciousness. Continuous monitoring mandatory."
     },
     extrication: "Patients with severe/life-threatening asthma: treat BEFORE extrication. IV access, adrenaline drawn up, resuscitation ready.",
     drugs: {
@@ -280,7 +280,7 @@ var CPG_PACKAGES = {
     management: {
       bronchodilators: "Salbutamol 5 mg neb + Ipratropium 500 mcg neb. Repeat salbutamol every 20 min if needed.",
       corticosteroids: "Dexamethasone 8 mg PO/IV/IM",
-      niv: "CPAP/BiPAP for respiratory failure (respiratory acidosis, fatigue, inadequate response to treatment). Bring patient's own home NIV machine.",
+      niv: "CPAP for respiratory failure — ALS may initiate when MICA unavailable, consult Clinician. BiPAP preferred (MICA). Bring patient's own home NIV machine.",
       oxygen: "Target 88–92% — use controlled low-flow. Over-oxygenation → hypercapnia → respiratory depression."
     },
     differentials: "Consider concurrent heart failure, pneumonia, PE, pneumothorax",
@@ -309,7 +309,7 @@ var CPG_PACKAGES = {
     },
     management: {
       gtn: "GTN S/L 400–800 mcg. Repeat every 3–5 min. Infusion if on NIV and requiring ongoing doses. C/I: BP <100, HR <50 or >150.",
-      niv: "CPAP 5–10 cmH2O or BiPAP. First-line respiratory support. Do not interrupt for GTN once NIV applied if patient responding.",
+      niv: "CPAP 5–10 cmH2O or BiPAP (MICA). First-line respiratory support. Do not interrupt for GTN once NIV applied if patient responding.",
       furosemide: "40–80 mg IV if clear fluid overload and responding to GTN/NIV. Second-line.",
       cardiogenicShock: "Adrenaline infusion (MICA): vasopressor/inotrope support"
     }
@@ -327,7 +327,7 @@ var CPG_PACKAGES = {
     management: {
       firstLine: "Atropine 600 mcg IV. Repeat up to total 3000 mcg (5 doses of 600 mcg).",
       atropineLimitations: "Unlikely effective in Mobitz II or 3rd degree (complete) heart block — but still give. Ineffective AND harmful post cardiac transplant. Caution in MI — tachycardia worsens ischaemia.",
-      secondLine: "Adrenaline infusion: 3 mg in 50 mL D5W/NS. 1 mL/hr = 1 mcg/min. Titrate to response. Start 2–10 mcg/min.",
+      secondLine: "Adrenaline infusion (MICA): 3 mg in 50 mL D5W/NS. 1 mL/hr = 1 mcg/min. Titrate to response. Start 2–10 mcg/min.",
       pacing: "If no HR increase after adrenaline 10 mcg/min → commence transthoracic pacing (MICA)"
     }
   },
@@ -502,7 +502,7 @@ var CPG_PACKAGES = {
     },
     secondary_brain_injury: "Caused by hypoxia, hypercapnia, hypotension. Primary injury = fixed. Secondary = preventable.",
     management: {
-      airway: "Maintain with positioning/adjuncts. RSI if indicated (GCS <8 or airway threat).",
+      airway: "Maintain airway with positioning/adjuncts. RSI if indicated (GCS <8 or airway threat) (MICA).",
       oxygen: "Target SpO2 94–98%. Avoid hypoxia AND hyperoxia.",
       ventilation: "Target ETCO2 35–45 mmHg. Avoid hypocapnia.",
       bp: "Target normal/supranormal MAP — counteracts elevated ICP. Avoid hypotension.",
@@ -1120,7 +1120,7 @@ var CPG_PACKAGES = {
       cooling: "Strip / spray / fan. Vigorous active fanning required — passive AC inadequate. Ice bath if available (especially exertional). Target temperature <40°C within 30 minutes.",
       fluids: "Cold IV fluid titrated to perfusion. Slower rate in elderly or impaired cardiac/renal function. Cold oral fluids if patient able.",
       position: "Flat or lateral. Avoid head-up — worsens hypotension.",
-      toxinInduced: "Standard cooling less effective if toxin not addressed. RSI/neuromuscular paralysis may be appropriate in severe toxin-induced hyperthermia — see CPG A0719 Drug Induced Hyperthermia."
+      toxinInduced: "Standard cooling less effective if toxin not addressed. RSI/neuromuscular paralysis may be appropriate in severe toxin-induced hyperthermia (MICA) — see CPG A0719 Drug Induced Hyperthermia."
     },
     riskGroups: "Elderly ≥65 — independent risk factor for hospital/ICU admission and death. Low threshold for transport.",
     exertionalGroups: "Groups affected (e.g. events) — request ice/water resources for multiple patients"
@@ -1220,7 +1220,7 @@ var CPG_PACKAGES = {
       calciumGluconate: "10% Calcium Gluconate 30 mL (3 g) IV over 3–5 min. Repeat once if inadequate response.",
       atropine: "600 mcg IV. Atropine often inadequate in CCB toxicity — do not delay calcium for atropine. Max total 3000 mcg if patient initially responds but not sustained.",
       fluids: "Normal Saline titrated. Standard max 2000 mL, fluid overload max 1000 mL.",
-      vasopressors: "Adrenaline or noradrenaline if calcium + fluids insufficient",
+      vasopressors: "Adrenaline or noradrenaline if calcium + fluids insufficient (MICA preferred)",
       consultation: "VPIC early. For cardiac arrest — consider mechanical CPR to closest ED (consult VPIC).",
       note: "Graduated approach: calcium → IV fluids → vasopressors/inotropes"
     },
@@ -1325,7 +1325,7 @@ var CPG_PACKAGES = {
       severe: {
         sedate: "Midazolam — titrate to effect",
         cool: "Aggressive active cooling. Ice bath if available.",
-        airway: "RSI/intubation may be required — neuromuscular paralysis assists cooling in toxin-induced cases",
+        airway: "RSI/intubation may be required — neuromuscular paralysis assists cooling in toxin-induced cases (MICA)",
         consultation: "VPIC mandatory"
       }
     },
@@ -1603,7 +1603,7 @@ var CPG_PACKAGES = {
 // ADDITIONAL DRUG REFERENCE (extended)
 // ═══════════════════════════════════════════════
 
-var DRUG_REFERENCE_EXTENDED = {
+const DRUG_REFERENCE_EXTENDED = {
   ondansetron: {
     indications: "Nausea and vomiting",
     routes: "ODT (oral disintegrating tablet), IV, IM",
@@ -1666,7 +1666,10 @@ var DRUG_REFERENCE_EXTENDED = {
     note: "Used as first-line vasopressor in quetiapine toxicity alongside metaraminol"
   }
 };
-var CPG_COMBINATIONS = {
+  module.exports = { CPG_PACKAGES_EXTENDED, DRUG_REFERENCE_EXTENDED };
+}
+
+const CPG_COMBINATIONS = {
   seizure_hypoglycaemia: {
     cpgs: ["A0703", "A0702"],
     note: "Hypoglycaemia is a common seizure precipitant. BSL mandatory in ALL seizure patients. If BSL <4: treat hypoglycaemia concurrently with seizure management. Dextrose 10% IV 200 mL while managing airway. Midazolam still indicated if actively seizing.",
@@ -1716,4 +1719,5 @@ var CPG_COMBINATIONS = {
 
 // Export for use in scenario trainer
 if (typeof module !== 'undefined') {
+  module.exports = { CPG_PACKAGES, DRUG_REFERENCE_EXTENDED, CPG_COMBINATIONS };
 }
