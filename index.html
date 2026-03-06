@@ -2875,6 +2875,9 @@ function extractCPGManagement(pkgKey) {
   // management field (object or array)
   if (pkg.management) flatten(pkg.management, 0, '');
 
+  // management_mica array — MICA-only steps, displayed in blue MICA box
+  if (Array.isArray(pkg.management_mica)) pkg.management_mica.forEach(s => { if (s) mica.push(s); });
+
   // For packages with no management field, flatten clinical fields
   const CLINICAL_FIELDS = ['cpr','defibrillation','drugs','airway','fluid','haemorrhage',
     'tbi','transport','priorities','stable_svt','unstable','af_flutter_arrest',
