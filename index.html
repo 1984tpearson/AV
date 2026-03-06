@@ -2040,6 +2040,22 @@ function canEdit(scenario) {
   const { uuid } = getIdentity();
   return uuid === ADMIN_UUID || scenario.creator_uuid === uuid;
 }
+function adminLogin() {
+  const pw = prompt('Admin password:');
+  if (pw === null) return;
+  if (pw === 'avscenarios') {
+    localStorage.setItem('av_user_uuid', ADMIN_UUID);
+    showToast('🔑 Admin mode enabled');
+    renderManageModal();
+  } else {
+    showToast('⚠️ Incorrect password');
+  }
+}
+function adminLogout() {
+  localStorage.removeItem('av_user_uuid');
+  showToast('Admin mode disabled');
+  renderManageModal();
+}
 
 async function sbFetch(path, opts = {}) {
   const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
@@ -4169,7 +4185,10 @@ function renderManageModal() {
   const body = document.getElementById('manage-modal-body');
   const { uuid, name } = getIdentity();
   const adminBadge = isAdmin() ? ' 🔑 Admin' : '';
-  const cloudBanner = `<div style="background:#E8F8F5;border:1px solid #A2D9CE;border-radius:8px;padding:8px 12px;font-size:12px;color:#1E8449;margin-bottom:12px">☁️ <strong>Supabase sync active</strong> — scenarios shared with all users.${adminBadge ? `<span style="color:var(--amber);font-weight:700"> ${adminBadge}</span>` : ''}<br><span style="color:var(--grey)">You: ${name || 'Anonymous'}</span></div>`;
+  const adminLink = isAdmin()
+    ? `<span style="color:var(--grey)"> · <a href="#" onclick="adminLogout();return false;" style="color:var(--grey);text-decoration:underline;font-size:11px">Logout admin</a></span>`
+    : `<span style="color:var(--grey)"> · <a href="#" onclick="adminLogin();return false;" style="color:var(--grey);text-decoration:none;font-size:11px">···</a></span>`;
+  const cloudBanner = `<div style="background:#E8F8F5;border:1px solid #A2D9CE;border-radius:8px;padding:8px 12px;font-size:12px;color:#1E8449;margin-bottom:12px">☁️ <strong>Supabase sync active</strong> — scenarios shared with all users.${adminBadge ? `<span style="color:var(--amber);font-weight:700"> ${adminBadge}</span>` : ''}<br><span style="color:var(--grey)">You: ${name || 'Anonymous'}</span>${adminLink}</div>`;
 
   if (customScenarios.length === 0) {
     body.innerHTML = `${cloudBanner}<div class="no-custom-msg">
