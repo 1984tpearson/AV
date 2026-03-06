@@ -2624,7 +2624,13 @@ function switchAPITab(tab) {
   if (tab === 'groq') loadGroqKey();
 }
 
-function openAIModal() { document.getElementById('ai-modal').classList.add('open'); loadGroqKey(); }
+function openAIModal() {
+  document.getElementById('ai-modal').classList.add('open');
+  loadGroqKey();
+  const s = document.getElementById('ai-status');
+  s.className = '';
+  s.innerHTML = '';
+}
 function closeAIModal() { document.getElementById('ai-modal').classList.remove('open'); }
 document.getElementById('ai-modal').addEventListener('click', e => { if(e.target===document.getElementById('ai-modal')) closeAIModal(); });
 
