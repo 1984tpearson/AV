@@ -275,6 +275,34 @@ body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background
 .treatment-mica-box { background: #EAF6FD; border: 1px solid #86D2F1; border-radius: 8px; padding: 12px 14px; margin: 6px 0 10px 0; }
 .treatment-mica-box h4 { font-size: 11px; font-weight: 700; color: #1A6F9A; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
 .treatment-mica-box ol { margin-left: 18px; font-size: 13px; line-height: 1.7; color: #0D4F72; }
+/* CPG typed management blocks */
+.cpg-mgmt { margin: 10px 0; }
+.cpg-step { border-radius: 6px; margin-bottom: 4px; overflow: hidden; font-size: 13px; }
+.cpg-step-assess { background: #FFF3E0; border: 1px solid #FFB74D; }
+.cpg-step-assess .cpg-step-head { background: #E8821A; color: #fff; font-size: 11px; font-weight: 700; padding: 4px 10px; text-transform: uppercase; letter-spacing: 0.5px; }
+.cpg-step-assess .cpg-step-body { padding: 6px 12px; }
+.cpg-step-assess .cpg-step-body ul { padding-left: 16px; line-height: 1.7; color: #7a4000; }
+.cpg-step-stop { background: #c0392b; border: 1px solid #a93226; border-radius: 6px; padding: 7px 12px; margin-bottom: 4px; font-size: 13px; color: #fff; font-weight: 500; display: flex; align-items: flex-start; gap: 7px; }
+.cpg-step-stop .stop-icon { font-size: 13px; flex-shrink: 0; margin-top: 1px; }
+.cpg-step-header { background: #1a1a1a; color: #fff; font-size: 12px; font-weight: 700; padding: 6px 12px; border-radius: 6px; margin-bottom: 4px; margin-top: 6px; display: flex; align-items: center; gap: 6px; }
+.cpg-step-header .hdr-q { width: 15px; height: 15px; background: #c0392b; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 800; color: #fff; flex-shrink: 0; }
+.cpg-step-subheader { background: #2c2c2c; color: #ddd; font-size: 11px; font-weight: 700; padding: 4px 12px; border-radius: 4px; margin-bottom: 4px; }
+.cpg-step-action { background: #eafaf1; border: 1px solid #82e0aa; }
+.cpg-step-action .cpg-step-body { padding: 6px 12px; }
+.cpg-step-action .cpg-step-body p { color: #1e5631; line-height: 1.5; }
+.cpg-step-action .cpg-step-body ul { padding-left: 16px; line-height: 1.7; color: #1e5631; }
+.cpg-step-subheader-action { background: #a9dfbf; color: #1e5631; font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 3px; margin: 4px 12px 2px 12px; display: inline-block; }
+.cpg-step-note { background: #f0f0f0; border: 1px solid #bbb; }
+.cpg-step-note .cpg-step-body { padding: 6px 12px; }
+.cpg-step-note .cpg-step-body p { color: #444; line-height: 1.5; font-style: italic; }
+.cpg-step-note .cpg-step-body ul { padding-left: 16px; line-height: 1.7; color: #444; }
+.cpg-step-mica { background: #e8f4fd; border: 1px solid #5dade2; }
+.cpg-step-mica .cpg-step-head { background: #1a5276; color: #fff; font-size: 10px; font-weight: 700; padding: 3px 10px; text-transform: uppercase; letter-spacing: 0.5px; }
+.cpg-step-mica .cpg-step-body { padding: 6px 12px; }
+.cpg-step-mica .cpg-step-body p { color: #154360; line-height: 1.5; }
+.cpg-step-mica .cpg-step-body ul { padding-left: 16px; line-height: 1.7; color: #154360; }
+.cpg-action-badge { font-size: 10px; font-weight: 700; color: #1e5631; background: #a9dfbf; padding: 2px 7px; border-radius: 3px; margin-bottom: 5px; display: inline-block; }
+.cpg-mica-badge { font-size: 10px; font-weight: 700; color: #fff; background: #1a6f9a; padding: 2px 7px; border-radius: 3px; margin-bottom: 5px; display: inline-block; }
 .discussion-box { background: #FEF9F0; border: 1px dashed #F0A500; border-radius: 8px; padding: 12px 14px; margin: 10px 0; }
 .discussion-box .discussion-header { display: flex; align-items: baseline; gap: 8px; margin-bottom: 8px; }
 .discussion-box .discussion-label { font-size: 11px; font-weight: 700; color: #B7770D; text-transform: uppercase; letter-spacing: 0.5px; }
@@ -2296,10 +2324,13 @@ function renderSection2(s) {
     const catVal = s.category && s.subcategory ? `${s.category}|${s.subcategory}` : '';
     return CATEGORY_TO_CPG[catVal] || [];
   })();
-  const { alsHtml: treatAlsHtml, micaHtml: treatMicaHtml } = _scenPkgKeys.length
+  const _mgmtResult = _scenPkgKeys.length
     ? buildManagementFromCPG(_scenPkgKeys)
     : { alsHtml: (s.treatment_als||s.treatment||[]).filter(Boolean).map(t=>`<li>${t}</li>`).join(''),
         micaHtml: (s.treatment_mica||[]).filter(Boolean).map(t=>`<li>${t}</li>`).join('') };
+  const treatAlsHtml = _mgmtResult.alsHtml;
+  const treatMicaHtml = _mgmtResult.micaHtml;
+  const treatIsTyped = !!_mgmtResult.typed;
 
   return `
   <div class="section">
@@ -2374,8 +2405,10 @@ function renderSection2(s) {
         </tbody>
       </table>
 
-      ${treatAlsHtml ? `<div class="treatment-box"><h4>✅ ALS Management — ${s.cpg||'Scenario'}</h4>${treatAlsHtml}</div>` : ''}
-      ${treatMicaHtml ? `<div class="treatment-mica-box"><h4>🔵 MICA Management</h4>${treatMicaHtml}</div>` : ''}
+      ${treatAlsHtml ? (treatIsTyped
+        ? `<div style="margin-top:10px"><div style="font-size:10px;font-weight:700;color:#555;text-transform:uppercase;letter-spacing:0.6px;margin-bottom:6px;">📋 CPG Management — ${s.cpg||'Scenario'}</div>${treatAlsHtml}</div>`
+        : `<div class="treatment-box"><h4>✅ ALS Management — ${s.cpg||'Scenario'}</h4><ol>${treatAlsHtml}</ol></div>`) : ''}
+      ${!treatIsTyped && treatMicaHtml ? `<div class="treatment-mica-box"><h4>🔵 MICA Management</h4><ol>${treatMicaHtml}</ol></div>` : ''}
       ${(s.discussion&&s.discussion.length) ? `<div class="discussion-box"><div class="discussion-header"><span class="discussion-label">💬 Beyond AV Scope — CI Discussion Prompts</span><span class="discussion-note">Not assessable · AI-suggested · not part of AV management</span></div><ul>${s.discussion.map(d=>`<li>${d}</li>`).join('')}</ul></div>` : ''}
 
       <div style="margin-top:12px">
@@ -2823,95 +2856,135 @@ function updateCPGSubtypeDropdown(catId, groupId, selectId) {
 // Returns a structured CPG context string for prompt injection
 // ============================================================
 // CPG MANAGEMENT EXTRACTOR
-// Pulls management steps and principles from CPG package data.
-// Returns { als: [], mica: [], principles: [], label: "" }
 // ============================================================
-function extractCPGManagement(pkgKey) {
-  const pkg = CPG_PACKAGES[pkgKey];
-  if (!pkg) return null;
+// CPG Management Renderer — typed step format
+// Supports both new typed format (array of {type, text/items})
+// and legacy flat string arrays for backwards compatibility
+// ============================================================
+function renderTypedManagement(pkg) {
+  if (!pkg) return '';
+  const steps = pkg.management;
+  if (!steps || !steps.length) return '';
 
-  const SKIP_KEYS = new Set(['cpg','version','title','patientGroup','diagnosis','pitfalls',
-    'highRiskFeatures','clinicalFeatures','pathophysiology','commonTCAs','toxicityRisk',
-    'unstableFeatures','types','normalValues','targetSpO2','oxygenNote','ecmoEligibility',
-    'capnography','vtDefinition','rule','note','consultation','coreprinciples',
-    'initialAssessment','initialCare','severity','extrication','patientPlan']);
-
-  const als = [], mica = [], principles = [];
-
-  // Flatten a value into strings, preserving key name as prefix for object values
-  function flatten(val, depth, keyPrefix) {
-    if (!val || depth > 4) return;
-    if (typeof val === 'string' && val.length > 3) {
-      const s = keyPrefix ? `${keyPrefix}: ${val}` : val;
-      if (val.includes('(MICA)')) mica.push(s);
-      else als.push(s);
-    } else if (Array.isArray(val)) {
-      val.forEach(v => flatten(v, depth, ''));
-    } else if (typeof val === 'object') {
-      Object.entries(val).forEach(([k, v]) => {
-        if (!SKIP_KEYS.has(k)) {
-          // For simple string values in a named object, pass key as prefix
-          // For nested objects/arrays, don't pass prefix (avoid double-prefixing)
-          const pfx = (typeof v === 'string') ? k : '';
-          flatten(v, depth + 1, pfx);
-        }
-      });
-    }
+  // Check if this is the new typed format
+  const isTyped = steps.length > 0 && typeof steps[0] === 'object' && steps[0].type;
+  if (!isTyped) {
+    // Legacy flat string array — fall back to simple list
+    const items = steps.filter(Boolean).map(s => `<li>${s}</li>`).join('');
+    return `<div class="cpg-step cpg-step-action"><div class="cpg-step-body"><ul>${items}</ul></div></div>`;
   }
 
-  // careObjectives → principles
-  if (pkg.careObjectives) pkg.careObjectives.forEach(s => principles.push(s));
+  function itemsHtml(items) {
+    if (!items) return '';
+    if (typeof items === 'string') return `<p>${items}</p>`;
+    return `<ul>${items.map(i => `<li>${i}</li>`).join('')}</ul>`;
+  }
 
-  // keyPrinciples → principles
-  if (pkg.keyPrinciples) pkg.keyPrinciples.forEach(s => principles.push(s));
+  let html = '<div class="cpg-mgmt">';
 
-  // resuscitationSteps → als
-  if (pkg.resuscitationSteps) pkg.resuscitationSteps.forEach(s => flatten(s, 0, ''));
+  // Care objectives first if present
+  if (pkg.careObjectives && pkg.careObjectives.length) {
+    html += `<div style="background:#f7f8fa;border:1px solid #dde1e7;border-radius:6px;padding:8px 12px;margin-bottom:6px;">`;
+    html += `<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;color:#555;margin-bottom:5px;">Care Objectives</div>`;
+    html += `<ul style="padding-left:16px;font-size:12.5px;color:#333;line-height:1.6;">${pkg.careObjectives.map(o=>`<li>${o}</li>`).join('')}</ul>`;
+    html += `</div>`;
+  }
 
-  // note → principles (for note-only packages)
-  if (pkg.note && !pkg.management && !pkg.keyPrinciples && !pkg.resuscitationSteps)
-    principles.push(pkg.note);
+  steps.forEach(step => {
+    switch (step.type) {
+      case 'assess':
+        html += `<div class="cpg-step cpg-step-assess"><div class="cpg-step-head">⏩ Assess</div><div class="cpg-step-body"><ul>${(step.items||[step.text]).map(i=>`<li>${i}</li>`).join('')}</ul></div></div>`;
+        break;
+      case 'stop':
+        html += `<div class="cpg-step-stop"><span class="stop-icon">🛑</span><span>${step.text}</span></div>`;
+        break;
+      case 'header':
+        html += `<div class="cpg-step-header"><div class="hdr-q">?</div>${step.text}</div>`;
+        break;
+      case 'subheader':
+        html += `<div class="cpg-step cpg-step-action"><div class="cpg-step-subheader-action">${step.text}</div></div>`;
+        break;
+      case 'action':
+        if (step.items) {
+          html += `<div class="cpg-step cpg-step-action"><div class="cpg-step-body"><div class="cpg-action-badge">✔ Action</div><ul>${step.items.map(i=>`<li>${i}</li>`).join('')}</ul></div></div>`;
+        } else {
+          html += `<div class="cpg-step cpg-step-action"><div class="cpg-step-body"><p>${step.text}</p></div></div>`;
+        }
+        break;
+      case 'note':
+        if (step.items) {
+          html += `<div class="cpg-step cpg-step-note"><div class="cpg-step-body"><ul>${step.items.map(i=>`<li>${i}</li>`).join('')}</ul></div></div>`;
+        } else {
+          html += `<div class="cpg-step cpg-step-note"><div class="cpg-step-body"><p>${step.text}</p></div></div>`;
+        }
+        break;
+      case 'mica':
+        if (step.items) {
+          html += `<div class="cpg-step cpg-step-mica"><div class="cpg-step-head">🔵 MICA Only</div><div class="cpg-step-body"><div class="cpg-mica-badge">✔ Action</div><ul>${step.items.map(i=>`<li>${i}</li>`).join('')}</ul></div></div>`;
+        } else {
+          html += `<div class="cpg-step cpg-step-mica"><div class="cpg-step-head">🔵 MICA Only</div><div class="cpg-step-body"><p>${step.text}</p></div></div>`;
+        }
+        break;
+    }
+  });
 
-  // management field (object or array)
-  if (pkg.management) flatten(pkg.management, 0, '');
-
-  // For packages with no management field, flatten clinical fields
-  const CLINICAL_FIELDS = ['cpr','defibrillation','drugs','airway','fluid','haemorrhage',
-    'tbi','transport','priorities','stable_svt','unstable','af_flutter_arrest',
-    'firstLine','secondLine','cpr_quality','pacing'];
-  CLINICAL_FIELDS.forEach(f => { if (pkg[f]) flatten(pkg[f], 0, ''); });
-
-  return { als, mica, principles, label: `${pkg.title} (${pkg.cpg})` };
+  html += '</div>';
+  return html;
 }
 
 // Build management HTML for one or more CPG packages
 function buildManagementFromCPG(pkgKeys) {
-  const results = pkgKeys.map(k => extractCPGManagement(k)).filter(Boolean);
-  if (!results.length) return { alsHtml: '', micaHtml: '' };
+  const pkgs = pkgKeys.map(k => CPG_PACKAGES[k]).filter(Boolean);
+  if (!pkgs.length) return { alsHtml: '', micaHtml: '' };
 
-  let alsHtml = '', micaHtml = '';
+  // Check if any package uses new typed format
+  const anyTyped = pkgs.some(pkg => pkg.management && pkg.management.length > 0 && typeof pkg.management[0] === 'object');
 
-  results.forEach(r => {
-    const hasSteps = r.als.length > 0;
-    const hasMica  = r.mica.length > 0;
-    const hasPrinc = r.principles.length > 0;
-    const multiCPG = results.length > 1;
-    const labelHdr = multiCPG ? `<div style="font-size:10px;font-weight:800;color:var(--green);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;border-bottom:1px solid #A9DFBF;padding-bottom:4px">${r.label}</div>` : '';
-    const micaLabelHdr = multiCPG ? `<div style="font-size:10px;font-weight:800;color:#1A6F9A;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;border-bottom:1px solid #86D2F1;padding-bottom:4px">${r.label}</div>` : '';
-
-    if (hasSteps || hasPrinc) {
-      let inner = labelHdr;
-      if (hasSteps) inner += `<ol>${r.als.map(s=>`<li>${s}</li>`).join('')}</ol>`;
-      if (hasPrinc) {
-        const princLabel = hasPrinc && !hasSteps ? 'Management Principles' : 'Care Objectives';
-        inner += `<div style="font-size:11px;font-weight:700;color:var(--green);text-transform:uppercase;margin:${hasSteps?'10px':'0'} 0 4px">${princLabel}</div>`;
-        inner += `<ul style="margin-left:16px;font-size:12px;line-height:1.6;color:#2C5F2E">${r.principles.map(p=>`<li>${p}</li>`).join('')}</ul>`;
+  if (anyTyped) {
+    // New typed renderer — renders everything in one unified block
+    let html = '';
+    pkgs.forEach(pkg => {
+      if (pkgs.length > 1) {
+        html += `<div style="font-size:10px;font-weight:800;color:#555;text-transform:uppercase;letter-spacing:0.5px;margin:8px 0 4px;border-bottom:1px solid #dde1e7;padding-bottom:3px;">${pkg.title} (${pkg.cpg})</div>`;
       }
+      html += renderTypedManagement(pkg);
+    });
+    return { alsHtml: html, micaHtml: '', typed: true };
+  }
+
+  // Legacy flat string renderer
+  let alsHtml = '', micaHtml = '';
+  pkgs.forEach(pkg => {
+    const multiCPG = pkgs.length > 1;
+    const labelHdr = multiCPG ? `<div style="font-size:10px;font-weight:800;color:var(--green);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;border-bottom:1px solid #A9DFBF;padding-bottom:4px">${pkg.title} (${pkg.cpg})</div>` : '';
+
+    const als = [], mica = [], principles = [];
+    const SKIP_KEYS = new Set(['cpg','version','title','patientGroup','diagnosis','pitfalls',
+      'highRiskFeatures','clinicalFeatures','pathophysiology','notes','note']);
+
+    function flatten(val, depth) {
+      if (!val || depth > 4) return;
+      if (typeof val === 'string' && val.length > 3) {
+        if (val.includes('(MICA)')) mica.push(val); else als.push(val);
+      } else if (Array.isArray(val)) {
+        val.forEach(v => flatten(v, depth));
+      } else if (typeof val === 'object') {
+        Object.entries(val).forEach(([k, v]) => { if (!SKIP_KEYS.has(k)) flatten(v, depth + 1); });
+      }
+    }
+
+    if (pkg.careObjectives) pkg.careObjectives.forEach(s => principles.push(s));
+    if (pkg.keyPrinciples) pkg.keyPrinciples.forEach(s => principles.push(s));
+    if (pkg.management) flatten(pkg.management, 0);
+    if (pkg.management_mica) pkg.management_mica.forEach(s => mica.push(s));
+
+    if (als.length || principles.length) {
+      let inner = labelHdr;
+      if (als.length) inner += `<ol>${als.map(s=>`<li>${s}</li>`).join('')}</ol>`;
+      if (principles.length) inner += `<ul style="margin-left:16px;font-size:12px;line-height:1.6;color:#2C5F2E">${principles.map(p=>`<li>${p}</li>`).join('')}</ul>`;
       alsHtml += inner;
     }
-    if (hasMica) {
-      micaHtml += micaLabelHdr + `<ol>${r.mica.map(s=>`<li>${s}</li>`).join('')}</ol>`;
-    }
+    if (mica.length) micaHtml += `<ol>${mica.map(s=>`<li>${s}</li>`).join('')}</ol>`;
   });
 
   return { alsHtml, micaHtml };
