@@ -2725,7 +2725,7 @@ const CATEGORY_TO_CPG = {
   // Adult
   'Adult|Cardiac Arrest':    ['cardiac_arrest'],
   'Adult|Airway Management': ['upper_airway_obstruction', 'dyspnoea'],
-  'Adult|Cardiac':           ['acs_stemi', 'bradycardia', 'tachycardia_narrow', 'tachycardia_broad', 'syncope', 'pulmonary_embolism'],
+  'Adult|Cardiac':           ['acs', 'bradycardia', 'tachycardia_narrow', 'tachycardia_broad', 'pulmonary_oedema', 'inadequate_perfusion_cardiogenic', 'stemi_management', 'hypertension'],
   'Adult|Pain Relief':       ['pain_relief'],
   'Adult|Respiratory':       ['asthma', 'copd', 'pulmonary_oedema', 'chest_injury'],
   'Adult|Medical':           ['seizures', 'hypoglycaemia', 'stroke', 'anaphylaxis', 'hyperkalaemia', 'hyperglycaemia', 'headache', 'nausea_vomiting'],
@@ -2774,12 +2774,14 @@ const CPG_SUBTYPE_LABELS = {
   alcohol_withdrawal:       'Alcohol Withdrawal Syndrome',
   cyanide_toxicity:         'Cyanide Toxicity',
   // Cardiac
-  acs_stemi:                'ACS / STEMI',
-  bradycardia:              'Bradycardia',
-  tachycardia_narrow:       'Narrow Complex Tachycardia (SVT/AF)',
-  tachycardia_broad:        'Broad Complex Tachycardia (VT)',
-  syncope:                  'Syncope',
-  pulmonary_embolism:       'Pulmonary Embolism',
+  acs:                          'ACS / STEMI',
+  bradycardia:                  'Bradycardia',
+  tachycardia_narrow:           'Narrow Complex Tachycardia (SVT/AF)',
+  tachycardia_broad:            'Broad Complex Tachycardia (VT)',
+  pulmonary_oedema:             'Cardiogenic Pulmonary Oedema',
+  inadequate_perfusion_cardiogenic: 'Inadequate Perfusion (Cardiogenic)',
+  stemi_management:             'STEMI Management',
+  hypertension:                 'Hypertension',
   // Medical
   seizures:                 'Seizures / Status Epilepticus',
   hypoglycaemia:            'Hypoglycaemia',
@@ -2792,7 +2794,6 @@ const CPG_SUBTYPE_LABELS = {
   // Respiratory
   asthma:                   'Asthma',
   copd:                     'COPD Exacerbation',
-  pulmonary_oedema:         'Cardiogenic Pulmonary Oedema',
   chest_injury:             'Chest Injury',
   upper_airway_obstruction: 'Upper Airway Obstruction',
   dyspnoea:                 'Undifferentiated Dyspnoea',
