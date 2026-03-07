@@ -2169,7 +2169,12 @@ function renderSection1(s, isTrauma) {
       const pkg = CPG_PACKAGES[k];
       if (!pkg) return;
       const mgmt = pkg.management || pkg.resuscitationSteps || [];
-      if (Array.isArray(mgmt)) all.push(...mgmt.filter(s => !s.includes('(MICA)')));
+      if (Array.isArray(mgmt)) {
+        mgmt.forEach(item => {
+          if (typeof item === 'string' && !item.includes('(MICA)')) all.push(item);
+          else if (typeof item === 'object' && item.type === 'action' && item.text) all.push(item.text);
+        });
+      }
     });
     return all;
   })();
