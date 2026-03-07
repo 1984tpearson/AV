@@ -3021,8 +3021,31 @@ function buildCPGContext(catVal1, catVal2) {
   const packageSections = allKeys.map(k => {
     const pkg = CPG_PACKAGES[k];
     if (!pkg) return '';
-    // Render management and drugs as readable key: value lines (not JSON.stringify — avoids prompt corruption)
-    const mgmtLines = Object.entries(pkg.management || {}).map(([mk, mv]) => `  ${mk}: ${mv}`).join('\n');
+    // Render management as readable plain text for AI prompt — handles both typed and legacy formats
+    let mgmtLines = '';
+    if (Array.isArray(pkg.management)) {
+      if (pkg.management.length > 0 && typeof pkg.management[0] === 'object') {
+        // New typed format — flatten to readable text
+        mgmtLines = pkg.management.map(step => {
+          if (!step || !step.type) return '';
+          switch (step.type) {
+            case 'assess': return `  ASSESS: ${(step.items||[]).join(', ')}`;
+            case 'stop':   return `  STOP: ${step.text}`;
+            case 'header': return `  [${step.text}]`;
+            case 'subheader': return `    (${step.text})`;
+            case 'action': return step.items ? `  - ${step.items.join('; ')}` : `  - ${step.text}`;
+            case 'note':   return step.items ? `  NOTE: ${step.items.join('; ')}` : `  NOTE: ${step.text}`;
+            case 'mica':   return step.items ? `  MICA: ${step.items.join('; ')}` : `  MICA: ${step.text}`;
+            default: return '';
+          }
+        }).filter(Boolean).join('\n');
+      } else {
+        // Legacy flat string array
+        mgmtLines = pkg.management.filter(Boolean).map(s => `  - ${s}`).join('\n');
+      }
+    } else if (pkg.management && typeof pkg.management === 'object') {
+      mgmtLines = Object.entries(pkg.management).map(([mk, mv]) => `  ${mk}: ${mv}`).join('\n');
+    }
     const drugLines = Object.entries(pkg.drugs || {}).map(([dk, dv]) => `  ${dk}: ${dv}`).join('\n');
     return `--- CPG: ${pkg.title} (${pkg.cpg}) ---\n` +
       `Care objectives: ${pkg.careObjectives?.join('; ')}\n` +
