@@ -277,6 +277,8 @@ body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background
 .treatment-mica-box ol { margin-left: 18px; font-size: 13px; line-height: 1.7; color: #0D4F72; }
 /* CPG typed management blocks */
 .cpg-mgmt { margin: 10px 0; }
+.cpg-expand-btn { display: block; width: 100%; margin-top: 6px; padding: 6px 12px; background: #f0f0f0; border: 1px solid #ccc; border-radius: 6px; font-size: 12px; color: #444; cursor: pointer; text-align: center; }
+.cpg-expand-btn:hover { background: #e0e0e0; }
 .cpg-step { border-radius: 6px; margin-bottom: 4px; overflow: hidden; font-size: 13px; }
 .cpg-step-assess { background: #FFF3E0; border: 1px solid #FFB74D; }
 .cpg-step-assess .cpg-step-head { background: #E8821A; color: #fff; font-size: 11px; font-weight: 700; padding: 4px 10px; text-transform: uppercase; letter-spacing: 0.5px; }
@@ -2943,7 +2945,15 @@ function renderTypedManagement(pkg) {
     }
   });
 
-  grouped.forEach(step => {
+  const COLLAPSE_THRESHOLD = 8;
+  const needsCollapse = grouped.length > COLLAPSE_THRESHOLD;
+  const collapseId = needsCollapse ? 'cpg-expand-' + Math.random().toString(36).slice(2, 8) : null;
+
+  grouped.forEach((step, idx) => {
+    // Insert the collapsed-overflow wrapper after block 8
+    if (needsCollapse && idx === COLLAPSE_THRESHOLD) {
+      html += `</div><div class="cpg-overflow" id="${collapseId}" style="display:none;"><div class="cpg-mgmt cpg-mgmt-overflow">`;
+    }
     const lines = step._lines || [];
 
     function renderLines(lines) {
@@ -2986,6 +2996,18 @@ function renderTypedManagement(pkg) {
         break;
     }
   });
+
+  if (needsCollapse) {
+    // Close the overflow inner wrappers
+    html += `</div></div>`;
+    // Expand / collapse button
+    html += `<button class="cpg-expand-btn" onclick="
+      var ov=document.getElementById('${collapseId}');
+      var expanded=ov.style.display!=='none';
+      ov.style.display=expanded?'none':'';
+      this.textContent=expanded?'▼ Show more':'▲ Show less';
+    ">▼ Show more</button>`;
+  }
 
   html += '</div>';
   return html;
