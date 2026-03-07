@@ -2727,7 +2727,7 @@ const CATEGORY_TO_CPG = {
   'Adult|Airway Management': ['upper_airway_obstruction', 'dyspnoea'],
   'Adult|Cardiac':           ['acs', 'bradycardia', 'tachycardia_narrow', 'tachycardia_broad', 'pulmonary_oedema', 'inadequate_perfusion_cardiogenic', 'stemi_management', 'hypertension'],
   'Adult|Pain Relief':       ['pain_relief'],
-  'Adult|Respiratory':       ['asthma', 'copd', 'pulmonary_oedema', 'chest_injury'],
+  'Adult|Respiratory':       ['asthma', 'copd', 'upper_airway_obstruction', 'dyspnoea', 'pulmonary_embolism'],
   'Adult|Medical':           ['seizures', 'hypoglycaemia', 'stroke', 'anaphylaxis', 'hyperkalaemia', 'hyperglycaemia', 'headache', 'nausea_vomiting'],
   'Adult|Infection':         ['sepsis'],
   'Adult|Mental Health':     ['acute_behavioural_disturbance', 'mental_health_conditions'],
@@ -2794,9 +2794,10 @@ const CPG_SUBTYPE_LABELS = {
   // Respiratory
   asthma:                   'Asthma',
   copd:                     'COPD Exacerbation',
-  chest_injury:             'Chest Injury',
   upper_airway_obstruction: 'Upper Airway Obstruction',
   dyspnoea:                 'Undifferentiated Dyspnoea',
+  pulmonary_embolism:       'Pulmonary Embolism',
+  chest_injury:             'Chest Injury',
   // Mental Health
   acute_behavioural_disturbance: 'Acute Behavioural Disturbance',
   mental_health_conditions: 'Mental Health Conditions',
