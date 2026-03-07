@@ -620,6 +620,8 @@ body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background
           <option value="Adult|Medical">Adult — Medical</option>
           <option value="Adult|Infection">Adult — Infection</option>
           <option value="Adult|Mental Health">Adult — Mental Health</option>
+          <option value="Adult|Palliative Care">Adult — Palliative Care</option>
+          <option value="Adult|Syncope">Adult — Syncope</option>
           <option value="Adult|Trauma">Adult — Trauma</option>
           <option value="Adult|Environment">Adult — Environment</option>
           <option value="Adult|Toxicology">Adult — Toxicology</option>
@@ -674,6 +676,8 @@ body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background
           <option value="Adult|Medical">Adult — Medical</option>
           <option value="Adult|Infection">Adult — Infection</option>
           <option value="Adult|Mental Health">Adult — Mental Health</option>
+          <option value="Adult|Palliative Care">Adult — Palliative Care</option>
+          <option value="Adult|Syncope">Adult — Syncope</option>
           <option value="Adult|Trauma">Adult — Trauma</option>
           <option value="Adult|Environment">Adult — Environment</option>
           <option value="Adult|Toxicology">Adult — Toxicology</option>
@@ -816,6 +820,8 @@ body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background
           <option value="Adult|Medical">Adult — Medical</option>
           <option value="Adult|Infection">Adult — Infection</option>
           <option value="Adult|Mental Health">Adult — Mental Health</option>
+          <option value="Adult|Palliative Care">Adult — Palliative Care</option>
+          <option value="Adult|Syncope">Adult — Syncope</option>
           <option value="Adult|Trauma">Adult — Trauma</option>
           <option value="Adult|Environment">Adult — Environment</option>
           <option value="Adult|Toxicology">Adult — Toxicology</option>
@@ -931,6 +937,8 @@ body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background
           <option value="Adult|Medical">Adult — Medical</option>
           <option value="Adult|Infection">Adult — Infection</option>
           <option value="Adult|Mental Health">Adult — Mental Health</option>
+          <option value="Adult|Palliative Care">Adult — Palliative Care</option>
+          <option value="Adult|Syncope">Adult — Syncope</option>
           <option value="Adult|Trauma">Adult — Trauma</option>
           <option value="Adult|Environment">Adult — Environment</option>
           <option value="Adult|Toxicology">Adult — Toxicology</option>
@@ -2729,8 +2737,10 @@ const CATEGORY_TO_CPG = {
   'Adult|Pain Relief':       ['pain_relief'],
   'Adult|Respiratory':       ['asthma', 'copd', 'upper_airway_obstruction', 'dyspnoea', 'pulmonary_embolism'],
   'Adult|Medical':           ['seizures', 'hypoglycaemia', 'stroke', 'anaphylaxis', 'hyperkalaemia', 'hyperglycaemia', 'adrenal_insufficiency', 'headache', 'nausea_vomiting'],
-  'Adult|Infection':         ['sepsis'],
+  'Adult|Infection':         ['sepsis', 'meningococcal'],
   'Adult|Mental Health':     ['acute_behavioural_disturbance', 'mental_health_conditions'],
+  'Adult|Palliative Care':   ['palliative_care'],
+  'Adult|Syncope':           ['syncope'],
   'Adult|Trauma':            ['major_trauma', 'head_injury', 'chest_injury', 'spinal_injury', 'burns'],
   'Adult|Environment':       ['hypothermia', 'hyperthermia_environmental'],
   'Adult|Toxicology':        ['opioid_toxicity', 'tca_toxicity', 'beta_blocker_toxicity', 'ccb_toxicity', 'organophosphate_toxicity', 'drug_induced_hyperthermia', 'quetiapine_toxicity', 'alcohol_intoxication', 'alcohol_withdrawal', 'cyanide_toxicity'],
@@ -2832,6 +2842,10 @@ const CPG_SUBTYPE_LABELS = {
   the_newborn:              'Newborn Assessment',
   // Infection
   sepsis:                   'Sepsis',
+  meningococcal:            'Meningococcal Septicaemia',
+  // Palliative / Syncope
+  palliative_care:          'Palliative Care',
+  syncope:                  'Syncope',
 };
 
 function updateCPGSubtypeDropdown(catId, groupId, selectId) {
