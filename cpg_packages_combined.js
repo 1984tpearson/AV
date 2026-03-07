@@ -790,37 +790,59 @@ const CPG_PACKAGES = {
     cpg: "A0601",
     title: "Asthma",
     careObjectives: [
-      "Assess severity",
-      "Bronchodilation: inhaled bronchodilators in patients with adequate ventilation; parenteral adrenaline (IM or IV) in patients without adequate ventilation",
-      "NIV or early intubation in patients with respiratory failure unresponsive to initial treatment",
-      "Magnesium for severe or life-threatening asthma",
-      "Reduce airway inflammation with systemic corticosteroids for all but the most mild presentations"
+      "Assess severity.",
+      "Bronchodilation: inhaled bronchodilators in patients with adequate ventilation; parenteral adrenaline (IM or IV) in patients without adequate ventilation.",
+      "NIV or early intubation in patients with respiratory failure unresponsive to initial treatment.",
+      "Magnesium for severe or life-threatening asthma.",
+      "Reduce airway inflammation with systemic corticosteroids for all but the most mild presentations."
     ],
     management: [
-      "Consider anaphylaxis in all patients presenting with asthma — strongly suspected if: no asthma history, sudden onset (esp. after food/medication), skin symptoms, hypotension in conscious patient",
-      "Risk factors for life-threatening asthma: previous intubation/ICU admission, frequent presentations (> 3/year), recent presentation (within 4 weeks), frequent beta-2 agonist use (\u2265 12 canisters/year or > 6 puffs/day), delayed presentation history, sudden onset history, cardiovascular disease",
-      "Silent chest: suggests respiratory arrest is imminent",
-      "Sudden HR reduction in tachycardic severe asthmatic: indicates impending cardiac arrest ('bradying down') \u2014 treat as life-threatening",
-      "Corticosteroids: administer in all but mildest cases (mild symptoms responding quickly and completely to salbutamol)",
-      "Salbutamol/ipratropium: via pMDI for patients with adequate ventilation",
-      "IM adrenaline: for patients unable to adequately inhale bronchodilator",
-      "IV adrenaline (ALS with consult): administer if initial IM dose not effective. No requirement for multiple IM doses before consulting. Where MICA and Clinician unavailable, ALS should initiate treatment. Continue IM doses if IV access delayed",
-      "IV adrenaline ALS preparation: Adrenaline 1:1000 (1 mg/mL) \u2192 dilute 1 mL in 9 mL saline (100 mcg/mL) \u2192 discard 9 mL, add 9 mL saline (10 mcg/mL). Administer 2 mL (20 mcg) IV; repeat 20 mcg (2 mL) 2-minutely as required",
-      "Magnesium: do not delay other priorities. Consider establishing infusion during transport. If patient deteriorates, prioritise adrenaline over magnesium",
-      "Severe/life-threatening extrication: start management before extrication. Allow time for initial treatment to take effect. Prepare for deterioration (IV access, adrenaline drawn up, resus equipment ready). Minimise patient exertion",
-      "Tension pneumothorax: very unlikely in spontaneously ventilating patient or BVM-ventilated. May occur with forceful ETT ventilation. Bilateral decompression only if ALL of: IPPV via ETT, sudden loss of cardiac output, PEA, no response to 1 min apnoea + IV adrenaline"
+      { type: "assess", items: ["Severity", "If patient has individual patient management plan, this should be followed", "Risk factors for severe asthma"] },
+      { type: "stop", text: "Consider anaphylaxis if: sudden onset, food allergy Hx, hypotension in conscious patient, skin symptoms, no Hx of asthma" },
+      { type: "header", text: "Mild \u2013 moderate" },
+      { type: "note", items: ["Alert and active", "Speech: Sentences / phrases", "WOB: Increased", "HR: Normal or mild tachycardia"] },
+      { type: "action", text: "Salbutamol pMDI and spacer: 4 \u2013 12 doses, repeat at 20 minute intervals as required" },
+      { type: "action", text: "Dexamethasone 8 mg Oral in all but most mild cases" },
+      { type: "subheader", text: "Paramedic-initiated VVED referral if:" },
+      { type: "action", items: ["Dyspnoea resolved / significant improvement 10\u201320 mins following initial treatment", "Known history of asthma"] },
+      { type: "action", text: "OR Transport" },
+      { type: "header", text: "Severe" },
+      { type: "note", items: ["Distressed / agitated", "Speech: Words", "WOB: Markedly increased", "HR: Tachycardia"] },
+      { type: "action", text: "Salbutamol 5 mg nebulised every 20 minutes or more frequently as required" },
+      { type: "action", text: "Ipratropium Bromide 500 mcg nebulised (single dose)" },
+      { type: "action", text: "Dexamethasone 8 mg IV / IM / Oral" },
+      { type: "action", text: "Request MICA" },
+      { type: "action", text: "Prepare for deterioration prior to extrication (IV access, adrenaline)" },
+      { type: "subheader", text: "Inadequate response (no significant response after 20 minutes):" },
+      { type: "mica", text: "Magnesium Sulfate 10 mmol (2.5 g) IV infusion over 20 minutes" },
+      { type: "header", text: "Life threat" },
+      { type: "note", items: ["Altered conscious / drowsy / exhausted", "Speech: Unable to speak", "WOB: Maximal or poor respiratory effort", "HR: Marked tachycardia, bradycardia or deteriorating heart rate", "Skin: Cyanosis"] },
+      { type: "action", text: "Salbutamol via continuous nebulisation" },
+      { type: "action", text: "Ipratropium 500 mcg nebulised (single dose)" },
+      { type: "action", text: "Adrenaline 500 mcg IM (1:1000) \u2014 repeat at 5 minute intervals (no max)" },
+      { type: "action", text: "Request MICA" },
+      { type: "action", text: "Dexamethasone 8 mg IV / IM" },
+      { type: "action", text: "Prepare for deterioration prior to extrication (IV access, adrenaline)" },
+      { type: "note", items: ["If no response to initial IM adrenaline, consult the AV Clinician for: Adrenaline 20 mcg IV at 2 minute intervals"] },
+      { type: "mica", text: "BiPAP NIV \u2014 IPAP: 10 cmH\u2082O, EPAP: 5 cmH\u2082O, FiO\u2082: 1.0" },
+      { type: "mica", text: "Salbutamol 12 doses pMDI with in-line connector every 5\u201320 minutes as required" },
+      { type: "mica", text: "Magnesium Sulfate 10 mmol (2.5 g) IV infusion over 20 minutes (via second point of IV access)" },
+      { type: "mica", items: [
+        "If no response to initial IM adrenaline or inadequate ventilation:",
+        "Adrenaline 50\u2013100 mcg IV at 2 minute intervals if peri arrest or delay to adrenaline infusion",
+        "Adrenaline infusion 5\u201325 mcg/min (5\u201325 mL/hr) IV"
+      ]},
+      { type: "header", text: "Asthma (Unconscious)" },
+      { type: "note", items: ["Unconscious / becomes unconscious with poor or no ventilation but still with cardiac output"] },
+      { type: "action", text: "Ventilate if poor or no ventilation: 5\u20138 ventilations/minute, moderately high inspiratory pressure, allow for prolonged expiratory phase" },
+      { type: "action", text: "Adrenaline as per CPG A0601 Asthma \u2013 Life Threat" },
+      { type: "action", text: "Consider intubation if inadequate response" },
+      { type: "header", text: "Asthma (Loss of Cardiac Output)" },
+      { type: "stop", text: "Stop ventilations / disconnect ventilator, pause and reassess (\u2264 15 seconds)" },
+      { type: "action", text: "If no ROSC, Mx as per CPG A0201 Cardiac Arrest with focus on: chest compressions, no ventilations for 1 minute, prioritise IV adrenaline (IM if any delay to IV access), Normal saline" },
+      { type: "action", text: "Early intubation (if not already intubated)" }
     ],
-    management_mica: [
-      "BiPAP NIV: for respiratory failure unresponsive to initial treatment. Contraindicated if altered conscious state. Continuously observed by at least one MICA paramedic. ETCO\u2082 monitoring as soon as practicable",
-      "BiPAP: commence FiO\u2082 1.0. 10-minute review: deterioration \u2192 remove BiPAP, consider immediate intubation; no change/small change \u2192 consult AV Medical Advisor (adjust settings or intubate); improvement \u2192 continue. BiPAP setting changes: consult only",
-      "Ongoing bronchodilation on BiPAP: pMDI salbutamol via in-line connector once NIV established",
-      "CPAP: exceptional circumstances only (austere environment, ventilator failure/unavailable) \u2014 5\u201310 cmH\u2082O via Flow-Safe II",
-      "Adrenaline infusion: Adrenaline 3 mg (3 mL 1:1000) to 50 mL with D5W or NS. 1 mL = 60 mcg. 1 mL/hr = 1 mcg/min. Dose: 5\u201325 mcg/min",
-      "Magnesium infusion: Magnesium Sulfate 10 mmol (2.5 g) to 25 mL NS (100 mg/mL). Administer 10 mmol (2.5 g) via infusion pump over 20 minutes",
-      "RSI/intubation: for respiratory failure unresponsive to NIV or deteriorating on NIV. High ETCO\u2082 is expected and safe in intubated asthmatic \u2014 do not adjust treatment solely for this",
-      "Intubated asthmatic ventilator management: be conscious of gas trapping when attempting to reduce ETCO\u2082"
-    ],
-    notes: "Severity exists on a spectrum. Always consider anaphylaxis. BiPAP + adrenaline infusion is MICA bundle. Silent chest and bradying down = life-threatening."
+    notes: "Consider anaphylaxis in all asthma presentations. Life threat: parenteral adrenaline. Magnesium for severe/life-threat."
   },
 
   // -----------------------------------------------------------
@@ -830,33 +852,45 @@ const CPG_PACKAGES = {
     cpg: "A0602",
     title: "COPD",
     careObjectives: [
-      "Reduce airflow obstruction with bronchodilators",
-      "Controlled oxygen therapy if hypoxaemic to avoid risks associated with hypercapnia",
-      "Reduce inflammation with corticosteroids to improve symptoms and decrease recovery time",
-      "NIV for management of respiratory failure with inadequate response to initial treatment",
-      "Select appropriate disposition \u2014 VVED or ED"
+      "Reduce airflow obstruction with bronchodilators.",
+      "Controlled oxygen therapy if hypoxaemic to avoid risks associated with hypercapnia.",
+      "Reduce inflammation with corticosteroids to improve symptoms and decrease recovery time.",
+      "NIV for management of respiratory failure with inadequate response to initial treatment.",
+      "Select appropriate disposition \u2014 VVED or ED."
     ],
     management: [
-      "Suspect COPD if: chronic breathlessness on minor exertion, risk factors (smoking, occupational dusts/gases, family history), no other known cause of breathlessness",
-      "Oxygen therapy: target SpO\u2082 88\u201392%. Use low flow nasal cannulae where possible. SpO\u2082 > 92% may cause hypercapnia and respiratory acidosis",
-      "pMDI salbutamol preferred over nebulised therapy (reduces hyperoxia risk). Aim for minimum effective dose (4\u201312 puffs). Ipratropium pMDI (if prescribed): up to 8 puffs, repeat after 1 hour as required",
-      "Nebulised therapy: only if patient cannot use pMDI. Prefer air-driven nebuliser with supplemental O\u2082 via nasal cannulae. If oxygen-driven: limit to 6 min if SpO\u2082 > 92%",
-      "Corticosteroids: dexamethasone 8 mg oral preferred (oral = IV efficacy). Use IV if access already established. If patient has taken 30\u201350 mg oral prednisolone already, no further steroid required from AV",
-      "Consider COPD Action Plan if present (burst therapy, rescue steroids and antibiotics)",
-      "Consider patient's home NIV machine \u2014 transport to hospital with them",
-      "NIV indications: continuing moderate\u2013severe respiratory distress despite initial management + signs of respiratory failure (respiratory muscle fatigue: accessory muscle use, paradoxical abdominal motion, intercostal retraction; persistent/worsening hypoxia)",
-      "CPAP (ALS with consult): ALS may apply CPAP in severe respiratory distress where MICA not immediately available. Request MICA. Consult AV Clinician as early as possible",
-      "Remove NIV if: cardiac/respiratory arrest, mask intolerance, decreasing respiratory effort, deteriorating VS, loss of airway control, copious secretions, active vomiting",
-      "Mild\u2013moderate exacerbations responding to management: consider VVED referral. Arrange follow-up oral steroids if not transported (VVED or GP within 24 hrs)",
-      "Asthma/COPD overlap (features of both, severe respiratory distress not responding to initial management): consider asthma-specific management \u2014 repeat bronchodilators, magnesium (MICA), adrenaline (MICA)"
+      { type: "assess", items: ["Respiratory status assessment \u2014 consider patient\u2019s usual baseline", "Patient\u2019s COPD Action Plan", "Comorbidities / differential diagnosis", "Goals of care"] },
+      { type: "header", text: "All exacerbations of COPD" },
+      { type: "action", text: "Salbutamol 4\u201312 puffs via pMDI every 1 hour as required (preferred)" },
+      { type: "action", text: "OR if unable to use pMDI: Salbutamol 5 mg nebulised every 1 hour as required" },
+      { type: "action", text: "Ipratropium Bromide 500 mcg nebulised every 1 hour as required (if unable to use pMDI)" },
+      { type: "action", text: "Oxygen as per CPG A0001 \u2014 Target SpO\u2082 88\u201392%; limit oxygen therapy as much as possible outside target range" },
+      { type: "action", text: "Dexamethasone 8 mg Oral / IV / IM" },
+      { type: "header", text: "Adequate response" },
+      { type: "note", items: ["Improved or progressing towards baseline respiratory status following management"] },
+      { type: "action", text: "VVED referral if all criteria met: SpO\u2082 \u2265 88% on room air or home oxygen, no signs of severe exacerbation, mobilising normally for patient, adequate social support and able to cope at home" },
+      { type: "action", text: "OR Transport if patient does not meet all criteria" },
+      { type: "header", text: "Inadequate response / deterioration" },
+      { type: "note", items: ["Minimal or no improvement in respiratory status", "Ongoing oxygen requirement"] },
+      { type: "action", text: "Assess ventilation and consider management as per Severe exacerbation" },
+      { type: "action", text: "Transport" },
+      { type: "header", text: "Severe exacerbation" },
+      { type: "note", items: [
+        "Severe respiratory distress with either:",
+        "Persistent or worsening hypoxia (relative to normal SpO\u2082) OR",
+        "Signs of respiratory muscle fatigue (e.g. accessory muscle use, intercostal retraction, paradoxical abdominal movement, or exhaustion)"
+      ]},
+      { type: "action", text: "Request MICA" },
+      { type: "mica", text: "CPAP NIV 7.5 cm H\u2082O \u2014 consult AV Clinician at earliest opportunity for critical care advice; consider initiating and stabilising on CPAP prior to extrication" },
+      { type: "mica", text: "Consider Salbutamol 4\u201312 puffs via pMDI every 1 hour with in-line connector" },
+      { type: "mica", text: "BiPAP NIV \u2014 IPAP: 10 cmH\u2082O, EPAP: 5 cmH\u2082O, FiO\u2082: 1.0" },
+      { type: "mica", text: "Increase IPAP to 15 cm H\u2082O if no improvement in ventilation; EPAP remains at 5 cm H\u2082O" },
+      { type: "mica", text: "Titrate FiO\u2082 to SpO\u2082 88\u201392% once treatment established and effective" },
+      { type: "header", text: "Poor or no ventilation" },
+      { type: "action", text: "Ventilate" },
+      { type: "mica", text: "Consider ETT as per CPG A0302 Endotracheal Intubation" }
     ],
-    management_mica: [
-      "BiPAP: preferred NIV. Commence FiO\u2082 1.0; titrate to SpO\u2082 88\u201392%. Titrate IPAP up to improve ventilation; keep EPAP low to avoid impairing expiration",
-      "Obtunded COPD CO\u2082 retainer: BiPAP may be applied if protecting airway \u2014 hypercarbia may be successfully treated. High risk; monitor very closely",
-      "COPD/Asthma overlap: magnesium sulfate as per CPG A0601 where indicated",
-      "COPD/Asthma overlap: adrenaline infusion as per CPG A0601 where indicated"
-    ],
-    notes: "Key: SpO\u2082 88\u201392% always. pMDI preferred. Dexamethasone oral = IV. CPAP is ALS with consult. BiPAP is MICA. Asthma/COPD overlap requires clinical judgement."
+    notes: "Target SpO\u2082 88\u201392% in COPD. VVED referral if meets criteria. NIV for severe exacerbation."
   },
 
   // -----------------------------------------------------------
@@ -866,22 +900,24 @@ const CPG_PACKAGES = {
     cpg: "A0603",
     title: "Upper Airway Obstruction",
     careObjectives: [
-      "To urgently identify and manage potential airway obstruction (where appropriate) indicated by stridor in adults"
+      "To urgently identify and manage potential airway obstruction (where appropriate) indicated by stridor in adults."
     ],
     management: [
-      "Stridor in adult patients indicates an airway obstruction of at least 50% of the internal diameter of the upper airway and should always be considered an emergency",
-      "Stridor can be mistaken for asthma. Bronchodilators will not assist the patient with stridor",
-      "Acute onset: most commonly infectious origin (epiglottitis, Ludwig's Angina), foreign body, or allergic reaction",
-      "Airway burns: treat as per CPG A0805 Burns",
-      "Chronic causes: congenital or acquired structural abnormalities (e.g. tumours). Some cases: inducible laryngeal obstruction (vocal cord dysfunction)",
-      "Stridor louder in upper lung fields; loudest over trachea",
-      "Degree of respiratory distress dictates urgency. Acute onset more likely to require intervention than chronic onset",
-      "Follow patient's action plan if one exists",
-      "Intubating a patient with stridor is likely to be difficult — immediately consider dual setup as per CPG A0303 Difficult Airway. Supraglottic techniques are unlikely to be effective",
-      "Inter-hospital transfer of non-intubated adult with stridor: notify Adult Retrieval Victoria and formulate airway management plan"
+      { type: "stop", text: "Imminent risk of life-threatening airway obstruction \u2014 MICA MUST be requested" },
+      { type: "stop", text: "Manage anaphylaxis as per CPG A0704 Anaphylaxis" },
+      { type: "stop", text: "Manage choking as per CPG A0308 Choking" },
+      { type: "assess", items: ["Acute or chronic", "Respiratory status"] },
+      { type: "action", text: "Escalate care" },
+      { type: "action", text: "Adrenaline 5 mg nebulised \u2014 consult AV Medical Advisor via AV Clinician for repeat dose if required" },
+      { type: "action", text: "Dexamethasone 8 mg IV / IM" },
+      { type: "subheader", text: "If known history of inducible laryngeal obstruction and unresponsive to other management:" },
+      { type: "mica", text: "Consider CPAP 5 cm H\u2082O" },
+      { type: "mica", text: "Consult with AV Medical Advisor via AV Clinician for further management advice" },
+      { type: "subheader", text: "If severe respiratory distress:" },
+      { type: "mica", text: "Consider intubation as per CPG A0302 Endotracheal Intubation" },
+      { type: "mica", text: "Prepare with dual setup as per CPG A0303 Difficult Airway Guideline" }
     ],
-    management_mica: [],
-    notes: "Stridor = 50%+ upper airway obstruction. Always an emergency. Bronchodilators won't help. Intubation likely difficult — prepare dual setup."
+    notes: "Stridor = emergency. MICA mandatory. Adrenaline nebulised first line. Distinguish from anaphylaxis and choking."
   },
 
   // -----------------------------------------------------------
@@ -891,32 +927,14 @@ const CPG_PACKAGES = {
     cpg: "A0604",
     title: "Dyspnoea",
     careObjectives: [
-      "Assess and identify the most likely cause of dyspnoea and manage as per the appropriate guideline",
-      "Manage respiratory distress and hypoxia in undifferentiated or other causes of dyspnoea with oxygen or NIV if required"
+      "Identify and manage the underlying cause of dyspnoea."
     ],
     management: [
-      "Wide range of causes: respiratory (asthma, COPD, pneumonia, PE, pneumothorax, pulmonary oedema), cardiac (ACS, APO, arrhythmia, tamponade), neurologic, metabolic (DKA, sepsis, anaemia), other (anaphylaxis, toxidromes, hyperventilation)",
-      "Manage known/strongly suspected cause as per specific CPG",
-      "Non-cardiogenic pulmonary oedema (smoke/toxic gas inhalation, near drowning, anaphylaxis): consider NIV in moderate-severe distress. GTN and furosemide NOT indicated",
-      "Hyperventilation syndrome: diagnosis of exclusion. Always have normal SpO\u2082. Borderline/low SpO\u2082 indicates more serious physiological cause",
-      "Hyperventilation management: remove source of anxiety, distraction, count to 2 between breaths, read text aloud. Do NOT encourage rebreathing into paper bag (worsens acidosis and hypoxaemia)",
-      "Refer to VVED or transport if hyperventilation does not resolve completely after reassurance",
-      "Undifferentiated dyspnoea: weigh risks/benefits of diagnosis-specific management. Consider trialling condition-specific treatment and evaluating response. Reassess frequently. Avoid treatments with high harm potential if diagnosis uncertain",
-      "NIV — CPAP: most effective for 'wet lungs' (Type 1 / low oxygenation, normal/low CO\u2082, strong respiratory drive — e.g. APO, pneumonia)",
-      "NIV — BiPAP: most effective for 'tired lungs' (Type 2 / CO\u2082 retention, respiratory muscle fatigue). BiPAP is preferred where available",
-      "BiPAP also indicated for signs of respiratory muscle fatigue regardless of SpO\u2082: accessory muscle use, paradoxical abdominal motion, intercostal retraction, patient appears exhausted",
-      "ALS: consult AV Clinician as soon as possible after initiating CPAP for undifferentiated/other dyspnoea",
-      "Avoid NIV where PE is most likely cause and perfusion is borderline/inadequate (positive pressure reduces preload, worsens obstructive shock)",
-      "Avoid NIV where pneumothorax is likely (positive pressure may worsen it)",
-      "Intubation in PE: consider cautiously — patients with right heart strain are particularly vulnerable to sudden decompensation",
-      "Moderate-severe respiratory distress: start management before extrication. Minimise patient exertion. Prepare for deterioration. Monitor throughout"
+      { type: "note", items: ["Dyspnoea (non-traumatic)"] },
+      { type: "assess", items: ["Respiratory status assessment", "History and physical exam: acute, subacute or chronic dyspnoea; other signs and symptoms; 12 Lead ECG; goals of care"] },
+      { type: "stop", text: "Dyspnoea \u2014 manage as per relevant CPG: Asthma (A0601), COPD (A0602), Cardiogenic pulmonary oedema (A0406), Upper airway obstruction (A0603), Choking (A0308), Anaphylaxis (A0704), Pneumothorax (A0802), Palliative care (A0712), DKA (A0713), Pulmonary embolism (A0605), Hyperventilation as per CPG notes" }
     ],
-    management_mica: [
-      "BiPAP: commence FiO\u2082 1.0; titrate to normalise SpO\u2082 once efficacy and tolerance established",
-      "Where CPAP already applied by ALS: assess and consider switch to BiPAP, particularly if respiratory muscle fatigue present",
-      "BiPAP where intubation indicated but declined via ACD: may apply even with reduced conscious state"
-    ],
-    notes: "Broad differential. CPAP = wet lungs. BiPAP = tired lungs. No rebreathing bags. Caution with NIV in PE and pneumothorax."
+    notes: "Dyspnoea is a symptom \u2014 direct management to the underlying cause CPG."
   },
 
   // -----------------------------------------------------------
@@ -926,25 +944,20 @@ const CPG_PACKAGES = {
     cpg: "A0605",
     title: "Pulmonary Embolism",
     careObjectives: [
-      "Identify patients in whom pulmonary embolism is a likely diagnosis",
-      "Maintain adequate oxygenation and perfusion through supportive care",
-      "Provide targeted management of pulmonary embolism in the setting of cardiac arrest"
+      "Identify patients in whom pulmonary embolism is a likely diagnosis.",
+      "Maintain adequate oxygenation and perfusion through supportive care.",
+      "Provide targeted management of pulmonary embolism in the setting of cardiac arrest."
     ],
     management: [
-      "Risk factors: previous DVT/PE, immobilisation or surgery within 4 weeks, malignancy within 6 months, oral contraceptive or oestrogenic hormone use, pregnancy, known thrombophilia",
-      "Most common symptoms: dyspnoea, tachypnoea, pleuritic pain — at least one occurs in > 90% of PE patients",
-      "ECG findings suggesting right ventricular strain: simultaneous T wave inversion V1\u2013V4 and Lead III; complete or incomplete RBBB; right axis deviation; S1Q3T3 (uncommon). Approximately 25% have no ECG changes",
-      "Clinical signs of DVT (leg swelling and pain on palpation) significantly increase probability of PE",
-      "Oxygen as per CPG A0001",
-      "Avoid NIV where PE is most likely cause and perfusion is borderline or inadequate (positive pressure reduces preload, worsens obstructive shock)",
-      "Consider NIV as per CPG A0604 where PE is a possibility but other causes are more probable and perfusion is adequate",
-      "Intubation: consider cautiously — patients with right heart strain are particularly vulnerable to sudden decompensation",
-      "Massive PE causes obstructive shock due to acute right ventricular strain and impaired pulmonary circulation. Manage as per CPG A0407 Inadequate Perfusion (Cardiogenic) — management principles are shared",
-      "Cardiac arrest (witnessed, known/strongly suspected PE): consult AV Medical Advisor via AV Clinician for thrombolysis as per CPG A0408. Thrombolysis only if sufficient resources to continue HPCPR for up to 60 minutes post-administration",
-      "Known PE: may be eligible for ECMO — consult AV Clinician early for decision support and most appropriate destination"
+      { type: "assess", items: ["Risk factors", "Clinical signs", "Consider differential diagnoses"] },
+      { type: "header", text: "Suspected PE" },
+      { type: "action", text: "Oxygen as per CPG A0001 Oxygen Therapy" },
+      { type: "action", text: "Pain relief" },
+      { type: "action", text: "Manage shock as per CPG A0407 Inadequate Perfusion (Cardiogenic)" },
+      { type: "header", text: "Cardiac arrest with known or strongly suspected PE" },
+      { type: "mica", text: "Consider consultation with AV Medical Advisor via AV Clinician for intra-arrest thrombolysis or transport with mCPR for ECMO" }
     ],
-    management_mica: [],
-    notes: "Obstructive shock. Avoid NIV if perfusion poor. Intubation carries high risk. Witnessed arrest + PE = thrombolysis consult. ECMO consideration."
+    notes: "Supportive care only in pre-arrest. Intra-arrest thrombolysis consideration is MICA with consultation."
   },
 
   // -----------------------------------------------------------
