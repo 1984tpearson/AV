@@ -78,85 +78,94 @@ const CPG_PACKAGES = {
   // -----------------------------------------------------------
   // A0201-1 Medical Cardiac Arrest
   // -----------------------------------------------------------
-  medical_cardiac_arrest: {
+  cardiac_arrest_medical: {
     cpg: "A0201-1",
     title: "Medical Cardiac Arrest",
     careObjectives: [
-      "High quality chest compressions with minimal interruptions",
-      "Rapid defibrillation of VF / pulseless VT (if in doubt, shock)",
-      "Advanced care (e.g. adrenaline, antiarrhythmics, intubation) where it does not interrupt high-quality compressions / defibrillation",
-      "Address correctable causes where possible"
+      "High quality chest compressions with minimal interruptions.",
+      "Rapid defibrillation of VF / pulseless VT (if in doubt, shock).",
+      "Advanced care (e.g. adrenaline, antiarrhythmics, intubation) where it does not interrupt high-quality compressions / defibrillation.",
+      "Address correctable causes where possible."
     ],
     management: [
-      "Prioritise immediate rhythm interpretation and defibrillation on arrival \u2014 time to first defibrillation \u2264 2 minutes",
-      "Perform chest compressions while defibrillator is being applied",
-      "HP-CPR: Rate 100\u2013120/min, depth \u2265 5 cm, full recoil, 1 second per ventilation, 2 minute compressor rotations",
-      "Minimise interruptions to chest compressions \u2264 3 seconds",
-      "Charge defibrillator during compressions; resume compressions immediately after shock or disarm",
-      "Pause CPR briefly to interpret rhythm before delivering shock \u2014 do not make defibrillation decision on See-Thru CPR alone",
-      "Shock advisory mode not compatible with HP-CPR \u2014 do not combine",
-      "C:V ratio no airway/SGA: 30:2, pause for ventilations",
-      "C:V ratio ETT/SGA in situ: 15:1, 6\u20138 ventilations/minute, no pause for ventilations",
-      "SGA is appropriate initial airway option to facilitate continuous compressions. ETT should not interrupt compressions",
-      "Fluid in shockable rhythms may be detrimental \u2014 limit to medication flush and TKVO only",
-      "Refractory VF/VT (\u2265 3 shocks): check pad placement. Sternal pad: right chest under clavicle above nipple. Apex pad: left mid-axillary line, 6th ICS",
-      "Monitored VF/VT: up to 3 stacked shocks \u2014 first shock within 20 seconds; < 10 second pause between shocks. Treat stacked shocks as single shock for medication purposes",
-      "Adrenaline 1 mg IV/IO: VF/VT \u2014 after 2nd shock; PEA/Asystole \u2014 as soon as resources allow without interrupting HP-CPR",
-      "Antiarrhythmics for refractory VF/VT: administer after 3rd shock (and 5th, 7th, 9th). Acceptable in same HP-CPR cycle as adrenaline",
-      "ECMO transport eligibility (all must be met): age 16\u201370, suspected cardiac cause, bystander or paramedic witnessed, timely effective compressions, initial rhythm VF/VT, no major comorbidities, collapse-to-ED < 60 min achievable, ECMO-1 not dispatched",
-      "ECMO workflow: ~10 rounds (20 min) HP-CPR + intubation before transport. Do not apply mCPR until 16 min of resuscitation. Notify hospital early. Prefer Alfred Hospital if transport times approximately equal",
-      "During ECMO transport: continue adrenaline 1 mg IV/IO every 4 minutes; rhythm check every 2 minutes",
-      "mCPR as last resort only: limited resources (1\u20132 staff), all staff extremely fatigued, no other option for effective manual CPR. Never apply mCPR to facilitate other interventions",
-      "Pregnant patient (> 20 weeks): manual uterine displacement to the left throughout arrest; or 15\u201330\u00b0 left tilt if not feasible",
-      "VAD patient: anterior-posterior pad placement. Do not disconnect pump. Contact Alfred Heart Failure Registrar/Consultant via AV Clinician ASAP",
-      "Hypothermia < 30\u00b0C: double interval for adrenaline, amiodarone, lidocaine doses",
-      "Tension pneumothorax as cause of arrest: decompress bilaterally. Do not routinely decompress in medical arrest without confirmation (use POCUS if credentialled)",
-      "Hyperkalaemia arrest: only use calcium if K\u207a known > 6 mmol/L OR strongly suspected (renal failure/dialysis, significant crush injury). Flush 10 mL NS between calcium gluconate and sodium bicarbonate",
-      "PEA where hypovolaemia or anaphylaxis suspected: normal saline 1000\u20132000 mL IV",
-      "Asthma arrest: immediate interventions \u2014 adrenaline IM/IV; prioritise IV adrenaline and early intubation",
-      "Hypoglycaemia: measure BGL after all other management established \u2014 do not interrupt other care",
-      "Consider CPG A0203 Withholding or Ceasing Resuscitation where clear signs of prolonged arrest or futility"
+      { type: "note", items: ["Unconscious and pulseless OR unsure of the presence of a pulse in the setting of gasping / agonal respirations", "If history, mechanism or injuries suggest traumatic cause of cardiac arrest — manage as per CPG A0201-2 Traumatic Cardiac Arrest"] },
+      { type: "stop", text: "HP-CPR: High quality compressions / minimise interruptions. Charge defibrillator during chest compressions. On-screen interpretation in manual mode. Pulse checks only for potentially perfusing rhythms." },
+      { type: "header", text: "VF / Pulseless VT \u2014 Prioritise HP-CPR and timely defibrillation" },
+      { type: "action", text: "Defibrillate 200 J" },
+      { type: "action", text: "Immediately recommence chest compressions \u2014 2-minute cycle finishes" },
+      { type: "action", text: "Amiodarone 300 mg IV if VF / VT after 3rd shock" },
+      { type: "action", text: "Lidocaine 100 mg IV if VF / VT after 5th shock" },
+      { type: "action", text: "Amiodarone 150 mg IV if VF / VT after 7th shock" },
+      { type: "action", text: "Lidocaine 50 mg IV if VF / VT after 9th shock" },
+      { type: "header", text: "Asystole / PEA \u2014 Prioritise HP-CPR" },
+      { type: "action", text: "Disarm" },
+      { type: "action", text: "Immediately recommence chest compressions" },
+      { type: "note", items: ["PEA: Consider reversible causes \u2014 Hypovolaemia, Hypoxia, Hyperkalaemia, Hypothermia, Anaphylaxis, Asthma, Upper airway obstruction, Tension pneumothorax, Pulmonary embolism, Toxins"] },
+      { type: "header", text: "All cardiac arrest patients" },
+      { type: "action", text: "SGA (CPR ratio 15:1 post insertion)" },
+      { type: "action", text: "IV access / Normal saline TKVO" },
+      { type: "action", text: "Adrenaline 1 mg IV repeat every 2nd cycle (every 4 minutes) \u2014 Shockable: after 2nd shock; Non-shockable: as soon as resources permit" },
+      { type: "action", text: "Flush all medications with 20\u201330 mL Normal saline" },
+      { type: "action", text: "ETCO\u2082 and OG tube through SGA (where time permits)" },
+      { type: "mica", text: "ETT if placement can be achieved with NO additional pause in compressions; early ETT if copious vomitus or SGA failure" },
+      { type: "header", text: "Special circumstances" },
+      { type: "subheader", text: "Hypovolaemia / anaphylaxis / asthma:" },
+      { type: "action", text: "Normal saline 1000\u20132000 mL IV" },
+      { type: "subheader", text: "Witnessed arrest and known or strongly suspected PE:" },
+      { type: "mica", text: "Thrombolysis following consultation with AV Medical Advisor and if sufficient resources are available to continue HP-CPR uninterrupted" },
+      { type: "subheader", text: "Interfering CPR-induced consciousness:" },
+      { type: "mica", text: "Ketamine 50\u2013100 mg IV every 1\u20132 minutes (no max. dose)" },
+      { type: "mica", text: "Ketamine 200 mg IM if no IV access (single dose)" },
+      { type: "mica", text: "Consider Rocuronium 150 mg IV following at least 1.5 mg/kg Ketamine, if required to facilitate intubation" },
+      { type: "subheader", text: "Hyperkalaemia or significant crush injury:" },
+      { type: "action", text: "Calcium gluconate 10% 6.6 mmol (3g) IV (slow push)" },
+      { type: "action", text: "Sodium bicarbonate 8.4% 100 mL IV" },
+      { type: "subheader", text: "TCA toxicity:" },
+      { type: "action", text: "Sodium bicarbonate 8.4% 100 mL IV" },
+      { type: "subheader", text: "Calcium channel blocker toxicity:" },
+      { type: "action", text: "Calcium gluconate 10% 6.6 mmol (3g) IV (slow push)" }
     ],
-    management_mica: [
-      "CPRIC: if interference with CPR, gag reflex preventing oxygenation/ventilation/SGA/ETT insertion, or combative movements \u2014 Ketamine 50\u2013100 mg IV every 1\u20132 minutes (no max dose); no IV access: Ketamine 200 mg IM single dose. Consider patient weight and severity",
-      "Consider Rocuronium 150 mg IV to facilitate intubation if unable to provide adequate oxygenation/ventilation following at least 1.5 mg/kg IV Ketamine",
-      "Intra-arrest thrombolysis: consult AV Medical Advisor via AV Clinician as per CPG A0408 STEMI Management if witnessed arrest due to known or strongly suspected PE. Only if sufficient resources for HP-CPR for up to 60 minutes post-administration"
-    ],
-    notes: "Highest frequency critical CPG. Key scenario variables: rhythm, witness status, downtime, cause, ECMO eligibility, special circumstances (pregnancy, hypothermia, hyperkalaemia, PE, asthma)."
+    notes: "HP-CPR is the priority. Defib 200 J. Adrenaline every 2nd cycle. Double the interval for adrenaline, amiodarone and lidocaine doses if ROSC is unlikely."
   },
 
   // -----------------------------------------------------------
   // A0201-2 Traumatic Cardiac Arrest
   // -----------------------------------------------------------
-  traumatic_cardiac_arrest: {
+  cardiac_arrest_traumatic: {
     cpg: "A0201-2",
     title: "Traumatic Cardiac Arrest",
     careObjectives: [
-      "Major haemorrhage control over all other interventions",
-      "Management of correctable causes in order of clinical need: Hypoxia, Tension pneumothorax, Hypovolaemia",
-      "Standard cardiac arrest management concurrent to addressing correctable causes (if resources permit)"
+      "Major haemorrhage control over all other interventions.",
+      "Management of correctable causes in order of clinical need: hypoxia, tension pneumothorax, hypovolaemia.",
+      "Standard cardiac arrest management concurrent to addressing correctable causes (if resources permit)."
     ],
     management: [
-      "Treat correctable causes in order of clinical need \u2014 prioritised over standard cardiac arrest care (compressions, adrenaline)",
-      "Haemorrhage control is absolute priority: arterial tourniquets, haemostatic dressings/wound packing, direct pressure",
-      "Undifferentiated blunt trauma: pelvic splint after other interventions; if pelvic fracture clearly contributing to arrest, may apply earlier",
-      "Airway: manage hypoxia \u2014 basic airway management and SGA appropriate",
-      "Chest decompression: needle thoracostomy if finger thoracostomy unavailable or delayed",
-      "Fluid resuscitation: normal saline; packed red blood cells (PRBC) preferred where available",
-      "PRBC in legal minor (< 18 years): only if parent/guardian consents OR medical doctor approves",
-      "PRBC with religious objection: do not administer to patient with known objection (e.g. Jehovah\u2019s Witness) who refuses consent",
-      "Standard cardiac arrest care concurrently if resources permit",
-      "Penetrating truncal trauma with PEA, Major Trauma Service within 20 minutes: transport immediately Signal 1, early notification. Limited interventions only: haemorrhage control, basic airway \u00b1 SGA, chest decompression. No compressions during transport. Do not delay for MICA, mCPR, IV or ETT",
-      "Severe crush injury arrest: manage Hyperkalaemia as per CPG A0201-1 Medical Cardiac Arrest",
-      "ROSC achieved: manage as per CPG A0810 Major Trauma",
-      "Consider CPG A0203 Withholding or Ceasing Resuscitation where clear signs of prolonged arrest or futility"
+      { type: "stop", text: "Major haemorrhage control" },
+      { type: "action", text: "Attach pads / interpret rhythm" },
+      { type: "subheader", text: "Penetrating truncal trauma with PEA:" },
+      { type: "action", text: "Immediate transport and early notification if MTS within 20 minutes from loss of vital signs" },
+      { type: "header", text: "Airway" },
+      { type: "action", text: "Airway manoeuvres and positioning" },
+      { type: "action", text: "SGA" },
+      { type: "mica", text: "ETT" },
+      { type: "mica", text: "Cricothyroidotomy if trauma prevents other airway Mx" },
+      { type: "header", text: "Breathing" },
+      { type: "action", text: "Ventilation" },
+      { type: "action", text: "Needle thoracostomy bilateral" },
+      { type: "mica", text: "Finger thoracostomy bilateral (if credentialled)" },
+      { type: "header", text: "Circulation" },
+      { type: "action", text: "Normal Saline 2 L IV" },
+      { type: "action", text: "Pelvic splint" },
+      { type: "mica", text: "PRBCs in preference to normal saline if available (no max dose)" },
+      { type: "header", text: "Other cardiac arrest care" },
+      { type: "action", text: "Mx as per CPG A0201-1 Medical Cardiac Arrest (in parallel to the above if resources permit)" },
+      { type: "mica", text: "Consider ultrasound (if credentialled)" },
+      { type: "header", text: "Special circumstances" },
+      { type: "subheader", text: "Severe crush injury:" },
+      { type: "action", text: "Calcium gluconate 10% 6.6 mmol (3g) IV (slow push)" },
+      { type: "action", text: "Sodium bicarbonate 8.4% 100 mL IV" }
     ],
-    management_mica: [
-      "Finger thoracostomy: preferred method for chest decompression in traumatic arrest (where credentialed)",
-      "PRBC administration: MICA paramedics credentialed in blood component administration may administer PRBC",
-      "Focused assessment with sonography for trauma (FAST/POCUS): where all correctable causes addressed, may assess cardiac wall motion, cardiac tamponade, and adequacy of decompression (where credentialled)"
-    ],
-    notes: "Key differentiator from medical arrest: haemorrhage control and H's first. Penetrating truncal trauma scoop-and-run rule. Pelvic splint timing."
+    notes: "Haemorrhage control first. Bilateral needle thoracostomy. Address reversible traumatic causes. Standard arrest Mx runs in parallel."
   },
 
   // -----------------------------------------------------------
@@ -165,16 +174,30 @@ const CPG_PACKAGES = {
   rosc_management: {
     cpg: "A0202",
     title: "ROSC Management",
-    careObjectives: [],
+    careObjectives: [
+      "Optimise oxygenation and perfusion following return of spontaneous circulation.",
+      "Identify and manage post-cardiac arrest complications.",
+      "Determine appropriate transport destination."
+    ],
     management: [
-      "Excessive fluid during intra-arrest and post-ROSC period may be detrimental \u2014 total fluid (including RSI) should not exceed 20 mL/kg unless correcting suspected hypovolaemia",
-      "Cause of arrest unclear: assume cardiac cause, transport to PCI-capable facility where possible",
-      "Measure BGL post-ROSC where resources allow and other priorities addressed; treat hypoglycaemia as per CPG A0702"
+      { type: "note", items: ["Post cardiac arrest \u2014 Return of spontaneous circulation (ROSC)"] },
+      { type: "header", text: "Unintubated \u2014 GCS < 10 post ROSC" },
+      { type: "mica", text: "Collapse to ROSC > 10 minutes: RSI as per CPG A0302 Endotracheal Intubation" },
+      { type: "mica", text: "Collapse to ROSC < 10 minutes: RSI as per CPG A0302 Endotracheal Intubation if coma persists despite initial oxygenation and perfusion Mx" },
+      { type: "mica", text: "Target ETCO\u2082 30\u201340 mmHg" },
+      { type: "header", text: "Perfusion Mx" },
+      { type: "action", text: "Titrate Adrenaline and Normal Saline as per CPG A0407 Inadequate Perfusion (Cardiogenic causes): Target SBP 100 mmHg; Max total Normal Saline 20 mL/kg during arrest and post ROSC; Max Adrenaline infusion rate 250 mcg/min" },
+      { type: "action", text: "Accurately assess pulse during moving/loading to ensure output maintained throughout" },
+      { type: "action", text: "Mx as per appropriate CPG if condition changes" },
+      { type: "stop", text: "Do not administer Amiodarone unless breakthrough VF/VT occurs" },
+      { type: "header", text: "Consider PHT" },
+      { type: "action", text: "12 lead ECG" },
+      { type: "action", text: "Consider PHT as per CPG A0408 STEMI management" },
+      { type: "header", text: "Transport" },
+      { type: "action", text: "VF/VT arrest OR suspected cardiac cause OR post PHT: Transport to 24 hour PCI facility where available; consider AAV vs time to closest hospital" },
+      { type: "action", text: "Suspected non-cardiac cause: Transport to the closest appropriate hospital with notification" }
     ],
-    management_mica: [
-      "Severe post-ROSC agitation/combativeness obstructing care: Ketamine 50\u2013100 mg IV every 1\u20132 minutes (no max dose); no IV access: Ketamine 200 mg IM single dose. Consider half dose if patient is shocked"
-    ],
-    notes: "Post-ROSC: fluid restriction, PCI destination, BGL. MICA: sedation for combative post-ROSC patient, RSI preparation."
+    notes: "No amiodarone post-ROSC unless breakthrough VF/VT. Target SBP 100 mmHg. PCI facility for cardiac cause."
   },
 
   // -----------------------------------------------------------
@@ -184,39 +207,34 @@ const CPG_PACKAGES = {
     cpg: "A0203-1",
     title: "Withholding or Ceasing Resuscitation",
     careObjectives: [
-      "Identify patients who will not benefit from resuscitation or where there is a legal requirement to withhold resuscitation",
-      "Provide guidance for the cessation of resuscitation following an unsuccessful resuscitation attempt"
+      "Identify patients who will not benefit from resuscitation or where there is a legal requirement to withhold resuscitation.",
+      "Provide guidance for the cessation of resuscitation following an unsuccessful resuscitation attempt."
     ],
     management: [
-      "Where unclear whether to withhold: commence resuscitation while gathering information",
-      "Obvious death criteria \u2014 withhold resuscitation if any of: injuries where survival is impossible (decapitation, incineration, cranial destruction, hemicorporectomy), rigor mortis, postmortem lividity, putrefaction/decomposition, death declared by doctor at scene",
-      "Advance Care Directive (ACD): legal obligation to act in accordance with a sighted ACD; accept in good faith from those present that supporting documentation exists",
-      "ACD must be followed even where emergency is unrelated to pre-existing illness. If wishes unknown or documentation doubtful: provide routine care",
-      "Emergency treatment may be provided without consent to person lacking decision-making capacity \u2014 do not delay searching for ACD; must comply with a known ACD",
-      "Medical treatment decision maker: determined as per CPG A0111 Consent and Capacity"
+      { type: "header", text: "Withhold resuscitation if:" },
+      { type: "stop", text: "Obvious death: injuries incompatible with life, rigor mortis, postmortem lividity, putrefaction / decomposition, death declared by a doctor who is or was at the scene" },
+      { type: "stop", text: "Goals of care preclude resuscitation: resuscitation not consistent with patient\u2019s wishes as indicated by Advance Care Directive or Medical Treatment Decision Maker" },
+      { type: "header", text: "Prolonged cardiac arrest \u2014 Withhold if:" },
+      { type: "subheader", text: "Medical:" },
+      { type: "stop", text: "Initial presenting rhythm is asystole or agonal (HR < 20) UNLESS: bystander witnessed collapse within 10 minutes of AV arrival, OR paramedic witnessed arrest, OR received defibrillation prior to ambulance arrival" },
+      { type: "subheader", text: "Trauma:" },
+      { type: "stop", text: "Arrest not witnessed by paramedics AND initial presenting rhythm is asystole or agonal (HR < 20)" },
+      { type: "header", text: "Expected death \u2014 Withhold if:" },
+      { type: "stop", text: "Death was expected due to the progression of a specific, advanced incurable disease" },
+      { type: "header", text: "If withholding resuscitation:" },
+      { type: "action", text: "Withhold resuscitation (if unable to immediately confirm details, commence resuscitation while continuing to gather information)" },
+      { type: "action", text: "Consult the AV Clinician if there is any uncertainty" },
+      { type: "action", text: "Confirm determinants of death and consider Verification of Death form" },
+      { type: "action", text: "Provide initial bereavement support and referral if required" },
+      { type: "header", text: "Cessation of resuscitation \u2014 Cease if ALL met:" },
+      { type: "stop", text: "Minimum duration of ALS resuscitation provided: initial presenting rhythm shockable (VF/VT): 45 min; initial presenting rhythm non-shockable: 30 min" },
+      { type: "stop", text: "AND no compelling reasons to continue including: CPR-induced consciousness, spontaneous respiratory efforts, POCUS indicates cardiac contractility (if credentialled), periods of ROSC, witnessed arrests with defibrillation prior to ambulance arrival, normal or near-normal ETCO\u2082 readings, persistent narrow complex PEA" },
+      { type: "header", text: "If ceasing resuscitation:" },
+      { type: "action", text: "Cease resuscitation" },
+      { type: "action", text: "Confirm determinants of death and consider Verification of Death form" },
+      { type: "action", text: "Provide initial bereavement support and referral if required" }
     ],
-    management_mica: [],
-    notes: "Process/legal CPG. Obvious death criteria, ACD obligations, decision maker hierarchy."
-  },
-
-  // -----------------------------------------------------------
-  // A0203-2 Verification of Death
-  // -----------------------------------------------------------
-  verification_of_death: {
-    cpg: "A0203-2",
-    title: "Verification of Death",
-    careObjectives: [],
-    management: [
-      "Verification of Death: establishing that death has occurred after thorough clinical assessment. Registered Paramedics can provide verification if in context of employment and certainty of death exists \u2014 not mandatory",
-      "Six clinical determinants of death (all must be present): (1) No palpable carotid pulse; (2) No heart sounds for 2 minutes; (3) No breath sounds for 2 minutes; (4) Fixed and dilated pupils; (5) No response to centralised stimulus (supraorbital, mandibular or sternal pressure); (6) No motor response or facial grimace to painful stimulus (inner elbow or nail bed pressure)",
-      "Optional seventh finding: ECG asystole over 2 minutes",
-      "Ideally assess determinants 5\u201310 minutes after cessation of resuscitation to ensure no late ROSC",
-      "Verification of Death form: record all findings, full name (if known), location, estimated date/time of death, paramedic name, whether treating doctor notified",
-      "Notify police for reportable or reviewable death \u2014 crew remain on scene until police arrive. SIDS cases are reportable",
-      "Certification of cause of death remains with a Medical Practitioner"
-    ],
-    management_mica: [],
-    notes: "Six determinants all required. Certification of cause remains with medical practitioner."
+    notes: "Default is to commence resuscitation if in doubt. Consult AV Clinician if uncertain about withholding."
   },
 
   // -----------------------------------------------------------
@@ -226,561 +244,128 @@ const CPG_PACKAGES = {
     cpg: "A0301",
     title: "Essential Airway Management",
     careObjectives: [
-      "Safe and effective maintenance of airway patency, oxygenation, and ventilation"
+      "Safe and effective maintenance of airway patency, oxygenation, and ventilation."
     ],
     management: [
-      "A requirement for airway support may range from transient fundamental management to emergency surgical airway — the guideline does not need to be followed sequentially",
-      "Fundamental airway techniques are often appropriate for the pre-hospital phase, particularly if advanced airway would delay hospital arrival in patients who benefit from definitive care (e.g. trauma)",
-      "Conscious state alone is not sufficient to predict need for airway management — consider in conjunction with overall clinical presentation and underlying cause",
-      "Prepare for each airway as an anticipated difficult airway",
-      "BONES mnemonic (difficult BVM): Beard, Obese, No teeth, Elderly, Sleep apnoea/snoring",
-      "RODS mnemonic (SGA may be difficult): Restricted mouth opening, Obstruction (including c-spine), Distorted airway, Stiff lungs (bronchospasm)",
-      "BVM: ensure pop-off valve set to override (closed). Use oropharyngeal and/or nasopharyngeal airways early. Use two-person VE or CE grip technique wherever possible",
-      "Continuous waveform ETCO\u2082 must be used for all assisted ventilations as soon as practicable",
-      "Obese patients may require higher PEEP to support effective oxygenation",
-      "SGA: no requirement to trial other adjuncts prior to insertion if clinician identifies SGA as most appropriate for condition",
-      "iGel\u00ae sized by predicted body weight not actual body weight. Generally: < 170 cm \u2192 Size 3; > 200 cm \u2192 Size 5",
-      "Escalation of care for any patient requiring active airway management and/or assisted ventilation (may be stood down if cause is identified and rectified, e.g. opioid toxicity resolving with naloxone)"
+      { type: "assess", items: ["Conscious state assessment", "Requirement for supportive ventilation", "Clinical trajectory"] },
+      { type: "header", text: "Altered conscious state with adequate ventilation" },
+      { type: "action", text: "Airway manoeuvres and positioning \u2014 if supine positioning required, place patient in neutral position, otherwise place patient in lateral position" },
+      { type: "action", text: "Monitor with nasal end-tidal capnography" },
+      { type: "note", items: ["If inadequate response / deterioration (e.g. hypoventilation, airway obstruction): manage as per Altered conscious state with inadequate ventilation; escalate care"] },
+      { type: "header", text: "Altered conscious state with inadequate ventilation" },
+      { type: "action", text: "Escalate care" },
+      { type: "action", text: "Airway manoeuvres and positioning \u2014 sniffing position, triple airway manoeuvre" },
+      { type: "action", text: "Ventilate (confirm with end-tidal capnography)" },
+      { type: "subheader", text: "Use appropriate adjunct:" },
+      { type: "action", text: "Oropharyngeal Airway AND/OR Nasopharyngeal Airway/s OR Supraglottic Airway (SGA)" },
+      { type: "header", text: "Supraglottic airway" },
+      { type: "stop", text: "DO NOT insert Supraglottic Airway if: intact gag reflex or resistance to insertion, strong jaw tone or trismus, suspected epiglottitis or upper airway obstruction" },
+      { type: "note", items: [
+        "Primary indications: unconscious patient without gag reflex; anticipated need for prolonged assisted ventilation (no obviously reversible cause of bradypnoea / hypoventilation)",
+        "iGel sizes: 2.5 (25\u201335 kg, GT 12), 3.0 (30\u201360 kg, GT 12), 4.0 (50\u201390 kg, GT 12), 5.0 (90+ kg, GT 14)"
+      ]}
     ],
-    management_mica: [],
-    notes: "Foundational airway CPG. BONES and RODS mnemonics for anticipating difficulty. iGel sizing. BVM technique points."
+    notes: "SGA contraindicated with intact gag, trismus, or suspected epiglottitis. Confirm ventilation with ETCO\u2082 waveform."
   },
 
   // -----------------------------------------------------------
-  // A0302 Endotracheal Intubation (MICA)
+  // A0302 Endotracheal Intubation
   // -----------------------------------------------------------
   endotracheal_intubation: {
     cpg: "A0302",
     title: "Endotracheal Intubation",
     careObjectives: [
-      "To safely and effectively undertake endotracheal intubation in patients who cannot be managed with other airway techniques"
+      "To safely and effectively undertake endotracheal intubation in patients who cannot be managed with other airway techniques."
     ],
-    management: [],
-    management_mica: [
-      "Pre-hospital intubation requires dynamic risk-benefit analysis: anatomical, physiological, and situational difficulty. Should not significantly delay transport",
-      "Single-responder MICA in rural/regional areas: must consult AV Medical Advisor via AV Clinician before proceeding with RSI",
-      "Video laryngoscopy (VL) with Macintosh blade and bougie: routinely used for all first attempts",
-      "Patient positioning: 'sniffing position' during pre-oxygenation and intubation \u2014 external auditory meatus level with sternal notch",
-      "Physiologically difficult airway (hypoxaemia, cardiovascular instability, RV dysfunction, raised ICP, obesity, pregnancy): benefit from prolonged resuscitation prior to intubation",
-      "Shocked patients: second IV or IO access preferred prior to intubation. Manage as per CPG A0705 Shock / A0407 Cardiogenic / A0810 Major Trauma first (may include blood products or vasopressor infusions)",
-      "Peri-intubation hypotension risk factors (increasing age, frailty, active bleeding, shock index > 1): use half dose ketamine for induction and a bolus of metaraminol",
-      "Pre-oxygenation: BVM with PEEP valve or BiPAP NIV. Routinely place nasal cannula 15 L/min for apnoeic oxygenation",
-      "Verbalise critical desaturation threshold to team. For adequately oxygenated patient: < 90%. Lower in difficult-to-oxygenate patients",
-      "Delayed Sequence Intubation (DSI): for combativeness preventing safe pre-oxygenation. Avoid rapid ketamine administration (risk apnoea). Goal is optimisation of SpO\u2082 prior to paralytic, not normalisation",
-      "Following DSI pre-oxygenation: if patient clinically improves, consult AV Medical Advisor before proceeding",
-      "Crash RSI (MFP only): for unconscious patients requiring immediate airway management to prevent arrest. Small procedural ketamine bolus (20\u201330 mg) required prior to full dose paralysis",
-      "Remove ETT immediately if any doubt about tracheal placement",
-      "Two capnographs must be connected and functional prior to all intubation attempts. If waveform lost on both devices with circuit connected and valve closed: immediately remove ETT and enter Difficult Airway Guideline",
-      "Post-intubation sedation: fentanyl/midazolam infusion preferred. Morphine/midazolam if fentanyl contraindicated (e.g. serotonin syndrome). Propofol may be considered where available",
-      "Fentanyl/Midazolam infusion: Fentanyl 300 mcg + Midazolam 30 mg diluted to 30 mL. Rate: 1\u201315 mL/hr (Fentanyl 10\u2013150 mcg/hr, Midazolam 1\u201315 mg/hr)",
-      "Morphine/Midazolam infusion: Morphine 30 mg + Midazolam 30 mg diluted to 30 mL. Rate: 1\u201315 mL/hr",
-      "Routine post-intubation paralysis indicated in suspected neurological emergencies (TBI, intracranial haemorrhage) and for prevention of shivering during therapeutic cooling"
+    management: [
+      { type: "note", items: [
+        "Indications: airway not patent; respiratory failure refractory to non-invasive ventilation and medical therapies; requiring ongoing assisted manual ventilation; targeted treatment required (e.g. status epilepticus, drug-induced hyperthermia, TCA toxicity, TBI, ROSC, airway burns)"
+      ]},
+      { type: "stop", text: "Consult AV Medical Advisor via AV Clinician for patients aged 12\u201315 years where RSI is indicated due to severe chronic medical condition (e.g. lung disease)" },
+      { type: "header", text: "Patient and provider optimisation" },
+      { type: "action", text: "Equipment prepared and tested \u2014 video laryngoscopy using a Macintosh blade and a bougie is the default intubation approach; ensure access to cricothyroidotomy kit" },
+      { type: "action", text: "Position optimised \u2014 MILS if suspected c-spine injury; patient positioned \u2018ear to sternal notch\u2019 if MILS not required" },
+      { type: "action", text: "IV / IO access safely secured \u2014 consider second IV access where possible" },
+      { type: "action", text: "Perfusion optimisation \u2014 prior to intubation, prepare metaraminol and manage shock" },
+      { type: "action", text: "Pre-oxygenation \u2014 BVM with at least 5 cmH\u2082O PEEP and FiO\u2082 of 1 OR BiPAP if adequate spontaneous ventilation" },
+      { type: "action", text: "Team preparation \u2014 ensure adequate resources, identify team leader, brief team, allocate roles, and complete RSI Checklist" },
+      { type: "header", text: "Standard RSI \u2014 all other indications" },
+      { type: "mica", text: "Ketamine 2 mg/kg IV (max 200 mg)" },
+      { type: "mica", text: "Rocuronium IV: < 80 kg \u2014 Rocuronium 100 mg IV; \u2265 80 kg \u2014 Rocuronium 150 mg IV" },
+      { type: "header", text: "Dose-Adjusted RSI \u2014 physiologically difficult airway, increased frailty, active bleeding, shock index > 1" },
+      { type: "mica", text: "Metaraminol 0.5\u20131 mg IV" },
+      { type: "mica", text: "Ketamine 0.5\u20131 mg/kg IV (max 200 mg)" },
+      { type: "mica", text: "Rocuronium IV: < 80 kg \u2014 Rocuronium 100 mg IV; \u2265 80 kg \u2014 Rocuronium 150 mg IV" },
+      { type: "header", text: "High GCS RSI \u2014 impending airway compromise (e.g. airway burns); MFP Only: suicidal behaviour" },
+      { type: "stop", text: "MICA: Consult with AV Medical Advisor before proceeding" },
+      { type: "mica", text: "Manage pain as per CPG A0501-1 Pain Relief" },
+      { type: "mica", text: "Ketamine 2 mg/kg IV (max 200 mg) \u2014 ensure dissociation occurs (60\u201390 seconds)" },
+      { type: "mica", text: "Rocuronium IV: < 80 kg \u2014 Rocuronium 100 mg IV; \u2265 80 kg \u2014 Rocuronium 150 mg IV" },
+      { type: "header", text: "Delayed Sequence Intubation \u2014 agitation and/or hypoxia preventing preoxygenation despite management" },
+      { type: "mica", text: "Ketamine IV as per Standard or Dose-adjusted RSI as appropriate" },
+      { type: "mica", text: "Oxygenate for 3 minutes; if patient remains indicated for intubation: Rocuronium IV: < 80 kg \u2014 100 mg IV; \u2265 80 kg \u2014 150 mg IV" },
+      { type: "header", text: "Crash RSI (MFP Only) \u2014 unconscious and peri-arrest, immediate need to secure airway, airway reflexes present" },
+      { type: "mica", text: "Ketamine 20\u201330 mg IV" },
+      { type: "mica", text: "Rocuronium IV: < 80 kg \u2014 Rocuronium 100 mg IV; \u2265 80 kg \u2014 Rocuronium 150 mg IV" },
+      { type: "header", text: "If unable to obtain Grade 1 or 2 view" },
+      { type: "mica", text: "Consider \u2018head, scope, throat\u2019; problem-solve airway view using additional head lift plus any combination of: lip retraction, external laryngeal manipulation, jaw support / mouth opening" },
+      { type: "mica", text: "If unable to improve view, manage as per CPG A0303 Difficult Airway Guideline" },
+      { type: "header", text: "Endotracheal intubation confirmation" },
+      { type: "stop", text: "Remove the ETT immediately if there is any doubt about tracheal placement and commence management as per CPG A0303 Difficult Airway Guideline" },
+      { type: "mica", text: "Sight the ETT pass through the vocal cords and note length at tips" },
+      { type: "mica", text: "Immediately confirm placement using monitor AND portable capnograph" },
+      { type: "header", text: "Ongoing sedation +/- paralysis" },
+      { type: "mica", text: "Ketamine 20\u201340 mg IV as required until infusion established" },
+      { type: "mica", text: "Fentanyl / Midazolam Infusion IV (via syringe pump): Fentanyl 300 mcg and Midazolam 30 mg diluted to 30 mL with Dextrose 5% or Normal Saline (50 mL syringe); Volume: 1\u201315 mL/hr; Fentanyl dose: 10\u2013150 mcg/hr; Midazolam dose: 1\u201315 mg/hr" },
+      { type: "mica", text: "Consider need for on-going paralysis: Rocuronium 100 mg IV every hour OR Rocuronium infusion 100 mg/hr IV" },
+      { type: "header", text: "General post-intubation care" },
+      { type: "stop", text: "If appropriate, consider pre-hospital ICU bypass" },
+      { type: "mica", text: "Mechanical Ventilation as per CPG A0307" },
+      { type: "mica", text: "Manage perfusion as per CPG A0705 Shock, CPG A0407 Inadequate Perfusion (Cardiogenic) or CPG A0810 Major Trauma" },
+      { type: "mica", items: [
+        "Position patient semi-recumbent at 30\u00b0 unless contraindicated",
+        "Insert bite block",
+        "Suction ETT and oropharynx as required",
+        "Tape eyes",
+        "Insert OG / NG tube if required",
+        "Check ETT cuff pressure and ensure 20\u201330 cmH\u2082O",
+        "Maintain normothermia \u2014 consider insertion of oesophageal temperature probe"
+      ]}
     ],
-    notes: "MICA-only CPG. RSI pathways: Standard, Dose-Adjusted, High GCS, Delayed Sequence, Crash (MFP only). Physiologically difficult airway concept important for scenario generation."
+    notes: "Video laryngoscopy with Macintosh blade and bougie is default. MILS for c-spine. Confirm ETT with waveform capnography. Remove ETT immediately if any doubt."
   },
 
   // -----------------------------------------------------------
-  // A0303 Difficult Airway Guideline (MICA)
+  // A0303 Difficult Airway Guideline
   // -----------------------------------------------------------
   difficult_airway: {
     cpg: "A0303",
     title: "Difficult Airway Guideline",
     careObjectives: [
-      "Safe oxygenation and ventilation of patients receiving endotracheal intubation",
-      "Escalation of airway interventions in response to unsuccessful attempts at securing the airway"
-    ],
-    management: [],
-    management_mica: [
-      "Plan A: Optimised first intubation attempt. Standard: Macintosh video laryngoscope and bougie. Patients should be adequately resuscitated prior to commencing Plan A",
-      "Head-Scope-Throat analysis on Grade 3/4 view: Head (position, right lip retraction, head elevation, change intubator); Scope (blade length, tongue position, extra lift, hyper-angulated VL); Throat (external laryngeal manipulation)",
-      "Plan B: Optimised alternative second attempt. Must involve alternative strategy correcting identified Plan A issues. Consider stylet and/or hyper-angulated video laryngoscope. Generally limit to 2 attempts; third attempt only if SpO\u2082 maintained, prolonged transfer, and identified corrective strategy",
-      "Plan C: Rescue airway strategy. Preferred: SGA. Alternative: two-handed BVM with basic adjuncts. If successful in non-arrest: commence sedation per CPG A0302 and consult AV Medical Advisor for care planning",
-      "Dual setup: one MICA paramedic attempts ONE ETT while other is immediately prepared for front of neck access (cricothyroid membrane marked, equipment ready). Used where intubation unavoidable despite very high anticipated difficulty (airway burns, neck trauma, anaphylaxis)",
-      "Plan D: Cricothyroidotomy \u2014 CICO situation (can't intubate, can't oxygenate) is life-threatening. Proceed without delay. In critical desaturation at immediate risk of cardiac arrest, may proceed directly to Plan D"
-    ],
-    notes: "MICA-only airway escalation. Plans A\u2013D. CICO \u2192 immediate cricothyroidotomy."
-  },
-
-  // -----------------------------------------------------------
-  // A0306 Tracheostomy / Laryngectomy Airway Emergencies
-  // -----------------------------------------------------------
-  tracheostomy_laryngectomy: {
-    cpg: "A0306",
-    title: "Tracheostomy / Laryngectomy Airway Emergencies",
-    careObjectives: [
-      "Secretion clearance",
-      "Establish airway (stoma) patency",
-      "Oxygenation +/- ventilation via the stoma"
+      "Safe oxygenation and ventilation of patients receiving endotracheal intubation.",
+      "Escalation of airway interventions in response to unsuccessful attempts at securing the airway."
     ],
     management: [
-      "Tracheostomy: stoma to trachea with larynx intact \u2014 patient may breathe via stoma and potentially mouth/nose",
-      "Laryngectomy: larynx completely removed \u2014 patient CANNOT be oxygenated, ventilated or intubated via the mouth. Only airway is the stoma",
-      "Default route of oxygenation and ventilation: the stoma (appropriate for both tracheostomy and laryngectomy)",
-      "Where patient history uncertain: provide oxygen via both stoma and mouth. Stoma is priority",
-      "If two oxygen sources available: second mask to face (some tracheostomy patients benefit from oxygenation via partially patent upper airway)",
-      "Suction: adult 10\u201312 FG Y catheter. Insert > 10 cm, apply continuous suction, slowly withdraw < 10 seconds",
-      "Establish patency: remove potentially blocked devices and pass suction catheter (remove cap, cover, speaking valve, HME filter, inner tube if present). Do not remove outer tracheostomy tube or laryngectomy tube at this stage. Do not remove tracheoesophageal puncture valves",
-      "If suction catheter can be passed: suction as required. Repeat as needed for copious secretions",
-      "If tube is blocked and has a cuff: deflate cuff without removing tube \u2014 may partially correct displacement and allow spontaneous ventilation. Suction following deflation (secretions may release into lower airways)",
-      "Unable to pass suction catheter and cuff deflation ineffective: remove tracheostomy tube",
-      "Apnoeic/cardiac arrest: attempt ventilation/intubation via the stoma. Assess for air leak through mouth during stoma ventilation \u2014 if present, cover stoma with occlusive dressing and manage via upper airway",
-      "Patients and carers often familiar with management \u2014 consider their advice and follow any action plans present"
+      { type: "header", text: "Plan A \u2014 First attempt" },
+      { type: "action", text: "OPTIMISED first attempt at intubation with standard video laryngoscopy and bougie" },
+      { type: "action", text: "If Grade 3 or 4 view and clinically safe, perform \u2018Head-Scope-Throat\u2019 analysis" },
+      { type: "action", text: "Confirm endotracheal placement with ETCO\u2082 waveform" },
+      { type: "stop", text: "Return to safe oxygenation strategy for re-optimisation prior to progressing to Plan B" },
+      { type: "header", text: "Plan B \u2014 Second attempt" },
+      { type: "action", text: "OPTIMISED ALTERNATIVE second attempt at intubation" },
+      { type: "action", text: "If Grade 3 or 4 view and clinically safe, perform \u2018Head-Scope-Throat\u2019 analysis" },
+      { type: "action", text: "Confirm endotracheal placement with ETCO\u2082 waveform" },
+      { type: "stop", text: "Verbalise: \u201cUnable to intubate, moving to rescue airway strategy\u201d" },
+      { type: "header", text: "Plan C \u2014 Rescue airway" },
+      { type: "action", text: "Insert SGA or BVM as alternative" },
+      { type: "note", items: ["Paediatrics: Consult with AV Medical Advisor for care planning"] },
+      { type: "stop", text: "Verbalise: \u201cCan\u2019t intubate, can\u2019t oxygenate, moving to surgical airway\u201d" },
+      { type: "header", text: "Plan D \u2014 Surgical airway" },
+      { type: "mica", text: "If patient \u2265 12 years: Surgical Cricothyroidotomy" },
+      { type: "mica", text: "If patient < 12 years: Needle Cricothyroidotomy (if credentialled)" },
+      { type: "action", text: "Confirm endotracheal placement with ETCO\u2082 waveform" }
     ],
-    management_mica: [],
-    notes: "Key distinction: tracheostomy has intact larynx (two airways), laryngectomy has no upper airway. Always default to stoma."
-  },
-
-  // -----------------------------------------------------------
-  // A0307 Mechanical Ventilation (MICA)
-  // -----------------------------------------------------------
-  mechanical_ventilation: {
-    cpg: "A0307",
-    title: "Mechanical Ventilation",
-    careObjectives: [
-      "Lung-protective ventilation of patients receiving mechanical ventilation",
-      "Management of patient-ventilator asynchrony"
-    ],
-    management: [],
-    management_mica: [
-      "Preferred ventilator mode: Volume-controlled SIMV+PS (synchronised intermittent mandatory ventilation with pressure support)",
-      "Accurate patient height measurement required for lung-protective ventilation optimisation",
-      "Peak inspiratory pressure (PIP): reflects airway resistance. Maintain below 35 cmH\u2082O where feasible",
-      "Plateau pressure (Pplat): reflects alveolar pressure/compliance. Maintain below 30 cmH\u2082O",
-      "Elevated PIP (not Pplat): likely airway resistance issue \u2014 bronchospasm, secretions, kinked ETT, circuit kink, endobronchial intubation",
-      "Elevated PIP and Pplat: likely compliance issue \u2014 abdominal distension, pleural effusion, pneumothorax, pulmonary oedema, ARDS",
-      "Asynchrony troubleshooting steps: check ETT position/cuff/circuit; check tidal volume/PEEP/RR using Adult Mechanical Ventilation Calculator; increase respiratory rate (largest difference); consider increasing sedation; treat bronchospasm; suction ETT",
-      "Failure to trigger: manage AutoPEEP per underlying pathology; reduce trigger threshold to increase triggering without autotriggering",
-      "Autotriggering: identify artefact source (fluid in circuit, air leak); increase trigger threshold gradually",
-      "Inadequate flow (severe acidosis): maintain spontaneous respirations to support CO\u2082 offloading (except concurrent TBI); reduce rise time; manage pain and distress; increase sedation",
-      "Flow overshoot: lengthen rise time; paralysis if poor lung compliance",
-      "Premature cycling: increase inspiratory time; decrease cycle threshold",
-      "Delayed cycling: shorten inspiratory time (may need reduced tidal volume); increase flow threshold for cycling",
-      "Asthma: will require tolerance of extremely high airway pressures while managing underlying physiology",
-      "Use Post-Intubation Hypoxia / High Pressures Emergency Checklist"
-    ],
-    notes: "MICA-only CPG. Entire CPG is post-intubation ventilator management. SIMV+PS preferred mode."
-  },
-
-  // -----------------------------------------------------------
-  // A0308 Choking
-  // -----------------------------------------------------------
-  choking: {
-    cpg: "A0308",
-    title: "Choking",
-    careObjectives: [
-      "To identify the severity of foreign body airway obstruction",
-      "Immediately manage foreign body airway obstruction causing inadequate ventilation"
-    ],
-    management: [
-      "Adequate ventilation (effective cough, able to speak, able to breathe, normal conscious state): encourage patient to cough; monitor closely for deterioration",
-      "Inadequate ventilation (ineffective cough, unable to speak, unable to breathe/silent chest/cyanosis, altered conscious state): immediate intervention required",
-      "Alternate back blows and chest thrusts until obstruction dislodged or patient deteriorates. Assess between each blow/thrust",
-      "Back blows: firm heel-of-hand strike between shoulder blades. Adults/larger children: brace against support; smaller children: across clinician's knees; infants: head down on clinician's forearm",
-      "Chest thrusts: rapid forceful thrust to centre of chest with back supported. Similar to chest compressions but sharper and slower rate",
-      "Unconscious: manually remove visible obstruction; suction; laryngoscope and Magill's forceps (concurrent with chest thrusts or CPR); CPR as required"
-    ],
-    management_mica: [
-      "Cricothyroidotomy: prepare using dual setup as per CPG A0303 with concurrent airway clearance attempts. Proceed immediately to cricothyroidotomy if obstruction cannot be relieved by laryngoscopy/Magill's or intubation unsuccessful on first attempt"
-    ],
-    notes: "FBAO management. Adequate vs inadequate ventilation distinction. Back blows and chest thrusts. Unconscious: laryngoscope/Magill's. MICA: cricothyroidotomy for CICO."
-  },
-
-  // -----------------------------------------------------------
-  // A0401 Acute Coronary Syndromes
-  // -----------------------------------------------------------
-  acs: {
-    cpg: "A0401",
-    title: "Acute Coronary Syndromes",
-    careObjectives: [
-      "Rapid identification of STEMI to facilitate timely reperfusion (PCI or PHT) is the primary goal of prehospital management.",
-      "Provision of antiplatelet therapy (aspirin).",
-      "Reduce cardiac workload by treating associated symptoms (e.g. nausea, pain)."
-    ],
-    management: [
-      { type: "assess", items: ["Signs and symptoms", "12-lead ECG (within 10 minutes)", "Rx already administered (e.g. aspirin, GTN)"] },
-      { type: "stop", text: "Request early MICA / aeromedical support in suspected STEMI and provide early hospital notification" },
-      { type: "header", text: "Antiplatelet Rx" },
-      { type: "action", text: "Aspirin 300 mg oral if not already administered" },
-      { type: "header", text: "Pain Relief" },
-      { type: "action", text: "GTN 600 mcg S/L if SBP > 100 mmHg" },
-      { type: "action", text: "GTN 300 mcg S/L if no prev. admin, borderline BP or small (\u2264 60 kg), elderly or frail Pts" },
-      { type: "action", text: "Repeat 300 or 600 mcg S/L @ 5 minute intervals titrated to pain or side effects" },
-      { type: "action", text: "GTN patch 50 mg (0.4 mg/hr) upper torso / arms" },
-      { type: "action", text: "Remove patch if BP falls < 100 mmHg" },
-      { type: "subheader", text: "Inadequate response or Nitrates C/I" },
-      { type: "action", text: "Treat with opioids as per CPG A0501 Pain Relief" },
-      { type: "header", text: "Isolated Hypertension" },
-      { type: "note", items: ["SBP > 160 mmHg or", "DBP > 100 mmHg"] },
-      { type: "mica", text: "GTN 300 mcg S/L" },
-      { type: "mica", text: "Repeat 300 mcg @ 5 minute intervals if hypertension persists" },
-      { type: "header", text: "STEMI" },
-      { type: "action", text: "If onset < 12 hours continue Rx as per CPG A0408 STEMI Management" },
-      { type: "action", text: "If onset > 12 hours transmit 12-lead ECG and provide hospital notification" },
-      { type: "action", text: "Notify ARV via clinician where secondary transfer may be required" },
-      { type: "header", text: "NSTEACS / unstable angina" },
-      { type: "action", text: "Transport to appropriate facility" }
-    ],
-    notes: "STEMI = PCI destination primary. PHT (pre-hospital thrombolysis) when PCI not accessible in time. STEMI management under A0408."
-  },
-
-  // -----------------------------------------------------------
-  // A0402 Bradycardia
-  // -----------------------------------------------------------
-  bradycardia: {
-    cpg: "A0402",
-    title: "Bradycardia",
-    careObjectives: [
-      "To increase heart rate where bradycardia is causing haemodynamic compromise, heart failure or life threatening arrhythmia."
-    ],
-    management: [
-      { type: "assess", items: ["Perfusion status", "Cardiac rhythm", "Heart failure", "Ischaemic chest pain"] },
-      { type: "header", text: "Unstable" },
-      { type: "note", items: [
-        "Less than adequate perfusion (including acute STEMI and ischaemic chest pain)",
-        "Profound bradycardia (HR < 40 bpm) and APO",
-        "Runs of VT or ventricular escape rhythms",
-        "HR < 20 bpm"
-      ]},
-      { type: "action", text: "Atropine 600 mcg IV" },
-      { type: "action", text: "Repeat 1200 mcg after 3 \u2013 5 minutes if inadequate response" },
-      { type: "header", text: "Adequate response" },
-      { type: "action", text: "Continue Atropine 600 mcg IV at 3 \u2013 5 minute intervals as required (max. 3000 mcg)" },
-      { type: "action", text: "Mx as per Inadequate response if patient deteriorates" },
-      { type: "header", text: "Inadequate response" },
-      { type: "note", items: ["Inadequate or extremely poor perfusion persists after Atropine 1800 mcg IV"] },
-      { type: "mica", text: "Adrenaline infusion 5 mcg/minute" },
-      { type: "mica", text: "Increase to 10 mcg/minute if required" },
-      { type: "header", text: "Extremely poor perfusion" },
-      { type: "note", items: ["Altered conscious state / unconscious, and", "HR < 50, and", "BP < 60"] },
-      { type: "action", text: "Transthoracic pacing" },
-      { type: "mica", text: "Midazolam 1 \u2013 2 mg IV and Fentanyl 50 mcg IV as required" },
-      { type: "mica", text: "Commence pacing at 30mA and a heart rate of 70/min" }
-    ],
-    notes: "ALS: atropine. MICA: adrenaline infusion and pacing. Mobitz II/complete heart block unlikely to respond to atropine."
-  },
-
-  // -----------------------------------------------------------
-  // A0403 Tachycardia (Narrow Complex)
-  // -----------------------------------------------------------
-  tachycardia_narrow: {
-    cpg: "A0403",
-    title: "Tachycardia (Narrow Complex)",
-    careObjectives: [
-      "Rapid termination of life threatening arrhythmias and transport to a facility capable of definitive care.",
-      "Rapid transport to facilitate the treatment of the arrhythmia where treatment is not available in the prehospital environment.",
-      "Early termination of stable SVT where possible, following ECG capture."
-    ],
-    management: [
-      { type: "note", items: ["QRS < 0.12 sec"] },
-      { type: "stop", text: "If patient loses C.O. at any stage Mx with synchronised cardioversion in addition to CPG A0201 Cardiac Arrest (MICA only)" },
-      { type: "stop", text: "Mx of sinus tachycardia should be directed at the underlying cause (e.g. hypovolaemia, pain) and not treated using this CPG" },
-      { type: "header", text: "Stable \u2013 SVT (AVNRT or AVRT)" },
-      { type: "subheader", text: "Exclude AF and atrial flutter" },
-      { type: "note", items: ["SBP \u2265 90 mmHg:"] },
-      { type: "action", text: "Record 12 lead ECG prior to commencing Mx" },
-      { type: "action", text: "Modified Valsalva or Standard Valsalva (if manual handling or environmental concern)" },
-      { type: "action", text: "Repeat x2 @ 2 minute intervals (Max. 3 attempts)" },
-      { type: "note", items: ["SBP < 90 mmHg or no reversion with Valsalva:"] },
-      { type: "action", text: "Adenosine 6 mg IV" },
-      { type: "action", text: "Adenosine 12 mg IV if no reversion after 2 minutes" },
-      { type: "action", text: "Adenosine 12 mg IV if no reversion after a further 2 minutes" },
-      { type: "subheader", text: "VVED referral" },
-      { type: "action", items: ["Reversion to sinus rhythm", "Stable vital signs", "No red flags remain", "No paramedic concern"] },
-      { type: "action", text: "Paramedic-initiated VVED referral" },
-      { type: "action", text: "Transmit 12 lead ECG to VVED" },
-      { type: "header", text: "Stable \u2013 Other rhythms" },
-      { type: "note", items: ["Atrial fibrillation", "Atrial flutter", "Multifocal atrial tachycardia"] },
-      { type: "header", text: "Unstable and rapidly deteriorating" },
-      { type: "mica", text: "Synchronised cardioversion: Midazolam 1 \u2013 2 mg IV and Fentanyl 50 mcg IV as required" },
-      { type: "mica", text: "Cardioversion: DCCS 150 J" },
-      { type: "mica", text: "Repeat once if required" },
-      { type: "mica", text: "If unsuccessful change pads to anterior-posterior vector and DCCS 200 J" },
-      { type: "header", text: "Action (all pathways)" },
-      { type: "action", text: "Pain relief as per CPG A0501 Pain relief" }
-    ],
-    notes: "Modified Valsalva first for stable SVT. Adenosine for refractory SVT. Cardioversion for unstable or arrest."
-  },
-
-  // -----------------------------------------------------------
-  // A0404 Tachycardia (Broad Complex)
-  // -----------------------------------------------------------
-  tachycardia_broad: {
-    cpg: "A0404",
-    title: "Tachycardia (Broad Complex)",
-    careObjectives: [
-      "Rapid termination of life threatening arrhythmias and transport to a facility capable of definitive care.",
-      "Rapid transport to facilitate the treatment of the arrhythmia where treatment is not available in the prehospital environment."
-    ],
-    management: [
-      { type: "note", items: ["QRS \u2265 0.12 sec"] },
-      { type: "stop", text: "If patient loses C.O. at any stage Mx as per CPG A0201 Cardiac Arrest" },
-      { type: "header", text: "Stable: VT or unclear" },
-      { type: "stop", text: "Only dilute Amiodarone with D5W" },
-      { type: "stop", text: "Do not administer Amiodarone if suspected TCA toxicity. Mx as per CPG A0723 Tricyclic Antidepressant Toxicity" },
-      { type: "stop", text: "Do not administer Amiodarone if VT follows Ondansetron administration" },
-      { type: "mica", text: "Amiodarone infusion 5 mg/kg IV (max. 300 mg) over 20 minutes once only" },
-      { type: "mica", text: "Rx as per Unstable and rapidly deteriorating if patient deteriorates" },
-      { type: "header", text: "Unstable and rapidly deteriorating" },
-      { type: "mica", text: "Synchronised cardioversion: Midazolam 1-2 mg IV and Fentanyl 50 mcg IV as required" },
-      { type: "mica", text: "Cardioversion: DCCS 150 J" },
-      { type: "mica", text: "Repeat once if required" },
-      { type: "mica", text: "If unsuccessful change pads to anterior-posterior vector and DCCS 200 J" },
-      { type: "header", text: "No reversion OR reversion to narrow complex rhythm" },
-      { type: "action", text: "Amiodarone infusion per Stable (if not already established)" },
-      { type: "action", text: "Other rhythms (e.g. slow wide complex): Rx as per appropriate CPG" }
-    ],
-    notes: "If uncertain, treat broad complex tachycardia as VT. Unstable: cardioversion. Amiodarone: D5W only, not in TCA toxicity or post-ondansetron."
-  },
-
-  // -----------------------------------------------------------
-  // A0406 Cardiogenic Pulmonary Oedema
-  // -----------------------------------------------------------
-  pulmonary_oedema: {
-    cpg: "A0406",
-    title: "Cardiogenic Pulmonary Oedema",
-    careObjectives: [
-      "Oxygen therapy if hypoxic.",
-      "NIV for management of respiratory failure.",
-      "Reduce preload and afterload with nitrates to improve cardiac function and reduce pulmonary congestion.",
-      "Furosemide as a second line treatment for management of fluid overload.",
-      "Adrenaline infusion for management of cardiogenic shock."
-    ],
-    management: [
-      { type: "assess", items: ["Acute vs chronic symptoms", "Comorbidities / differential diagnosis", "Identify patients with palliative care needs"] },
-      { type: "header", text: "Short of breath and crackles" },
-      { type: "action", text: "Oxygen as per CPG A0001 Oxygen Therapy" },
-      { type: "header", text: "Adequate perfusion / hypertensive" },
-      { type: "action", text: "GTN S/L: 600 mcg if SBP > 100 mmHg" },
-      { type: "action", text: "GTN S/L: 300 mcg if no previous admin, borderline BP or < 60 kg / frail / elderly" },
-      { type: "action", text: "Repeat dose at 5 minute intervals titrated to pain or side effects (no max)" },
-      { type: "action", text: "GTN patch 50 mg (0.4 mg / hr) upper torso / arms" },
-      { type: "action", text: "Remove patch if BP < 100 mmHg" },
-      { type: "action", text: "Request MICA if: Severe respiratory distress, or Moderate respiratory distress with limited or no improvement after 2 doses of GTN" },
-      { type: "subheader", text: "Signs of fluid overload:" },
-      { type: "mica", text: "Furosemide 20 \u2013 40 mg IV or patient\u2019s daily dose IV as a single dose (max 80 mg)" },
-      { type: "mica", text: "Administer en-route to hospital once other treatment is established" },
-      { type: "header", text: "Inadequate perfusion / shock" },
-      { type: "action", text: "Request MICA" },
-      { type: "mica", text: "Consider adrenaline infusion as per CPG A0407 Inadequate Perfusion (Cardiogenic)" },
-      { type: "header", text: "Severe APO" },
-      { type: "note", items: [
-        "Severe respiratory distress, full field crackles, persistent hypoxia or no improvement from initial management"
-      ]},
-      { type: "action", text: "Request MICA" },
-      { type: "mica", text: "CPAP 10 cm H\u2082O" },
-      { type: "mica", text: "Consider initiating CPAP prior to extrication" },
-      { type: "mica", text: "BiPAP NIV \u2014 IPAP: 10 cmH\u2082O, EPAP: 5 cmH\u2082O, FiO\u2082: 1.0" },
-      { type: "mica", text: "Increase IPAP to 15 cmH\u2082O and EPAP to 10 cmH\u2082O if no improvement" },
-      { type: "mica", text: "Consult the AV Medical Advisor via the AV Clinician for further adjustments if no improvement" },
-      { type: "mica", text: "Titrate FiO\u2082 as per CPG A0001 Oxygen Therapy once treatment established and effective" },
-      { type: "subheader", text: "Patient on NIV, BP > 140 mmHg (without vasopressors) and limited / no clinical improvement:" },
-      { type: "mica", text: "GTN infusion \u2014 Start: 10 mcg/min (2 mL/hr), Increase: 10 mcg/min at 5 min intervals, Target: SBP 120\u2013140 mmHg, Max: 200 mcg/min (40 mL/hr), Cease: if SBP < 100 mmHg" },
-      { type: "mica", text: "Reassess BP at least every 5 minutes during infusion and titrate to response" }
-    ],
-    notes: "GTN S/L is ALS. GTN infusion, BiPAP, furosemide are MICA. Non-cardiogenic APO: no GTN, no furosemide. Cardiogenic shock: A0407."
-  },
-
-  // -----------------------------------------------------------
-  // A0407 Inadequate Perfusion (Cardiogenic)
-  // -----------------------------------------------------------
-  inadequate_perfusion_cardiogenic: {
-    cpg: "A0407",
-    title: "Inadequate Perfusion (Cardiogenic)",
-    careObjectives: [
-      "To achieve a perfusion target appropriate to the patient\u2019s condition."
-    ],
-    management: [
-      { type: "note", items: ["Inadequate perfusion: cardiogenic causes"] },
-      { type: "stop", text: "Mx other causes, e.g. arrhythmia, pain, hypovolaemia" },
-      { type: "assess", items: ["Signs of pulmonary oedema (crackles)"] },
-      { type: "header", text: "Crackles" },
-      { type: "mica", text: "Adrenaline infusion as per Inadequate or extremely poor perfusion" },
-      { type: "header", text: "No crackles" },
-      { type: "action", text: "Normal Saline 250 mL IV" },
-      { type: "action", text: "Repeat 250 mL IV if chest clear and inadequate or extremely poor perfusion persists" },
-      { type: "header", text: "Inadequate or extremely poor perfusion persists" },
-      { type: "action", text: "Adrenaline infusion (3 mg/50 mL D5W / Normal Saline) commencing @ 5 mcg/min (5 mL/hr)" },
-      { type: "action", text: "Titrate to achieve systolic BP 100 mmHg (max 250 mcg/min)" },
-      { type: "action", text: "Reassess patient and delivery system prior to increasing rate beyond 50 mcg/min" },
-      { type: "subheader", text: "If syringe pump unavailable:" },
-      { type: "action", text: "Adrenaline 10 mcg IV as required" },
-      { type: "action", text: "If poor response, Adrenaline 50\u2013100 mcg IV as required" },
-      { type: "action", text: "If chest clear continue Normal Saline 250 mL IV boluses up to 20 mL/kg" }
-    ],
-    notes: "PANDA trial enrolment consideration. Use metaraminol while assessing eligibility criteria. Adrenaline infusion for cardiogenic shock."
-  },
-
-  // -----------------------------------------------------------
-  // A0408 STEMI Management
-  // -----------------------------------------------------------
-  stemi_management: {
-    cpg: "A0408",
-    title: "STEMI Management",
-    careObjectives: [
-      "In the setting of STEMI, time from onset of symptoms to coronary reperfusion correlates to the amount of permanent myocardial damage and risk of death. Once STEMI is identified, all efforts should aim to expedite coronary reperfusion whether via PCI or PHT. The primary destination is intended to be a PCI centre in all cases."
-    ],
-    management: [
-      { type: "header", text: "STEMI identified or monitor identifies acute infarct" },
-      { type: "action", text: "Transmit ECG" },
-      { type: "action", text: "Request MICA (ALS)" },
-      { type: "action", text: "Treat as per CPG A0401 Acute Coronary Syndromes" },
-      { type: "action", text: "Apply pads" },
-      { type: "assess", items: ["Time to PCI", "Inclusion criteria", "Exclusion criteria", "Relative contraindications"] },
-      { type: "header", text: "Symptoms > 12 hours" },
-      { type: "action", text: "Continue Mx as per CPG A0401 Acute Coronary Syndromes" },
-      { type: "action", text: "Transport with notification" },
-      { type: "header", text: "Urgent transport to PCI facility" },
-      { type: "note", items: [
-        "Time to PCI < 90 minutes (PHT endorsed and equipped paramedic) OR",
-        "Does not meet all inclusion criteria OR",
-        "Meets one or more exclusion criteria"
-      ]},
-      { type: "stop", text: "Paramedics should consult AV Clinician if there is any uncertainty regarding diagnosis of STEMI or thrombolysis" },
-      { type: "stop", text: "ALS paramedics MUST consult AV Clinician prior to administering Heparin" },
-      { type: "stop", text: "Do not delay transport" },
-      { type: "action", text: "Continue Mx as per CPG A0401 Acute Coronary Syndromes" },
-      { type: "action", text: "Transport with hospital notification" },
-      { type: "action", text: "Heparin IV bolus 4000 IU" },
-      { type: "action", text: "Repeat Heparin IV bolus 1000 IU at 1 hour intervals" },
-      { type: "action", text: "Capture a repeat ECG 30 minutes prior to arrival and transmit to receiving hospital with notification" },
-      { type: "header", text: "Prehospital thrombolysis" },
-      { type: "note", items: [
-        "Time to PCI > 90 minutes (PHT endorsed and equipped paramedic) AND",
-        "All inclusion criteria met AND",
-        "No exclusion criteria met"
-      ]},
-      { type: "stop", text: "ALS paramedics MUST consult AV Clinician prior to progressing to thrombolysis in all cases" },
-      { type: "stop", text: "MICA paramedics must consult AV Clinician where any relative C/I are present" },
-      { type: "mica", text: "IV access x 2, Normal Saline TKVO" },
-      { type: "mica", text: "Complete checklist and read information statement to Pt" },
-      { type: "mica", text: "Tenecteplase IV bolus (see Table 1)" },
-      { type: "mica", text: "Heparin IV bolus 4000 IU" },
-      { type: "mica", text: "Repeat Heparin IV bolus 1000 IU at 1 hour intervals" },
-      { type: "mica", text: "Transport with hospital notification" },
-      { type: "mica", text: "Transmit 12-lead ECG to receiving hospital" },
-      { type: "mica", text: "Capture a repeat ECG 30 minutes prior to arrival and transmit to receiving hospital with notification" },
-      { type: "header", text: "Post Thrombolysis Care" },
-      { type: "assess", items: ["Perfusion status", "Cardiac rhythm", "Conscious state", "Potential bleeding sites"] },
-      { type: "header", text: "Inadequate perfusion (post thrombolysis)" },
-      { type: "note", items: ["Avoid hypotension, target SBP > 100 mmHg"] },
-      { type: "action", text: "See CPG A0407 Inadequate Perfusion Cardiogenic Causes" },
-      { type: "header", text: "Altered conscious state (post thrombolysis)" },
-      { type: "action", text: "Monitor patient\u2019s GCS as per CPG A0104 Conscious State Assessment" },
-      { type: "action", text: "If altered conscious state develops consider and correct other causes e.g. poor perfusion, hypoglycaemia etc." },
-      { type: "action", text: "If altered conscious state persists, Mx as per CPG A0711 Stroke / TIA" },
-      { type: "header", text: "Arrhythmia Mx (post thrombolysis)" },
-      { type: "note", items: [
-        "Reperfusion arrhythmias are common and to be expected post thrombolysis.",
-        "Anti-arrhythmic agents are indicated only if the arrhythmia persists for > 2/60 and/or perfusion is compromised."
-      ]},
-      { type: "action", text: "See: CPG A0402 Bradycardia, CPG A0403 Tachycardia (narrow complex), CPG A0404 Tachycardia (wide complex)" },
-      { type: "action", text: "If cardiac arrest, Rx immediately as per CPG A0201 Cardiac Arrest - Medical" }
-    ],
-    notes: "PHT is MICA-only. PCI preferred in all cases. Post-thrombolysis care includes 15-min ECGs, bleeding monitoring, symptom management."
-  },
-
-  // -----------------------------------------------------------
-  // A0410 Hypertension
-  // -----------------------------------------------------------
-  hypertension: {
-    cpg: "A0410",
-    title: "Hypertension",
-    careObjectives: [
-      "Identify patients suffering from hypertension and the severity.",
-      "Symptomatic management as required.",
-      "Plan care pathway appropriate to patient\u2019s condition and risk profile."
-    ],
-    management: [
-      { type: "assess", items: [
-        "History and physical examination",
-        "ECG",
-        "Pregnancy/post-partum status",
-        "Competing medical conditions or significant traumatic injury",
-        "Signs & symptoms of end-organ dysfunction: Severe headache, Altered level of consciousness, Seizure, Chest pain, Ischaemic ECG, Dyspnoea, Pulmonary oedema, Acute renal failure, Anuria"
-      ]},
-      { type: "header", text: "Mild to moderate hypertension" },
-      { type: "note", items: ["Asymptomatic", "BP < 180/110 mmHg"] },
-      { type: "action", text: "Self-care advice" },
-      { type: "action", text: "Safety netting" },
-      { type: "action", text: "GP referral when next available (consider PPCC if delays to regular GP appointment)" },
-      { type: "header", text: "Severe hypertension" },
-      { type: "note", items: ["May have signs or symptoms, but not of end-organ dysfunction", "BP 180 \u2013 220/110 \u2013 140 mmHg"] },
-      { type: "action", text: "Symptom relief if required" },
-      { type: "action", text: "VVED referral for potential community management" },
-      { type: "header", text: "Hypertensive emergency" },
-      { type: "note", items: ["Signs and/or symptoms of end-organ dysfunction", "BP generally > 220/140 mmHg, but may be lower"] },
-      { type: "action", text: "Transport" },
-      { type: "action", text: "Manage symptoms as per appropriate CPG: CPG A0401 Acute Coronary Syndrome, CPG A0406 Pulmonary Oedema, CPG A0502 Headache, CPG A0711 Suspected Stroke or TIA" }
-    ],
-    notes: "Mild/moderate: GP referral. Severe: VVED. Emergency (end-organ damage): treat per organ-specific CPG. Pregnancy excluded."
-  },
-
-  // -----------------------------------------------------------
-  // A0501-1 Pain Relief
-  // -----------------------------------------------------------
-  pain_relief: {
-    cpg: "A0501-1",
-    title: "Pain Relief",
-    careObjectives: [
-      "To reduce the suffering associated with the experience of pain to a degree that the patient is comfortable"
-    ],
-    management: [
-      "Patient reporting comfort is the most important indicator of adequate analgesia",
-      "Inability to report pain (dementia, intellectual disability, non-English speaking) does not preclude analgesia \u2014 where discomfort is evident with possible pain-producing stimuli, analgesia may be indicated",
-      "Consider dose reductions or longer intervals in small, frail or elderly patients",
-      "Multi-modal analgesia preferred: smaller doses of multiple agents (e.g. paracetamol + opioid + methoxyflurane vs morphine alone)",
-      "Moderate pain with IV access: IV opioids + paracetamol preferred",
-      "Moderate pain without IV access: IN fentanyl or IN ketamine + paracetamol preferred",
-      "IN ketamine: preferred first line if opioids limited effect, contraindicated, opioid tolerant, or declined. Preferred over IN fentanyl in elderly/frail patients \u2014 wait, IN fentanyl preferred in elderly/frail over IN ketamine",
-      "Paracetamol: always administer in addition to other analgesics where oral route not contraindicated (not if surgery or procedural sedation likely)",
-      "IM morphine: if IN fentanyl/ketamine contraindicated/limited effect AND no IV access",
-      "Methoxyflurane: preferred for procedural pain or pain related to movement; may be used as third-line agent",
-      "Severe pain: opioids + ketamine preferred. No requirement to give large opioid doses before ketamine. Leave 3\u20135 min between agents to gauge response",
-      "IV ketamine (ALS with consult): ALS paramedics should consult for IV ketamine where initial IN ketamine management is inadequate",
-      "Cardiac chest pain: do NOT administer ketamine for suspected ACS",
-      "Fentanyl preferred over morphine for: morphine contraindication, short duration desired (dislocations), hypotension, nausea/vomiting, severe headache (see A0502)",
-      "Ketamine caution: anxiety/psychosis history \u2014 administer with caution; consider other agents for moderate pain",
-      "Ketamine caution: elderly/frail \u2014 greater side-effect profile; prefer IN fentanyl where available",
-      "IN administration: half dose into each nostril where possible; limit 1 mL per nostril per dose",
-      "Respiratory depression from opioids: titrate small doses IV naloxone as per CPG A0722. Avoid complete reversal",
-      "Hypersalivation from ketamine: suction usually sufficient",
-      "Emergence reactions (ketamine): transient; minimise by administering IV doses slowly over 1\u20132 min and reassuring patient",
-      "Midazolam 0.5\u20131 mg IV (ALS \u2014 consult only): consider for significant or persistent emergence reactions",
-      "Monitoring with ketamine: nasal ETCO\u2082 monitoring, line-of-sight monitoring, SAT score",
-      "ALS: consult for IV ketamine and/or further opioid doses where maximum doses reached and patient remains in pain"
-    ],
-    management_mica: [
-      "IV ketamine: MICA may use IV ketamine in preference to IN ketamine if IV access immediately available",
-      "Atropine 600 mcg IV/IM: for ketamine-induced hypersalivation where difficult to manage or airway compromised (MICA only)",
-      "Ketamine infusion: Ketamine 50 mg up to 50 mL with Normal Saline (1 mg/mL dilution). Rate: 0.1\u20130.3 mg/kg/hr"
-    ],
-    notes: "Multi-modal analgesia. IV ketamine is ALS with consult. IN ketamine is ALS. Ketamine infusion is MICA. No ketamine for ACS chest pain."
-  },
-
-  // -----------------------------------------------------------
-  // A0502 Headache
-  // -----------------------------------------------------------
-  headache: {
-    cpg: "A0502",
-    title: "Headache",
-    careObjectives: [
-      "Risk stratify patients with headache",
-      "Select appropriate care pathway based on risk profile: High-risk: Transport to ED; Low-moderate risk: VVED referral"
-    ],
-    management: [
-      "Primary headache (tension, migraine, cluster): not life-threatening. Secondary headache: may have serious underlying cause",
-      "Focus of paramedic management: identify high-risk features of secondary headache warranting urgent ED investigation",
-      "High-risk features (transport to ED): systemic signs/fever, known neoplasm, neurological deficit or altered conscious state, sudden/abrupt onset ('thunderclap'), onset after age 50, pattern change or recent new onset, positional headache, headache precipitated by sneezing/coughing/exercise, papilloedema, progressive/atypical presentation, pregnant or puerperium, painful eye with autonomic features, post-traumatic onset, immunocompromised, painkiller overuse",
-      "Post-traumatic headache: lower threshold for transport in elderly/frail patients (can develop serious injury from low-impact mechanism; susceptible to chronic subdural haematomas weeks after minor insult)",
-      "Migraine: may mimic stroke, ICH or meningitis. In absence of previous diagnosis, do not attribute concerning symptoms (severe headache, vertigo, meningism) to migraine",
-      "Low-moderate risk without high-risk features: VVED referral appropriate even if pain is significant",
-      "Opioids: limited benefit for migraine and headache. Fentanyl should only be used for severe headache where benefits outweigh risks (e.g. other measures failed, patient in severe pain, transport > 15 min)",
-      "Prochlorperazine: may benefit migraine with nausea/vomiting/vertigo. Do NOT administer if increased risk of ICH/SAH (risk of oversedation, hypotension causing secondary brain injury, extrapyramidal effects, seizure)",
-      "Aspirin: do not administer unless on VVED clinician advice or as part of patient's management plan",
-      "Nausea/vomiting and severe dehydration: manage as per CPG A0701 where indicated"
-    ],
-    management_mica: [],
-    notes: "Risk stratification is the key skill. SNNOOP10 criteria inform high-risk features. Thunderclap = immediate ED. Low-moderate = VVED."
+    notes: "Four escalating plans A\u2013D. Verbalise transitions. Plan D is surgical airway \u2014 \u2265 12 years surgical cricothyroidotomy, < 12 years needle (if credentialled)."
   },
 
   // -----------------------------------------------------------
@@ -967,22 +552,31 @@ const CPG_PACKAGES = {
     cpg: "A0701",
     title: "Nausea and Vomiting",
     careObjectives: [
-      "Identify and treat significant dehydration",
-      "Antiemetic therapy where indicated",
-      "Appropriate disposition planning"
+      "Identify and treat the underlying cause.",
+      "Provide symptomatic relief of nausea and vomiting.",
+      "Correct dehydration where present."
     ],
     management: [
-      "If nausea and vomiting is being tolerated, basic care and referral or transport is the only required treatment",
-      "IV fluids (Normal Saline) may reduce nausea/vomiting irrespective of antiemetic. Administer unless contraindicated (history of cardiac or renal failure)",
-      "Ondansetron ODT: dissolves in mouth in a few seconds. IM route permissible if oral and IV not possible (4 mg IM; 8 mg if symptoms extreme via 2 injections)",
-      "Ondansetron is a 5-HT3 antagonist — same receptor as Tramadol's analgesic mechanism. Do NOT use ondansetron as antiemetic if nausea/vomiting follows Tramadol (reduces analgesic effect)",
-      "Long Q-T Syndrome (known or suspected): do NOT administer ondansetron (risk of VT/TdP). If VT follows ondansetron: do NOT give amiodarone (further Q-T prolongation). Manage with cardioversion (or defibrillation if pulseless)",
-      "Prochlorperazine: IM route only",
-      "Preferred treatment for pregnant patient with dehydration: fluid rehydration. Consider severity before treating with ondansetron",
-      "VVED referral appropriate for: viral gastroenteritis, influenza-like illness/COVID-19, UTI, food poisoning, medication side effects (antibiotics, opioids, chemotherapy), hyperemesis of pregnancy, diagnosed migraines, inner ear disorders (Meniere's, labyrinthitis, BPPV), environmental heat illness"
+      { type: "note", items: ["Actual or potential for nausea and vomiting"] },
+      { type: "assess", items: ["Nausea and vomiting, or potential spinal injury, potential eye trauma, potential motion sickness, vertigo"] },
+      { type: "stop", text: "Prochlorperazine must not be given IV" },
+      { type: "header", text: "Undifferentiated nausea and vomiting" },
+      { type: "action", text: "Ondansetron 4 mg ODT orally \u2014 repeat 4 mg after 5\u201310 minutes if symptoms persist (max. 8 mg ODT, IV or in combination); if unable to tolerate ODT or IV is in situ, Ondansetron 8 mg IV" },
+      { type: "action", text: "If known allergy or C/I to Ondansetron and \u2265 21 years: Prochlorperazine 12.5 mg IM" },
+      { type: "header", text: "Vestibular nausea (motion sickness, planned aeromedical evacuation, vertigo)" },
+      { type: "action", text: "If patient age \u2265 21 years: Prochlorperazine 12.5 mg IM" },
+      { type: "action", text: "If patient age < 21 years: Ondansetron as per nausea and vomiting" },
+      { type: "header", text: "Prophylaxis (potential spinal injuries, eye trauma)" },
+      { type: "action", text: "Ondansetron as per nausea and vomiting" },
+      { type: "action", text: "If known allergy or C/I to Ondansetron and \u2265 21 years: Prochlorperazine 12.5 mg IM" },
+      { type: "header", text: "Dehydrated" },
+      { type: "subheader", text: "Less than adequate perfusion:" },
+      { type: "action", text: "Consider Normal Saline IV (max. 40 mL/kg) titrated to patient response; consult for further fluid; if consult unavailable repeat Normal Saline 20 mL/kg IV (total 60 mL/kg)" },
+      { type: "subheader", text: "Adequate perfusion but significant dehydration:" },
+      { type: "action", text: "Consider Normal Saline 20 mL/kg IV over 30 minutes" },
+      { type: "note", items: ["VVED may be appropriate for some presentations in parallel to other management"] }
     ],
-    management_mica: [],
-    notes: "Ondansetron blocks Tramadol analgesia. No ondansetron in Long QT. Prochlorperazine IM only. Fluids often work regardless of antiemetic."
+    notes: "Prochlorperazine IM only \u2014 never IV. Max Ondansetron 8 mg combined ODT/IV."
   },
 
   // -----------------------------------------------------------
@@ -992,26 +586,34 @@ const CPG_PACKAGES = {
     cpg: "A0702",
     title: "Hypoglycaemia",
     careObjectives: [
-      "Identification of high-risk hypoglycaemia",
-      "Normalisation of blood glucose level",
-      "Identification of appropriate patient disposition"
+      "Identify and correct hypoglycaemia.",
+      "Identify patients at high risk requiring transport.",
+      "Address underlying cause where possible."
     ],
     management: [
-      "Most common symptoms: diaphoresis, tremors, tachycardia. Can progress to altered conscious state, slurred speech, seizures, loss of consciousness",
-      "Assess BGL and ketones in any patient with diabetes (or symptoms suggestive) presenting with any illness or injury. Also assess BGL/ketones in all pregnant patients",
-      "Accelerated starvation ketosis: may occur in some paediatric patients after short decreased caloric intake. Presents with hypoglycaemia + significantly elevated ketones without diabetes diagnosis. Common symptoms: abdominal pain, nausea, vomiting. Glucagon unlikely to benefit — prioritise antiemetics to enable oral replacement",
-      "CGM fingerstick readings more reliable than CGM at extreme values. Base care on AV glucometer",
-      "Insulin pump patients: no urgency to pause/discontinue pump as hypoglycaemia generally responds to usual therapies",
-      "Suitable for oral intake: glucose paste preferred. Alternatives: 6-7 jellybeans, 3 tsp honey, 150 mL full-strength soft drink, 150-200 mL fruit juice. If no improvement after 2 oral attempts, manage as unsuitable for oral intake",
-      "Unsuitable for oral intake (unable to respond to commands to safely swallow): IV dextrose 10% first-line",
-      "Glucagon IM: if unable to obtain IV access in adults. Consciousness usually restored within 15 minutes. Glucagon may be ineffective in: chronic hypoglycaemia, adrenal insufficiency, alcohol-induced hypoglycaemia, ketogenic/low-carb diet, starvation-induced hypoglycaemia, prolonged exercise",
-      "Adrenal crisis: unlikely to respond to dextrose until corticosteroids initiated. Manage as per CPG A0715 Adrenal Insufficiency",
-      "Transport to ED: incomplete recovery, unknown/serious precipitating cause, > 2 doses IV dextrose, seizure secondary to hypoglycaemia, pregnancy",
-      "VVED consult (before considering community care): continuous insulin pump, taking oral hypoglycaemics, taking high-dose/tapering steroids, no prior diabetes history, CKD, no glucagon prescription or requires new prescription, Type 1 without CGM",
-      "Suitable for GP referral (post-correction): provide advice — no driving until GP/endocrinologist assessment; avoid strenuous exercise today; re-check BGL every 15 min for 1 hr (if glucagon) or hourly for 4 hrs (if IV dextrose); ensure adequate oral intake. Consume long-acting carbohydrate before leaving"
+      { type: "stop", text: "Consider other causes of altered conscious state. Patients at risk of adrenal insufficiency require concurrent management as per CPG A0715 Adrenal Insufficiency. Some patients may be aggressive prior to correction of hypoglycaemia." },
+      { type: "header", text: "Hypoglycaemia suitable for oral intake \u2014 BGL < 4 mmol/L, responding to commands" },
+      { type: "action", text: "Glucose 15 g oral \u2014 if inadequate response after 15 minutes, repeat Glucose 15 g oral once" },
+      { type: "note", items: ["If nausea and/or vomiting is the only factor preventing oral intake, manage as per CPG A0701 Nausea and Vomiting and consider oral glucose prior to escalating to Glucagon or Dextrose 10%", "If inadequate response following 2 doses of oral glucose, treat as per hypoglycaemia unsuitable for oral intake"] },
+      { type: "header", text: "Hypoglycaemia unsuitable for oral intake \u2014 BGL < 4 mmol/L, NOT responding to commands" },
+      { type: "subheader", text: "Adult:" },
+      { type: "action", text: "Dextrose 10% 15 g (150 mL) IV \u2014 if inadequate response after 10 minutes, repeat Dextrose 10% 10 g (100 mL) IV until normalisation of BGL" },
+      { type: "action", text: "If unable to obtain IV access: Glucagon 1 IU IM" },
+      { type: "subheader", text: "Paediatric:" },
+      { type: "action", text: "Glucagon IM: < 25 kg \u2014 Glucagon 0.5 IU IM; \u2265 25 kg \u2014 Glucagon 1 IU IM; consult PIPER via AV Clinician for patients < 3 months of age" },
+      { type: "action", text: "If profoundly unconscious or no response to Glucagon: Dextrose 10% 200 mg/kg (2 mL/kg) IV; Normal Saline 10 mL IV flush; repeat if inadequate response after 10 minutes" },
+      { type: "header", text: "High Risk \u2014 Transport and Monitor" },
+      { type: "note", items: [
+        "Incomplete recovery to normal conscious state",
+        "Cause of hypoglycaemia requires investigation (unknown cause, infection, intentional overdose)",
+        "Required > 2 doses of IV dextrose",
+        "Seizures or acute focal neurological change",
+        "Pregnancy",
+        "Diagnosed eating disorder",
+        "Previous gastric bypass surgery"
+      ]}
     ],
-    management_mica: [],
-    notes: "Oral route preferred if safe to swallow. Dextrose 10% IV for altered patients. Glucagon if no IV access. Many patients suitable for community care."
+    notes: "High risk criteria mandate transport. Glucagon less reliable in malnourished or alcohol-dependent patients."
   },
 
   // -----------------------------------------------------------
@@ -1021,23 +623,32 @@ const CPG_PACKAGES = {
     cpg: "A0713",
     title: "Hyperglycaemia and Ketosis",
     careObjectives: [
-      "Identification of high-risk hyperglycaemia",
-      "Hydration where indicated"
+      "Identify and manage symptomatic hyperglycaemia and ketosis.",
+      "Differentiate mild-moderate from severe presentation.",
+      "Fluid resuscitation for severe hyperglycaemia / DKA / HHS."
     ],
     management: [
-      "DKA characterised by hyperglycaemia, elevated ketones, and metabolic acidosis. Classic signs: dehydration, polyuria, polydipsia, tachypnoea. May also include nausea/vomiting, abdominal pain, confusion, altered conscious state",
-      "Ketones < 0.6 mmol/L: normal. Ketones 0.6\u20133 mmol/L: medical assessment required (VVED appropriate if no severe illness). Ketones > 3 mmol/L: suspect DKA",
-      "Approx. half of DKA cases present with moderate hyperglycaemia (11\u201329 mmol/L). DKA may occur without prior diabetes diagnosis (particularly pregnancy, children, elderly)",
-      "Euglycaemic DKA: near-normal BGL with elevated ketones. Occurs with SGLT2i use (dapagliflozin/Forxiga, empagliflozin/Jardiance), especially when unwell/fasting/perioperative/excess alcohol. Any SGLT2i patient who is unwell: check ketones regardless of BGL. If ketones > 3 mmol/L: likely euglycaemic DKA",
-      "HHS: severe hyperglycaemia + profound dehydration, no elevated ketones. Occurs mostly in Type 2. Mortality 5\u201320% (vs DKA < 1%). Patients may have combined DKA/HHS features",
-      "LADA (Latent Autoimmune Diabetes in Adults): shares Type 1 and 2 features. Manage as Type 1 in hyperglycaemic emergency: check ketones, do not withhold long-acting insulin, consider IV fluids. VVED or transport if high risk",
-      "Adequate fluid replacement is the primary treatment goal. Do NOT encourage patient to self-administer additional insulin before transport",
-      "IV fluids: risk of fluid overload (cardiac failure, CKD, elderly): max 1000 mL. All other patients: max 2000 mL. Administer over 1 hr if BP > 90 mmHg; otherwise as bolus",
-      "ECG monitoring: hyperglycaemia may cause unstable potassium — monitor for dysrhythmia. Consider CPG A0724 Hyperkalaemia",
-      "Intubation: only where patient cannot maintain airway or has severely decompensating respiratory status (periods of apnoea). Tolerate profoundly low GCS without advanced airway where possible. Tachypnoea compensates for metabolic acidosis — IPPV may worsen metabolic derangements. Target ETCO\u2082 25\u201330 mmHg (individual trends should guide)"
+      { type: "assess", items: ["BGL \u2265 11 mmol/L OR ketones \u2265 0.6 mmol/L AND history or clinical signs of diabetes"] },
+      { type: "note", items: ["Diabetic patients taking SGLT2 inhibitors may present with raised ketones but normal BGL"] },
+      { type: "header", text: "Mild to moderate hyperglycaemia / ketosis" },
+      { type: "note", items: ["BGL 11\u201327.8 AND/OR ketones 0.6\u20133 mmol/L AND does not meet criteria for severe hyperglycaemia"] },
+      { type: "action", text: "Exclude other causes that may require emergency department care (e.g. ACS, infection / sepsis)" },
+      { type: "action", text: "VVED referral" },
+      { type: "header", text: "Severe hyperglycaemia / ketosis" },
+      { type: "note", items: [
+        "Any of: BGL > 27.8 AND/OR ketones > 3 mmol/L; less than adequate perfusion; clinical features of DKA (altered conscious state, Kussmaul breathing/tachypnoea, ketotic breath, dehydration, profound thirst, nausea/vomiting, abdominal pain); clinical features of HHS (altered conscious state, dehydration)"
+      ]},
+      { type: "action", text: "Cardiac monitoring and ECG" },
+      { type: "action", text: "Request MICA support" },
+      { type: "subheader", text: "Adult:" },
+      { type: "action", text: "Normal Saline 1000\u20132000 mL IV \u2014 administer over 1 hour if BP > 90 mmHg; consult AV Medical Advisor via AV Clinician if inadequate response" },
+      { type: "subheader", text: "Adult \u2014 inadequate response to IV fluid:" },
+      { type: "mica", text: "Consider vasopressors as per CPG A0705 Shock" },
+      { type: "subheader", text: "Paediatric:" },
+      { type: "action", text: "Normal Saline 10 mL/kg IV titrated to perfusion status \u2014 consult AV Medical Advisor via AV Clinician if no response to IV fluid" },
+      { type: "action", text: "Transport" }
     ],
-    management_mica: [],
-    notes: "Fluids are the main prehospital treatment. No insulin from AV. SGLT2i = euglycaemic DKA risk. Intubation risks worsening acidosis — use cautiously."
+    notes: "SGLT2 inhibitors can cause euglycaemic DKA. Severe = transport. IV fluid is mainstay of pre-hospital management."
   },
 
   // -----------------------------------------------------------
@@ -1047,27 +658,34 @@ const CPG_PACKAGES = {
     cpg: "A0703",
     title: "Seizures",
     careObjectives: [
-      "Early termination of status epilepticus",
-      "Appropriate disposition planning based on risk profile"
+      "Airway management and oxygenation.",
+      "Terminate seizure activity with benzodiazepines.",
+      "Levetiracetam for refractory seizures.",
+      "Identify and treat precipitating causes."
     ],
     management: [
-      "Convulsive status epilepticus (CSE): seizures with prominent motor symptoms + impaired consciousness lasting \u2265 5 min, or repeated seizures with no return to baseline. Non-convulsive SE (NCSE): continuous seizure activity with altered conscious state, no prominent motor symptoms > 10 min. Up to 40% of CSE may deteriorate to NCSE if unabated",
-      "Assessment and management occur concurrently if actively seizing",
-      "Risk factors for intracranial pathology: head injury (current or recent), age > 40, fever or systemic symptoms in adults, anticoagulation, malignancy, new focal neurological deficit, first focal seizure, persistent altered mental state, persistent headache",
-      "Lateral tongue trauma and/or incontinence in setting of clear postictal phase: strongly indicative of true seizure",
-      "Consider pregnancy testing in patients of child-bearing age. Lactate > 4.75 mmol/L suggests seizure rather than syncope",
-      "Be aware of uncapped sharps from bystander emergency anti-epileptic medications. Some patients aggressive post-ictally (generally self-limiting \u2264 30 min; rarely requires sedation)",
-      "Patient management plans: buccal midazolam administered before AV arrival does not contribute to AV midazolam dosing limit. Follow patient plan; contact AV Clinician if concerned",
-      "Avoid BVM oxygen unless ventilatory support needed",
-      "Status epilepticus: if no IV access, first midazolam dose given IM. Prepare to support airway/ventilation. Under-dosing is a common reason for failure to control SE. More than 2 doses of midazolam: unlikely additional benefit + increased risk. Consult AV Medical Advisor if 2 doses given but more considered",
-      "Functional seizures: if any doubt, manage as status epilepticus. Avoid touch; do not attempt to prove functional. Do not stop family filming (may be requested by treating team). Reassure patient is safe"
+      { type: "stop", text: "Consider other causes of altered conscious state. Some patients may be aggressive during postictal phase. If patient has individual management plan, follow it. Patients who are pregnant should be managed concurrently under CPG M0202 Pre-Eclampsia / Eclampsia." },
+      { type: "header", text: "Non-Convulsive Status Epilepticus" },
+      { type: "note", items: ["Seizure activity on-going for \u2265 10 minutes with altered conscious state OR multiple seizures without return to baseline consciousness"] },
+      { type: "header", text: "Convulsive Status Epilepticus" },
+      { type: "note", items: ["Seizure activity on-going for \u2265 5 minutes OR multiple seizures without return to baseline consciousness"] },
+      { type: "action", text: "Airway manoeuvres and positioning" },
+      { type: "action", text: "Oxygen" },
+      { type: "action", text: "Ventilation if required" },
+      { type: "action", text: "Confirm BGL" },
+      { type: "action", text: "Request MICA if administering Midazolam" },
+      { type: "subheader", text: "Adult:" },
+      { type: "action", text: "Midazolam IM / IV \u2014 first dose should be provided IM if IV access not already established" },
+      { type: "subheader", text: "Paediatric:" },
+      { type: "action", text: "Midazolam IM" },
+      { type: "subheader", text: "Adult \u2014 if second dose of Midazolam administered, regardless of whether seizure terminated:" },
+      { type: "mica", text: "Levetiracetam Infusion 60 mg/kg (max 4500 mg) over 5 minutes once only" },
+      { type: "subheader", text: "Paediatric \u2014 Midazolam IV (first dose IM if no IV access); if second dose administered:" },
+      { type: "mica", text: "Levetiracetam Infusion 60 mg/kg (max 4500 mg) over 5 minutes once only" },
+      { type: "header", text: "Adult / Paediatric \u2014 refractory to Midazolam and Levetiracetam" },
+      { type: "mica", text: "Consider intubation as per CPG A0302 / P0301 \u2014 NCSE unlikely to require intubation unless impairment of airway or oxygenation" }
     ],
-    management_mica: [
-      "Levetiracetam infusion: 60 mg/kg (max 4500 mg). Patients \u2265 40 kg: undiluted (100 mg/mL), delivered over 5 min via syringe pump. Patients < 40 kg: dilute 1:1 with normal saline (50 mg/mL), delivered over 5 min",
-      "Intubation (adult): if patient continues seizing (CSE or NCSE with airway/oxygenation impairment) 5 min after completing levetiracetam infusion",
-      "Intubation (paediatric): comparatively more tolerant of ongoing seizure activity. Unless basic airway manoeuvres inadequate for oxygenation, generally do not intubate before 30 min post-levetiracetam completion. If seizing after levetiracetam and significant transport time: consult AV Medical Advisor for nearest paediatric advanced airway resource"
-    ],
-    notes: "SE more resistant to treatment the longer it continues. Under-dose is the commonest failure mode. Levetiracetam infusion = MICA. Functional seizures: don't prove it, don't provoke it."
+    notes: "Midazolam dose per CPG. Levetiracetam after 2nd Midazolam regardless of seizure termination. Check BGL in all seizure patients."
   },
 
   // -----------------------------------------------------------
@@ -1077,82 +695,58 @@ const CPG_PACKAGES = {
     cpg: "A0704",
     title: "Anaphylaxis",
     careObjectives: [
-      "Adrenaline (IM) with minimal delay",
-      "Airway and perfusion support",
-      "Hospital-based observation (usually 4 hours) at a minimum"
+      "Rapidly identify and treat anaphylaxis with adrenaline.",
+      "All patients who receive adrenaline for anaphylaxis must be transported to hospital.",
+      "Monitor for biphasic reaction."
     ],
     management: [
-      "Severe, potentially life-threatening systemic hypersensitivity reaction. Can involve any combination of: respiratory (distress, wheeze, stridor), skin (hives, angioedema), cardiovascular (hypotension), abdominal (pain, nausea, vomiting). May be limited to single body system",
-      "Rapid onset (usually within 30 min; up to 4 hrs). If 2 systemic manifestations observed: accept anaphylaxis regardless of known allergen exposure",
-      "Maintain high index of suspicion for anaphylaxis in patients with asthma or food allergy (bronchospasm is common presenting symptom — can be mistaken for asthma alone)",
-      "Non-allergic angioedema (ACE-inhibitor-induced, hereditary angioedema/HAE): will NOT respond to anaphylaxis management. Urticaria/itching typically absent; slower onset than anaphylaxis. If patient has own HAE medication: follow patient's treatment plan. Otherwise consider standard anaphylaxis management",
-      "Adrenaline IM: primary treatment. Administration site: anterolateral mid-thigh. Deaths from anaphylaxis far more likely from delay than inadvertent administration. Patient's own autoinjector counts \u2014 if responds well, further adrenaline may not be required",
-      "Risk factors for refractory anaphylaxis / deterioration (consider MICA escalation): history of refractory anaphylaxis/ICU admission, hypotension BP < 90 mmHg, medication-precipitated, respiratory symptoms/distress, asthma/multiple comorbidities, OR no response to initial IM dose",
-      "Adrenaline infusion: where initial two IM doses not effective. IM adrenaline every 5 min appropriate while infusion being prepared or if MICA unavailable",
-      "IV adrenaline bolus: ONLY if extremely poor perfusion or cardiac arrest is imminent. Always subsequent to IM adrenaline",
-      "Adrenaline toxicity: nausea/vomiting/shaking/tachycardia/arrhythmias WITH some symptom improvement AND normal/elevated BP \u2014 consider toxicity rather than worsening anaphylaxis before giving more adrenaline",
-      "Bronchospasm persisting after adrenaline: salbutamol, ipratropium bromide, dexamethasone. Never first-line for bronchospasm in anaphylaxis",
-      "Hypotension persisting after adrenaline (BP < 90 mmHg): IV fluid may be required to support vasopressor administration",
-      "Glucagon: indicated if remains hypotensive after 2 doses adrenaline AND history of heart failure OR taking beta-blockers. Must not delay adrenaline",
-      "All patients: transport to hospital regardless of severity or response. Minimum 4 hr observation for biphasic reaction (occurs in ~20%)"
+      { type: "stop", text: "Stop the trigger (cease infusion, remove food, wash exposed skin)" },
+      { type: "stop", text: "ANY patient with anaphylaxis (including resolved or possible anaphylaxis) or any patient who has received Adrenaline for any reason MUST be transported to hospital as per CPG A0108 Clinical Flags / Patient Safety" },
+      { type: "stop", text: "Patients require continuous monitoring as deterioration can occur suddenly" },
+      { type: "assess", items: [
+        "Anaphylaxis criteria: sudden onset (usually < 30 min or up to 4 hours) AND two or more of R.A.S.H. +/- confirmed exposure to antigen: Respiratory distress, Abdominal symptoms, Skin/mucosal symptoms, Hypotension",
+        "OR isolated hypotension (SBP < 90 mmHg) following exposure to known antigen",
+        "OR isolated respiratory distress following exposure to known antigen"
+      ]},
+      { type: "stop", text: "Do not sit or walk the patient if possible" },
+      { type: "action", text: "Adrenaline 500 mcg IM (1:1,000) \u2014 repeat at 5 minute intervals as required" },
+      { type: "action", text: "Request MICA if Risk Factors (see gen notes) OR not responsive to initial Adrenaline" },
+      { type: "action", text: "Insert IV" },
+      { type: "action", text: "O\u2082 as per CPG A0001 Oxygen Therapy (Critical Illness)" },
+      { type: "subheader", text: "Inadequate response after 2 doses Adrenaline IM:" },
+      { type: "mica", text: "Adrenaline infusion as per CPG A0705 Shock" }
     ],
-    management_mica: [
-      "Adrenaline infusion: Adrenaline 3 mg (3 mL 1:1000) to 50 mL with D5W or NS. 1 mL = 60 mcg. 1 mL/hr = 1 mcg/min"
-    ],
-    notes: "Adrenaline IM is always first. IV bolus only if imminent arrest. Infusion = MICA. Glucagon for beta-blocker/HF patients. All patients to hospital — biphasic reaction in ~20%."
+    notes: "Transport mandatory after any adrenaline dose. Do not sit/walk patient. Adrenaline 500 mcg IM is first-line, not IV bolus."
   },
 
   // -----------------------------------------------------------
-  // A0705 Shock (Undifferentiated)
+  // A0705 Shock
   // -----------------------------------------------------------
   shock: {
     cpg: "A0705",
     title: "Shock",
     careObjectives: [
-      "To achieve a perfusion target appropriate to the patient and their presenting illness"
+      "Identify and treat the cause of shock.",
+      "Restore adequate perfusion with fluid and vasopressors as needed.",
+      "Escalate to MICA for vasopressor therapy."
     ],
     management: [
-      "Shock: state of cellular and tissue hypoxia due to reduced oxygen delivery, increased oxygen consumption, inadequate oxygen utilization, or combination. Strongest indicator: profound hypotension (may be offset by compensatory tachycardia)",
-      "Consider PANDA enrolment. Use metaraminol while assessing eligibility criteria",
-      "Do not stand or walk the patient. Extricate supine or sitting as appropriate",
-      "IV access: ideally 18G or larger. Noradrenaline/adrenaline must be administered through 18G or larger in a large proximal vein (e.g. antecubital fossa) — vasoconstrictive action carries higher risk of local tissue necrosis if extravasation occurs. Fluid and metaraminol may be administered through any size cannula",
-      "Metaraminol boluses required: after initial fluid if inadequate response/deterioration (generally no/minimal BP improvement after 500\u20131000 mL NS); OR in parallel with initial fluid if profound hypotension (BP < 70 mmHg, altered mental status, or no radial pulses). No requirement to wait for a particular fluid volume before giving metaraminol",
-      "Metaraminol 0.5 mg IV increments appropriate for most. Higher doses (1 mg) may be needed in significantly hypotensive patients",
-      "Do NOT bolus noradrenaline under any circumstance (effects can be exaggerated and unpredictable)",
-      "Adrenaline/noradrenaline infusions may run through the same IV cannula but that cannula must NOT be used for bolus medicines or flush",
-      "IV extravasation: stop and disconnect infusion, leave cannula in place, get alternative access and recommence at new site, aspirate residual drug, remove cannula while aspirating, elevate limb, mark affected site, hand over to receiving facility, document clearly",
-      "Reflex bradycardia from metaraminol/noradrenaline: may require addition of adrenaline infusion +/- reduction in infusion rate",
-      "Fluid volumes: risk of fluid overload (cardiac failure, CKD, elderly): max 1000 mL titrated to response. All other patients: max 2000 mL titrated to response"
+      { type: "stop", text: "Stop and consider PANDA enrolment. Use metaraminol while assessing eligibility criteria." },
+      { type: "stop", text: "Consider and treat as per the relevant CPG: Adrenal Insufficiency (A0715), Anaphylaxis (A0704), Cardiogenic (A0407), Dehydration (A0701), Major Trauma (A0810), Pulmonary Embolism (A0407), Sepsis (A0729), Spinal Injury (A0804), Tension Pneumothorax (A0802)" },
+      { type: "header", text: "Inadequate / extremely poor perfusion" },
+      { type: "action", text: "Oxygen" },
+      { type: "subheader", text: "First line:" },
+      { type: "action", text: "Normal Saline 1000\u20132000 mL IV (see dose table)" },
+      { type: "subheader", text: "Second line \u2014 inadequate response following approx. 500\u20131000 mL fluid OR initial profound hypotension (BP < 70):" },
+      { type: "mica", text: "Metaraminol 0.5\u20131 mg IV at 2 minute intervals" },
+      { type: "subheader", text: "Third line \u2014 inadequate response to 1\u20132 doses of metaraminol:" },
+      { type: "mica", text: "Noradrenaline infusion: Start 5 mcg/min (5 mL/hr); Increase 5 mcg/min at 2 minute intervals; Target MAP \u2265 65 OR SBP > 100; Max 25 mcg/min" },
+      { type: "subheader", text: "Fourth line \u2014 inadequate response to max. noradrenaline infusion:" },
+      { type: "mica", text: "Adrenaline infusion: Start 5 mcg/min (5 mL/hr); Increase 5 mcg/min at 2 minute intervals; Target MAP \u2265 65 OR SBP > 100; Max 25 mcg/min" },
+      { type: "mica", text: "If second syringe pump unavailable: Metaraminol 0.5\u20131 mg IV at 2 minute intervals" },
+      { type: "mica", text: "Continue Normal Saline IV titrated to patient response" }
     ],
-    management_mica: [
-      "Noradrenaline infusion: Noradrenaline 3 mg to 50 mL with D5W or NS. 1 mL = 60 mcg. 1 mL/hr = 1 mcg/min",
-      "Adrenaline infusion: Adrenaline 3 mg to 50 mL with D5W or NS. 1 mL = 60 mcg. 1 mL/hr = 1 mcg/min",
-      "Metaraminol boluses continued if delay to noradrenaline/adrenaline infusion or adequate infusion pumps unavailable"
-    ],
-    notes: "No bolus noradrenaline ever. Vasopressors through 18G proximal vein only. Extravasation protocol. PANDA consideration."
-  },
-
-  // -----------------------------------------------------------
-  // A0706 Meningococcal Septicaemia
-  // -----------------------------------------------------------
-  meningococcal: {
-    cpg: "A0706",
-    title: "Meningococcal Septicaemia",
-    careObjectives: [
-      "Rapid identification of purpuric rash and sepsis features",
-      "Prompt ceftriaxone administration",
-      "Urgent transport"
-    ],
-    management: [
-      "Typical purpuric rash may be subtle in some cases and present as a single 'spot' only",
-      "Rapid onset symptoms of sepsis +/- rash may be a sign of meningococcal septicaemia",
-      "Meningococcal is transmitted by close personal exposure to airway secretions/droplets. Ensure face mask protection especially during intubation/suctioning. Ensure medical follow-up for staff post-exposure",
-      "Consider consultation where diagnosis is uncertain",
-      "Ceftriaxone IV preparation: 1g vial dilute with 9.5 mL water for injection to 10 mL; 2g vial dilute with 19 mL water for injection to 20 mL. Administer total dose over 4 minutes",
-      "Ceftriaxone IM preparation: 1g vial dilute with 3.5 mL lidocaine 1% to 4 mL; 2g vial dilute with 7 mL lidocaine 1% to 8 mL. Administer each 1g dose separately into lateral upper thigh"
-    ],
-    management_mica: [],
-    notes: "Rash can be a single spot. Treat on suspicion. PPE essential. IM ceftriaxone into lateral upper thigh in divided 1g doses."
+    notes: "Address reversible cause first. Metaraminol before infusions. PANDA trial enrolment consideration."
   },
 
   // -----------------------------------------------------------
@@ -1162,84 +756,34 @@ const CPG_PACKAGES = {
     cpg: "A0711",
     title: "Suspected Stroke or TIA",
     careObjectives: [
-      "Assess suspected Stroke/TIA cases using MASS",
-      "Transport to appropriate destination (thrombolysis, ECR or neurosurgical stroke centre)",
-      "Hospital pre-notification"
+      "Rapid identification of suspected stroke using MASS assessment.",
+      "Time-critical transport to appropriate stroke centre.",
+      "ECR eligibility assessment and pre-notification."
     ],
     management: [
-      "Stroke mimics: hypo/hyperglycaemia, seizures, migraine, sepsis, intoxication, brain tumour, inner ear disorder (vertigo), subdural haematoma, syncope, electrolyte disturbance, multiple sclerosis",
-      "Patients still having signs/symptoms at assessment (even if improving): suspected stroke",
-      "TIA: can only be diagnosed after hospital investigation. Any patient suspected TIA should be transported",
-      "Oxygen: reserved for SpO\u2082 < 92% as per CPG A0001",
-      "ICH likelihood features: rapid deterioration in conscious state (GCS < 8), severe headache, nausea/vomiting, bradycardia/hypertension. ICH is ~15\u201320% of strokes; ischaemic stroke and ICH are not clinically distinguishable",
-      "ICH transport: awake (following commands) \u2192 nearest stroke hospital. Comatose (not eye opening/not following commands) \u2192 neurosurgical centre (Metro: RMH, SVH, Austin, Alfred, MMC; Rural: consider HEMS)",
-      "Opioid analgesia: use with caution due to risk of deterioration in conscious state",
-      "Prochlorperazine for ICH/SAH: unlikely beneficial effect. Only give if patient has nausea/vomiting AND ondansetron cannot be given",
-      "Thrombolysis eligibility: potentially up to 12 hours from symptom onset. Symptom onset = time last seen well. Woke with symptoms = time went to bed",
-      "Orolingual angioedema post-thrombolysis (~1%): nebulised adrenaline 5 mg in 5 mL. If deteriorates: IV adrenaline (ALS under consult only). IM adrenaline avoided post-thrombolysis (bleeding risk)",
-      "ECR: effective for large vessel clots up to 24 hours from onset. ACT-FAST assessment tool informs ECR eligibility. Stroke-capable ambulance (SCA) area: use Zeus app for all MASS positive patients",
-      "Intubation: where difficulty maintaining airway/oxygenation/ventilation. Post-intubation target BP: 120\u2013140 mmHg",
-      "Heavily dependent patients (e.g. dementia, nursing home residents): unlikely to receive thrombolysis. Transport Code 2 without notification",
-      "Hospital pre-notification: allows CT to be requested prior to arrival, reduces time to treatment"
+      { type: "assess", items: [
+        "Determine symptom onset time",
+        "Consider stroke mimics \u2014 if unable to exclude stroke treat as per this guideline",
+        "Consider co-morbidities",
+        "Perform MASS Assessment (if positive < 24 hours perform ACT-FAST Assessment)",
+        "Assess ECG for possible AF"
+      ]},
+      { type: "header", text: "MASS Positive \u2265 12 hours AND ACT-FAST Negative OR Suspected TIA" },
+      { type: "action", text: "Non-urgent transport to the closest thrombolysing stroke centre" },
+      { type: "header", text: "MASS Positive < 12 hours AND ACT-FAST Negative \u2014 Non-ECR eligible" },
+      { type: "action", text: "IV access: 18G in large vein with reflux valve" },
+      { type: "action", text: "Transport urgently to nearest thrombolysing stroke centre" },
+      { type: "action", text: "Consider R/V with MSU if within response area" },
+      { type: "action", text: "Pre-notify hospital with clinical details, name, and DOB" },
+      { type: "header", text: "MASS Positive < 24 hours AND ACT-FAST Positive at time of loading \u2014 Possible ECR eligible" },
+      { type: "action", text: "IV access: 18G in large vein with reflux valve" },
+      { type: "action", text: "Consider R/V with MSU or transport urgently to ECR centre if transport time equivalent to a thrombolysing stroke centre" },
+      { type: "action", text: "Rural: Transport urgently to nearest VST centre; pre-notify VST stroke physician via Clinician" },
+      { type: "action", text: "Otherwise transport urgently to nearest thrombolysing stroke centre" },
+      { type: "action", text: "Pre-notify hospital with clinical details, name, and DOB" },
+      { type: "mica", text: "In all cases if airway concerns present consider ETT as per CPG A0302 Endotracheal Intubation" }
     ],
-    management_mica: [],
-    notes: "MASS assessment. 12h thrombolysis window (from last seen well). ICH = neurosurgical centre if comatose. ECR up to 24h. No IM adrenaline post-thrombolysis."
-  },
-
-  // -----------------------------------------------------------
-  // A0712 Palliative Care
-  // -----------------------------------------------------------
-  palliative_care: {
-    cpg: "A0712",
-    title: "Palliative Care",
-    careObjectives: [
-      "Provide relief from distressing symptoms (pain, nausea/vomiting, agitation/anxiety, dyspnoea) in patients registered with community palliative care service",
-      "Intent: symptom relief, not treatment of underlying disease process"
-    ],
-    management: [
-      "Applies ONLY to: patients with advanced, incurable disease, no longer receiving active treatment, currently registered with community palliative care service, who express a wish to stay at home",
-      "For care advice and planning: contact patient's palliative care team. If unavailable: Palliative Care Advice Service (1800 360 000, 7am\u201310pm, 7 days)",
-      "Agitation in palliative patient may be due to: pain, hypoxia, hypotension, sepsis, urinary retention, electrolyte imbalance",
-      "Morphine SC: primary treatment. Calculate dose using AV CPG App to determine total equivalent daily oral morphine dose",
-      "If total equivalent daily oral morphine < 50 mg: administer Morphine 2.5 mg SC",
-      "If total equivalent daily oral morphine \u2265 50 mg: administer 20% of that total equivalent daily dose (converted to SC by AV CPG App). Max SC morphine dose: 20 mg. Doses > 10 mg: discuss with Clinician",
-      "Morphine/fentanyl equivalence: Morphine 2.5 mg = Fentanyl 25 mcg; Morphine 20 mg = Fentanyl 200 mcg. If patient unable to have morphine: use equivalent fentanyl dose",
-      "Midazolam SC: where agitation is not associated with pain. DO NOT administer morphine AND midazolam to same patient unless directed by the community palliative care service (risk of respiratory depression)",
-      "Do not use in situ subcutaneous access devices unless familiar with them or guided by someone who is",
-      "Paediatric palliative care: MUST consult Victorian Paediatric Palliative Care Program at RCH (9345 5522, 24 hrs) even if symptom management plan is present",
-      "Document medications on AV Health Information Sheet. Leave with patient/carers for palliative care team"
-    ],
-    management_mica: [],
-    notes: "Symptom relief only, not disease treatment. Morphine SC dosed via AV CPG App. No morphine + midazolam together without palliative care direction. Paediatric = always consult RCH."
-  },
-
-  // -----------------------------------------------------------
-  // A0729 Sepsis and Infection
-  // -----------------------------------------------------------
-  sepsis: {
-    cpg: "A0729",
-    title: "Sepsis and Infection",
-    careObjectives: [
-      "Identify patients with suspected sepsis using qSOFA and NEWS2",
-      "Fluid resuscitation and vasopressors where indicated",
-      "Appropriate disposition"
-    ],
-    management: [
-      "Sepsis: life-threatening organ dysfunction caused by dysregulated response to infection. Septic shock: sepsis with circulatory/metabolic abnormalities substantially increasing mortality (persistent hypotension requiring vasopressors + serum lactate > 2 mmol/L despite fluid — hospital mortality > 40%)",
-      "qSOFA (identifies increased risk): hypotension (SBP \u2264 100 mmHg), altered conscious state (GCS < 15 unless normal for patient), tachypnoea (RR \u2265 22). Two or more criteria in setting of suspected infection: reliable predictor of sepsis. Absence does not rule out sepsis",
-      "Patients with suspected infection AND hypotension: treat without delay, no need to calculate NEWS2 first",
-      "NEWS2 \u2265 7: very high risk. Fluid bolus (even if normotensive) and other sepsis care",
-      "NEWS2 5\u20136: high risk. Transport to hospital. Consider fluid bolus (especially if other risk factors or tachycardia)",
-      "NEWS2 2\u20134: moderate risk. Timely ED review (VVED, self-presentation, or transport)",
-      "NEWS2 0\u20132, no other risk factors: low risk. Self-care or GP referral may be appropriate",
-      "Risk factors increasing sepsis risk independent of vital signs: diabetes (uncontrolled, or with skin/soft tissue infection), elderly/frail (risk increases progressively above 65 yrs; cachexia/functional impairment markers of significant frailty), severe obesity (BMI > 40), chemotherapy within 4 weeks, neutropenia, recent pregnancy (birth/miscarriage/termination within ~6 weeks)",
-      "Moderate risk: VVED appropriate if complexity present but low overall risk and no high-risk signs/symptoms. Transport if multiple moderate-risk features present",
-      "High risk (normotensive patients): fluid bolus still beneficial. Patients who normalise BP do not require further fluid beyond initial bolus",
-      "Persistent hypotension after fluid: treat with vasopressors",
-      "Suspected meningococcal septicaemia: ceftriaxone as per CPG A0706"
-    ],
-    management_mica: [],
-    notes: "qSOFA + NEWS2 together, not in isolation. NEWS2 \u2265 7 = fluids even if normotensive. Vasopressors for fluid-refractory hypotension. Meningococcal = ceftriaxone."
+    notes: "MASS = Melbourne Ambulance Stroke Screen. ACT-FAST for large vessel occlusion. Onset time is critical. 18G IV with reflux valve for all transport patients."
   },
 
   // -----------------------------------------------------------
@@ -1249,24 +793,34 @@ const CPG_PACKAGES = {
     cpg: "A0715",
     title: "Adrenal Insufficiency",
     careObjectives: [
-      "Prioritise corticosteroid therapy",
-      "Support perfusion with IV fluid",
-      "Transport to closest hospital preferably with ICU"
+      "Identify adrenal insufficiency / crisis.",
+      "Administer hydrocortisone and fluid resuscitation.",
+      "Manage precipitating cause and transport."
     ],
     management: [
-      "Adrenal insufficiency: inadequate production of cortisol +/- aldosterone leading to impaired glucose regulation and cardiovascular function. Can lead to adrenal crisis — severe, life-threatening",
-      "Primary (PAI): includes Addison's Disease and Congenital Adrenal Hyperplasia. Due to adrenal gland destruction/impairment. Triggered by physiological or psychological stress",
-      "Secondary (SAI): pituitary/hypothalamic impairment reduces ACTH. Can occur following prolonged glucocorticoid steroid therapy (> 20 mg prednisone/day for > 3 weeks; evening dose \u2265 5 mg for more than a few weeks; Cushingoid appearance). SAI is comparable in severity to PAI",
-      "PAI patients with any moderate or severe physiological or psychological stress: treat with hydrocortisone to prevent adrenal crisis. Signs and symptoms of adrenal insufficiency are NOT required to treat this patient group",
-      "Do not delay hydrocortisone while trying to gain IV access — use IM route if poor veins",
-      "Patients may have initiated their own sick day management plan including IM hydrocortisone. Review care plan as part of assessment",
-      "Early signs: mood swings, irritability, joint pain, fatigue, difficulty to rouse, abdominal cramping",
-      "ECG: due to risk of hyperkalaemia. BGL: due to risk of hypoglycaemia",
-      "Extended travel time > 1 hour: consult endocrine specialist or AV Medical Advisor via AV Clinician for ongoing IV fluid management and care priorities",
-      "Hydrocortisone is unlikely to cause harm but has the potential to be life-saving. If any doubt, initiate hydrocortisone and IV fluids"
+      { type: "assess", items: [
+        "PAI: Past history of Primary Adrenal Insufficiency (PAI) including Addison\u2019s Disease",
+        "SAI: Prolonged steroid therapy at any point within the last 12 months"
+      ]},
+      { type: "header", text: "S/S of Adrenal Insufficiency / Crisis" },
+      { type: "note", items: ["Cardiovascular: hypotension", "Neurological: altered conscious state, delirium, seizure", "Fatigue: severe weakness (e.g. inability to walk)", "Gastrointestinal: severe abdominal pain, severe vomiting/diarrhoea", "Hypoglycaemia"] },
+      { type: "header", text: "Potential insufficiency (PAI only)" },
+      { type: "note", items: ["History of PAI + potential psychological or physiological precipitating cause regardless of S/S: trauma incl. large deep laceration/fracture/MVA, probable infection/sepsis/febrile illness > 38.5\u00b0C, recent surgery, labour, extreme emotional stress, acute illness incl. diarrhoea and vomiting, MI, environmental exposure/hot weather"] },
+      { type: "header", text: "Initial care" },
+      { type: "action", text: "Hydrocortisone 100 mg IM / IV \u2014 if delay to IV access, administer IM" },
+      { type: "action", text: "Normal Saline 1000 mL IV \u2014 in case of major trauma, IV fluid management as per CPG A0810 Major Trauma" },
+      { type: "header", text: "Perfusion management" },
+      { type: "subheader", text: "If borderline or inadequate perfusion following initial care:" },
+      { type: "action", text: "Additional Normal Saline 1000 mL IV" },
+      { type: "subheader", text: "Inadequate response to normal saline:" },
+      { type: "mica", text: "Metaraminol, Noradrenaline, Adrenaline as per Shock (CPG A0705)" },
+      { type: "header", text: "Precipitating Cause \u2014 Other care" },
+      { type: "action", text: "Manage pain (CPG A0501)" },
+      { type: "action", text: "Manage nausea (CPG A0701)" },
+      { type: "action", text: "Manage hypoglycaemia (CPG A0702)" },
+      { type: "action", text: "Transport to closest hospital preferably with ICU" }
     ],
-    management_mica: [],
-    notes: "Treat suspected adrenal crisis early — don't wait for signs. IM if poor IV access. Hydrocortisone is safe; delay is dangerous."
+    notes: "Hydrocortisone IM if no IV. Always transport. Concurrent hypoglycaemia management required."
   },
 
   // -----------------------------------------------------------
@@ -1276,52 +830,31 @@ const CPG_PACKAGES = {
     cpg: "A0724",
     title: "Hyperkalaemia",
     careObjectives: [
-      "Identification of patients with suspected hyperkalaemia",
-      "Stabilisation of cardiac membrane",
-      "Intracellular shifting of potassium",
-      "Where feasible, transfer to facility with intensive care capability"
+      "Identification of patients with suspected hyperkalaemia.",
+      "Stabilisation of cardiac membrane.",
+      "Shift potassium intracellularly.",
+      "Transport to nearest ED with ICU."
     ],
     management: [
-      "Symptoms are vague and non-specific. Profound weakness or fatigue is common. Degree of symptoms relates to rate of potassium rise, not absolute level",
-      "Patients with known CKD may have non-clinically relevant elevated potassium. In absence of ECG changes or demonstrated rapid rise: do NOT manage for hyperkalaemia prehospital",
-      "Suspect hyperkalaemia in severe crush injury or rhabdomyolysis if also presenting with ECG changes",
-      "ECG changes (degree does not correlate with specific K+ levels): bradyarrhythmia, tall peaked T waves with shortened QT, prolonged PR, absent P waves, widened QRS, sine wave pattern. Progression of ECG findings strongly supports hyperkalaemia",
-      "Isolated ECG findings (e.g. bradycardia, first-degree block) should be clinically correlated. Consider period of observation before initiating management",
-      "Absence of ECG changes does not exclude hyperkalaemia — maintain strong index of suspicion in at-risk patients",
-      "Membrane stabilisation: Calcium Gluconate to any patient with strong clinical history of hyperkalaemia AND significant/progressive ECG changes. Administer prior to laboratory confirmation",
-      "Intracellular shifting: salbutamol and adrenaline activate Na-K pumps and shift K+ into cells (temporising, not definitive). Adrenaline preferred vasoactive agent when shock + hyperkalaemia (strong beta-adrenergic effect)",
-      "Sodium bicarbonate: controversial and not generally supported except in severe metabolic acidosis — consult AV Medical Advisor",
-      "Manage underlying causes: hypoperfusion (CPG A0705, prefer adrenaline over noradrenaline), DKA (CPG A0713), adrenal crisis (CPG A0715)",
-      "Transport to ICU-capable facility where possible within reasonable time. If not feasible: early notification + consider ARV consultation for retrieval"
+      { type: "assess", items: [
+        "Significant risk: renal failure, severe crush injury, rhabdomyolysis",
+        "WITH progressive or clinically correlated ECG changes consistent with hyperkalaemia: bradycardia, peaked T waves, prolonged PR interval, absent P wave, wide QRS, \u2018Sine Wave\u2019 pattern",
+        "Confirmation with point of care testing, where available"
+      ]},
+      { type: "action", text: "Escalate care / request MICA \u2014 consider early consultation with AV Clinician" },
+      { type: "action", text: "Manage precipitating or co-existing conditions: CPG A0705 Shock, CPG A0713 Hyperglycaemia, CPG A0715 Adrenal Insufficiency" },
+      { type: "note", items: ["MICA preference: adrenaline infusion over noradrenaline for shock in hyperkalaemia"] },
+      { type: "header", text: "Membrane stabilisation" },
+      { type: "action", text: "Calcium Gluconate 10% 2.2 mmol (1 g) IV (slow push) \u2014 repeat at 10\u201315 minute intervals whilst ECG changes persist" },
+      { type: "header", text: "Shift potassium" },
+      { type: "action", text: "Salbutamol 10 mg nebulised \u2014 repeat at 10\u201315 minute intervals" },
+      { type: "subheader", text: "If strong suspicion of metabolic acidosis (or confirmed with point of care testing):" },
+      { type: "mica", text: "Consult AV Medical Advisor via AV Clinician for Sodium Bicarbonate 8.4% 50 mL IV \u2014 infuse over 10 minutes via syringe pump" },
+      { type: "header", text: "Disposition" },
+      { type: "action", text: "Transport to nearest ED with ICU" },
+      { type: "action", text: "If distance to ED with ICU is prohibitive, transport to nearest ED with early notification" }
     ],
-    management_mica: [],
-    notes: "ECG progression, not absolute level, guides treatment. Calcium = membrane stabilisation. Salbutamol/adrenaline = temporising shift. Adrenaline preferred over noradrenaline in hyperkalaemic shock."
-  },
-
-  // -----------------------------------------------------------
-  // A0725 Syncope
-  // -----------------------------------------------------------
-  syncope: {
-    cpg: "A0725",
-    title: "Syncope",
-    careObjectives: [
-      "Identify patients suffering from syncope",
-      "Symptomatic management if required",
-      "Identify appropriate care pathway based on risk profile"
-    ],
-    management: [
-      "Syncope: transient loss of consciousness due to cerebral hypoperfusion. Defining characteristics: rapid onset, short duration, spontaneous complete recovery. Can be reflex, orthostatic, or cardiovascular",
-      "Syncope may present with tonic-clonic motions similar to seizures. Tongue biting, incontinence, postictal phase, and/or absence of autonomic activation (diaphoresis) prior to collapse: suggestive of seizure, not syncope",
-      "May also present with stroke-like symptoms consistent with TIA — requires urgent hospital investigation",
-      "Orthostatic hypotension: SBP drop \u2265 20 mmHg or DBP drop \u2265 10 mmHg on standing. Broad differential: fever/infection, alcohol, antihypertensives/diuretics, dehydration, significant blood loss",
-      "Concerning ECG findings (suggest cardiovascular syncope): bradycardia not explained by conditioning, 2nd or 3rd degree AV block, SVT or paroxysmal AF, pre-excited QRS complexes",
-      "Consider pregnancy testing in patients of child-bearing age. Lactate > 4.75 mmol/L suggests seizure rather than syncope",
-      "Low-risk (reflex syncope or uncomplicated orthostatic hypotension): refer to VVED. 12-lead ECG must be sent to VVED clinician for review during handover",
-      "Self-care: lie flat and elevate feet if feeling faint; fresh air; remain flat 10 min, then stand slowly; follow VVED advice regarding driving",
-      "High-risk syncope: requires prolonged observation/monitoring/ED care. Transport and manage as per appropriate CPG for underlying condition"
-    ],
-    management_mica: [],
-    notes: "VVED appropriate for low-risk. ECG must go with VVED referral. High-risk features = ED. Lactate differentiates syncope from seizure."
+    notes: "Calcium gluconate 1 g (not 3 g \u2014 that\u2019s the arrest dose). Salbutamol shifts K+ intracellularly. Transport to ICU-capable centre."
   },
 
   // -----------------------------------------------------------
@@ -1331,34 +864,41 @@ const CPG_PACKAGES = {
     cpg: "A0810",
     title: "Major Trauma",
     careObjectives: [
-      "Immediate control of major haemorrhage",
-      "Ensure airway patency, adequate oxygenation/ventilation, adequate perfusion",
-      "Prioritise transport",
-      "Supportive care as required"
+      "Major haemorrhage control.",
+      "Airway management and oxygenation.",
+      "Permissive hypotension for haemorrhagic shock without TBI (SBP 70\u201390 mmHg).",
+      "Higher BP target (SBP > 120) for shock with TBI.",
+      "Rapid transport to definitive care."
     ],
     management: [
-      "Hierarchy of priorities: major haemorrhage control first, then ABC. Minimise scene time for all major trauma. Penetrating truncal trauma or shock: treat only immediately life-threatening conditions before transport. IV access for fluids is not as important as transport for surgical intervention",
-      "Major haemorrhage control is the absolute priority throughout the entire episode of care. Reassess regularly — dressings and tourniquets may dislodge, splints may be forgotten, bleeding may resume as BP recovers",
-      "NPA preferred airway adjunct over OPA in head injury (OPA may trigger gag reflex and raise ICP). NPA may be used in suspected base of skull fracture if airway cannot be maintained without it — airway occlusion risk outweighs NPA risk",
-      "RSI: identify candidate early and begin planning in parallel with other priorities to minimise scene time",
-      "Shock WITHOUT TBI: target BP 70\u201390 mmHg (permissive hypotension). Factors favouring lower target: radial pulse present, normal mentation, penetrating truncal trauma, young/healthy, active massive bleeding, shorter transport times. Factors favouring higher target: no radial pulse, abnormal mentation, blunt trauma, older/comorbid, controlled bleeding, longer transport times",
-      "Shock WITH TBI: target BP 120 mmHg. Where both TBI and haemorrhagic shock present: prevent secondary brain injury from hypotension. If any doubt about TBI, target higher BP",
-      "Vasopressors: only for hypotension refractory to fluid resuscitation after haemorrhage control measures are confirmed adequate and chest decompression considered. Never before fluid. Continue fluid in parallel to vasopressors",
-      "Blood components (PRBC, MICA credentialed): preferred over normal saline where available. PRBC in legal minors: requires parent/guardian consent or medical doctor approval (AV Medical Advisor via Clinician or RCH)",
-      "TXA: administer if injury < 2 hours ago AND COAST score \u2265 3 OR suspected severe injuries with hypotension. TXA benefit reduced 10% per 15 min delay. DO NOT delay life-saving interventions or transport to administer TXA. NOT indicated for GIT haemorrhage or AAA",
-      "Hypocalcaemia: Calcium Gluconate 10% empirically after 4 units PRBC, or if iCa confirms hypocalcaemia (if point-of-care pathology available)",
-      "Agitation (mild/moderate): pain relief. Agitation (severe): ketamine as per CPG A0708 (half dose if shocked: < 60kg 100 mg, 60\u201390 kg 150 mg, > 90 kg 200 mg). Agitation preventing preoxygenation: ketamine 20\u201340 mg IV small bolus to enable preoxygenation before RSI. Midazolam NOT for combativeness prior to RSI in head injury",
-      "Prevent hypothermia: heat ambulance, remove wet clothes, dry patient, apply blankets, chemical warming blanket if shocked/intubated/hypothermic",
-      "Spinal immobilisation as per CPG A0804. If intubation required: apply cervical collar after intubation",
-      "Pregnant patients with major trauma: consult AV Medical Advisor via Clinician at earliest opportunity. APH + major trauma: consult PIPER. AAA or massive GIT haemorrhage: fluid/vasopressors per this CPG, TXA not indicated"
+      { type: "stop", text: "Major haemorrhage control" },
+      { type: "header", text: "Airway" },
+      { type: "action", text: "Airway manoeuvres and positioning \u2014 NPA only if airway not patent; OPA if NPA unsuccessful" },
+      { type: "action", text: "SGA if no gag reflex and prolonged ventilation is required" },
+      { type: "mica", text: "RSI as per CPG A0302 Endotracheal Intubation if indicated" },
+      { type: "mica", text: "Cricothyroidotomy if airway / facial trauma prevents oxygenation / ventilation" },
+      { type: "header", text: "Breathing" },
+      { type: "action", text: "Oxygen as per CPG A0001 Oxygen Therapy OR ventilate if required: Vt 6\u20138 mL/kg; Rate 12\u201316 initially and adjust to ETCO\u2082 target; SpO\u2082 > 94%; ETCO\u2082 30\u201335 mmHg" },
+      { type: "action", text: "Consider chest decompression as per CPG A0802 Chest Injury" },
+      { type: "header", text: "Circulation \u2014 First line" },
+      { type: "action", text: "Fluid resuscitation \u2014 target SBP 70\u201390 (shock without TBI) or SBP > 120 (shock with TBI): Normal saline 250 mL IV as required (max 2 L); consult AV Medical Advisor via AV Clinician for further Mx if inadequate response" },
+      { type: "action", text: "PRBC 1 unit IV in preference to normal saline if available \u2014 reassess after each unit and repeat as required (no max dose)" },
+      { type: "action", text: "Pelvic splint if blunt trauma to the pelvis or for all unconscious multi-trauma patients" },
+      { type: "action", text: "Consider other causes of shock: haemorrhage control, chest decompression, pelvic splint, ventilator strategy, anaphylaxis to medications" },
+      { type: "header", text: "Circulation \u2014 Second line" },
+      { type: "subheader", text: "TBI: inadequate response following approx. 500\u20131000 mL fluid / PRBC 1\u20132 units" },
+      { type: "subheader", text: "No TBI: inadequate response following approx. 1000\u20132000 mL fluid / PRBC 2\u20134 units" },
+      { type: "mica", text: "Metaraminol 0.5\u20131 mg IV at 2-minute intervals" },
+      { type: "mica", text: "Continued fluid resuscitation" },
+      { type: "header", text: "Circulation \u2014 Third line (inadequate response to 1\u20132 doses metaraminol)" },
+      { type: "mica", text: "Noradrenaline infusion: Start 5 mcg/min (5 mL/hr); Increase 5 mcg/min at 2 minute intervals; Max 25 mcg/min" },
+      { type: "header", text: "Circulation \u2014 Fourth line (inadequate response to max. noradrenaline)" },
+      { type: "mica", text: "Adrenaline infusion: Start 5 mcg/min (5 mL/hr); Increase 5 mcg/min at 2 minute intervals; Max 25 mcg/min" },
+      { type: "mica", text: "If second syringe pump unavailable: Metaraminol 0.5\u20131 mg IV at 2-min intervals" },
+      { type: "mica", text: "Consult AV Medical Advisor via AV Clinician for further management" },
+      { type: "mica", text: "Consider reducing vasopressor infusion if target BP achieved \u2014 vasopressors should be reduced prior to stopping fluid" }
     ],
-    management_mica: [
-      "RSI: manage as per CPG A0303 Difficult Airway if indicated. TBI post-intubation target BP: 120\u2013140 mmHg",
-      "PRBC administration: where credentialed. Blood products preferred over normal saline for major trauma resuscitation",
-      "TXA: 1 g IV over 10 minutes",
-      "Adrenaline/noradrenaline infusion for vasopressor-refractory shock"
-    ],
-    notes: "Haemorrhage control always first. Permissive hypotension 70-90 mmHg (unless TBI then 120). TXA < 2 hrs only. Ketamine half-dose if shocked. No midazolam pre-RSI in TBI."
+    notes: "Permissive hypotension SBP 70\u201390 without TBI; SBP > 120 with TBI. PRBC preferred over saline. Max NS 2 L."
   },
 
   // -----------------------------------------------------------
@@ -1368,26 +908,26 @@ const CPG_PACKAGES = {
     cpg: "A0803",
     title: "Traumatic Head Injury",
     careObjectives: [
-      "Moderate-severe TBI: optimise airway patency, oxygenation, ventilation, and cerebral perfusion pressure to prevent secondary brain injury",
-      "Mild TBI: identify high-risk patients (neurosurgical facility), moderate-risk (CT-capable ED), low-risk (community with self-care advice)"
+      "Moderate-Severe TBI: optimise airway patency, oxygenation, ventilation, and cerebral perfusion pressure to prevent secondary brain injury.",
+      "Mild TBI / other head injuries: identify high risk (triage to neurosurgical facility), moderate risk (transport to ED for CT), low risk (refer to community with self-care advice)."
     ],
     management: [
-      "Secondary brain injury is caused by abnormal physiology (hypoxia, hypercapnia, hypotension) — prehospital management focuses on optimising physiology",
-      "Moderate-severe TBI: maintain normal or supranormal MAP (target BP 120 mmHg) to counteract elevated ICP and maintain CPP. Oxygen to maintain normal SpO\u2082, ETCO\u2082 management to maintain normal ventilation",
-      "Suspect moderate-severe TBI in any patient with head injury + significantly altered conscious state. GCS reduction > 2 points is significant (usually GCS < 13)",
-      "High-risk features: altered conscious state/coma, penetrating cranial injury, base of skull fracture signs (haemotympanum, CSF from ears/nose, Battle sign, raccoon eyes — may take up to 3 days to appear), seizure following head trauma, GCS < 13, focal neurological deficit, coagulopathy or anticoagulation",
-      "Moderate-risk features: LOC, amnesia, altered mental status (agitation, drowsiness, repeated questioning, slow verbal response), age \u2265 65 or coagulopathy (as sole risk factor), significant mechanism",
-      "Low-risk: absence of high or moderate risk features. May include concussion symptoms (mild headache, nausea, fatigue). Self-care appropriate",
-      "ICH transport: awake (following commands) \u2192 nearest stroke hospital. Comatose (not eye opening/not following commands) \u2192 neurosurgical centre",
-      "Opioid analgesia: use with caution (risk of deterioration in conscious state)",
-      "Concussion self-care: rest (limit physical and cognitive activity including screen time), paracetamol for headaches, no driving/alcohol/sedatives for 24 hrs, competent adult to monitor for 4\u201324 hrs",
-      "Safety netting: seek immediate help for severe/increasing headache, repeated vomiting, increasing confusion/agitation, altered conscious state, seizures, weakness/altered sensation",
-      "Pupils: 15-minutely monitoring in transported patients"
+      { type: "header", text: "High risk \u2014 Trauma time critical" },
+      { type: "stop", text: "Any of: Moderate\u2013Severe TBI (GCS < 13); penetrating head injury; LOC > 5 minutes; skull fracture; vomiting more than once; neurological deficit; seizure; worsening signs and symptoms" },
+      { type: "action", text: "Mx as per CPG A0810 Major Trauma: airway management; breathing \u2014 ventilation/oxygenation; circulation \u2014 avoid hypotension if moderate-severe TBI suspected; supportive care" },
+      { type: "action", text: "Transport as per CPG A0105 Trauma Triage" },
+      { type: "header", text: "Moderate risk" },
+      { type: "note", items: [
+        "Any of: altered mental status (from baseline); dangerous mechanism of injury (motor/cyclist impact > 30 km/h, high speed MCA > 60 km/h, pedestrian impact, ejection from vehicle, prolonged extrication, fall from height > 3 m, struck on head by object falling > 3 m, explosion); amnesia \u2265 30 minutes; intoxication; age \u2265 65; coagulopathy / anti-coagulant / antiplatelet (not aspirin)"
+      ]},
+      { type: "action", text: "Transport (CT scan or observation required)" },
+      { type: "action", text: "Consider VVED if age and/or coagulopathy are the only risk factors and no other concerning features" },
+      { type: "header", text: "Low risk" },
+      { type: "note", items: ["No high or moderate risk criteria AND competent adult available to monitor patient for 4 hours"] },
+      { type: "action", text: "Concussion symptoms: self-care, safety netting, provide health information sheet, GP follow-up (within 2\u20133 days)" },
+      { type: "action", text: "No symptoms: safety netting, provide health information sheet" }
     ],
-    management_mica: [
-      "RSI if unable to maintain airway, oxygenation, or ventilation. Post-intubation target BP: 120\u2013140 mmHg"
-    ],
-    notes: "Normal or supranormal BP in TBI (120 mmHg). Avoid hypoxia and hypercapnia. High-risk = neurosurgical or stroke centre. Base of skull signs may take 3 days."
+    notes: "Avoid hypotension and hypoxia in TBI. SBP target > 120 mmHg (TBI). ETCO\u2082 30\u201335 mmHg if ventilated."
   },
 
   // -----------------------------------------------------------
@@ -1397,27 +937,29 @@ const CPG_PACKAGES = {
     cpg: "A0802",
     title: "Chest Injury",
     careObjectives: [
-      "Adequate oxygenation",
-      "Effective pain relief to assist in maintaining adequate ventilation",
-      "Early identification and management of tension pneumothorax"
+      "Adequate oxygenation.",
+      "Effective pain relief to assist in maintaining adequate ventilation.",
+      "Early identification and management of tension pneumothorax."
     ],
     management: [
-      "Tension pneumothorax: suspect in patient with likely mechanism and clinical deterioration. Signs: inadequate perfusion, increasing respiratory distress, SpO\u2082 < 92% despite oxygen. Distended neck veins and tracheal deviation: unreliable and late signs",
-      "Spontaneously breathing tension PTX: tends to progress slowly; predominantly hypoxaemia and increasing respiratory distress; haemodynamic compromise is usually a late sign",
-      "Ventilated tension PTX: tends to develop rapidly (seconds to minutes); predominantly haemodynamic compromise + hypoxaemia; increased peak inspiratory pressure/stiff bag; decreased ETCO\u2082. Consider in ventilated cardiac arrest patients with sudden deterioration in SpO\u2082 and ETCO\u2082 after vigorous CPR",
-      "Positioning: awake spontaneously ventilating \u2192 sitting upright. Hypoperfused or spinal precautions \u2192 supine or 10\u201315 degrees head-up",
-      "Pain relief: essential and early. Rib fracture pain leads to hypoventilation. Do NOT splint chest injury (not effective, increases pain). Methoxyflurane may be less effective if pain on inspiration impedes administration",
-      "Open chest wounds: DO NOT cover (sealing may worsen or cause tension PTX). Leave open and monitor closely",
-      "Vented chest seals (applied by police/other agencies): remove if evidence of tension pneumothorax",
-      "Needle thoracostomy: primary management for tension pneumothorax. Local anaesthetic with lidocaine required prior to procedure in patients with awareness (responsive to voice or alert). Max lidocaine 1% dose: 3 mg/kg. Do NOT perform unless evidence of tension PTX",
-      "Uncomplicated pneumothorax: does NOT routinely require decompression for flight (previous practice of routine pre-flight decompression is no longer recommended)",
-      "Finger thoracostomy (if accredited): intubated patients only. Sterile procedure. If any delay: needle thoracostomy first as bridge",
-      "Shock: manage concurrently as per CPG A0810 Major Trauma"
+      { type: "header", text: "All patients with a chest injury" },
+      { type: "action", text: "Position sitting upright if possible" },
+      { type: "action", text: "Oxygen (as per CPG A0001 Oxygen Therapy)" },
+      { type: "action", text: "Pain relief" },
+      { type: "header", text: "Pneumothorax (open or closed)" },
+      { type: "note", items: ["Mechanism: trauma, iatrogenic, spontaneous", "Signs: unequal breath sounds, subcutaneous emphysema, SpO\u2082 < 92% on room air", "Ultrasound (if credentialled): absent lung sliding, absent B lines, lung point"] },
+      { type: "action", text: "Monitor closely for deterioration" },
+      { type: "action", text: "Do not occlude open pneumothorax" },
+      { type: "action", text: "Apply standard dressing if significant haemorrhage" },
+      { type: "header", text: "Tension pneumothorax \u2014 clinical deterioration AND suspected pneumothorax" },
+      { type: "note", items: ["Inadequate perfusion; increasing respiratory distress; SpO\u2082 < 92% despite oxygen; increased peak inspiratory pressure / stiff bag; decreased ETCO\u2082"] },
+      { type: "subheader", text: "Peri-arrest \u2014 responsive to pain or unresponsive (AVPU) AND BP < 70:" },
+      { type: "action", text: "Needle thoracostomy on affected side" },
+      { type: "subheader", text: "All patients:" },
+      { type: "action", text: "Needle thoracostomy on affected side \u2014 1\u20132 mL Lidocaine 1% local anaesthetic for patients responsive to voice/alert (per side)" },
+      { type: "mica", text: "Consider finger thoracostomy (if credentialled) where: patient is intubated AND no delays to chest decompression or needle thoracostomy has already been performed" }
     ],
-    management_mica: [
-      "Finger thoracostomy (if accredited): for intubated patients with tension PTX"
-    ],
-    notes: "Don't cover open wounds. Don't decompress without tension. Lidocaine before needle thoracostomy in awake patients. Finger thoracostomy = intubated only."
+    notes: "Do not occlude open pneumothorax. Needle thoracostomy for tension. Lidocaine LA for alert patients. Finger thoracostomy is MICA-credentialled."
   },
 
   // -----------------------------------------------------------
@@ -1427,26 +969,37 @@ const CPG_PACKAGES = {
     cpg: "A0804",
     title: "Spinal Injury",
     careObjectives: [
-      "Identify patients with suspected SCI and transfer to appropriate facility",
-      "Protect spinal column where SCI is suspected or unstable vertebral injury cannot be excluded",
-      "Avoid unnecessary immobilisation by clinically excluding patients without injury"
+      "Identify patients with potential spinal cord injury.",
+      "Spinal immobilisation where indicated.",
+      "Haemodynamic management of neurogenic shock.",
+      "Appropriate triage and transport."
     ],
     management: [
-      "Spinal cord injury causes neurological deficits. Unstable vertebral injury causes pain but no deficits (unless assessment obscured). Both require spinal immobilisation and urgent transport",
-      "Neurogenic shock: loss of sympathetic tone from SCI. Signs: hypotension, bradycardia, flushed warm skin, hypothermia. Manage as per CPG A0810/A0705",
-      "Penetrating trauma: do NOT routinely immobilise. Immobilisation of penetrating trauma patients is associated with higher mortality. Only apply if patient has a neurological deficit",
-      "High-risk mechanisms: hyper-flexion, hyper-extension, hyper-rotation, axial loading. Young/healthy: requires significant force. Older/frail (\u2265 65 yrs, ankylosing spondylitis, spinal stenosis, rheumatoid arthritis, previous spinal fusion or injury): far less force required",
-      "Spinal clearance criteria (ALL must be met): no neurological deficit, no vertebral pain/tenderness on palpation, no factors increasing assessment difficulty (altered conscious state, distracting injury, intoxication), no increased risk of injury (e.g. ankylosing spondylitis), normal neck range of motion",
-      "Altered conscious state includes: GCS < 15 for any reason, concussion, dementia",
-      "Distracting injury: injuries causing significant pain/distress (e.g. fractures, burns) that may distract from vertebral pain. Small haematomas/lacerations are NOT usually considered distracting",
-      "SCI or major trauma (neurological deficit or trauma criteria): not candidates for spinal clearance — spinal immobilisation and expedited transport",
-      "Age as sole risk factor: consider consultation with VVED. NEXUS criteria were not designed for severely injured patients",
-      "Intubation required: apply cervical collar after intubation. Attempt to minimise jugular vein compression"
+      { type: "header", text: "Suspected SCI or Major trauma" },
+      { type: "note", items: ["Major trauma following blunt trauma to head or trunk OR neurological deficit"] },
+      { type: "action", text: "Spinal immobilisation" },
+      { type: "action", text: "Extricate on combi-carrier if necessary" },
+      { type: "action", text: "Consider prophylactic antiemetic" },
+      { type: "action", text: "Transport as per CPG A0105 Trauma Triage" },
+      { type: "header", text: "Isolated spinal cord injury" },
+      { type: "action", text: "Nasal capnography" },
+      { type: "action", text: "Normal saline 500 mL IV if BP < 120 mmHg" },
+      { type: "action", text: "Atropine as per CPG A0402 Bradycardia if bradycardia and hypotension" },
+      { type: "mica", text: "Metaraminol and Noradrenaline as per CPG A0705 Shock if inadequate response to fluid and/or atropine" },
+      { type: "header", text: "Cervical spine NOT cleared \u2014 C-spine clearance criteria" },
+      { type: "note", items: [
+        "Increased injury risk: age \u2265 65; Hx vertebral disease / abnormalities",
+        "Difficult assessment: altered conscious state; intoxication; significant distracting injury",
+        "Evidence of structural injury: midline pain / tenderness on palpation",
+        "Reduced neck range of motion: unable to rotate neck 45\u00b0 left and right"
+      ]},
+      { type: "action", text: "ONE or more criteria present \u2014 spinal immobilisation" },
+      { type: "action", text: "Extricate on combi-carrier if necessary" },
+      { type: "action", text: "Consider self-extrication if patient is: conscious and co-operative, not intoxicated, not prevented by injury" },
+      { type: "action", text: "Consider prophylactic antiemetic" }
     ],
-    management_mica: [],
-    notes: "Penetrating trauma = no routine immobilisation. Clearance requires ALL five criteria met. Age alone = VVED consult. Apply collar after, not before, intubation."
+    notes: "SBP target \u2265 120 mmHg in isolated SCI (neurogenic shock). Atropine for bradycardia. Consider self-extrication if criteria met."
   },
-
 
   // -----------------------------------------------------------
   // A0805 Burns
@@ -1455,148 +1008,26 @@ const CPG_PACKAGES = {
     cpg: "A0805",
     title: "Burns",
     careObjectives: [
-      "Identify and manage potential airway burns as a priority",
-      "Minimise the impact of injury by maintaining tissue and organ perfusion, minimising pain, appropriate burn wound cooling and minimising heat loss during transfer to hospital"
+      "Paramedic safety \u2014 ensure removal from burn mechanism.",
+      "Airway management for suspected inhalation injury.",
+      "Cool the burn, warm the patient.",
+      "Fluid resuscitation for burns > 15% TBSA.",
+      "Effective analgesia."
     ],
     management: [
-      "Signs of airway burns: evidence of burns to upper torso, neck and face; facial and upper airway oedema; sooty sputum; burns in enclosed space; singed facial hair; respiratory distress (dyspnoea +/- wheeze, tachycardia, stridor); hypoxia (restlessness, irritability, cyanosis, decreased GCS)",
-      "Volume replacement calculated for burn injury only. Manage other injuries including additional fluid requirements accordingly",
-      "Electrical burns: increased risk of AKI secondary to profound muscle damage – may require extra fluid",
-      "Small, isolated, superficial burn with unbroken skin or sunburn: consider Treat and Refer pathway TR0205",
-      "Burn cooling: ideally 20 minutes with gentle running water 5–15°C. Stop cooling if patient begins shivering or temperature ≤ 35°C. Ice and iced water not desirable. Dirty water should be avoided",
-      "If running water unavailable: cool by immersion, spray bottle, or moist towels",
-      "Chemical burns: irrigate for as long as pain persists. Avoid washing chemicals onto unaffected areas, especially eyes",
-      "Remove burnt clothing or clothing containing chemicals or hot liquid when safe. Do not remove matter adhered to underlying tissue. Remove jewellery prior to swelling",
-      "Minimise heat loss: maintaining normothermia is vital. Assess temperature as soon as practicable",
-      "Elevation: if clinically appropriate, elevate affected area during transport to minimise swelling, especially in circumferential burns",
-      "Dressing: cling wrap is appropriate and preferred. Apply longitudinally to allow for swelling",
-      "Wallace rule of nines: Head 9%, Torso 18% front (abdomen and chest) and 18% back, Arm 9% each, Leg 18% each, Groin 1%",
-      "Transport: > 20% TBSA, suspected airway burns, > 1000 volt electrical burns = time critical. Transport to Alfred Hospital if within 60 minutes transport time; otherwise nearest highest level trauma service",
-      "Burns involving face, hands, feet, genitalia, major joints, or circumferential burns: recommended for major burns service assessment",
-      "Consult AV Medical Advisor via AV Clinician for significant burn injury for management, appropriate destination and hospital notification"
+      { type: "stop", text: "Paramedic safety is paramount \u2014 ensure safety and removal from burn mechanism; avoid chemical contamination" },
+      { type: "assess", items: ["Signs/symptoms of airway burns", "Mechanism of injury", "Severity of injury (%TBSA, estimated depth, other injuries, comorbidities)"] },
+      { type: "header", text: "Suspected airway burns" },
+      { type: "action", text: "Consider ETT as per CPG A0302 Endotracheal Intubation \u2014 consult Medical Advisor via AV Clinician if GCS \u2265 10; use RSI method unless contraindicated" },
+      { type: "header", text: "All burns" },
+      { type: "action", text: "Rx pain as per CPG A0501 Pain Relief" },
+      { type: "action", text: "Cool the burn, warm the patient" },
+      { type: "action", text: "Apply appropriate dressing" },
+      { type: "action", text: "Transport to an appropriate facility" },
+      { type: "header", text: "Partial or full thickness burns \u2014 TBSA > 15%" },
+      { type: "action", text: "Normal Saline \u2014 %TBSA \u00d7 Pt wt (kg) = vol (mL) \u2014 administered over 2 hours from time of the burn" }
     ],
-    management_mica: [
-      "Patients receiving intubation and paralysis are at increased risk of hypothermia. Once long term paralytic administered, temperature management becomes a more significant priority"
-    ],
-    notes: "Airway burns = highest priority. Cool 20 min with running water 5-15°C. Cling wrap preferred dressing - apply longitudinally. Rule of nines for TBSA estimation. Alfred Hospital is preferred destination for time-critical burns."
-  },
-
-  // -----------------------------------------------------------
-  // A0901 Hypothermia / Cold Exposure
-  // -----------------------------------------------------------
-  hypothermia: {
-    cpg: "A0901",
-    title: "Hypothermia / Cold Exposure",
-    careObjectives: [
-      "Identify and appropriately manage hypothermic patients",
-      "Minimise the risk of major trauma patients becoming hypothermic"
-    ],
-    management: [
-      "Classification: Mild 32–35°C, Moderate 28–32°C, Severe < 28°C",
-      "Hypothermia is insidious and rarely occurs in isolation if the patient is part of a group",
-      "Elderly patients are at particular risk irrespective of initial complaint",
-      "Potential major trauma patients should receive thermal management under this guideline irrespective of their temperature",
-      "Cardiac arrhythmias associated with temperatures < 33°C. Gentle handling essential to avoid stimulating lethal arrhythmias",
-      "Atrial arrhythmias, bradycardias or A-V blocks will generally resolve on rewarming. Antiarrhythmics or pacing usually not required unless decompensation has occurred",
-      "Defibrillation and cardioactive medications may not be effective at temperatures < 30°C. VF may resolve spontaneously upon rewarming",
-      "Target temperature for patient compartment of ambulance: 24°C or higher",
-      "Wet clothes: must be removed, patient dried, then thermally protected. Dry clothes: only remove if required to assess and treat injuries",
-      "IV fluid where indicated: deliver via fluid warmer if available. Do not warm IV bags in microwave",
-      "Cardiac arrest: if temperature < 30°C, double the interval between doses of adrenaline or amiodarone as per CPG A0201"
-    ],
-    management_mica: [
-      "Intubated hypothermic patients: monitor temperature with oesophageal temperature probe where available",
-      "Intubated patients who are sedated and paralysed are at risk of hypothermia and should have thermal management initiated once stabilised"
-    ],
-    notes: "Mild 32-35°C, Moderate 28-32°C, Severe <28°C. VF may self-terminate on rewarming. Defib/meds less effective < 30°C. Double adrenaline/amiodarone interval in cardiac arrest if temp < 30°C. Gentle handling to avoid arrhythmia trigger."
-  },
-
-  // -----------------------------------------------------------
-  // A0902 Hyperthermia / Heat Stress
-  // -----------------------------------------------------------
-  hyperthermia_environmental: {
-    cpg: "A0902",
-    title: "Hyperthermia / Heat Stress",
-    careObjectives: [
-      "Identify and appropriately manage hyperthermic patients with an urgency relative to their presentation",
-      "The focus of treatment must be on aggressive cooling"
-    ],
-    management: [
-      "Heat stroke: generally defined as temperature > 40°C with associated CNS dysfunction – urgent medical emergency",
-      "Cause may be environmental, exertional, or chemically mediated. There may be cross-over – regardless, focus of management is aggressive cooling",
-      "If signs/symptoms of heat stroke and other causes of CNS dysfunction are ruled out: actively and aggressively cool. Temperature will typically be > 38°C but the exact number should not be the defining factor",
-      "Exertional heat illness may affect patients in groups. Consider requesting further resources including ice and bottled water",
-      "Position: gentle handling is essential. Position flat or lateral. Avoid head-up positioning to avoid hypotension and arrhythmias",
-      "Strip / spray / fan: air flow over wet skin must be vigorously promoted. Passively blowing air conditioning is not adequate – aggressive fanning required",
-      "Oral fluids: if patient is able, cold oral fluids are a suitable method of rehydration",
-      "IV fluids: cold IV fluid titrated to adequate perfusion and consideration of temperature. Slower rate for elderly or patients with impaired renal or cardiac function",
-      "Ice bath / cold shower: consider where facilities are readily accessible (e.g. sporting environments, music festivals) while preparing for transport",
-      "Target temperature: aim for < 40°C within 30 minutes of onset of symptoms if possible",
-      "Elderly / frail: at increased risk. Low threshold for transport even if purely for monitoring in air conditioned environment. Age ≥ 65 is independent factor increasing risk of hospital/ICU admission and death",
-      "Toxin induced hyperthermia: standard cooling techniques in isolation are less likely effective. See CPG A0719 Drug Induced Hyperthermia"
-    ],
-    management_mica: [
-      "Muscle paralysis (RSI): in toxin induced hyperthermia, neuromuscular paralysis may assist in more severe cases and RSI may be appropriate. See CPG A0719",
-      "Intubated hyperthermic patients: monitor temperature with oesophageal temperature probe where available"
-    ],
-    notes: "Heat stroke = >40°C + CNS dysfunction. Aggressive cooling is the treatment. Strip/spray/fan - passive AC not sufficient. Ice bath if available. RSI MICA only for severe toxin-induced hyperthermia."
-  },
-
-  // -----------------------------------------------------------
-  // A0708 Acute Behavioural Disturbance
-  // -----------------------------------------------------------
-  acute_behavioural_disturbance: {
-    cpg: "A0708",
-    title: "Acute Behavioural Disturbance",
-    careObjectives: [
-      "Maintain safe environment for patients, staff, other emergency responders, family and bystanders",
-      "Use the least restrictive means possible, maintaining verbal and environmental de-escalation strategies throughout",
-      "Consider clinical causes of acute behavioural disturbance"
-    ],
-    management: [
-      "Causes: physical injury/pain, acute medical conditions (hypoglycaemia, postictal), unmet needs (bladder distension, withdrawal), substance abuse/poisoning, acute mental health condition, dementia/delirium, neurodiversity",
-      "Severity: Mild – able to cooperate, not aggressive, anxious/pacing. Moderate – loud outbursts, not aggressive. Severe – combative, violent, cannot cooperate",
-      "Assessment should be ongoing as patient's condition is dynamic",
-      "Nominate one person to communicate with patient. Non-threatening stance. Quiet, calm reassuring voice. Exaggerate friendly expressions",
-      "Environmental de-escalation: reduce stimulus; work with trusted person; minimise noise and light; calming toys, warm blankets, distraction activities, food/drink",
-      "Verbal de-escalation: introduce yourself; use patient's name; focus on safety; active listening; one instruction at a time; give extra time for responses; avoid 'no' language; no threats or ultimatums",
-      "Correctable cause identified (hypotension, hypoxia, hypoglycaemia): preference is to treat the cause rather than provide sedation",
-      "Physical/mechanical restraint: only as last resort. DO NOT restrain in prone position – associated with asphyxia and death. Observe continuously. Lateral position if sedated",
-      "Sedation: droperidol is preferred parenteral sedative in most circumstances – therapeutic, longer duration. Midazolam preferred if Lewy body dementia, Parkinson's, or QT prolongation known",
-      "Ketamine: only if extreme and immediate risk (substantial potential for death or serious injury, occurring right now or in seconds). Shorter onset, non-therapeutic, does not treat underlying cause",
-      "Olanzapine: consider oral olanzapine where agitated patient has responded to de-escalation but has propensity to re-escalate. Patients on olanzapine-only may not require transport – consult TelePROMPT",
-      "Psychostimulant affected patients: midazolam, cooling, hydration preferred. Ketamine may be required initially for extreme risk",
-      "Elderly/frail: olanzapine as initial pharmacological agent is likely to be effective. Droperidol may worsen Parkinson's/Lewy body dementia",
-      "Post-sedation: SAT < -1 requires minimum monitoring standard. Position lateral. SpO2 monitoring. Continuous cardiac monitoring. ETCO2 if ketamine used or SAT < 0"
-    ],
-    management_mica: [
-      "Multiple parenteral agents for initial sedation: only where advanced airway management is possible (MICA) and full onset of initial medicine has passed",
-      "ALS must consult AV Medical Advisor via AV Clinician prior to combining different parenteral sedatives if no MICA on scene",
-      "Ketamine hypersalivation: suctioning usually sufficient. If airway compromised: atropine 600 mcg IV/IM (MICA)",
-      "RSI should follow successful ketamine sedation in patients with traumatic/hypoxic brain injury presenting with severe agitation"
-    ],
-    notes: "RASS/SAT scoring guides sedation. Droperidol = preferred parenteral. Ketamine = extreme immediate risk only. Prone restraint = prohibited. De-escalation throughout all phases. ETCO2 mandatory with ketamine. Consult TelePROMPT for olanzapine-only cases."
-  },
-
-  // -----------------------------------------------------------
-  // A0107 Mental Health Conditions
-  // -----------------------------------------------------------
-  mental_health_conditions: {
-    cpg: "A0107",
-    title: "Mental Health Conditions",
-    careObjectives: [
-      "Appropriate assessment and disposition for patients presenting with mental health conditions"
-    ],
-    management: [
-      "Olanzapine-only sedation: patients administered olanzapine may not necessarily require transport to hospital and may be suitable for community-based care",
-      "TelePROMPT are able to advise on mental health of patient and whether community treatment may be appropriate",
-      "Physical health concerns and administration of any medications remain the responsibility of the paramedic",
-      "Ensure olanzapine has not caused adverse reactions in relation to conscious state or vital signs where patient is not being transported",
-      "Disposition: use Mental Health Destination Tool, VACIS or AV Clinician to select appropriate destination if transporting to hospital",
-      "Consider CPG A1101 Mental Health and Wellbeing Principles"
-    ],
-    management_mica: [],
-    notes: "Primarily a disposition and de-escalation guide. Olanzapine-only patients may not need transport - TelePROMPT consultation recommended. Use Mental Health Destination Tool for transport destination."
+    notes: "Burns fluid formula: %TBSA \u00d7 weight (kg) = mL Normal Saline over 2 hours. Cool burn, warm patient. Early airway consideration for inhalation injury."
   },
 
   // -----------------------------------------------------------
@@ -1606,22 +1037,35 @@ const CPG_PACKAGES = {
     cpg: "A0722",
     title: "Opioid Toxicity",
     careObjectives: [
-      "Airway patency and adequate ventilation",
-      "Reverse opioid action sufficiently to permit adequate spontaneous respiration without causing opioid withdrawal"
+      "Airway patency and adequate ventilation.",
+      "Reversal with naloxone titrated to adequate ventilation, not full consciousness.",
+      "Safe referral or transport decision."
     ],
     management: [
-      "Scene safety: uncapped sharps at scene or on patient. Dynamic risk assessment. PPE. Assess potential for multi-casualty event",
-      "Signs: respiratory depression (SpO2 < 92% on room air) or apnoea; unable to maintain airway; CNS depression (drowsiness to coma); miosis (common but not always present); prolonged QT (methadone, oxycodone, loperamide)",
-      "Differential diagnosis: AEIOUTIPS – Alcohol/drug intoxication, Epilepsy (postictal), Insulin/metabolic (hypoglycaemia), Overdose/oxygen (hypoxia), Underdose/withdrawal, Trauma (head), Infection/sepsis, Pain/psychiatric, Stroke/TIA",
-      "Isolated heroin toxicity: rebound and complications less likely. If complete reversal, patient may be safely left with family/friends/carer if they observe for at least 4 hours and have take-home naloxone available",
-      "Other opioid toxicity (prescription, polydrug, iatrogenic, unknown): smaller titrated doses of naloxone recommended to manage respiratory depression and avoid acute opioid withdrawal. Rebound possible with long-acting opioids",
-      "Synthetic opioids: may require higher doses of naloxone. Greater risk of rebound toxicity. Fentanyl analogues may be particularly potent",
-      "Prior administered doses (injecting rooms, patient's own prescription IM/IN): administer further naloxone up to prescribed AV dose",
-      "Patient responsiveness to naloxone: variable. If respiratory depression returns following naloxone (long-acting opioid or high-potency synthetic): consult VPIC via AV Clinician",
-      "Paediatric opioid toxicity: accidental overdosing, dose confusion, or accessing adult preparations (codeine, buprenorphine, methadone). Single tablet or small quantity of methadone/oxycodone can be lethal in a child"
+      { type: "stop", text: "Consider other causes of altered conscious state. Some patients become aggressive following naloxone administration." },
+      { type: "note", items: ["Opioid toxicity: unable to maintain airway OR SpO\u2082 < 92% on room air"] },
+      { type: "header", text: "ADULT Uncomplicated IV opioid toxicity" },
+      { type: "action", text: "Airway / ventilation" },
+      { type: "action", text: "Naloxone 800 mcg IM \u2014 repeat once at 10 minutes if required" },
+      { type: "note", items: ["Adequate response: consider referral", "Inadequate response: transport, consider SGA"] },
+      { type: "mica", text: "Consider ETT" },
+      { type: "header", text: "ADULT Complex opioid toxicity (prescription opioids, polydrug, iatrogenic, unknown cause)" },
+      { type: "action", text: "Naloxone 100 mcg IV \u2014 repeat at 2 minute intervals (total max. 2000 mcg); target return of adequate ventilation; SAT of -1 is acceptable in AV care; if no IV access: Naloxone 400 mcg IM (single dose)" },
+      { type: "action", text: "Consider SGA" },
+      { type: "mica", text: "Consider ETT" },
+      { type: "header", text: "PAEDIATRIC \u2014 Opioid-na\u00efve" },
+      { type: "action", text: "Naloxone 10 mcg/kg IM (max. 800 mcg) \u2014 repeat once at 10 minutes if required" },
+      { type: "mica", text: "Naloxone 10 mcg/kg IV (max. 100 mcg) \u2014 repeat at 2 minute intervals" },
+      { type: "header", text: "PAEDIATRIC \u2014 Opioid-dependent" },
+      { type: "action", text: "Naloxone 1\u20132 mcg/kg IM (max. 100 mcg) \u2014 repeat once at 10 minutes if required" },
+      { type: "mica", text: "Naloxone 1\u20132 mcg/kg IV (max. 100 mcg) \u2014 repeat at 2 minute intervals" },
+      { type: "header", text: "Transport criteria \u2014 ANY of:" },
+      { type: "note", items: ["Unable to maintain airway", "SpO\u2082 < 92% on room air", "Age < 16 OR > 65", "Suspected aspiration", "APO", "Incomplete response to two doses of naloxone", "Suspected opioid other than heroin including synthetic opioids", "Pregnancy"] },
+      { type: "header", text: "Referral criteria \u2014 ALL of:" },
+      { type: "note", items: ["IV opioid only", "Normal vital signs including GCS 15", "SpO\u2082 \u2265 92% on room air", "Chest clear on auscultation", "Competent adult available to supervise for 4 hours"] },
+      { type: "action", text: "Non-transport may be appropriate \u2014 supply intranasal naloxone to family/friends where community pack available; consider referral to drug support service; safety netting (avoid other sedating agents e.g. alcohol, benzodiazepines); provide opioid health information sheet" }
     ],
-    management_mica: [],
-    notes: "BVM ventilation first, position, suction. Titrate naloxone to adequate respiration - not full reversal. Avoid precipitating withdrawal. Isolated heroin - may leave with carer if complete reversal + 4hr observation + take-home naloxone. Consult VPIC for rebound/synthetic opioids."
+    notes: "Target adequate ventilation not full consciousness. SAT -1 acceptable. Uncomplicated IV opioid = 800 mcg IM. Complex = 100 mcg IV titrated."
   },
 
   // -----------------------------------------------------------
@@ -1631,30 +1075,37 @@ const CPG_PACKAGES = {
     cpg: "A0723",
     title: "Tricyclic Antidepressant Toxicity",
     careObjectives: [
-      "Management of tricyclic antidepressant (TCA) toxicity with Sodium Bicarbonate",
-      "Supportive management of airway, perfusion, and seizures"
+      "Early identification of severe TCA toxicity.",
+      "Sodium bicarbonate for QRS widening, arrhythmias, seizures, or refractory hypotension.",
+      "Airway management and haemodynamic support."
     ],
     management: [
-      "Pathophysiology: TCAs block cardiac sodium channels → QRS widening. Sodium channel blockade → myocardial dysfunction and dysrhythmias. Alpha adrenergic blocking → hypotension. Anti-cholinergic effects",
-      "Clinical features – Mild/Moderate: CNS sedation, tachycardia, anticholinergic toxidrome (sedation, mydriasis, warm dry skin, dry mouth, urinary retention, delirium, agitation)",
-      "Clinical features – Severe: rapid sedation to coma, seizures; QRS widening and tachycardia (early) progressing to bradycardia and ventricular arrhythmias (late); respiratory depression/loss of airway; metabolic acidosis",
-      "Onset of symptoms within 30–90 minutes. Ingestions > 10 mg/kg potentially toxic; > 20 mg/kg severe toxicity. In children, lethal with only a few tablets",
-      "Sodium Bicarbonate 8.4%: maximum total 2 doses permitted (consult if remains symptomatic, or further doses if iSTAT available and pH measurable). iSTAT available: 1–2 mL/kg up to 100 mL IV every 3–5 min to max 6 mmol/kg; gently hyperventilate (pCO2 30–35) until pH 7.50–7.55",
-      "QT prolongation: not an indication for Sodium Bicarbonate",
-      "Seizures: usually self-limiting. Manage as per CPG A0703 AND administer Sodium Bicarbonate 8.4% 100 mL IV over 2 minutes. Prepare for intubation",
-      "Cardiac arrest: mechanical CPR to closest ED (ECMO-capable facility preferred if travel times similar). Consult VPIC/ARV via AV Clinician",
-      "Amiodarone is CONTRAINDICATED for arrhythmias in TCA toxicity",
-      "Inadequate perfusion: IV Normal Saline concurrently with Sodium Bicarbonate, then metaraminol and/or noradrenaline if persists (adult only). Consult VPIC for < 16 years vasopressor approach",
-      "Normal saline: reassess after 500–1000 mL or earlier if profoundly hypotensive"
+      { type: "header", text: "Severe toxicity with isolated hypotension" },
+      { type: "note", items: ["Adult: SBP < 90 mmHg; Paediatric age-appropriate thresholds"] },
+      { type: "action", text: "Escalate care / request MICA" },
+      { type: "subheader", text: "Adult:" },
+      { type: "action", text: "Normal Saline 1000\u20132000 mL IV (see dose table)" },
+      { type: "subheader", text: "Paediatric:" },
+      { type: "action", text: "Normal Saline 10 mL/kg IV \u2014 repeat if inadequate perfusion" },
+      { type: "header", text: "Severe toxicity \u2014 ANY of: hypotension (unresponsive to IV fluid), seizures, QRS > 120 ms, arrhythmias" },
+      { type: "subheader", text: "Adult:" },
+      { type: "mica", text: "Sodium Bicarbonate 8.4% 100 mL IV \u2014 administer bolus slowly over approx. 2 minutes; repeat once at 3\u20135 minutes" },
+      { type: "mica", text: "ETT as per CPG A0302 Endotracheal Intubation \u2014 administer Sodium Bicarbonate on induction immediately prior to intubation if two doses not already given; ventilate to achieve target ETCO\u2082 25\u201330 mmHg" },
+      { type: "subheader", text: "Paediatric:" },
+      { type: "mica", text: "Sodium Bicarbonate 8.4% 1\u20132 mL/kg IV (max 100 mL) \u2014 administer bolus slowly over approx. 2 minutes; repeat once at 3\u20135 minutes" },
+      { type: "header", text: "Shock persists \u2014 Second line (inadequate response to IV fluid AND sodium bicarbonate)" },
+      { type: "subheader", text: "Adult:" },
+      { type: "mica", text: "Metaraminol 0.5 mg IV at 2-minute intervals" },
+      { type: "header", text: "Third line (inadequate response to 1\u20132 doses metaraminol)" },
+      { type: "subheader", text: "Adult:" },
+      { type: "mica", text: "Noradrenaline infusion: Start 5 mcg/min (5 mL/hr); Increase 5 mcg/min at 2 minute intervals; Target MAP \u2265 65 OR SBP > 100; Max 25 mcg/min" },
+      { type: "header", text: "Fourth line (inadequate response to noradrenaline)" },
+      { type: "subheader", text: "Adult:" },
+      { type: "mica", text: "Adrenaline infusion: Start 5 mcg/min (5 mL/hr); Increase 5 mcg/min at 2 minute intervals; Target MAP \u2265 65 OR SBP > 100; Max 25 mcg/min; if syringe pump unavailable: Adrenaline 10\u201320 mcg IV at 2 minute intervals" },
+      { type: "header", text: "Other care \u2014 Seizures" },
+      { type: "action", text: "As per Seizures CPG A0703" }
     ],
-    management_mica: [
-      "Consider ETT as per CPG A0302 where patient unable to support airway and severe toxicity persists",
-      "Prior to intubation: Sodium Bicarbonate 8.4% 100 mL IV over 2 minutes if two doses not already given, to limit acidosis",
-      "Intubated and ventilated with severe TCA toxicity: target ETCO2 25–30 mmHg (hyperventilation recommended)",
-      "Noradrenaline: do not bolus under any circumstance",
-      "Adrenaline: third line vasopressor/inotrope only (after fluids, sodium bicarb, metaraminol and noradrenaline)"
-    ],
-    notes: "QRS widening = sodium channel blockade = sodium bicarb. Amiodarone CONTRAINDICATED. Metabolic acidosis worsens TCA toxicity - hyperventilate post-intubation. Consult VPIC for complex management."
+    notes: "Sodium bicarb for QRS > 120, arrhythmias, seizures, refractory hypotension. Ventilate to ETCO\u2082 25\u201330 if intubated. Do NOT use physostigmine."
   },
 
   // -----------------------------------------------------------
@@ -1664,27 +1115,32 @@ const CPG_PACKAGES = {
     cpg: "A0717",
     title: "Beta-Blocker Toxicity",
     careObjectives: [
-      "Targeted management of bradycardia and inadequate perfusion",
-      "Early consultation with VPIC, particularly if co-ingestion with other medications, refractory hypotension, or arrhythmias",
-      "Supportive management of hypoglycaemia and seizures"
+      "Identify beta-blocker toxicity with bradycardia and hypotension.",
+      "Fluid, atropine, then adrenaline infusion.",
+      "Transthoracic pacing for refractory extreme bradycardia."
     ],
     management: [
-      "Pathophysiology: beta-blockers act on beta1/beta2 adrenoreceptors reducing HR and myocardial contraction. Toxicity → bradyarrhythmias and severe cardiovascular compromise",
-      "Propranolol: sodium channel effects → QRS widening. Sotalol: potassium channel effects → QT prolongation",
-      "Clinical features (all beta-blockers including sotalol and propranolol): bradycardia, hypotension, pulmonary oedema, heart blocks (1st, 2nd, 3rd degree), hypoglycaemia",
-      "Sotalol: prolonged QT, Torsade des Pointes. Propranolol: widened QRS, ventricular arrhythmias, delirium, coma, seizures",
-      "Beta blocker toxicity is potentially life-threatening – consult VPIC early",
-      "Onset: usually 1–2 hours; may be delayed with modified release preparations",
-      "Elderly, underlying cardiac disease, co-ingestion with cardiovascular medicines: at greater risk even with small doses. Propranolol and sotalol more toxic than others",
-      "Bradycardia with inadequate perfusion: IV fluids and atropine. If symptoms persist, commence adrenaline. Administer atropine through free running IV line",
-      "Adequate atropine response is NOT common in beta-blocker toxicity. Where patient initially responds to two doses of atropine but effect not sustained: repeat atropine 600 mcg as required (max total 3000 mcg)",
-      "Pacing may be required if pharmacological chronotropy fails",
-      "Consider transport to ECMO centre if severe cardiogenic shock or cardiac arrest – VPIC will advise"
+      { type: "note", items: ["Suspected beta-blocker toxicity with bradycardia AND hypotension: Adult \u2265 16 years HR < 50 AND SBP < 90 mmHg; Paediatric age-appropriate thresholds"] },
+      { type: "header", text: "First line" },
+      { type: "action", text: "Escalate care / request MICA" },
+      { type: "subheader", text: "Adult:" },
+      { type: "action", text: "Normal Saline 1000\u20132000 mL IV (see dose table)" },
+      { type: "action", text: "Atropine 600 mcg IV \u2014 repeat 1200 mcg after 3\u20135 minutes if inadequate response; target HR > 60" },
+      { type: "subheader", text: "Paediatric:" },
+      { type: "action", text: "Normal Saline 10 mL/kg IV \u2014 repeat if inadequate perfusion" },
+      { type: "action", text: "Atropine 20 mcg/kg IV (max 600 mcg per dose) \u2014 repeat once after 3\u20135 minutes if inadequate response; target HR age-appropriate" },
+      { type: "header", text: "Second line (bradycardia and hypotension remain following IV fluid and atropine)" },
+      { type: "subheader", text: "Adult:" },
+      { type: "mica", text: "Adrenaline infusion: Start 5 mcg/min (5 mL/hr); Increase 5 mcg/min at 2 minute intervals; Target MAP \u2265 65 OR SBP > 100; Max 10 mcg/min; if syringe pump unavailable: Adrenaline 10\u201320 mcg IV at 2 minute intervals" },
+      { type: "subheader", text: "Paediatric:" },
+      { type: "mica", text: "Adrenaline infusion: Start 0.05 mcg/kg/min (0.5 mL/kg/hr); Increase 0.05 mcg/kg/min at 2 minute intervals; Max 1.0 mcg/kg/min (max 10 mcg/min); if syringe pump unavailable: Adrenaline 0.1 mcg/kg IV at 2 minute intervals" },
+      { type: "header", text: "Third line (patient remains extremely poorly perfused: altered/unconscious AND HR < 50 AND SBP < 60)" },
+      { type: "subheader", text: "Adult:" },
+      { type: "mica", text: "Transthoracic pacing as per CPG A0402 Bradycardia \u2014 capture may be difficult" },
+      { type: "subheader", text: "Paediatric:" },
+      { type: "mica", text: "Consult VPIC via AV Clinician" }
     ],
-    management_mica: [
-      "Role of sodium bicarbonate in propranolol-induced QRS widening is unclear. Should not be the focus or delay use of inotropes. Consult VPIC first"
-    ],
-    notes: "Consult VPIC early - complex management. Atropine response often inadequate. Propranolol = QRS widening + CNS effects. Sotalol = QT prolongation + TdP. Consider ECMO centre in severe cases."
+    notes: "Atropine first then adrenaline infusion. Max adrenaline 10 mcg/min (lower than standard shock). Pacing for extreme bradycardia refractory to all."
   },
 
   // -----------------------------------------------------------
@@ -1694,25 +1150,42 @@ const CPG_PACKAGES = {
     cpg: "A0718",
     title: "Calcium Channel Blocker Toxicity",
     careObjectives: [
-      "Targeted management of bradycardia and inadequate perfusion",
-      "Early administration of calcium gluconate",
-      "Early consultation with VPIC to guide management"
+      "Identify CCB toxicity with bradycardia and hypotension.",
+      "Calcium gluconate, atropine, then vasopressors.",
+      "Differentiate dihydropyridines (noradrenaline) from non-dihydropyridines (adrenaline).",
+      "Consider transport to ECMO centre for severe cardiogenic shock or cardiac arrest."
     ],
     management: [
-      "Pathophysiology: CCBs block calcium channels → negative inotropy, negative chronotropy, vasodilation. Also inhibit insulin secretion → hyperglycaemia",
-      "Non-dihydropyridine (verapamil and diltiazem): cardioselective – generally more toxic. Dihydropyridine (amlodipine, felodipine, lercanidipine, nifedipine, nimodipine): vasoselective",
-      "Clinical features – all CCBs: hypotension, vasoplegia, shock; altered conscious state secondary to inadequate perfusion; hyperglycaemia, lactic acidosis; nausea, vomiting",
-      "Verapamil and diltiazem: additionally bradycardia/bradyarrhythmias, first degree heart block, pulmonary oedema",
-      "Ingestion 2–3 times usual dose may cause serious toxicity. More than 10 tablets can be life threatening. One tablet of diltiazem/verapamil SR can be fatal in children",
-      "Onset: usually 1–2 hours; may be delayed in modified release preparations up to 12 hours",
-      "Older age, co-existing cardiac disease, co-ingestion with cardiovascular medications increase risk",
-      "CCB toxicity potentially life-threatening – consult VPIC early. Some preparations slow release – symptoms may be delayed up to 12 hours",
-      "Inadequate and extremely poor perfusion: graduated approach including calcium, IV fluids and vasopressors/inotropes",
-      "Atropine response: NOT common in CCB toxicity. Where patient initially responds to two doses but effect not sustained: repeat atropine 600 mcg as required (max 3000 mcg)",
-      "Witnessed cardiac arrest: consult VPIC via AV Clinician to consider mechanical CPR to closest ED"
+      { type: "note", items: ["Suspected CCB toxicity with bradycardia AND hypotension: Adult \u2265 16 years HR < 50 AND SBP < 90 mmHg; Paediatric age-appropriate thresholds"] },
+      { type: "header", text: "First line" },
+      { type: "action", text: "Escalate care / request MICA" },
+      { type: "subheader", text: "Adult:" },
+      { type: "action", text: "Normal Saline 1000\u20132000 mL IV (see dose table)" },
+      { type: "action", text: "Calcium Gluconate 10% 6.6 mmol (3g) (30 mL) IV \u2014 administer over 2\u20135 minutes; repeat at 20 minutes if required; further doses may be required \u2014 consult VPIC via Clinician" },
+      { type: "action", text: "Atropine 600 mcg IV \u2014 repeat 1200 mcg after 3\u20135 minutes if inadequate response; target HR > 60" },
+      { type: "subheader", text: "Paediatric:" },
+      { type: "action", text: "Normal Saline 10 mL/kg IV \u2014 repeat if inadequate perfusion" },
+      { type: "action", text: "Calcium Gluconate 10% 0.11 mmol/kg (0.5 mL/kg) IV (max 30 mL) \u2014 administer over 2\u20135 minutes; repeat at 20 minutes if required; further doses \u2014 consult VPIC via Clinician" },
+      { type: "action", text: "Atropine 20 mcg/kg IV (max 600 mcg per dose) \u2014 repeat once after 3\u20135 minutes if inadequate response" },
+      { type: "header", text: "Second line (bradycardia and hypotension remain following IV fluid and atropine)" },
+      { type: "subheader", text: "Adult:" },
+      { type: "mica", text: "Metaraminol 0.5 mg IV at 2 minute intervals" },
+      { type: "subheader", text: "Paediatric:" },
+      { type: "mica", text: "Consult VPIC via AV Clinician; where approved: Adrenaline 0.1 mcg/kg IV at 2 minute intervals" },
+      { type: "header", text: "Third line (inadequate response to 1\u20132 doses metaraminol)" },
+      { type: "subheader", text: "Adult \u2014 dihydropyridines (Amlodipine, Felodipine, Lercanidipine, Nifedipine, Nimodipine):" },
+      { type: "mica", text: "Noradrenaline infusion: Start 5 mcg/min (5 mL/hr); Increase 5 mcg/min at 2 minute intervals; Target MAP \u2265 65 OR SBP > 100; Max 25 mcg/min" },
+      { type: "subheader", text: "Adult \u2014 non-dihydropyridines (Verapamil, Diltiazem):" },
+      { type: "mica", text: "Adrenaline infusion: Start 5 mcg/min (5 mL/hr); Increase 5 mcg/min at 2 minute intervals; Target MAP \u2265 65 OR SBP > 100; Max 25 mcg/min; if syringe pump unavailable: Adrenaline 10\u201320 mcg IV at 2 minute intervals" },
+      { type: "header", text: "Fourth line (patient remains extremely poorly perfused: altered/unconscious AND HR < 50 AND SBP < 60)" },
+      { type: "subheader", text: "Adult:" },
+      { type: "mica", text: "Transthoracic pacing as per CPG A0402 Bradycardia \u2014 capture may be difficult" },
+      { type: "subheader", text: "Paediatric:" },
+      { type: "mica", text: "Consult VPIC via AV Clinician" },
+      { type: "header", text: "Other care \u2014 Transport" },
+      { type: "action", text: "Consider transport to ECMO centre if severe cardiogenic shock or cardiac arrest \u2014 consult VPIC and ARV/PIPER via AV Clinician" }
     ],
-    management_mica: [],
-    notes: "Consult VPIC early. Calcium gluconate is specific antidote. Hyperglycaemia is a feature (not a complication - CCBs inhibit insulin secretion). Verapamil/diltiazem most cardiotoxic. SR preparations delay onset up to 12 hours."
+    notes: "Calcium gluconate 3 g (30 mL) adult dose. Non-DHP (verapamil/diltiazem) = adrenaline infusion; DHP = noradrenaline infusion. ECMO centre if refractory."
   },
 
   // -----------------------------------------------------------
@@ -1722,30 +1195,35 @@ const CPG_PACKAGES = {
     cpg: "A0709",
     title: "Organophosphate Toxicity",
     careObjectives: [
-      "Recognise organophosphate toxicity / cholinergic toxidrome",
-      "Ensure scene safety and provide decontamination where required",
-      "Administer atropine and ensure sufficient supply"
+      "Recognise organophosphate toxicity / cholinergic toxidrome.",
+      "Ensure scene safety and decontamination.",
+      "Administer atropine and ensure sufficient supply."
     ],
     management: [
-      "Scene safety: dynamic risk assessment. PPE. Consider potential deliberate act. Assess potential for multi-casualty event",
-      "Pathophysiology: inhibit acetylcholinesterase → increased acetylcholine → cholinergic toxidrome",
-      "Nicotinic effects: tachycardia, hypertension, muscle fasciculations, weakness, paralysis",
-      "Muscarinic effects: SLUDGE (salivation, lacrimation, urination, defecation, GI distress, emesis), bronchorrhoea, bronchospasm, bradycardia, hypotension, miosis, diaphoresis",
-      "CNS effects: confusion, agitation, seizures, coma",
-      "Decontamination: remove contaminated clothing into plastic bag; wash skin with soap and water; isolate emesis in clinical waste bag; ensure ventilation; identify agent smell does not usually represent risk of secondary poisoning",
-      "Antidote – Atropine: indicated when any muscarinic effects present. IV every 5 minutes, doubling previous dose every 5 minutes (e.g. 1200 mcg, 2400 mcg, 4800 mcg). Paediatric: same approach (e.g. 50 mcg/kg, 100 mcg/kg). Large doses may be required (up to 25 mg)",
-      "Request support early to source further atropine supply",
-      "Consult VPIC via AV Clinician if inadequate response",
-      "Atropine infusion: usually required following adequate atropinisation at 10–20% of total atropine used per hour. Consult VPIC to establish appropriate infusion regimen",
-      "Pralidoxime or Obidoxime may be available in some locations – consult VPIC. Not routinely used",
-      "Inadequate perfusion: IV fluid concurrently with atropine. Vasopressors as per CPG A0705 Shock",
-      "Seizures: ensure adequate atropinisation and oxygenation. If persistent/recurrent: treat as per CPG A0703",
-      "All patients with organophosphate exposure require transport to ED"
+      { type: "stop", text: "Organophosphates can be absorbed via SKIN and INHALATION \u2014 apply PPE; decontamination where patient clothing/skin exposed to toxin (remove clothing, wash skin with soap and water); isolate emesis" },
+      { type: "note", items: ["Common agents in Australia: chlorpyrifos, diazinon, dimethoate, fenthion, profenofos, malathion (labels may specify \u2018anticholinesterase\u2019). Also used for nerve agents (sarin, VX)."] },
+      { type: "header", text: "Organophosphate toxicity with muscarinic effects" },
+      { type: "note", items: ["Salivation compromising airway OR bronchospasm/bronchorrhoea OR +/- bradycardia or hypotension: Adult HR < 50 AND SBP < 80; Paediatric age-appropriate thresholds"] },
+      { type: "header", text: "First line" },
+      { type: "action", text: "Escalate care / request MICA \u2014 request further atropine supply" },
+      { type: "subheader", text: "Adult:" },
+      { type: "action", text: "IV access" },
+      { type: "action", text: "Atropine 1200 mcg IV \u2014 repeat double the previous dose at 5 minute intervals; target clear chest, no wheeze, HR > 80, BP > 80" },
+      { type: "subheader", text: "Paediatric:" },
+      { type: "action", text: "Atropine 50 mcg/kg IV (max. 1200 mcg) \u2014 repeat double the previous dose at 5 minute intervals; target clear chest, no wheeze, age-appropriate HR and SBP" },
+      { type: "action", text: "Inadequate response: consult VPIC via AV Clinician" },
+      { type: "mica", text: "Consider ETT as per CPG A0302 / P0301" },
+      { type: "header", text: "Other care \u2014 Seizures" },
+      { type: "action", text: "As per Seizures CPG A0703" },
+      { type: "header", text: "Other care \u2014 Shock" },
+      { type: "subheader", text: "Adult:" },
+      { type: "action", text: "Normal Saline IV as per Shock CPG A0705" },
+      { type: "mica", text: "Metaraminol, noradrenaline and adrenaline as per Shock CPG A0705 if hypotension persists" },
+      { type: "subheader", text: "Paediatric:" },
+      { type: "action", text: "Normal Saline 10 mL/kg IV \u2014 repeat if inadequate perfusion" },
+      { type: "mica", text: "Consult VPIC via AV Clinician" }
     ],
-    management_mica: [
-      "Airway: monitor closely. If symptoms deteriorate beyond mild, ETT required. Administer atropine prior to intubation"
-    ],
-    notes: "SLUDGE + miosis + bronchorrhoea = cholinergic toxidrome. Atropine doubles every 5 min - no max dose. Large amounts required. Early scene decontamination. Consult VPIC for complex cases."
+    notes: "Atropine start dose 1200 mcg adult IV, then double each time. Target: dry chest, no wheeze, HR > 80, BP > 80. Decontamination before treatment if possible."
   },
 
   // -----------------------------------------------------------
@@ -1755,23 +1233,29 @@ const CPG_PACKAGES = {
     cpg: "A0720",
     title: "Cyanide Toxicity",
     careObjectives: [
-      "Recognise cyanide toxicity",
-      "Early administration of antidote (hydroxocobalamin)",
-      "Provide perfusion support if necessary",
-      "Transport to the nearest emergency department"
+      "Scene safety \u2014 cyanide can penetrate skin.",
+      "High-flow oxygen regardless of SpO\u2082.",
+      "Hydroxocobalamin (Cyanokit) as antidote."
     ],
     management: [
-      "Scene safety: dynamic risk assessment. PPE. Consider potential deliberate act. Assess potential for multi-casualty event",
-      "Pathophysiology: cyanide blocks cellular oxygen use → intracellular hypoxia → anaerobic metabolism → lactate → intracellular acidosis → widespread cellular hypoxia, respiratory arrest and/or cardiac arrest. Lethal at 1 mg/kg. Onset within 30 minutes. Rapid deterioration thereafter",
-      "Settings: industrial (combustion vapour/dust in mining, plastic manufacturing), scientific (electroplating, photography), house fires (inhalation of combustion vapour from plastics, polyurethane). Also stone fruit seeds (crushed), cassava root (incorrect preparation)",
-      "House fires: consider and manage concurrent carbon monoxide poisoning",
-      "Hydroxocobalamin (Cyanokit): binds to free cyanide ions, inactivating and allowing excretion in urine. NOT supplied by AV – may be available at high-risk environments. Always given IV. Early administration essential",
-      "Cyanokit preparation: add 200 mL normal saline to vial using transfer spike; gently invert or rock (do not shake) for at least 60 seconds – solution becomes dark red; discard if particulate matter present or not dark red; administer via infusion set",
-      "Adverse effects of hydroxocobalamin: anaphylaxis (rare), hypertension (possible), renal injury (possible), red/orange discolouration of body fluids and skin (may last 2–3 days)",
-      "Other antidotes (sodium nitrite): not to be used without VPIC consultation"
+      { type: "stop", text: "Cyanide can penetrate skin \u2014 apply PPE" },
+      { type: "note", items: [
+        "Mild\u2013moderate: CNS \u2014 headache, anxiety, dizziness; CVS \u2014 tachycardia; Resp \u2014 mild dyspnoea; GI \u2014 nausea and vomiting",
+        "Severe: CNS \u2014 confusion, altered conscious state (drowsiness to coma), seizures; CVS \u2014 hypotension, arrhythmia, dusky skin tone; Resp \u2014 severe respiratory distress; metabolic acidosis \u2014 blood lactate > 10 mmol/L"
+      ]},
+      { type: "header", text: "All toxicity \u2014 First line" },
+      { type: "action", text: "Escalate care / request MICA" },
+      { type: "action", text: "Oxygen (regardless of SpO\u2082) \u2014 15 LPM via NRBM" },
+      { type: "subheader", text: "Adult:" },
+      { type: "action", text: "IV access (x 2 if possible)" },
+      { type: "action", text: "Consult VPIC via AV Clinician for Hydroxocobalamin (Cyanokit) 5 g IV over 15 minutes \u2014 dose may be administered over 2\u20135 minutes if critically unwell/peri-arrest; dose may be repeated 30\u201360 minutes later pending VPIC consultation; administer if VPIC unavailable and exposure to cyanide is known" },
+      { type: "action", text: "Inadequate/extremely poor perfusion: Normal Saline 1000\u20132000 mL IV" },
+      { type: "subheader", text: "Paediatric:" },
+      { type: "action", text: "IV access (x 2 if possible)" },
+      { type: "action", text: "Normal Saline 10 mL/kg \u2014 repeat if inadequate perfusion" },
+      { type: "action", text: "Consult VPIC via AV Clinician for Hydroxocobalamin (Cyanokit) 70 mg/kg IV (max 5 g) over 15 minutes \u2014 administer if VPIC not available and exposure to cyanide is known" }
     ],
-    management_mica: [],
-    notes: "Cyanide = cellular hypoxia despite adequate oxygenation. House fires = consider concurrent CO poisoning. Hydroxocobalamin = antidote (not AV-supplied, may be on scene). Red/orange discolouration of fluids is expected with hydroxocobalamin."
+    notes: "Oxygen 15 LPM regardless of SpO\u2082. Cyanokit 5 g adult, 70 mg/kg paediatric. Can give over 2\u20135 min if peri-arrest. Blood will appear cherry red after hydroxocobalamin \u2014 do not be alarmed."
   },
 
   // -----------------------------------------------------------
@@ -1781,27 +1265,35 @@ const CPG_PACKAGES = {
     cpg: "A0719",
     title: "Drug Induced Hyperthermia",
     careObjectives: [
-      "Early identification",
-      "Control temperature – sedate, cool, hydrate",
-      "Supportive care"
+      "Early identification.",
+      "Control temperature \u2014 sedate, cool, hydrate.",
+      "Supportive care."
     ],
     management: [
-      "Key features: hyperthermia, altered mental status, neuromuscular excitation (tremor, increased tone)",
-      "Agents: amphetamines (ice, speed), cocaine, lithium, MAO inhibitors, MDMA, PCP, SNRIs, SSRIs, tramadol",
-      "Severity: Mild – tremor, tachycardia, anxiety, hyperreflexia, dilated pupils, dry mouth, flushed skin. Moderate – agitation, increased muscle tone, tachycardia, hyperthermia < 39°C. Severe – hyperthermia ≥ 39°C, muscle rigidity, seizures, confusion, severe agitation",
-      "Clonus may be present (inducible or sustained) – involuntary rhythmic muscle contraction",
-      "Mild toxicity: monitor for deterioration, transport. Reduce stimulus – calming environment",
-      "Moderate toxicity – Sedate with midazolam: reduces physical activity/agitation/muscle tremor/clonus contributing to dangerous temperature elevation. Physical restraints must NOT be applied without sedation – exertion while resisting restraint causes further temperature elevation",
-      "Moderate toxicity – Cool: active and passive cooling essential (air conditioning, removal of clothing including shoes and socks). Use cold IV fluids where IV hydration indicated",
-      "Moderate toxicity – Hydrate: administer cold IV fluid where available",
-      "Severe toxicity: sedation and rapid cooling are care priorities. Cool in ice bath where available (e.g. music festivals). Intubation may be required to assist cooling or due to airway/ventilation compromise",
-      "Occasionally ketamine may be required for patients displaying severe agitation as per CPG A0708. Ketamine does NOT treat serotonin toxicity. Midazolam should be administered once agitation controlled. Combined therapies likely require airway management",
-      "Consultation: VPIC for complex presentations, diagnosis support or management advice"
+      { type: "stop", text: "Patient may be agitated \u2014 safety precautions as per CPG A0708 Acute Behavioural Disturbance" },
+      { type: "note", items: ["Associated agents: amphetamines, cocaine, lithium, MAO inhibitors, MDMA/ecstasy, PCP, SSRIs/SNRIs, tramadol"] },
+      { type: "header", text: "Moderate toxicity \u2014 hyperthermia 38\u201339\u00b0C AND altered conscious state/agitation AND tremor, increased muscle tone" },
+      { type: "action", text: "Escalate care / request MICA" },
+      { type: "action", text: "Sedate: Midazolam (see dose table)" },
+      { type: "action", text: "Cool" },
+      { type: "action", text: "Hydrate: Normal Saline 1000\u20132000 mL IV (cold IV fluid where available)" },
+      { type: "header", text: "Severe toxicity \u2014 hyperthermia \u2265 39\u00b0C AND altered conscious state/severe agitation AND muscle rigidity, seizure activity" },
+      { type: "subheader", text: "First line:" },
+      { type: "action", text: "Manage as per Moderate Toxicity" },
+      { type: "action", text: "Immediate safety risk \u2014 sedate patient as per CPG A0708" },
+      { type: "action", text: "Prepare airway adjuncts and ventilation equipment" },
+      { type: "mica", text: "Anticipate RSI" },
+      { type: "subheader", text: "Second line \u2014 inadequate response OR airway/oxygenation/ventilation impairment:" },
+      { type: "mica", text: "Consider intubation" },
+      { type: "mica", text: "Post RSI maintenance as per CPG A0305 Airway Maintenance \u2014 consider independent midazolam and morphine infusions, priority for midazolam administration" },
+      { type: "header", text: "Midazolam dose table (Adult)" },
+      { type: "note", items: [
+        "IM (IV access not available): 5\u201310 mg; repeat 5\u201310 mg after 10 minutes if required (once only). < 60 kg/frail/elderly/SBP < 100 mmHg: 2.5\u20135 mg; repeat once after 10 minutes if required.",
+        "IV: 2.5\u20135 mg; repeat 2.5\u20135 mg at 5-minute intervals if required. < 60 kg/frail/elderly/SBP < 100 mmHg: 1\u20132 mg; repeat at 5-minute intervals if required.",
+        "Maximum total dose 20 mg (IM and IV). Consult VPIC via AV Clinician for further doses if required."
+      ]}
     ],
-    management_mica: [
-      "Severe serotonin toxicity: RSI may be appropriate where neuromuscular paralysis is required to assist cooling"
-    ],
-    notes: "Midazolam = primary sedation (not droperidol). No physical restraint without sedation. Cold IV fluids. Ice bath if available for severe. MDMA/amphetamine/SSRIs/SNRIs = serotonin toxicity. Consult VPIC for complex cases."
+    notes: "Sedate first, then cool. Cold IV fluid where available. Target temp reduction. Moderate = 38\u201339\u00b0C; Severe \u2265 39\u00b0C with rigidity/seizures."
   },
 
   // -----------------------------------------------------------
@@ -1811,23 +1303,32 @@ const CPG_PACKAGES = {
     cpg: "A0721",
     title: "Quetiapine Toxicity",
     careObjectives: [
-      "Airway management",
-      "Management of inadequate perfusion"
+      "Airway management.",
+      "Management of inadequate perfusion."
     ],
     management: [
-      "Pathophysiology: second-generation antipsychotic. Anticholinergic properties. CNS depression and cardiovascular instability in large doses. Available as immediate-release and extended-release (XR). Most common brand: Seroquel",
-      "Toxicity: dose dependent. Onset within 4 hours (standard release) up to 12 hours (modified release). Adults: > 3 g associated with greater risk severe CNS depression and hypotension (can occur at lower doses in naive patients). Paediatric: > 100 mg may be associated with severe toxicity. Coma may last > 72 hours following large ingestions",
-      "Clinical features: CVS – tachycardia, peripheral vasodilation/hypotension; CNS – sedation (drowsiness to coma), seizures (rare); Respiratory – respiratory depression and/or loss of airway protection; Anticholinergic – delirium, urinary retention",
-      "Supportive care is the mainstay of management",
-      "Escalate care and notify receiving hospital early where toxic doses ingested, even when symptoms not (yet) severe",
-      "Inadequate perfusion: IV fluids first line. Metaraminol or noradrenaline as first-line vasopressors if hypotension persists",
-      "Adrenaline: precaution – may worsen hypotension due to possible beta-receptor mediated vasodilation. Only consider in consultation with VPIC when other therapies unsuccessful",
-      "Cardiac arrest: administer adrenaline as per CPG A0201-1",
-      "Consult AV Medical Advisor and VPIC via AV Clinician for paediatric patients with poor perfusion",
-      "Seizures: usually self-limiting. Manage as per CPG A0703"
+      { type: "note", items: ["Suspected quetiapine toxicity: decreased conscious state, inadequate perfusion, respiratory depression, loss of airway control, anticholinergic toxidrome"] },
+      { type: "header", text: "Hypotension" },
+      { type: "note", items: ["Adult \u2265 16 years: SBP < 90 mmHg; Paediatric age-appropriate thresholds"] },
+      { type: "header", text: "First line" },
+      { type: "action", text: "Escalate care / request MICA" },
+      { type: "subheader", text: "Adult:" },
+      { type: "action", text: "Normal Saline 1000\u20132000 mL IV (see dose table)" },
+      { type: "subheader", text: "Paediatric:" },
+      { type: "action", text: "Normal Saline 10 mL/kg \u2014 repeat if inadequate perfusion" },
+      { type: "header", text: "Second line (inadequate response following IV fluid)" },
+      { type: "subheader", text: "Adult:" },
+      { type: "mica", text: "Metaraminol 0.5\u20131 mg IV at 2-minute intervals" },
+      { type: "subheader", text: "Paediatric:" },
+      { type: "mica", text: "Consult VPIC via AV Clinician" },
+      { type: "header", text: "Third line (inadequate response to 1\u20132 doses metaraminol)" },
+      { type: "subheader", text: "Adult:" },
+      { type: "mica", text: "Noradrenaline infusion: Start 5 mcg/min (5 mL/hr); Increase 5 mcg/min at 2 minute intervals; Target MAP \u2265 65 OR SBP > 100; Max 25 mcg/min; if inadequate response consult VPIC via AV Clinician" },
+      { type: "header", text: "Other care" },
+      { type: "action", text: "Manage seizures as per Seizures CPG A0703" },
+      { type: "mica", text: "Consider ETT" }
     ],
-    management_mica: [],
-    notes: "Supportive care. XR preparations delay onset up to 12 hours. Coma can last >72 hours. Adrenaline may worsen hypotension - avoid unless cardiac arrest or VPIC-directed. Metaraminol/noradrenaline preferred vasopressors."
+    notes: "Anticholinergic toxidrome: dry, hot, dilated, tachycardic, confused. Fluid then metaraminol then noradrenaline. Seizures managed per A0703."
   },
 
   // -----------------------------------------------------------
