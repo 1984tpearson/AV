@@ -1712,6 +1712,7 @@ const CPG_PACKAGES = {
 
 
 
+
   // -----------------------------------------------------------
   // M0101-1 The Maternity Patient
   // -----------------------------------------------------------
@@ -1723,17 +1724,29 @@ const CPG_PACKAGES = {
       "Prioritise assessment and resuscitation of the mother – welfare of the fetus is optimised by providing best available care to the mother"
     ],
     management: [
-      "Term: 37–42 weeks. Preterm: 23–< 37 weeks. Imminent birth: active pushing/grunting, rectal pressure, anal pouting/bulging perineum, unstoppable urge to push, presenting part on view (crowning), mother states 'I am going to have the baby'",
-      "Normal pregnancy HR: 80–110 bpm. BP: significant if SBP > 170 mmHg or DBP > 110 mmHg. Cardiac output ↑ by 30–40%. Blood volume ↑ 30–50% (5500 mL at term)",
-      "Position if > 20 weeks pregnant: allow position of comfort. If supine, left lateral tilt to reduce aorta-caval compression. 30° tilt (wedge under right hip) can significantly improve BP. If spinal immobilisation required: 15° tilt as entire unit",
-      "Supplemental O2: to maintain SpO2 > 94%",
-      "IV access: early access required in emergencies. Mother may lose 30–35% (2 L) circulating blood volume before showing signs of shock/hypotension. Fetus may be compromised even when mother appears stable",
-      "Stabilisation: assessment and resuscitation of mother takes priority",
-      "Trauma: fetal morbidity/mortality can occur with seemingly minor blunt trauma. All injured pregnant women should have obstetric assessment due to placental abruption risk. Even minor injuries may be associated with feto-maternal haemorrhage",
-      "Contact PIPER 24/7 via Clinician or on 1300 137 650 if any doubt about maternity CPG application"
+      { type: "assess", items: ["Gestation", "In labour", "Rupture of membranes", "Presenting part on view", "Baby born"] },
+      { type: "header", text: "Birth not imminent — Uncomplicated" },
+      { type: "action", text: "Basic care; pain relief as required per CPG A0501 Pain Relief; continue to monitor; transport to appropriate maternity service facility using a left lateral tilt position" },
+      { type: "header", text: "Birth not imminent — Complicated" },
+      { type: "action", text: "Mx as per CPG M0201 Antepartum Haemorrhage (APH) or CPG M0202 Pre-eclampsia / Eclampsia as appropriate" },
+      { type: "header", text: "Birth imminent — Uncomplicated" },
+      { type: "action", text: "Delivery as per CPG M0301 Normal Birth" },
+      { type: "header", text: "Birth imminent — Complicated" },
+      { type: "action", text: "Mx as per CPG M0302 Breech Presentation, CPG M0303 Preterm Labour, CPG M0304 Cord Prolapse, or CPG M0305 Shoulder Dystocia as appropriate" },
+      { type: "header", text: "Baby born" },
+      { type: "action", text: "Newborn care as per CPG N0201 Newborn Resuscitation; intra-partum care: delivery as per CPG M0301 Normal Birth; PPH as per CPG M0401 Primary Postpartum Haemorrhage" },
+      { type: "header", text: "Other maternity problem" },
+      { type: "action", text: "Trauma – as per appropriate CPG; cardiac arrest – as per CPG A0201 Cardiac Arrest" },
+      { type: "note", items: [
+        "Normal pregnancy physiology: HR 80–110 bpm; BP significant if SBP > 170 or DBP > 110 mmHg; cardiac output ↑ 30–40%; blood volume ↑ 30–50% (5500 mL at term)",
+        "Imminent birth: active pushing/grunting, rectal pressure, anal pouting/bulging perineum, strong unstoppable urge to push, presenting part on view (crowning), mother states 'I am going to have the baby'",
+        "Position if > 20 weeks pregnant: allow position of comfort. If supine, left lateral tilt (30° wedge under right hip) to reduce aorto-caval compression. If spinal immobilisation required: 15° tilt as entire unit",
+        "IV access: early access in emergencies. Mother may lose 30–35% (2 L) of circulating blood volume before showing signs of shock/hypotension. Fetus may be compromised even when mother appears stable",
+        "Supplemental O2: maintain SpO2 > 94%",
+        "Contact PIPER 24/7 via Clinician or on 1300 137 650 if any doubt about maternity CPG application"
+      ]}
     ],
-    management_mica: [],
-    notes: "Left lateral tilt > 20 weeks to prevent aorto-caval compression. High compensatory capacity - significant haemorrhage before signs of shock. Fetus may deteriorate even when mother appears stable. PIPER = 1300 137 650."
+    notes: "Left lateral tilt > 20 weeks to prevent aorto-caval compression. High compensatory capacity — significant haemorrhage before signs of shock. Fetus may deteriorate even when mother appears stable. PIPER = 1300 137 650."
   },
 
   // -----------------------------------------------------------
@@ -1746,19 +1759,25 @@ const CPG_PACKAGES = {
       "Time critical emergency requiring early recognition, intervention and prompt transport to reduce perinatal and maternal mortality"
     ],
     management: [
-      "Signs and symptoms of pre-eclampsia: headache; cerebral irritability/agitation; visual disturbances (flashing lights, shimmering); nausea/vomiting; heartburn/epigastric or abdominal pain; hyper-reflexia. An elevation of 20 mmHg above normal BP may be sufficient if other signs/symptoms present",
-      "Uterine pain and/or PV bleeding may signify abruption",
-      "Most common cause of seizures in pregnancy: pre-existing epilepsy. New onset seizures in latter half of pregnancy: most commonly eclampsia",
-      "Seizures may occur during or post birth, usually within 48 hours of birth. There are no reliable clinical indicators to predict eclampsia",
-      "Eclamptic seizures usually do not last longer than 90 seconds and are self-limiting",
-      "The only definitive treatment is birth of the baby",
-      "Provide early hospital notification. Contact PIPER via Clinician or on 1300 137 650",
-      "IHT Nifedipine: initial hospital dose 10 mg oral, repeated after 30 minutes if inadequate response"
-    ],
-    management_mica: [
-      "IHT – IV Magnesium Sulphate: loading doses and infusions should be established prior to transport. Indicated for severe pre-eclampsia and seizure prophylaxis. Loading dose 4 g IV over 10–15 minutes (or IM). Maintenance infusion usually 1 g/hr (4 mmol/hr) until at least 24 hours post delivery or last seizure. Via dedicated line with controlled infusion device and ECG monitoring",
-      "IHT – IV Labetalol: initial IV bolus 20 mg over 2 minutes. Repeat every 10 minutes until optimal BP or max 300 mg. Alternatively 20–160 mg/hr infusion",
-      "IHT – IV Hydralazine: initial IV bolus 5–10 mg over 5–10 minutes. Repeat twice at 30 minute intervals. Maintenance infusion 5 mg/hr. Target BP 140–160/90–100 mmHg. Do not lower below 140/80 mmHg"
+      { type: "stop", text: "Pre-eclampsia and eclampsia are time critical emergencies — early recognition, intervention and prompt transport required" },
+      { type: "assess", items: [
+        "Signs and symptoms of pre-eclampsia: headache; cerebral irritability/agitation; visual disturbances (flashing lights, shimmering); nausea and/or vomiting; heartburn / epigastric or abdominal pain; hyper-reflexia",
+        "An elevation of 20 mmHg above normal BP may be sufficient to indicate pre-eclampsia if other signs/symptoms are present",
+        "Uterine pain and/or PV bleeding may signify abruption"
+      ]},
+      { type: "action", text: "Provide early hospital notification. Contact PIPER via Clinician or on 1300 137 650" },
+      { type: "note", items: [
+        "Most common cause of seizures in pregnancy: pre-existing epilepsy. New onset seizures in latter half of pregnancy: most commonly eclampsia",
+        "Seizures may occur during or post birth, usually within 48 hours of birth. No reliable clinical indicators to predict eclampsia",
+        "Eclamptic seizures usually do not last longer than 90 seconds and are self-limiting",
+        "The only definitive treatment is birth of the baby"
+      ]},
+      { type: "header", text: "Inter hospital transfer — Nifedipine (ALS)" },
+      { type: "action", text: "Nifedipine: initial hospital dose 10 mg oral, repeated after 30 minutes if inadequate response" },
+      { type: "header", text: "Inter hospital transfer — MICA only IHT drugs" },
+      { type: "mica", text: "IV Magnesium Sulphate: indicated for severe pre-eclampsia and seizure prophylaxis. Loading doses and infusions to be established prior to transport. Loading dose 4 g IV over 10–15 minutes (or IM). Maintenance infusion usually 1 g/hr (4 mmol/hr) until at least 24 hours post delivery or last seizure. Via dedicated line with controlled infusion device and ECG monitoring" },
+      { type: "mica", text: "IV Labetalol: initial IV bolus 20 mg over 2 minutes. Repeat every 10 minutes until optimal BP achieved or max 300 mg. Alternatively 20–160 mg/hr infusion" },
+      { type: "mica", text: "IV Hydralazine: initial IV bolus 5–10 mg over 5–10 minutes. Repeat twice at 30 minute intervals. Maintenance infusion 5 mg/hr. Target BP 140–160 / 90–100 mmHg. Do not lower below 140/80 mmHg" }
     ],
     notes: "Visual disturbances + headache + hypertension = pre-eclampsia until proven otherwise. New seizure in second half of pregnancy = eclampsia. Self-limiting seizures. Definitive treatment = birth. Magnesium sulphate for seizure prophylaxis (MICA IHT). PIPER for advice."
   },
@@ -1773,19 +1792,41 @@ const CPG_PACKAGES = {
       "Safe management of normal out-of-hospital birth"
     ],
     management: [
-      "Prepare environment: warm room, clean flat surface, towels/blankets, cord clamp/tie, suction equipment",
-      "Imminent birth: allow mother to adopt comfortable position. Encourage controlled pushing with contractions",
-      "Crowning: support perineum gently. Allow head to deliver slowly between contractions. Do not pull",
-      "Nuchal cord: if cord loose around neck, slip over head. If tight, may need to clamp and cut before delivering body",
-      "Delivery of shoulders: gentle downward traction on head to deliver anterior shoulder; upward traction to deliver posterior shoulder",
-      "Dry, warm and stimulate newborn immediately. Assess breathing and muscle tone",
-      "Delayed cord clamping: wait until cord stops pulsating (approximately 1–2 minutes) unless resuscitation required",
-      "Third stage: delivery of placenta – do not pull on cord. Fundal massage only if uterus is NOT firm/contracted",
-      "Contact PIPER via Clinician or 1300 137 650 for advice as required",
-      "Manage newborn as per CPG N0101 and N0201 if resuscitation required"
+      { type: "assess", items: ["Maternity history", "Labour progression"] },
+      { type: "stop", text: "Opioid analgesics are contraindicated in late second stage labour" },
+      { type: "header", text: "Normal birth — not imminent" },
+      { type: "action", text: "Reassure; monitor regularly for change; transport to appropriate maternity service facility using a left lateral tilt position; provide analgesia as per CPG A0501 Pain Relief" },
+      { type: "header", text: "Imminent normal birth — preparation" },
+      { type: "action", text: "Reassure including cultural considerations; prepare equipment for normal birth; provide a warm and clean environment; provide analgesia as per CPG A0501 Pain Relief" },
+      { type: "header", text: "Normal birth — birth of head" },
+      { type: "action", text: "As head advances, encourage the mother to push with each contraction" },
+      { type: "action", text: "If head is birthing too fast, ask mother to pant with an open mouth during contractions instead" },
+      { type: "action", text: "Place fingers on baby's head to feel strength of descent of head" },
+      { type: "action", text: "Apply gentle pressure to the perineum to reduce risk of perineal tears" },
+      { type: "action", text: "If precipitous, apply gentle backward and downward pressure to control sudden expulsion of the head — Do not hold back forcibly" },
+      { type: "action", text: "Note the time once head is delivered" },
+      { type: "header", text: "Normal birth — umbilical cord check" },
+      { type: "action", text: "Following birth of the head, check for umbilical cord around neck. If loose and wrapped around neck: slip over baby's head with appropriate traction. If tight: mother should be encouraged to push; where baby does not descend and cord still cannot be loosened, clamp and cut cord" },
+      { type: "header", text: "Normal birth — head rotation" },
+      { type: "action", text: "With the next contraction the head will turn to face one of the mother's thighs (restitution) — this indicates internal rotation of shoulders in preparation for birth of body" },
+      { type: "header", text: "Normal birth — birth of shoulders and body" },
+      { type: "action", text: "May be passive or guided birth. Hold baby's head between hands and if required apply gentle downwards pressure to deliver the anterior (top) shoulder. Once anterior shoulder is visible, if necessary apply gentle upward pressure to birth posterior shoulder — the body will follow quickly" },
+      { type: "action", text: "Support the baby; note time of birth; place baby skin to skin with mother on her chest to maintain warmth unless baby is not vigorous / requires resuscitation" },
+      { type: "action", text: "Mx the vigorous newborn as per CPG N0101 Newborn Baby; Mx the non vigorous newborn as per CPG N0201 Newborn Resuscitation" },
+      { type: "action", text: "If the body fails to deliver in < 60 sec after the head: Mx as per CPG M0305 Shoulder Dystocia" },
+      { type: "action", text: "Following delivery of baby, gently palpate abdomen to ensure second baby is not present" },
+      { type: "header", text: "Normal birth — clamping and cutting the cord" },
+      { type: "action", text: "There is no immediate urgency to cut the cord. Wait for the cord to stop pulsating (commonly 1–2 minutes). Allow birthing partner to cut the cord if they wish. Ideally cord cutting should be undertaken prior to extrication" },
+      { type: "action", text: "To cut the cord, apply first clamp 10 cm from the baby and the second clamp a further 5 cm from the first, then cut between the two clamps" },
+      { type: "note", items: ["For uncomplicated births, a parental birthing preference where mother and baby are transported to hospital still attached is permissible (lotus births)"] },
+      { type: "header", text: "Normal birth — birthing placenta (third stage)" },
+      { type: "action", text: "Allow placental separation to occur spontaneously without intervention. This may take from 15 minutes up to 1 hour. Position mother sitting or squatting to allow gravity to assist expulsion. Breast feeding may assist separation or expulsion" },
+      { type: "action", text: "Do not pull on cord — wait for signs of separation: lengthening of cord; uterus becomes rounded, firmer, smaller; trickle or gush of blood from vagina; cramping/contractions return" },
+      { type: "action", text: "Placenta and membranes are birthed by maternal effort. Ask mother to give a little push. Use two hands to support and remove placenta using a twisting 'see saw' motion to ease membranes slowly out of the vagina. Note time of delivery of placenta" },
+      { type: "action", text: "Place placenta and blood clots into a container and transfer. Inspect placenta and membranes for completeness. Inspect that fundus is firm, contracted and central. Continue to monitor fundus though do not massage once firm" },
+      { type: "action", text: "If fundus is not firm or blood loss > 500 mL: Mx as per CPG M0401 Primary Postpartum Haemorrhage (PPH)" }
     ],
-    management_mica: [],
-    notes: "Hands-off approach for delivery. Do not pull baby. Delayed cord clamping preferred unless resuscitation needed. Fundal massage only if uterus not contracted. PIPER for complications."
+    notes: "Opioids C/I in late second stage. Hands-off approach for delivery — do not hold back head forcibly. Delayed cord clamping preferred unless resuscitation needed. Fundal massage only if uterus not contracted. Monitor for PPH. Contact PIPER for complications."
   },
 
   // -----------------------------------------------------------
@@ -1798,19 +1839,27 @@ const CPG_PACKAGES = {
       "Safe management of breech or compound presentation birth"
     ],
     management: [
-      "Types: Frank breech (buttocks first, hips flexed, legs extended – most common, ½ of all breech). Complete breech (buttocks first, hips and knees flexed). Footling (one or both feet present)",
-      "Meconium passage is normal as buttocks squeezed. Cord prolapse is more common with breech",
-      "If known breech and birth not imminent: transport to booked obstetric unit with surgical capacity. Provide early hospital notification",
-      "Precipitous delivery with back not uppermost: consider positioning mother kneeling on all fours",
-      "Position mother with buttocks to bed edge, legs supported (lithotomy position). Standing or squatting more physiologically sound but not suited to transport",
-      "Hands-off approach: encourages baby to maintain flexion. Only touch to gently support. Too much stimulus causes baby to extend flexed head",
-      "Main force of birth is maternal effort. DO NOT attempt to pull baby out. Allow birth to occur spontaneously with minimal handling",
-      "Most additional manoeuvres only required in event of delay",
-      "Prevent hypothermia: warm environment. Warm towels or bubble wrap if body exposed for extended period. Cool air may stimulate breathing if head remains unborn",
-      "Contact PIPER via Clinician or 1300 137 650 for advice"
+      { type: "assess", items: ["Stage of labour and birth imminent", "Buttocks or both feet presenting first", "One foot or hand / arm presenting first"] },
+      { type: "stop", text: "Opioid analgesics are C/I in late second stage labour. Do not attempt delivery of one foot or hand / arm presentation. Only proceed with delivery if birth is imminent." },
+      { type: "header", text: "Non imminent birth" },
+      { type: "action", text: "General maternal care; transport to booked appropriate maternity service unit with notification" },
+      { type: "header", text: "One foot, hand or arm presenting" },
+      { type: "action", text: "Do not attempt to deliver; transport urgently to appropriate maternity service unit with notification; consult with PIPER for advice" },
+      { type: "header", text: "Imminent breech birth — buttocks or both feet presenting" },
+      { type: "action", text: "Mx as per CPG M0301 Normal Birth except for: request urgent assistance; reassure including cultural considerations; prepare obstetrics equipment; provide a warm and clean environment; provide analgesia as per CPG A0501 Pain Relief; allow the birth to occur spontaneously; position mother with buttocks to bed edge and legs supported to allow gravity to assist; do not touch baby as it emerges; hands off the breech; the birth of buttocks/feet will occur slowly" },
+      { type: "header", text: "Buttocks first — back uppermost — delivery of body/legs" },
+      { type: "action", text: "This is the most common presentation. Do not attempt to pull the baby out. Encourage mother to push hard with contractions. Feet and legs should spring free. Await further descent. Keep body warm by wrapping in a towel or bubble wrap if needed. The body will further descend to the clavicles and arms should swing free. Let baby hang until the nape of neck is visible. The baby should face downward. Assist birth of the head using modified Mauriceau Smellie Veit Manoeuvre" },
+      { type: "header", text: "Buttocks first — back uppermost — delivery of head (Modified Mauriceau Smellie Veit Manoeuvre)" },
+      { type: "action", text: "Place the index and ring finger of non dominant hand on the baby's shoulders and middle finger on the occiput to assist with flexion of the head. Place dominant hand under the baby to support the body, with ring and index fingers on the baby's cheekbones. Slowly lift the baby straight up in a circle onto the mother's abdomen, allowing the head to birth slowly. An assistant can aid flexion of head by applying direct pressure behind the pubic bone" },
+      { type: "header", text: "Buttocks first — back not uppermost" },
+      { type: "action", text: "The baby's back needs to remain uppermost. If legs delivered and back is not uppermost: gently hold the baby by placing thumbs on bony sacrum with fingers around thighs — Do not squeeze the abdomen. Rotate/turn baby uppermost between contractions taking care of baby's spine. Take great care to never pull the baby" },
+      { type: "header", text: "Buttocks first — legs don't birth spontaneously (frank breech)" },
+      { type: "action", text: "Slip one hand along the leg of the baby lying anteriorly; place a finger behind the baby's knee and deliver it by flexion and abduction" },
+      { type: "header", text: "Buttocks first — arms don't birth spontaneously (Lovsett's Manoeuvre)" },
+      { type: "action", text: "Hold baby by the sacrum. Turn baby 90 degrees so that one shoulder is in the antero-posterior diameter. Insert a finger into the brachial plexus and sweep the arm down over the baby's chest. Turn baby 180 degrees so that the opposite shoulder is in the antero-posterior diameter. Repeat the finger manoeuvre. Turn the baby 90 degrees again so that the back is uppermost. Await further descent. Do not pull or apply traction" },
+      { type: "note", items: ["Contact PIPER via Clinician or on 1300 137 650 for advice"] }
     ],
-    management_mica: [],
-    notes: "Hands-off approach. Do not pull. Position = lithotomy. Cool air can stimulate breathing before head delivered. Cord prolapse risk higher with breech. PIPER for complex cases."
+    notes: "Hands-off approach — do not pull baby out. Back must remain uppermost. Position = lithotomy (buttocks to bed edge). Mauriceau Smellie Veit Manoeuvre for head delivery. Lovsett's for arms. PIPER for complex cases."
   },
 
   // -----------------------------------------------------------
@@ -1820,18 +1869,27 @@ const CPG_PACKAGES = {
     cpg: "M0304",
     title: "Cord Prolapse",
     careObjectives: [
-      "Time critical emergency – early diagnosis, immediate intervention and prompt transport to reduce perinatal mortality"
+      "Time critical emergency — early diagnosis, immediate intervention and prompt transport to reduce perinatal mortality"
     ],
     management: [
-      "Notify receiving hospital early",
-      "In most instances caesarean section is the preferred method of birth. If birth is imminent: encourage mother to push ONLY when presenting part is distending the perineum and mother is pushing uncontrollably. Prepare for newborn resuscitation as per CPG N0201",
-      "Cord prolapse usually associated with unstable lie or malpresentation",
-      "Cord handling should be kept to a minimum – can lead to vasospasm or contraction of umbilical vessels",
-      "Key history: time membranes ruptured, how long cord visible, due date, fetal movement, onset of labour, contractions, fetal presentation if known, PV bleeding",
-      "Contact PIPER via Clinician or 1300 137 650 for advice"
+      { type: "stop", text: "Time critical emergency — notify receiving hospital early" },
+      { type: "assess", items: ["Cord visible at vulva with ruptured membranes", "Stage of labour"] },
+      { type: "header", text: "Birth not imminent — Mx of mother" },
+      { type: "action", text: "Position patient semi-prone with hips elevated over folded towels; provide explanation and reassurance; Oxygen as per CPG A0001 Oxygen Therapy" },
+      { type: "header", text: "Birth not imminent — Mx of cord" },
+      { type: "action", text: "Minimise cord handling. Keep cord warm and moist — use 2 fingers to gently place cord in vagina. If unsuccessful, cover with warm saline packs (if possible)" },
+      { type: "header", text: "Birth not imminent — Mx of presenting part" },
+      { type: "action", text: "If there is pressure on the cord by the presenting part: insert fingers into vagina and push the presenting part (head) away from the cord. Maintain pressure until birth commences or advised to release" },
+      { type: "header", text: "Birth commencing" },
+      { type: "action", text: "Instruct mother to push; assist in delivery; prepare for newborn resuscitation; Mx as per CPG M0301 Normal Birth; Mx as per CPG N0201 Newborn Resuscitation" },
+      { type: "note", items: [
+        "Cord prolapse usually associated with unstable lie or malpresentation",
+        "Cord handling should be kept to a minimum — can lead to vasospasm or contraction of umbilical vessels",
+        "In most instances caesarean section is the preferred method of birth",
+        "Contact PIPER via Clinician or 1300 137 650 for advice"
+      ]}
     ],
-    management_mica: [],
-    notes: "Time critical. Minimise cord handling. C-section destination. Push only if birth imminent. PIPER immediately."
+    notes: "Time critical. Minimise cord handling — vasospasm risk. C-section destination. Semi-prone position with hips elevated. Push presenting part away from cord with fingers. PIPER immediately."
   },
 
   // -----------------------------------------------------------
@@ -1841,19 +1899,40 @@ const CPG_PACKAGES = {
     cpg: "M0305",
     title: "Shoulder Dystocia",
     careObjectives: [
-      "Time critical – 5–7 minutes to deliver baby due to cord compression against pelvic rim"
+      "Time critical — 5–7 minutes to deliver baby due to cord compression against pelvic rim"
     ],
     management: [
-      "Explain situation to mother to gain maximum co-operation",
-      "Document times: birth of head, timing of manoeuvres, delivery of body",
-      "Newborn likely to be compromised and require resuscitation. Prepare for resuscitation",
-      "Be prepared for sudden release of resistance – be ready to take hold of baby",
-      "Process of releasing baby may cause injury, particularly clavicle fracture. Manage appropriately including arm immobilisation",
-      "If manoeuvres not successful: consult PIPER regarding when to abandon attempts to deliver and initiate transport",
-      "Contact PIPER via Clinician or 1300 137 650 for advice"
+      { type: "assess", items: [
+        "Normal birthing procedure fails to accomplish delivery",
+        "Prolonged head-to-body delivery time (> 60 sec)",
+        "Difficulty with birth of face and chin",
+        "Baby's head retracts against perineum (turtle sign)",
+        "Failure of baby's head to restitute",
+        "Failure of shoulders to descend",
+        "Difficulty reaching neck when attempting to check for cord around neck",
+        "Baby's head colour turns purple then black"
+      ]},
+      { type: "stop", text: "At no time attempt to rotate the baby's head — rotate shoulders using pressure on the baby's scapula instead" },
+      { type: "header", text: "Prolonged head-to-body delivery time (> 60 sec)" },
+      { type: "action", text: "Note time of birth of head; request urgent additional assistance; explain to mother and ask her to push with focused effort when required; position mother with buttocks at bed edge; apply gentle downward traction to deliver anterior shoulder" },
+      { type: "header", text: "Delivery not accomplished — after 30–60 sec: McRobert's Manoeuvre" },
+      { type: "action", text: "Hyperflexion of maternal hips (knees to nipples): place mother in a recumbent position; hips to edge of bed enabling better access for gentle downward traction; assist mother to grasp her knees and pull her knees/thighs back as far as possible onto her abdomen (use assistant to help achieve and maintain position)" },
+      { type: "header", text: "Delivery remains not accomplished — after 30–60 sec: Suprapubic pressure" },
+      { type: "action", text: "Suprapubic pressure whilst in McRobert's position: hands in CPR position behind symphysis pubis, at 45° angle along baby's back (trying to rotate baby forward); apply 30 sec firm downward pressure, then 30 sec rocking motion to get shoulder out from under rim, at rate of approx 1 per sec" },
+      { type: "header", text: "Delivery remains not accomplished — after 30–60 sec: All Fours (Gaskin) Manoeuvre" },
+      { type: "action", text: "Rotate mother to all fours; hold baby's head and apply gentle downward traction — attempting to dis-impact and deliver the posterior shoulder (now uppermost)" },
+      { type: "header", text: "Delivery remains unaccomplished" },
+      { type: "action", text: "Consult with PIPER regarding when to abandon manoeuvres and transport. If unable to consult, transport with notification. Transport in McRobert's manoeuvre position with 30° left lateral tilt" },
+      { type: "note", items: [
+        "Explain situation to mother to gain maximum co-operation",
+        "Document times: birth of head, timing of manoeuvres, delivery of body",
+        "Newborn likely to be compromised and require resuscitation — prepare for resuscitation",
+        "Be prepared for sudden release of resistance — be ready to take hold of baby",
+        "Process of releasing baby may cause injury, particularly clavicle fracture — manage appropriately including arm immobilisation",
+        "Contact PIPER via Clinician or 1300 137 650 for advice"
+      ]}
     ],
-    management_mica: [],
-    notes: "5-7 minute window. Prepare for newborn resuscitation. HELPERR manoeuvres (per PIPER guidance). If unsuccessful - consult PIPER about transport vs continued attempts."
+    notes: "5–7 minute window. Never rotate the baby's head. Manoeuvre sequence: McRobert's → Suprapubic pressure → All fours (Gaskin). Prepare for newborn resuscitation. If unsuccessful — consult PIPER about transport vs continued attempts."
   },
 
   // -----------------------------------------------------------
@@ -1863,24 +1942,36 @@ const CPG_PACKAGES = {
     cpg: "N0101",
     title: "The Newborn Baby",
     careObjectives: [
-      "Initial assessment and management of the newborn baby"
+      "Establish and maintain effective respirations and normal body temperature",
+      "Identify newborns requiring resuscitation"
     ],
     management: [
-      "Normal values: weight average 3.5 kg; blood volume 80 mL/kg; HR 110–170; RR 25–60; temperature 36.5–37.5°C; BGL 2.6–3.2 mmol/L",
-      "Targeted SpO2 post birth: 1 min 60–70%; 3 mins 70–90%; 5 mins 80–90%; 7–10 mins > 90%. Pulse oximeter on right wrist/hand (pre-ductal)",
-      "Appearance: dusky and peripherally cyanosed in first few minutes is normal. Blue-ish/purple hands and feet normal in first 24 hours. Supplemental oxygen generally not required if breathing effectively and HR > 100",
-      "Vigorous newborn: dry and place naked skin-to-skin on mother's chest. Dry head and apply beanie. Cover both with warm blankets/towels",
-      "Resuscitation required: place on warm flat surface. Dry head, apply beanie, ensure warm environment. Bubble wrap over body. Chemical self-warming blankets must NOT be used to warm neonates",
-      "Preterm (32–42 wks): skin-to-skin on mother, simultaneously dry, cover with towels/blanket or bubble wrap, apply beanie",
-      "Very preterm (< 32 wks), witnessed: leave wet (fluid is warm). Straight into polyethylene bag with hole pre-cut for head, dry head, apply beanie",
-      "Very preterm (< 32 wks), unwitnessed: dry (fluid now cold), place in polyethylene bag with hole pre-cut for head, apply beanie",
-      "Suction: NOT routine in vigorous newborns even with meconium stained fluid. Only when airway obstruction suspected",
-      "Cord clamping – vigorous: not urgent, wait until cord stops pulsating (~1–2 minutes). Cord clamping – non-vigorous: may cut earlier to facilitate resuscitation if cord impedes access",
-      "APGAR at 1 and 5 minutes, then every 5 minutes until > 7. Not to be used as guide for resuscitation",
-      "Treat as per CPG N0201 if newborn does not rapidly develop effective respirations and good tone after drying/stimulating, or if deteriorates at any stage"
+      { type: "assess", items: ["Breathing", "Muscle tone"] },
+      { type: "header", text: "Breathing adequately and good muscle tone" },
+      { type: "action", text: "Continue to dry (especially the head); maintain warm (skin-to-skin, blankets, hat); routine suction is NOT recommended; monitor HR (auscultation), breathing, tone and colour" },
+      { type: "action", text: "If vital signs deteriorate or airway is obstructed at any stage: manage as per CPG N0201 Newborn Resuscitation" },
+      { type: "header", text: "Normal newborn — resuscitation not required" },
+      { type: "action", text: "Cut cord once cord has stopped pulsating (approx 1–2 mins) unless parental preference is to remain attached; note APGAR when practicable" },
+      { type: "header", text: "Apnoeic or gasping or no muscle tone" },
+      { type: "action", text: "Non vigorous newborn — manage as per CPG N0201 Newborn Resuscitation" },
+      { type: "header", text: "Transport destination" },
+      { type: "action", text: "> 36 weeks' gestation, uncomplicated delivery, stable vital signs: transport to appropriate maternity service (e.g. pre-booked hospital)" },
+      { type: "action", text: "32–36 weeks' gestation AND stable vital signs: transport to a level 2 hospital (paediatrician and midwife on site 24/7) in consultation with PIPER" },
+      { type: "action", text: "< 32 weeks' gestation, or unstable vital signs: transport to tertiary centre in consultation with PIPER" },
+      { type: "action", text: "Rural Victoria: transport to nearest base hospital or hospital with maternity service and contact PIPER" },
+      { type: "note", items: [
+        "Normal values: weight average 3.5 kg; blood volume 80 mL/kg; HR 110–170; RR 25–60; temperature 36.5–37.5°C; BGL 2.6–3.2 mmol/L",
+        "Targeted SpO2 post birth: 1 min 60–70%; 3 mins 70–90%; 5 mins 80–90%; 7–10 mins > 90%. Pulse oximeter on right wrist/hand (pre-ductal)",
+        "Appearance: dusky and peripherally cyanosed in first few minutes is normal. Blue-ish/purple hands and feet normal in first 24 hours",
+        "Vigorous newborn: dry and place naked skin-to-skin on mother's chest; dry head and apply beanie; cover both with warm blankets/towels",
+        "Preterm (32–42 wks): skin-to-skin on mother simultaneously; dry; cover with towels/blanket or bubble wrap; apply beanie",
+        "Very preterm (< 32 wks), witnessed: leave wet (fluid is warm); straight into polyethylene bag with hole pre-cut for head; dry head; apply beanie",
+        "Very preterm (< 32 wks), unwitnessed: dry (fluid now cold); place in polyethylene bag with hole pre-cut for head; apply beanie",
+        "Suction: NOT routine in vigorous newborns even with meconium stained fluid — only when airway obstruction suspected",
+        "APGAR at 1 and 5 minutes, then every 5 minutes until > 7. APGAR scores should not be used as a guide for resuscitation"
+      ]}
     ],
-    management_mica: [],
-    notes: "Skin-to-skin for vigorous newborn. Polyethylene bag for very preterm (<32 wks). SpO2 norms are LOW at birth - targets increase over first 10 min. APGAR not a resuscitation guide. Routine suction not recommended."
+    notes: "Skin-to-skin for vigorous newborn. Polyethylene bag for very preterm (< 32 wks). SpO2 targets are LOW at birth — increase over first 10 min. APGAR not a resuscitation guide. Routine suction not recommended."
   },
 
   // -----------------------------------------------------------
@@ -1895,26 +1986,33 @@ const CPG_PACKAGES = {
       "Escalation of care: seek early backup, expert advice and ensure transport to appropriate facility"
     ],
     management: [
-      "Ventilation and temperature are the most important principles. Other elements (supplemental O2, IV access, adrenaline) are not as important and unlikely to add value if they come at the expense of ventilation and temperature",
-      "Escalation: newborn resuscitation is complex, high acuity, low occurrence. Early PIPER backup is essential",
-      "Initial assessment: adequacy of breathing (regular spontaneous breathing within 15–30 seconds with stimulation) and muscle tone (moving all limbs, flexed posture)",
-      "Good muscle tone and adequate breathing: unlikely to need resuscitation",
-      "Inadequate breathing or poor muscle tone: position in resuscitation area; place airway in neutral position (folded towel under shoulders); continue drying and stimulation",
-      "If poor tone or inadequate breathing clearly persist: no need to delay initiating resuscitation to auscultate HR. Proceed directly to IPPV",
-      "PPV: initiate within first 60 seconds in non-vigorous newborn. Correctly sized facemask. OPAs not for routine use",
-      "Heart rate increase > 100 bpm is the most important indicator of adequate ventilation",
-      "If HR does not increase: most likely cause is inadequate ventilation. Focus on troubleshooting BVM, then progress to SGA or ETT if unsuccessful",
-      "CPR: 3:1 compression to ventilation ratio. 90 compressions and 30 ventilations per minute (120 events/min) with 0.5 second pause for ventilation. Compression depth approximately 1/3 chest depth",
-      "Two thumb, hand encircling technique preferred for CPR. Two-finger technique if tibial IO insertion required",
-      "Single rescuer: focus on effective PPV until backup arrives. 3:1 ratio as single operator unlikely to be effective",
-      "Shockable rhythms extremely rare in newborns. If observed: multifunction electrode pads, defibrillate in manual mode using 4 J/kg at 2-minute intervals",
-      "Pulse oximetry: attach to right hand or right wrist (pre-ductal). See CPG N0101 for normal SpO2 values",
-      "Withhold resuscitation: < 22 weeks gestation – no possibility of successful resuscitation. Any doubt about gestation: attempt resuscitation and consult PIPER",
-      "Legal requirement: any infant ≥ 20 weeks gestation OR ≥ 400 g birth weight OR showing signs of life must be registered, regardless of gestation"
-    ],
-    management_mica: [
-      "Advanced airway: EMMA capnograph with infant airway adaptor required for neonates. Both monitor and EMMA must be used to confirm placement",
-      "ETT sizes: extremely preterm < 1 kg (< 28 wks) – 2.5 mm, lip length 6–7 cm; moderately preterm 1–3 kg (28–34 wks) – 3.0 mm, lip length 7–9 cm; term/near term > 3 kg (≥ 35 wks) – 3.5 mm, lip length 9–10 cm"
+      { type: "header", text: "Initial response — apnoeic/gasping or poor muscle tone" },
+      { type: "action", text: "Position: cut cord if necessary to facilitate resuscitation; move to resus area (fresh towel, bubble wrap). Airway: neutral position (towel under shoulders); suction only if airway obstruction suspected. Continue drying/stimulating while assessing (no more than 30 seconds)" },
+      { type: "assess", items: ["Breathing / crying", "Muscle tone (flexed arms and legs)", "Heart rate (auscultate)"] },
+      { type: "header", text: "Apnoeic/gasping or poor muscle tone or HR < 100" },
+      { type: "action", text: "IPPV at 40–60 per minute on room air; target chest rise and fall; PEEP: 5 cm H₂O. Escalate care/PIPER via AV Clinician if not already contacted. SpO₂ monitoring (right hand or right wrist). ECG monitoring if resources permit (low priority, do not apply to newborns < 28 wks). Reassess after 30 seconds" },
+      { type: "note", items: ["Troubleshooting if no improvement: mask size and fit; chin lift and open mouth; ensure neutral airway position; two person BVM technique; increase inspiratory pressure; swap operators; consider suction if airway occlusion suspected"] },
+      { type: "header", text: "HR < 60 (with adequate ventilation)" },
+      { type: "action", text: "CPR 3:1 ratio with Oxygen (5 L/min). SGA if ≥ 34 weeks. Reassess in two-minute cycles. Intubate only if inadequate ventilation with SGA or SGA not indicated" },
+      { type: "action", text: "HR < 60 persists despite adequate ventilation: Adrenaline 10 mcg/kg IV 4 minutely" },
+      { type: "action", text: "HR < 60 persists despite adequate ventilation and adrenaline: Normal Saline 10–20 mL/kg IV — repeat if required (once only)" },
+      { type: "header", text: "HR 60–100" },
+      { type: "action", text: "Continue IPPV at 40–60 per minute on room air; troubleshoot; reassess after 30 seconds if continuous monitoring not already in place. If HR < 100 persists: IPPV with Oxygen (5 L/min). If HR < 100 persists: SGA if ≥ 34 weeks" },
+      { type: "header", text: "HR > 100" },
+      { type: "action", text: "Monitor closely; IPPV if HR drops below 100 at any stage" },
+      { type: "header", text: "Breathing laboured and/or SpO₂ < 90% persisting 5–10 minutes post birth" },
+      { type: "action", text: "Discuss with PIPER. Breathing laboured: IPPV at 40–60 per minute; titrate Oxygen (1–5 L/min) if SpO₂ < 90% after 5–10 minutes. Breathing normally: titrate Oxygen (1–2 L/min) via nasal prongs; target SpO₂ 90%; decrease/discontinue oxygen if SpO₂ > 90%" },
+      { type: "action", text: "Assess BGL (do not delay transport). If BGL < 2.6 mmol/L: consult with PIPER for administration of 10% Dextrose or Glucagon" },
+      { type: "note", items: [
+        "Ventilation and temperature are the most important principles — other elements (supplemental O2, IV access, adrenaline) are not as important and unlikely to add value if they come at the expense of ventilation and temperature",
+        "Single rescuer: focus on effective PPV until backup arrives — 3:1 ratio as single operator unlikely to be effective",
+        "Two thumb, hand encircling technique preferred for CPR. Two-finger technique if tibial IO insertion required",
+        "Shockable rhythms extremely rare in newborns. If observed: multifunction electrode pads, defibrillate in manual mode using 4 J/kg at 2-minute intervals",
+        "Withhold resuscitation: < 22 weeks gestation — no possibility of successful resuscitation. Any doubt about gestation: attempt resuscitation and consult PIPER",
+        "Legal requirement: any infant ≥ 20 weeks gestation OR ≥ 400 g birth weight OR showing signs of life must be registered, regardless of gestation"
+      ]},
+      { type: "mica", text: "Advanced airway: EMMA capnograph with infant airway adaptor required for neonates. Both monitor and EMMA must be used to confirm placement" },
+      { type: "mica", text: "ETT sizes: extremely preterm < 1 kg (< 28 wks) – 2.5 mm, lip length 6–7 cm; moderately preterm 1–3 kg (28–34 wks) – 3.0 mm, lip length 7–9 cm; term/near term > 3 kg (≥ 35 wks) – 3.5 mm, lip length 9–10 cm" }
     ],
     notes: "Ventilation and warmth = highest priorities. HR rise = best indicator of adequate ventilation. 3:1 CPR ratio. PPV within 60 seconds. PIPER early. Do not resuscitate < 22 weeks. EMMA infant adaptor essential for MICA intubation."
   }
