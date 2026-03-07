@@ -2896,7 +2896,45 @@ function renderTypedManagement(pkg) {
     html += `</div>`;
   }
 
+  // Group consecutive steps of the same groupable type into single blocks
+  const GROUPABLE = new Set(['action', 'mica', 'note']);
+  const grouped = [];
   steps.forEach(step => {
+    const last = grouped[grouped.length - 1];
+    // Fold subheaders into the current action/mica group as a labelled section
+    if (last && step.type === 'subheader' && GROUPABLE.has(last.type)) {
+      last._lines.push({ _subheader: step.text });
+    }
+    // Group consecutive same-type steps (including after a subheader was folded in)
+    else if (last && last.type === step.type && GROUPABLE.has(step.type)) {
+      if (step.items) last._lines.push({ _items: step.items });
+      else last._lines.push(step.text);
+    } else {
+      const entry = { ...step, _lines: [] };
+      if (step.items) entry._lines.push({ _items: step.items });
+      else if (step.text) entry._lines.push(step.text);
+      grouped.push(entry);
+    }
+  });
+
+  grouped.forEach(step => {
+    const lines = step._lines || [];
+
+    function renderLines(lines) {
+      if (!lines.length) return '';
+      let out = '';
+      lines.forEach(l => {
+        if (typeof l === 'string') out += `<li>${l}</li>`;
+        else if (l._subheader) out += `</ul><div class="cpg-step-subheader-action">${l._subheader}</div><ul>`;
+        else if (l._items) out += l._items.map(i => `<li>${i}</li>`).join('');
+      });
+      // Wrap in ul, clean up empty leading/trailing ul tags
+      return ('<ul>' + out + '</ul>')
+        .replace(/<ul>\s*<\/ul>/g, '')
+        .replace(/<ul>\s*(<div)/g, '$1')
+        .replace(/(<\/div>)\s*<\/ul>/g, '$1');
+    }
+
     switch (step.type) {
       case 'assess':
         html += `<div class="cpg-step cpg-step-assess"><div class="cpg-step-head">⏩ Assess</div><div class="cpg-step-body"><ul>${(step.items||[step.text]).map(i=>`<li>${i}</li>`).join('')}</ul></div></div>`;
@@ -2908,28 +2946,17 @@ function renderTypedManagement(pkg) {
         html += `<div class="cpg-step-header"><div class="hdr-q">?</div>${step.text}</div>`;
         break;
       case 'subheader':
+        // Standalone subheader (not folded into a group)
         html += `<div class="cpg-step cpg-step-action"><div class="cpg-step-subheader-action">${step.text}</div></div>`;
         break;
       case 'action':
-        if (step.items) {
-          html += `<div class="cpg-step cpg-step-action"><div class="cpg-step-body"><div class="cpg-action-badge">✔ Action</div><ul>${step.items.map(i=>`<li>${i}</li>`).join('')}</ul></div></div>`;
-        } else {
-          html += `<div class="cpg-step cpg-step-action"><div class="cpg-step-body"><p>${step.text}</p></div></div>`;
-        }
+        html += `<div class="cpg-step cpg-step-action"><div class="cpg-step-body"><div class="cpg-action-badge">✔ Action</div>${renderLines(lines)}</div></div>`;
         break;
       case 'note':
-        if (step.items) {
-          html += `<div class="cpg-step cpg-step-note"><div class="cpg-step-body"><ul>${step.items.map(i=>`<li>${i}</li>`).join('')}</ul></div></div>`;
-        } else {
-          html += `<div class="cpg-step cpg-step-note"><div class="cpg-step-body"><p>${step.text}</p></div></div>`;
-        }
+        html += `<div class="cpg-step cpg-step-note"><div class="cpg-step-body">${renderLines(lines)}</div></div>`;
         break;
       case 'mica':
-        if (step.items) {
-          html += `<div class="cpg-step cpg-step-mica"><div class="cpg-step-head">🔵 MICA Only</div><div class="cpg-step-body"><div class="cpg-mica-badge">✔ Action</div><ul>${step.items.map(i=>`<li>${i}</li>`).join('')}</ul></div></div>`;
-        } else {
-          html += `<div class="cpg-step cpg-step-mica"><div class="cpg-step-head">🔵 MICA Only</div><div class="cpg-step-body"><p>${step.text}</p></div></div>`;
-        }
+        html += `<div class="cpg-step cpg-step-mica"><div class="cpg-step-head">🔵 MICA Only</div><div class="cpg-step-body"><div class="cpg-mica-badge">✔ Action</div>${renderLines(lines)}</div></div>`;
         break;
     }
   });
