@@ -2723,8 +2723,8 @@ document.getElementById('ai-modal').addEventListener('click', e => { if(e.target
 // ── Category → CPG key mapping ─────────────────────────────────────────────
 const CATEGORY_TO_CPG = {
   // Adult
-  'Adult|Cardiac Arrest':    ['cardiac_arrest'],
-  'Adult|Airway Management': ['upper_airway_obstruction', 'dyspnoea'],
+  'Adult|Cardiac Arrest':    ['cardiac_arrest_medical', 'cardiac_arrest_traumatic', 'rosc_management', 'withholding_resuscitation'],
+  'Adult|Airway Management': ['essential_airway', 'endotracheal_intubation', 'difficult_airway', 'upper_airway_obstruction'],
   'Adult|Cardiac':           ['acs', 'bradycardia', 'tachycardia_narrow', 'tachycardia_broad', 'pulmonary_oedema', 'inadequate_perfusion_cardiogenic', 'stemi_management', 'hypertension'],
   'Adult|Pain Relief':       ['pain_relief'],
   'Adult|Respiratory':       ['asthma', 'copd', 'upper_airway_obstruction', 'dyspnoea', 'pulmonary_embolism'],
@@ -2735,8 +2735,8 @@ const CATEGORY_TO_CPG = {
   'Adult|Environment':       ['hypothermia', 'hyperthermia_environmental'],
   'Adult|Toxicology':        ['opioid_toxicity', 'tca_toxicity', 'beta_blocker_toxicity', 'ccb_toxicity', 'organophosphate_toxicity', 'drug_induced_hyperthermia', 'quetiapine_toxicity', 'alcohol_intoxication', 'alcohol_withdrawal', 'cyanide_toxicity'],
   // Paediatric
-  'Paediatric|Cardiac Arrest':    ['cardiac_arrest'],
-  'Paediatric|Airway Management': ['upper_airway_obstruction'],
+  'Paediatric|Cardiac Arrest':    ['cardiac_arrest_medical', 'cardiac_arrest_traumatic', 'rosc_management', 'withholding_resuscitation'],
+  'Paediatric|Airway Management': ['essential_airway', 'endotracheal_intubation', 'difficult_airway', 'upper_airway_obstruction'],
   'Paediatric|Pain Relief':       ['pain_relief'],
   'Paediatric|Respiratory':       ['asthma', 'upper_airway_obstruction'],
   'Paediatric|Medical':           ['seizures', 'hypoglycaemia', 'anaphylaxis', 'hyperglycaemia'],
@@ -2762,6 +2762,15 @@ const CATEGORY_TO_CPG = {
 
 // ── CPG subtype labels for the presentation-type dropdown ──────────────────
 const CPG_SUBTYPE_LABELS = {
+  // Cardiac Arrest / Resuscitation
+  cardiac_arrest_medical:   'Medical Cardiac Arrest',
+  cardiac_arrest_traumatic: 'Traumatic Cardiac Arrest',
+  rosc_management:          'ROSC Management',
+  withholding_resuscitation:'Withholding or Ceasing Resuscitation',
+  // Airway
+  essential_airway:         'Essential Airway Management',
+  endotracheal_intubation:  'Endotracheal Intubation (RSI)',
+  difficult_airway:         'Difficult Airway Guideline',
   // Toxicology
   opioid_toxicity:          'Opioid Toxicity',
   tca_toxicity:             'Tricyclic Antidepressant (TCA) Overdose',
