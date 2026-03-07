@@ -1332,33 +1332,345 @@ const CPG_PACKAGES = {
   },
 
   // -----------------------------------------------------------
+  // A0501 Pain Relief
+  // -----------------------------------------------------------
+  pain_relief: {
+    cpg: "A0501",
+    title: "Pain Relief",
+    careObjectives: [
+      "Assess and document pain severity.",
+      "Provide appropriate analgesia matched to pain severity.",
+      "Titrate to patient response."
+    ],
+    management: [
+      { type: "assess", items: ["Reported level of pain (using pain scale)", "Physical signs of discomfort (document)", "Acute vs. chronic pain", "Analgesia already taken", "Opioid tolerance", "Co-morbidities"] },
+      { type: "action", text: "Consider non-pharmacological management options as appropriate (e.g. splinting, cold/heat therapy)" },
+      { type: "header", text: "Mild pain" },
+      { type: "action", text: "Paracetamol oral (1000 mg; OR 500 mg if < 60 kg / frail / elderly / malnourished / liver disease)" },
+      { type: "note", items: ["Pain not controlled or rapid relief required: manage as per Moderate pain", "Paracetamol should not be used to treat chest pain in suspected acute coronary syndrome"] },
+      { type: "header", text: "Moderate pain" },
+      { type: "subheader", text: "First line \u2014 IV access available:" },
+      { type: "action", text: "Morphine IV OR Fentanyl IV (if specifically indicated)" },
+      { type: "subheader", text: "First line \u2014 IV access not required, delayed or unsuccessful:" },
+      { type: "action", text: "Fentanyl IN (preferred in adolescents/elderly patients) OR Ketamine IN" },
+      { type: "action", text: "All patients unless contraindicated: Paracetamol oral" },
+      { type: "subheader", text: "Second line \u2014 other options unsuccessful / unavailable / contraindicated:" },
+      { type: "action", text: "Ketamine IN (if minimal response to opioids)" },
+      { type: "action", text: "Morphine IM (if opioid not already administered)" },
+      { type: "subheader", text: "Third line OR Mild/moderate procedural pain:" },
+      { type: "action", text: "Methoxyflurane inhaled" },
+      { type: "note", items: ["Ketamine should not be used to treat chest pain in suspected acute coronary syndrome"] },
+      { type: "header", text: "Severe pain" },
+      { type: "subheader", text: "First line \u2014 IV access available:" },
+      { type: "action", text: "Morphine IV OR Fentanyl IV AND Ketamine IN \u2014 consult for Ketamine IV if pain remains severe following 2\u20133 doses (3\u20135 minutes between each medication to assess effectiveness)" },
+      { type: "mica", text: "Ketamine IV \u2013 analgesic dose" },
+      { type: "subheader", text: "Second line \u2014 IV access unsuccessful or delayed:" },
+      { type: "action", text: "Fentanyl IN and/or Ketamine IN and/or Methoxyflurane and/or Morphine IM (if opioid not already administered)" },
+      { type: "subheader", text: "Third line \u2014 transport time prolonged / ongoing need for Ketamine:" },
+      { type: "mica", text: "Ketamine infusion" },
+      { type: "subheader", text: "Fourth line \u2014 uncontrolled extreme pain:" },
+      { type: "mica", text: "Consider ETT as per CPG A0302 Endotracheal Intubation" },
+      { type: "subheader", text: "Severe procedural pain:" },
+      { type: "mica", text: "Consider Ketamine IV \u2013 procedural dose" }
+    ],
+    notes: "Dose table: Morphine IV up to 5 mg at 5-min intervals (consult after 20 mg); Fentanyl IV up to 50 mcg at 5-min intervals; Fentanyl IN 100 mcg (50 mcg if frail/elderly), repeat 50 mcg at 5-min (max 400 mcg IN); Ketamine IN 75 mg, repeat 50 mg at 20-min; Methoxyflurane 3 mL inhaled, repeat 3 mL (max 6 mL)."
+  },
+
+  // -----------------------------------------------------------
+  // A0502 Headache
+  // -----------------------------------------------------------
+  headache: {
+    cpg: "A0502",
+    title: "Headache",
+    careObjectives: [
+      "Risk stratify patients with headache.",
+      "Identify and transport high-risk presentations.",
+      "Provide appropriate analgesia."
+    ],
+    management: [
+      { type: "assess", items: ["Vital signs", "Blood glucose", "Nature of symptoms, onset, frequency and duration", "Provoking factors", "Comorbidities", "Established diagnosis of migraine (if any)", "If patient has individual patient management plan, this should be followed"] },
+      { type: "header", text: "Low\u2013moderate risk \u2014 no high-risk features AND no other reason for transport to ED" },
+      { type: "action", text: "Paracetamol 1000 mg oral if not already administered within past 4 hours (OR 500 mg if elderly/frail/< 60 kg/liver disease/malnourished)" },
+      { type: "action", text: "If considered to be or previously diagnosed as a migraine: Prochlorperazine 12.5 mg IM (if patient age \u2265 21 years)" },
+      { type: "action", text: "Cluster headache (history of medically diagnosed and consistent with previous episode): 10\u201315 L/min oxygen via non-rebreather mask" },
+      { type: "action", text: "Paramedic initiated VVED referral" },
+      { type: "header", text: "High-risk headache \u2014 Transport to ED" },
+      { type: "stop", text: "Potential SAH or ICH: sudden onset \u2018thunderclap\u2019 headache; worst in life headache; acute onset neurological deficit; altered mentation; recent significant head trauma; previous ICH; known aneurysm; seizure without history of epilepsy" },
+      { type: "stop", text: "Potential meningitis and/or encephalitis: meningism (fever, neck stiffness, photophobia); non-blanching rash; severe immunocompromise" },
+      { type: "stop", text: "Potential lesion / raised ICP: history of neurosurgery or VP shunts; history of cancer or neoplasm" },
+      { type: "stop", text: "Requires further investigation: headache different to usual presentation; potential poisoning/envenomation; use of amphetamines or cocaine; pregnancy or recently postpartum (~6 weeks); new onset severe headache in age > 50 or patients on anti-coagulants" },
+      { type: "action", text: "Transport to ED" },
+      { type: "action", text: "Paracetamol as per CPG A0501-1 Pain Relief" },
+      { type: "subheader", text: "Severe headache \u2014 if headache remains severe 15 minutes post-paracetamol AND hospital > 15 minutes away:" },
+      { type: "action", text: "Fentanyl IV / IN / IM as per CPG A0501-1 Pain Relief \u2014 aim to reduce pain to < 7" },
+      { type: "note", items: ["Prochlorperazine is contraindicated in CNS depression"] }
+    ],
+    notes: "Thunderclap = SAH until proven otherwise. Meningism = transport. Prochlorperazine IM for migraine (\u2265 21 years). Prochlorperazine contraindicated in CNS depression."
+  },
+
+  // -----------------------------------------------------------
+  // A0708 Acute Behavioural Disturbance
+  // -----------------------------------------------------------
+  acute_behavioural_disturbance: {
+    cpg: "A0708",
+    title: "Acute Behavioural Disturbance",
+    careObjectives: [
+      "Patient and paramedic safety.",
+      "Identify and treat correctable causes.",
+      "Safe and effective sedation when required.",
+      "Post-sedation monitoring."
+    ],
+    management: [
+      { type: "stop", text: "Patient and paramedic safety is paramount \u2014 ensure clear egress, watch for sharps, body fluids, potential violence, environmental stimuli" },
+      { type: "assess", items: ["Potential / correctable causes: head injury, infection/sepsis, metabolic derangement, hypoxia, hypoglycaemia, post ictal, alcohol withdrawal, exposure to toxins, drug-induced hyperthermia, unmet needs (e.g. pain)", "Establish past history and usual care plan", "SAT score", "Frailty"] },
+      { type: "action", text: "Treat correctable cause if possible" },
+      { type: "header", text: "Able to manage without sedation or restraint" },
+      { type: "action", text: "Continue verbal / environmental de-escalation strategies" },
+      { type: "action", text: "Manage as per Requires restraint/sedation if level of agitation changes at any time" },
+      { type: "action", text: "Consider consultation with mental health services (e.g. TelePROMPT) or transport to hospital" },
+      { type: "header", text: "Requires restraint / sedation \u2014 agitation does not adequately respond to de-escalation AND patient presents a risk to themselves or others" },
+      { type: "stop", text: "Ensure sufficient physical assistance and planning before attempting interventions. Prepare monitoring and resuscitation equipment BEFORE administering sedation." },
+      { type: "action", text: "Complete Sedation Checklist prior to administering parenteral sedation" },
+      { type: "action", text: "Aim for rousable drowsiness; apply and remove restraints as appropriate to level of risk at that time" },
+      { type: "header", text: "Mild to moderate agitation \u2014 cooperative and consents to oral medication" },
+      { type: "action", text: "Olanzapine ODT Oral" },
+      { type: "header", text: "Moderate to severe agitation \u2014 serious and imminent risk to safety; not cooperative; does not consent to oral medicine" },
+      { type: "action", text: "Droperidol IM / IV \u2014 preferred parenteral sedation in most circumstances; ensure minimum 15 minutes onset time prior to second dose; request MICA at point of deciding a repeat dose is required; consult AV Medical Advisor if inadequate response after two doses" },
+      { type: "action", text: "OR Midazolam IM / IV \u2014 preferred if known Lewy body dementia, Parkinson\u2019s disease or known QT prolongation" },
+      { type: "header", text: "Extreme safety risk \u2014 extreme and immediate risk to safety; risk of death or serious injury" },
+      { type: "action", text: "Request MICA / police" },
+      { type: "action", text: "Ketamine IM / IV \u2014 ALS must consult AV Medical Advisor prior to ketamine administration where droperidol or midazolam has already been administered; consult AV Medical Advisor via AV Clinician if patient remains agitated" },
+      { type: "header", text: "Post-sedation care" },
+      { type: "action", text: "Monitor the patient (see Supportive Care and Monitoring in general notes)" },
+      { type: "action", text: "Reassess and manage potential clinical causes" },
+      { type: "action", text: "If agitation reoccurs where episode of care exceeds initial medicine\u2019s duration of action: Olanzapine Oral if co-operative OR Droperidol IM/IV if unable to co-operate OR Midazolam IM/IV if droperidol contraindicated" },
+      { type: "note", items: ["Notification required where: physically or mechanically restrained; escorted by police; current agitation (SAT > 0); current altered conscious state (SAT < 0)"] }
+    ],
+    notes: "Droperidol preferred first-line parenteral sedation. Midazolam preferred if Lewy body/Parkinson\u2019s/QT prolongation. Ketamine for extreme safety risk \u2014 consult Medical Advisor if droperidol/midazolam already given."
+  },
+
+  // -----------------------------------------------------------
+  // A0712 Palliative Care
+  // -----------------------------------------------------------
+  palliative_care: {
+    cpg: "A0712",
+    title: "Palliative Care",
+    careObjectives: [
+      "Symptomatic management for palliative patients.",
+      "Consult community palliative care service where available.",
+      "Avoid unnecessary transport where symptoms can be managed."
+    ],
+    management: [
+      { type: "note", items: ["Status: patient in care of a community palliative care service AND has followed their symptom management plan without resolution of symptoms"] },
+      { type: "assess", items: ["Nausea/vomiting or pain causing distress or mild agitation or dyspnoea"] },
+      { type: "header", text: "Community Palliative Care service unavailable" },
+      { type: "stop", text: "Cross check calculations with partner and/or Clinician" },
+      { type: "action", text: "Treat nausea/vomiting as per CPG A0701 Nausea and Vomiting" },
+      { type: "action", text: "Treat distressing pain, mild agitation caused by pain, or dyspnoea with an appropriate dose of Morphine calculated via the AV CPG App (max 20 mg) and administered subcutaneously" },
+      { type: "action", text: "Treat mild agitation not caused by pain with Midazolam 2.5 mg S/C" },
+      { type: "action", text: "If symptoms are controlled following treatment and the patient/carers request transport, non-emergency patient transport (in a suitable timeframe) may be appropriate" },
+      { type: "header", text: "Community Palliative Care service available" },
+      { type: "action", text: "Consult for management \u2014 where available, two paramedics should confirm the details of any medications recommended by the community palliative care service" },
+      { type: "action", text: "Assess patient and treat as per appropriate guideline" },
+      { type: "action", text: "This may include transport to an appropriate medical facility" }
+    ],
+    notes: "Morphine S/C dose via AV CPG App (max 20 mg). Midazolam 2.5 mg S/C for agitation not caused by pain. Always cross-check subcutaneous doses with partner and/or Clinician."
+  },
+
+  // -----------------------------------------------------------
+  // A0725 Syncope
+  // -----------------------------------------------------------
+  syncope: {
+    cpg: "A0725",
+    title: "Syncope",
+    careObjectives: [
+      "Identify patients suffering from syncope.",
+      "Symptomatic management if required.",
+      "Identify care pathway appropriate to condition and risk profile."
+    ],
+    management: [
+      { type: "assess", items: ["History and physical examination", "Electrocardiogram", "Medication review", "If available, consider pregnancy and lactate testing", "Competing medical conditions"] },
+      { type: "header", text: "Low-risk syncope \u2014 reflex syncope OR uncomplicated orthostatic hypotension" },
+      { type: "action", text: "Symptom relief if required" },
+      { type: "action", text: "VVED referral for potential community management" },
+      { type: "header", text: "High-risk syncope \u2014 Transport; manage per appropriate CPG for condition" },
+      { type: "stop", text: "Any of: absence of symptoms prior to collapse; associated with palpitations; cardiac device (pacemaker or implanted cardioverter defibrillator); chest pain; exertional onset or occurs when supine; family history of young sudden cardiac death (< 50 years); ischaemic or structural heart disease; persistent hypotension (SBP < 90); abnormal ECG (bradycardia < 50 bpm, pre-excited QRS complexes, second or third-degree AV block, SVT or paroxysmal atrial fibrillation); severe headache and/or neurological deficits" }
+    ],
+    notes: "High-risk syncope = transport. Low-risk = VVED referral may be appropriate. ECG mandatory in all syncope patients."
+  },
+
+  // -----------------------------------------------------------
+  // A0729 Sepsis and Infection
+  // -----------------------------------------------------------
+  sepsis: {
+    cpg: "A0729",
+    title: "Sepsis and Infection",
+    careObjectives: [
+      "Identify and treat patients with clear signs of sepsis.",
+      "Risk stratify patients with infection to inform appropriate disposition."
+    ],
+    management: [
+      { type: "header", text: "Low risk \u2014 NEWS2 0\u20132 AND no risk factors" },
+      { type: "action", text: "Safety netting; self-care advice; consider referral to GP" },
+      { type: "header", text: "Moderate risk \u2014 NEWS2 3\u20134 OR risk factors (elderly/frail, severe obesity, diabetes, severe/complex chronic disease, clinician/carer concern, significant dental procedure, IV drug use, significant patient safety/social/environmental risk factors with inadequate support)" },
+      { type: "action", text: "Consider VVED if any single moderate risk feature is present OR transport if multiple criteria present" },
+      { type: "header", text: "High risk \u2014 NEWS2 5\u20136 (or score of 3 in any category) OR severe immunocompromise (chemotherapy within past 4 weeks, neutropenia, transplant) OR recent surgery/critical illness (~6 weeks) OR pregnant/recently pregnant (~6 weeks) OR indwelling medical devices" },
+      { type: "action", text: "Transport to ED" },
+      { type: "action", text: "Consider Mx as per Sepsis if sepsis is strongly suspected" },
+      { type: "header", text: "Sepsis \u2014 two or more of: hypotension (SBP \u2264 100 mmHg), altered conscious state (GCS < 15), tachypnoea (RR \u2265 22) OR NEWS2 \u2265 7" },
+      { type: "action", text: "Oxygen (as required per CPG A0001 Critical Illness: Sepsis)" },
+      { type: "action", text: "Normal Saline 500\u20131000 mL IV regardless of blood pressure" },
+      { type: "action", text: "Signal 1 transport + notification" },
+      { type: "header", text: "Septic shock \u2014 hypotension persists OR lactate > 2 mmol/L (if available)" },
+      { type: "action", text: "Normal Saline 500\u20131000 mL IV" },
+      { type: "action", text: "Ceftriaxone 2 g IV / IM if transport time > 60 minutes (manage suspected meningococcal septicaemia as per CPG A0706)" },
+      { type: "mica", text: "Metaraminol, noradrenaline and adrenaline as per CPG A0705 Shock if hypotension persists" }
+    ],
+    notes: "NEWS2 drives risk stratification. Sepsis = Signal 1. Fluid regardless of BP in sepsis. Ceftriaxone only if > 60 min transport. Vasopressors for septic shock."
+  },
+
+  // -----------------------------------------------------------
+  // A0706 Meningococcal Septicaemia
+  // -----------------------------------------------------------
+  meningococcal: {
+    cpg: "A0706",
+    title: "Meningococcal Septicaemia",
+    careObjectives: [
+      "Early recognition of meningococcal septicaemia.",
+      "Ceftriaxone administration.",
+      "Fluid resuscitation and shock management."
+    ],
+    management: [
+      { type: "stop", text: "PPE" },
+      { type: "assess", items: [
+        "Typical purpuric rash",
+        "Septicaemia signs: fever, rigor, joint and muscle pain, cool hands and feet, tachycardia, hypotension, tachypnoea",
+        "Meningeal signs: headache, photophobia, neck stiffness, nausea and vomiting, altered conscious state"
+      ]},
+      { type: "action", text: "Ceftriaxone 2 g IV / IM" },
+      { type: "action", text: "Oxygen (as required per CPG A0001 Oxygen Therapy \u2013 Critical Illness: Sepsis)" },
+      { type: "action", text: "Normal saline as per CPG A0729 Sepsis and Infection; perfusion management as per Shock CPG A0705" }
+    ],
+    notes: "Ceftriaxone 2 g IV or IM \u2014 give as soon as meningococcal septicaemia is suspected. PPE mandatory."
+  },
+
+  // -----------------------------------------------------------
+  // A0107 Mental Health Conditions
+  // -----------------------------------------------------------
+  mental_health_conditions: {
+    cpg: "A0107",
+    title: "Mental Health Conditions",
+    careObjectives: [
+      "Identify patients presenting with a mental health issue.",
+      "Assess for high-risk symptoms requiring transport.",
+      "Connect patients with appropriate specialist mental health support.",
+      "Initiate care plan for lower-risk presentations."
+    ],
+    management: [
+      { type: "note", items: ["Intended for patients aged 16 years or older with high index of suspicion of presenting with a mental health issue"] },
+      { type: "assess", items: ["Scene safety", "Complete Mental Status Assessment CPG A0106", "Assess and Mx clinical/organic causes (AEIOUTIPS, grief and pain)"] },
+      { type: "header", text: "If danger present" },
+      { type: "stop", text: "Withdraw from scene to safe distance; inform communications; request police assistance; only re-approach once escorted or instructed by police; violent or extremely agitated behaviour is immediately 'High Risk' \u2014 manage as per CPG A0708 Acute Behavioural Disturbance" },
+      { type: "header", text: "High-risk symptoms \u2014 Transport to hospital" },
+      { type: "stop", text: "Any of: current attempted suicide or self-harm requiring assessment/management at ED; intentional overdose or poisoning requiring ED; substance intoxication to the point patient unable to complete mental status assessment (CPG A0106); enacted Section 232 of the Mental Health Act 2022; requires sedation as per CPG A0708; patient in dangerous social situation (e.g. family or domestic violence); acute psychosis, mania or confusional state/delirium; patient has any Red Flags (CPG A0108)" },
+      { type: "action", text: "Ascertain patient\u2019s home address and which mental health catchment they belong to (via AV Clinician or VACIS)" },
+      { type: "action", text: "Transport patient to appropriate and/or nearest available hospital" },
+      { type: "header", text: "Signs that patient requires specialist mental health assessment" },
+      { type: "note", items: ["Any of: currently under care of a mental health service; recent discharge (< 28 days) from a psychiatric inpatient admission; unwillingness to accept help; current suicidal ideation or previous attempts of suicide or self-harm; patient lacks social or emotional support options; evidence of not coping \u2014 verbal statements, environmental cues"] },
+      { type: "action", text: "Contact TelePROMPT by phoning 1800 067 549 \u2014 provide handover using IMIST AMBO; facilitate three-way assessment (Patient, TelePROMPT Mental Health Nurse and Paramedic)" },
+      { type: "action", text: "If Mental Health Nurse unavailable: transport to appropriate hospital" },
+      { type: "header", text: "No high-risk symptoms and specialist assessment not required" },
+      { type: "action", text: "Obtain consent from patient for alternative service provision as per CPG A0111 and initiate care plan" },
+      { type: "action", text: "Refer to patient\u2019s relevant health professional (mental health practitioner or GP)" },
+      { type: "action", text: "Contact patient\u2019s family member or friend and wait for arrival (if necessary)" },
+      { type: "action", text: "Provide Mental Health and Wellbeing Health Information sheet and discuss with patient" }
+    ],
+    notes: "TelePROMPT: 1800 067 549. High-risk = transport. Section 232 Mental Health Act 2022 = transport. AEIOUTIPS for organic causes."
+  },
+
+  // -----------------------------------------------------------
+  // A0901 Hypothermia / Cold Exposure
+  // -----------------------------------------------------------
+  hypothermia: {
+    cpg: "A0901",
+    title: "Hypothermia / Cold Exposure",
+    careObjectives: [
+      "Prevent further heat loss.",
+      "Manage potential major trauma concurrently.",
+      "Caution with intubation in severe hypothermia due to arrhythmia risk."
+    ],
+    management: [
+      { type: "assess", items: ["Perfusion status", "BGL if altered conscious state"] },
+      { type: "header", text: "Hypothermia < 35\u00b0C" },
+      { type: "action", text: "Protect the patient from heat loss using all available options: ensure ambulance heater remains on and rear of vehicle closed as much as possible; remove wet clothing and dry the patient; cover the patient above and below with a thermal wrap (sheet/space blanket/standard blanket) or if available, an active warming blanket device" },
+      { type: "note", items: ["Intubation needs to be approached with caution in severe hypothermia, due to the risk of stimulating a lethal arrhythmia"] },
+      { type: "mica", text: "If GCS < 10 consider ETT as per CPG A0302 Endotracheal Intubation" },
+      { type: "header", text: "Potential Major Trauma regardless of T\u00b0" },
+      { type: "action", text: "Manage as per relevant CPGs, whilst concurrently protecting the patient from heat loss: ensure ambulance heater on and rear of vehicle closed; minimise scene time as per CPG A0800 Principles of Major Trauma; remove wet clothing and dry the patient; cover above and below with thermal wrap or active warming blanket" },
+      { type: "action", text: "If patient is a high risk trauma patient (Temp < 35\u00b0C or intubated or haemorrhagic shock): all above measures are an urgent priority and MUST be implemented as soon as possible, concurrently with other management" }
+    ],
+    notes: "Prevent further heat loss \u2014 warm vehicle, dry patient, thermal wrap. Intubation in severe hypothermia risks VF. Hypothermia + trauma = high priority concurrent warming."
+  },
+
+  // -----------------------------------------------------------
+  // A0902 Hyperthermia / Heat Stress
+  // -----------------------------------------------------------
+  hyperthermia_environmental: {
+    cpg: "A0902",
+    title: "Hyperthermia / Heat Stress",
+    careObjectives: [
+      "Cool the patient.",
+      "Fluid resuscitation.",
+      "Differentiate environmental/exertional from toxin-induced hyperthermia."
+    ],
+    management: [
+      { type: "stop", text: "This guideline is NOT FOR USE in the patient who is febrile due to suspected infection" },
+      { type: "assess", items: ["Signs and symptoms: elevated temperature AND any of \u2014 altered consciousness/confusion/incoherent speech, dizziness/collapse, nausea/vomiting, abnormal gait, seizures", "BGL if altered conscious state", "Perfusion and hydration status"] },
+      { type: "header", text: "Toxin induced \u2014 ingested a pro-serotonergic agent OR stimulant drug" },
+      { type: "action", text: "See CPG A0719 Drug Induced Hyperthermia" },
+      { type: "header", text: "Environmental / Exertional (athletic training in hot conditions, manual labour in heavy clothing, elderly/frail in hot environment, sauna, direct sunlight)" },
+      { type: "action", text: "Cooling techniques: remove patient from hot environment; strip / spray / fan (aggressive fanning); junctional ice packs" },
+      { type: "subheader", text: "Elderly / frail patient:" },
+      { type: "action", text: "Cold Normal Saline IV (max. 20 mL/kg) \u2014 reassess after each 500 mL increment" },
+      { type: "subheader", text: "Young / fit / healthy patient:" },
+      { type: "action", text: "Consider immediate ice bath or cold shower if facilities and resources allow while preparing for transport, otherwise cooling techniques" },
+      { type: "action", text: "Cold Normal Saline IV (max. 40 mL/kg)" },
+      { type: "mica", text: "Consider intubation as per CPG A0302 Endotracheal Intubation if required to facilitate cooling" }
+    ],
+    notes: "Not for febrile infection. Aggressive cooling: ice packs, fanning, cold IV fluid. Cold saline 20 mL/kg (elderly) or 40 mL/kg (young/fit). Differentiate from drug-induced hyperthermia (A0719)."
+  },
+
+  // -----------------------------------------------------------
   // A0726 Acute Alcohol Intoxication
   // -----------------------------------------------------------
   alcohol_intoxication: {
     cpg: "A0726",
     title: "Acute Alcohol Intoxication (Ethanol)",
     careObjectives: [
-      "Identify patients experiencing ethanol toxicity and the severity",
-      "Protect and support patient dignity",
-      "Manage symptoms as required",
-      "Identify appropriate disposition: Low-moderate risk – self-care or sobering services; High risk – transport to ED"
+      "Exclude differential diagnoses and manage co-morbid conditions.",
+      "Assess risk and determine appropriate disposition.",
+      "Manage high-risk findings."
     ],
     management: [
-      "Acute alcohol intoxication causes rapid-onset, dose-related CNS depression. Large quantities can be life-threatening due to aspiration and/or respiratory depression, especially with co-ingested CNS depressants",
-      "People presenting with alcohol intoxication are at high risk of unconscious bias and stigma. Comprehensive examination is crucial to exclude undetected critical illness masked by intoxication",
-      "Differential diagnoses to exclude: seizure/postictal, hypoglycaemia, hypoxia, co-ingestion, withdrawal syndrome, head trauma, infection/sepsis, psychiatric, stroke/TIA, Wernicke encephalopathy",
-      "Wernicke encephalopathy: acute neurological emergency from severe thiamine deficiency. Suspect in chronic alcohol users with: acute altered mental status or memory deficit, disordered eye movements (nystagmus), ataxic gait",
-      "AUDIT-C screening tool: Males ≥ 4 = alcohol misuse; Females ≥ 3 = alcohol misuse",
-      "Airway: basic airway support or lateral positioning. Advanced airway rarely required unless simple manoeuvres cannot address airway/breathing compromise",
-      "Hypotension: usually responds to fluid. Manage as per CPG A0705 Shock",
-      "Nausea/vomiting: antiemetic as per CPG A0701. Avoid IV in low/moderate risk patients unless unable to tolerate oral",
-      "Hypoglycaemia: manage as per CPG A0702. Avoid glucagon in chronic alcohol users (may suppress gluconeogenesis and glycogen stores depleted)",
-      "Low risk: self-care advice – no more alcohol, lateral position, warm, hydrated, paracetamol for mild pain. Safety netting: competent sober adult present",
-      "Moderate risk: consider sobering service (contact prior to transport to confirm acceptance) or ED if any doubt",
-      "High risk: transport to hospital. Ongoing symptom management and escalate as required"
+      { type: "note", items: ["Status: recent ingestion of ethanol AND differential diagnoses excluded AND no other acute medical conditions"] },
+      { type: "assess", items: [
+        "Ongoing mental status examination and conscious state assessment",
+        "Assessment of medical decision-making capacity (CPG A0111 Consent and Capacity)",
+        "AUDIT-C Tool",
+        "Assess for alcohol withdrawal",
+        "High risk findings: red flags (CPG A0108), arrhythmia, aspiration or significant aspiration risk, head injury, hypoglycaemia, fever or hypothermia, moderate to severe agitation, moderate to severe alcohol withdrawal syndrome, unmanaged pain or nausea, inability to walk with minimal assistance, chronic renal failure or liver disease"
+      ]},
+      { type: "action", text: "Airway and ventilation support if required" },
+      { type: "action", text: "Manage nausea" },
+      { type: "action", text: "Manage pain" },
+      { type: "action", text: "Manage hypoglycaemia" },
+      { type: "action", text: "Manage shock" },
+      { type: "header", text: "Disposition" },
+      { type: "action", text: "Self-care if low risk with competent adult present and able to care for patient" },
+      { type: "action", text: "Referral if moderate risk and sobering services available in community" },
+      { type: "action", text: "Transport if moderate risk and no sobering services available in community OR patient lacks capacity OR high risk findings present" }
     ],
-    management_mica: [],
-    notes: "Exclude other causes before attributing purely to alcohol. Wernicke risk with chronic use. AUDIT-C scores guide alcohol misuse. Avoid glucagon in chronic users. Consider sobering service for moderate risk."
+    notes: "Exclude differentials before attributing to alcohol alone. High-risk findings mandate transport. AUDIT-C and capacity assessment required."
   },
 
   // -----------------------------------------------------------
@@ -1368,27 +1680,37 @@ const CPG_PACKAGES = {
     cpg: "A0727",
     title: "Alcohol Withdrawal Syndrome",
     careObjectives: [
-      "Identify patients experiencing alcohol withdrawal and assess severity",
-      "Symptomatic management",
-      "Reduce risk of progression to severe alcohol withdrawal",
-      "Identify appropriate disposition: Mild/moderate without complex features – community-based management; Moderate with complex features or severe – paramedic transport to ED"
+      "Identify and assess severity of alcohol withdrawal syndrome.",
+      "Symptomatic management.",
+      "Reduce risk of progression to severe alcohol withdrawal.",
+      "Identify appropriate disposition."
     ],
     management: [
-      "Alcohol withdrawal typically occurs 6–24 hours after last drink or following severe reduction. Patient may experience withdrawal despite appearing clinically intoxicated if regular consumption is high",
-      "Symptoms peak 36–72 hours, subsiding within 5–7 days (aside from severe withdrawal)",
-      "AWS (Alcohol Withdrawal Scale) – Mild: < 5; Moderate: 5–14; Severe: > 14",
-      "Physical exam required to exclude: infections (especially if febrile), hyperthyroidism, withdrawal from other sedating substances",
-      "Features increasing likelihood of complex withdrawal: seizure during current episode; history of alcohol withdrawal delirium or seizure; previous withdrawal episodes; age > 65; co-occurring illness (especially TBI); long duration heavy alcohol use; concomitant other substances; psychiatric disorder",
-      "Benzodiazepines: preferred option for significant distress/agitation. Goal: rousable drowsiness (SAT 0 or -1). Heavy sedation (SAT -2 or -3) should be avoided",
-      "IV midazolam strongly preferred. IM acceptable for severe withdrawal and Delirium Tremens where IV access challenging",
-      "Benzodiazepines should only commence in patients with moderate AWS following consultation with VVED and/or Drug and Alcohol Clinical Advisory Service (DACAS)",
-      "Severe AWS: paramedics empowered to commence benzodiazepines. Contact DACAS if any doubt about dosing",
-      "Mild AWS: referral to GP or VVED. Self-care: low stimulation environment, non-caffeinated fluids, normal diet, multivitamin, oral thiamine 100 mg PO three times per day, paracetamol for mild pain",
-      "Safety netting: call 000 or attend ED if agitation/tremor not resolving, more severe symptoms develop, existing conditions worsen, or patient appears over-sedated"
+      { type: "assess", items: ["AUDIT-C", "Alcohol Withdrawal Scale (AWS)", "Mental Status Assessment", "Competing medical conditions or significant traumatic injury"] },
+      { type: "header", text: "Mild alcohol withdrawal \u2014 AWS < 5" },
+      { type: "action", text: "Antiemetic" },
+      { type: "action", text: "Pain relief" },
+      { type: "action", text: "Outpatient withdrawal management: consult patient\u2019s regular GP OR VVED if regular GP not available" },
+      { type: "action", text: "Self-care advice: hydration, nutrition, thiamine supplementation, pain relief, psychosocial supports, withdrawal expectations" },
+      { type: "header", text: "Moderate alcohol withdrawal \u2014 AWS 5\u201314" },
+      { type: "note", items: ["Assess for features that increase likelihood of complex withdrawal: history of alcohol withdrawal delirium or seizure; previous withdrawal episodes; age > 65; comorbid illness (particularly TBI); long duration of heavy and regular alcohol consumption; seizure during current withdrawal episode; concomitant use of other addictive substances; signs and symptoms of co-occurring psychiatric disorder of moderate or greater severity"] },
+      { type: "action", text: "Antiemetic" },
+      { type: "action", text: "Pain relief" },
+      { type: "action", text: "Consult with VVED for care planning" },
+      { type: "action", text: "If patient commenced on outpatient withdrawal management: self-care advice (hydration, nutrition, thiamine supplementation, pain relief, psychosocial supports, withdrawal expectations)" },
+      { type: "action", text: "FOLLOWING CONSULT WITH VVED/DACAS, if patient transported for inpatient management and symptoms causing significant discomfort or agitation: Midazolam 2.5\u20135 mg IV; repeat Midazolam 2.5\u20135 mg IV after 5 minutes (max. 20 mg) titrated to patient response, aiming for SAT score 0 or -1" },
+      { type: "header", text: "Severe alcohol withdrawal \u2014 AWS > 14 / Delirium Tremens / Withdrawal seizures" },
+      { type: "action", text: "Antiemetic" },
+      { type: "action", text: "Pain relief" },
+      { type: "action", text: "If symptoms causing significant distress or agitation: Midazolam 2.5\u20135 mg IV; repeat Midazolam 2.5\u20135 mg IV after 5 minutes (max. 20 mg) titrated to patient response, aiming for SAT of 0 or -1; if unable to gain IV access: Midazolam IM (same dose as IV)" },
+      { type: "action", text: "Patient refractory to initial doses of Midazolam: escalate care / request MICA; Midazolam 2.5\u20135 mg IV; repeat Midazolam 2.5\u20135 mg IV after 5 minutes (total max. 30 mg) titrated to patient response, aiming for rousable drowsiness (SAT of 0 to -1); consult DACAS via AV Clinician if approaching 30 mg" },
+      { type: "action", text: "Seizures: Mx as per CPG A0703 Seizures" },
+      { type: "action", text: "Shock: Mx as per CPG A0705 Shock" }
     ],
-    management_mica: [],
-    notes: "AWS scale guides severity. Benzodiazepines for moderate-severe. Consult VVED/DACAS before commencing in moderate. IV midazolam preferred. Self-care oral thiamine for mild. Features of complex withdrawal = transport to ED."
+    notes: "AWS scale drives severity. Midazolam for moderate\u2013severe (post VVED/DACAS consult for moderate). Severe: Midazolam titrated, max 20 mg initial; max 30 mg with MICA escalation. Target SAT 0 to -1."
   },
+
+
 
   // -----------------------------------------------------------
   // M0101-1 The Maternity Patient
