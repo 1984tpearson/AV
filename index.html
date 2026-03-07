@@ -3086,7 +3086,7 @@ const SCENARIO_JSON_TEMPLATE = `{"title":"","subtitle":"","category":"CAT","subc
 function parseFirstJSON(raw) {
   // Strip markdown fences
   let s = raw.replace(/```json|```/g, '').trim();
-  // Find first { and last matching }
+  // Find first { and matching }
   const start = s.indexOf('{');
   if (start === -1) throw new Error('No JSON object found in response');
   let depth = 0, end = -1;
@@ -3095,7 +3095,25 @@ function parseFirstJSON(raw) {
     else if (s[i] === '}') { depth--; if (depth === 0) { end = i; break; } }
   }
   if (end === -1) throw new Error('Unterminated JSON object in response');
-  return JSON.parse(s.slice(start, end + 1));
+  let jsonStr = s.slice(start, end + 1);
+  // First attempt — try parsing as-is
+  try { return JSON.parse(jsonStr); } catch(e1) {}
+  // Second attempt — strip JS-style comments
+  try {
+    const stripped = jsonStr.replace(/\/\/[^\n\r"]*/g, '');
+    return JSON.parse(stripped);
+  } catch(e2) {}
+  // Third attempt — fix trailing commas and single quotes
+  try {
+    const fixed = jsonStr
+      .replace(/([{,\s])'([^']+)'\s*:/g, '$1"$2":')
+      .replace(/:\s*'([^']*)'/g, ': "$1"')
+      .replace(/,\s*}/g, '}')
+      .replace(/,\s*]/g, ']');
+    return JSON.parse(fixed);
+  } catch(e3) {
+    throw new Error('AI returned malformed JSON — please try generating again.');
+  }
 }
 
 async function generateAIScenario() {
