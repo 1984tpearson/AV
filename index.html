@@ -356,29 +356,35 @@ body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background
 .recent-si-badge { font-size: 10px; font-weight: 700; padding: 1px 5px; border-radius: 4px; flex-shrink: 0; }
 .recent-si-badge.ai { background: #FEF9E7; color: var(--amber); border: 1px solid #F9E79F; }
 .recent-si-badge.custom { background: #EBF5FB; color: var(--blue); border: 1px solid #AED6F1; }
-/* Dev Notes */
-.dev-notes-box { margin-top: 16px; border: 1px solid #e0e4ea; border-radius: 10px; background: #fafbfc; overflow: hidden; }
-.dev-notes-header { display: flex; align-items: center; justify-content: space-between; padding: 9px 13px; background: #f0f3f7; border-bottom: 1px solid #e0e4ea; }
-.dev-notes-header-left { display: flex; align-items: center; gap: 7px; font-size: 12px; font-weight: 700; color: var(--grey); text-transform: uppercase; letter-spacing: 0.05em; }
-.dev-notes-edit-btn { font-size: 11px; padding: 3px 9px; background: var(--navy); color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: 600; }
+/* Dev Notes Banner */
+#dev-notes-banner { display: none; background: #FEF3CD; border: 1.5px solid #F0C040; border-radius: 10px; margin-bottom: 14px; overflow: hidden; animation: devNotesFadeIn 0.3s ease; }
+@keyframes devNotesFadeIn { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }
+.dev-notes-banner-header { display: flex; align-items: center; justify-content: space-between; padding: 9px 12px 7px; }
+.dev-notes-banner-title { font-size: 12px; font-weight: 800; color: #7D5A00; text-transform: uppercase; letter-spacing: 0.06em; display: flex; align-items: center; gap: 6px; }
+.dev-notes-banner-actions { display: flex; align-items: center; gap: 6px; }
+.dev-notes-edit-btn { font-size: 11px; padding: 3px 9px; background: #7D5A00; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: 700; }
 .dev-notes-edit-btn:active { opacity: 0.8; }
-.dev-notes-body { padding: 12px 14px; font-size: 13px; color: #333; line-height: 1.55; min-height: 36px; }
-.dev-notes-body:empty::before { content: 'No notes.'; color: var(--grey); font-style: italic; }
+.dev-notes-dismiss-btn { font-size: 15px; line-height: 1; background: none; border: none; color: #7D5A00; cursor: pointer; padding: 2px 4px; opacity: 0.7; font-weight: 700; }
+.dev-notes-dismiss-btn:hover { opacity: 1; }
+.dev-notes-body { padding: 0 13px 11px; font-size: 13px; color: #4A3500; line-height: 1.6; }
 .dev-notes-body b, .dev-notes-body strong { font-weight: 700; }
 .dev-notes-body i, .dev-notes-body em { font-style: italic; }
-.dev-notes-body ul { margin: 6px 0 6px 18px; padding: 0; }
+.dev-notes-body ul { margin: 4px 0 4px 18px; padding: 0; }
 .dev-notes-body li { margin-bottom: 3px; }
-.dev-notes-editor-wrap { display: none; border-top: 1px solid #e0e4ea; }
+.dev-notes-editor-wrap { display: none; border-top: 1.5px solid #F0C040; background: #fffdf0; }
 .dev-notes-editor-wrap.visible { display: block; }
-.dev-notes-toolbar { display: flex; gap: 5px; padding: 7px 10px; background: #f7f8fa; border-bottom: 1px solid #e8ecf0; }
-.dev-notes-toolbar button { font-size: 12px; padding: 3px 9px; border: 1px solid #d0d5dd; border-radius: 5px; background: white; cursor: pointer; font-weight: 600; color: #333; }
-.dev-notes-toolbar button:hover { background: #eef1f5; }
-.dev-notes-editor { min-height: 80px; padding: 10px 13px; font-size: 13px; color: #333; line-height: 1.55; outline: none; }
+.dev-notes-toolbar { display: flex; gap: 5px; padding: 7px 10px; background: #fdf5d0; border-bottom: 1px solid #f0de80; }
+.dev-notes-toolbar button { font-size: 12px; padding: 3px 9px; border: 1px solid #d4b840; border-radius: 5px; background: white; cursor: pointer; font-weight: 600; color: #4A3500; }
+.dev-notes-toolbar button:hover { background: #fef9e0; }
+.dev-notes-editor { min-height: 80px; padding: 10px 13px; font-size: 13px; color: #333; line-height: 1.55; outline: none; background: white; }
 .dev-notes-editor ul { margin: 4px 0 4px 18px; }
-.dev-notes-save-row { display: flex; gap: 8px; padding: 8px 10px; background: #f7f8fa; border-top: 1px solid #e8ecf0; }
+.dev-notes-save-row { display: flex; gap: 8px; padding: 8px 10px; background: #fdf5d0; border-top: 1px solid #f0de80; }
 .dev-notes-save-btn { padding: 6px 16px; background: var(--green); color: white; border: none; border-radius: 6px; font-size: 12px; font-weight: 700; cursor: pointer; }
 .dev-notes-save-btn:active { opacity: 0.85; }
 .dev-notes-cancel-btn { padding: 6px 14px; background: white; color: var(--grey); border: 1px solid #d0d5dd; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; }
+/* Hamburger pulse */
+@keyframes hamburgerPulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(255,255,255,0.5); } 50% { box-shadow: 0 0 0 6px rgba(255,255,255,0); } }
+#hamburger.pulse { animation: hamburgerPulse 2s ease-in-out 3; }
 .save-btn { padding: 10px 18px; background: var(--green); color: white; border: none; border-radius: 8px; font-weight: 700; font-size: 13px; cursor: pointer; min-height: var(--tap); align-self: flex-start; }
 .save-btn:active { opacity: 0.85; }
 
@@ -579,13 +585,13 @@ body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background
         <div class="stat-card purple"><div class="stat-num">4</div><div class="stat-label">Maternity</div></div>
         <div class="stat-card green" id="custom-stat"><div class="stat-num" id="custom-count">0</div><div class="stat-label">Custom</div></div>
       </div>
-      <div id="home-recent-scenarios" style="margin:18px 0 4px">
-        <!-- populated by buildRecentScenariosList() -->
-      </div>
-      <div id="dev-notes-box" class="dev-notes-box" style="display:none">
-        <div class="dev-notes-header">
-          <div class="dev-notes-header-left">📋 Dev Notes</div>
-          <button class="dev-notes-edit-btn" id="dev-notes-edit-btn" onclick="openDevNotesEditor()" style="display:none">Edit</button>
+      <div id="dev-notes-banner">
+        <div class="dev-notes-banner-header">
+          <div class="dev-notes-banner-title">⚠️ Dev Notes</div>
+          <div class="dev-notes-banner-actions">
+            <button class="dev-notes-edit-btn" id="dev-notes-edit-btn" onclick="openDevNotesEditor()" style="display:none">Edit</button>
+            <button class="dev-notes-dismiss-btn" onclick="dismissDevNotes()" title="Dismiss">✕</button>
+          </div>
         </div>
         <div class="dev-notes-body" id="dev-notes-body"></div>
         <div class="dev-notes-editor-wrap" id="dev-notes-editor-wrap">
@@ -600,6 +606,9 @@ body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background
             <button class="dev-notes-cancel-btn" onclick="closeDevNotesEditor()">Cancel</button>
           </div>
         </div>
+      </div>
+      <div id="home-recent-scenarios" style="margin:18px 0 4px">
+        <!-- populated by buildRecentScenariosList() -->
       </div>
       <div class="category-overview" id="home-category-overview">
         <!-- populated by buildHomeCategoryCards() -->
@@ -1426,6 +1435,15 @@ async function initApp() {
   updateCustomCount();
   loadDevNotes();
 
+  // Pulse the hamburger button briefly to draw attention to it
+  setTimeout(() => {
+    const hb = document.getElementById('hamburger');
+    if (hb) {
+      hb.classList.add('pulse');
+      hb.addEventListener('animationend', () => hb.classList.remove('pulse'), { once: true });
+    }
+  }, 800);
+
   // Disclaimer is now part of the first-run identity modal — no separate popup needed
 }
 
@@ -1549,30 +1567,50 @@ function buildRecentScenariosList() {
 }
 
 // ============================================================
-// DEV NOTES — admin-editable, Supabase-backed notice box
+// DEV NOTES — admin-editable amber banner with dismiss logic
 // ============================================================
+function devNotesHash(str) {
+  // Simple hash to detect when content has changed
+  let h = 0;
+  for (let i = 0; i < str.length; i++) { h = (Math.imul(31, h) + str.charCodeAt(i)) | 0; }
+  return String(h);
+}
+
 async function loadDevNotes() {
-  const box = document.getElementById('dev-notes-box');
+  const banner = document.getElementById('dev-notes-banner');
   const body = document.getElementById('dev-notes-body');
   const editBtn = document.getElementById('dev-notes-edit-btn');
   try {
     const rows = await sbFetch('dev_notes?id=eq.1&select=content');
     const content = (rows && rows[0] && rows[0].content) ? rows[0].content : '';
-    if (content) {
-      body.innerHTML = content;
-      box.style.display = '';
+    if (editBtn) editBtn.style.display = isAdmin() ? '' : 'none';
+    if (!content) {
+      // Show empty banner to admin so they can add notes
+      if (isAdmin()) { body.innerHTML = ''; banner.style.display = ''; }
+      else banner.style.display = 'none';
+      return;
+    }
+    body.innerHTML = content;
+    const hash = devNotesHash(content);
+    const dismissed = localStorage.getItem('dev_notes_dismissed');
+    // Show if never dismissed or content has changed since last dismiss
+    if (dismissed !== hash || isAdmin()) {
+      banner.style.display = '';
     } else {
-      // Show box to admin even if empty so they can add notes
-      if (isAdmin()) box.style.display = '';
-      else box.style.display = 'none';
+      banner.style.display = 'none';
     }
   } catch (e) {
-    // Table may not exist yet — only show to admin
-    if (isAdmin()) box.style.display = '';
-    else box.style.display = 'none';
+    if (isAdmin()) banner.style.display = '';
+    else banner.style.display = 'none';
   }
-  // Show edit button to admin only
-  if (editBtn) editBtn.style.display = isAdmin() ? '' : 'none';
+}
+
+function dismissDevNotes() {
+  const banner = document.getElementById('dev-notes-banner');
+  const body = document.getElementById('dev-notes-body');
+  const hash = devNotesHash(body.innerHTML);
+  localStorage.setItem('dev_notes_dismissed', hash);
+  banner.style.display = 'none';
 }
 
 function openDevNotesEditor() {
@@ -1585,15 +1623,14 @@ function openDevNotesEditor() {
 }
 
 function closeDevNotesEditor() {
-  const wrap = document.getElementById('dev-notes-editor-wrap');
-  wrap.classList.remove('visible');
+  document.getElementById('dev-notes-editor-wrap').classList.remove('visible');
 }
 
 async function saveDevNotes() {
   if (!isAdmin()) return;
   const editor = document.getElementById('dev-notes-editor');
   const body = document.getElementById('dev-notes-body');
-  const box = document.getElementById('dev-notes-box');
+  const banner = document.getElementById('dev-notes-banner');
   const content = editor.innerHTML.trim();
   try {
     await sbFetch('dev_notes', {
@@ -1602,8 +1639,10 @@ async function saveDevNotes() {
       body: JSON.stringify({ id: 1, content })
     });
     body.innerHTML = content;
+    // Clear dismissed hash so all users see the updated note
+    localStorage.removeItem('dev_notes_dismissed');
     closeDevNotesEditor();
-    box.style.display = content ? '' : (isAdmin() ? '' : 'none');
+    banner.style.display = content ? '' : (isAdmin() ? '' : 'none');
     showToast('📋 Dev notes saved');
   } catch (e) {
     showToast('⚠️ Failed to save: ' + e.message);
