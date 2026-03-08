@@ -356,6 +356,29 @@ body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background
 .recent-si-badge { font-size: 10px; font-weight: 700; padding: 1px 5px; border-radius: 4px; flex-shrink: 0; }
 .recent-si-badge.ai { background: #FEF9E7; color: var(--amber); border: 1px solid #F9E79F; }
 .recent-si-badge.custom { background: #EBF5FB; color: var(--blue); border: 1px solid #AED6F1; }
+/* Dev Notes */
+.dev-notes-box { margin-top: 16px; border: 1px solid #e0e4ea; border-radius: 10px; background: #fafbfc; overflow: hidden; }
+.dev-notes-header { display: flex; align-items: center; justify-content: space-between; padding: 9px 13px; background: #f0f3f7; border-bottom: 1px solid #e0e4ea; }
+.dev-notes-header-left { display: flex; align-items: center; gap: 7px; font-size: 12px; font-weight: 700; color: var(--grey); text-transform: uppercase; letter-spacing: 0.05em; }
+.dev-notes-edit-btn { font-size: 11px; padding: 3px 9px; background: var(--navy); color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: 600; }
+.dev-notes-edit-btn:active { opacity: 0.8; }
+.dev-notes-body { padding: 12px 14px; font-size: 13px; color: #333; line-height: 1.55; min-height: 36px; }
+.dev-notes-body:empty::before { content: 'No notes.'; color: var(--grey); font-style: italic; }
+.dev-notes-body b, .dev-notes-body strong { font-weight: 700; }
+.dev-notes-body i, .dev-notes-body em { font-style: italic; }
+.dev-notes-body ul { margin: 6px 0 6px 18px; padding: 0; }
+.dev-notes-body li { margin-bottom: 3px; }
+.dev-notes-editor-wrap { display: none; border-top: 1px solid #e0e4ea; }
+.dev-notes-editor-wrap.visible { display: block; }
+.dev-notes-toolbar { display: flex; gap: 5px; padding: 7px 10px; background: #f7f8fa; border-bottom: 1px solid #e8ecf0; }
+.dev-notes-toolbar button { font-size: 12px; padding: 3px 9px; border: 1px solid #d0d5dd; border-radius: 5px; background: white; cursor: pointer; font-weight: 600; color: #333; }
+.dev-notes-toolbar button:hover { background: #eef1f5; }
+.dev-notes-editor { min-height: 80px; padding: 10px 13px; font-size: 13px; color: #333; line-height: 1.55; outline: none; }
+.dev-notes-editor ul { margin: 4px 0 4px 18px; }
+.dev-notes-save-row { display: flex; gap: 8px; padding: 8px 10px; background: #f7f8fa; border-top: 1px solid #e8ecf0; }
+.dev-notes-save-btn { padding: 6px 16px; background: var(--green); color: white; border: none; border-radius: 6px; font-size: 12px; font-weight: 700; cursor: pointer; }
+.dev-notes-save-btn:active { opacity: 0.85; }
+.dev-notes-cancel-btn { padding: 6px 14px; background: white; color: var(--grey); border: 1px solid #d0d5dd; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; }
 .save-btn { padding: 10px 18px; background: var(--green); color: white; border: none; border-radius: 8px; font-weight: 700; font-size: 13px; cursor: pointer; min-height: var(--tap); align-self: flex-start; }
 .save-btn:active { opacity: 0.85; }
 
@@ -558,6 +581,25 @@ body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background
       </div>
       <div id="home-recent-scenarios" style="margin:18px 0 4px">
         <!-- populated by buildRecentScenariosList() -->
+      </div>
+      <div id="dev-notes-box" class="dev-notes-box" style="display:none">
+        <div class="dev-notes-header">
+          <div class="dev-notes-header-left">📋 Dev Notes</div>
+          <button class="dev-notes-edit-btn" id="dev-notes-edit-btn" onclick="openDevNotesEditor()" style="display:none">Edit</button>
+        </div>
+        <div class="dev-notes-body" id="dev-notes-body"></div>
+        <div class="dev-notes-editor-wrap" id="dev-notes-editor-wrap">
+          <div class="dev-notes-toolbar">
+            <button onmousedown="event.preventDefault();document.execCommand('bold')" title="Bold"><b>B</b></button>
+            <button onmousedown="event.preventDefault();document.execCommand('italic')" title="Italic"><i>I</i></button>
+            <button onmousedown="event.preventDefault();document.execCommand('insertUnorderedList')" title="Bullet list">• List</button>
+          </div>
+          <div class="dev-notes-editor" id="dev-notes-editor" contenteditable="true"></div>
+          <div class="dev-notes-save-row">
+            <button class="dev-notes-save-btn" onclick="saveDevNotes()">💾 Save</button>
+            <button class="dev-notes-cancel-btn" onclick="closeDevNotesEditor()">Cancel</button>
+          </div>
+        </div>
       </div>
       <div class="category-overview" id="home-category-overview">
         <!-- populated by buildHomeCategoryCards() -->
@@ -1124,6 +1166,7 @@ function adminLogin() {
     localStorage.setItem('av_user_uuid', ADMIN_UUID);
     showToast('🔑 Admin mode enabled');
     renderManageModal();
+    loadDevNotes();
   } else {
     showToast('⚠️ Incorrect password');
   }
@@ -1132,6 +1175,7 @@ function adminLogout() {
   localStorage.removeItem('av_user_uuid');
   showToast('Admin mode disabled');
   renderManageModal();
+  loadDevNotes();
 }
 
 async function sbFetch(path, opts = {}) {
@@ -1380,6 +1424,7 @@ async function initApp() {
   buildHomeCategoryCards();
   buildRecentScenariosList();
   updateCustomCount();
+  loadDevNotes();
 
   // Disclaimer is now part of the first-run identity modal — no separate popup needed
 }
@@ -1501,6 +1546,68 @@ function buildRecentScenariosList() {
         </div>`;
       }).join('')}
     </div>`;
+}
+
+// ============================================================
+// DEV NOTES — admin-editable, Supabase-backed notice box
+// ============================================================
+async function loadDevNotes() {
+  const box = document.getElementById('dev-notes-box');
+  const body = document.getElementById('dev-notes-body');
+  const editBtn = document.getElementById('dev-notes-edit-btn');
+  try {
+    const rows = await sbFetch('dev_notes?id=eq.1&select=content');
+    const content = (rows && rows[0] && rows[0].content) ? rows[0].content : '';
+    if (content) {
+      body.innerHTML = content;
+      box.style.display = '';
+    } else {
+      // Show box to admin even if empty so they can add notes
+      if (isAdmin()) box.style.display = '';
+      else box.style.display = 'none';
+    }
+  } catch (e) {
+    // Table may not exist yet — only show to admin
+    if (isAdmin()) box.style.display = '';
+    else box.style.display = 'none';
+  }
+  // Show edit button to admin only
+  if (editBtn) editBtn.style.display = isAdmin() ? '' : 'none';
+}
+
+function openDevNotesEditor() {
+  const body = document.getElementById('dev-notes-body');
+  const editor = document.getElementById('dev-notes-editor');
+  const wrap = document.getElementById('dev-notes-editor-wrap');
+  editor.innerHTML = body.innerHTML;
+  wrap.classList.add('visible');
+  editor.focus();
+}
+
+function closeDevNotesEditor() {
+  const wrap = document.getElementById('dev-notes-editor-wrap');
+  wrap.classList.remove('visible');
+}
+
+async function saveDevNotes() {
+  if (!isAdmin()) return;
+  const editor = document.getElementById('dev-notes-editor');
+  const body = document.getElementById('dev-notes-body');
+  const box = document.getElementById('dev-notes-box');
+  const content = editor.innerHTML.trim();
+  try {
+    await sbFetch('dev_notes', {
+      method: 'POST',
+      prefer: 'resolution=merge-duplicates',
+      body: JSON.stringify({ id: 1, content })
+    });
+    body.innerHTML = content;
+    closeDevNotesEditor();
+    box.style.display = content ? '' : (isAdmin() ? '' : 'none');
+    showToast('📋 Dev notes saved');
+  } catch (e) {
+    showToast('⚠️ Failed to save: ' + e.message);
+  }
 }
 
 function toggleSidebar() {
