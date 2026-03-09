@@ -653,12 +653,11 @@ body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background
           </div>
         </div>
         <div id="api-panel-groq">
-          <p style="font-size:12px;color:#7D6608;margin-bottom:8px">Free tier via Groq — fast, globally available, no credit card needed.</p>
-          <div style="background:#E8F8F5;border:1px solid #A2D9CE;border-radius:7px;padding:9px 12px;font-size:12px;color:#1E8449;margin-bottom:10px;line-height:1.6">
-            <strong>Steps:</strong> 1. Go to <a href="https://console.groq.com/keys" target="_blank" style="color:#1E8449;font-weight:700">console.groq.com/keys</a> &nbsp;2. Sign up free &nbsp;3. Click <strong>Create API key</strong> &nbsp;4. Paste below
+          <div id="groq-status-box" style="background:#E8F8F5;border:1px solid #A2D9CE;border-radius:7px;padding:9px 12px;font-size:12px;color:#1E8449;line-height:1.6">
+            ✅ Groq is ready — no key needed, just generate.
           </div>
-          <div class="form-group" style="margin-bottom:0"><input type="password" id="groq-key-input" placeholder="Paste your Groq API key (gsk_…)" style="font-family:monospace" oninput="saveGroqKey(this.value)"></div>
-          <p style="font-size:11px;color:var(--grey);margin-top:6px">🔒 Your key is saved on this device — you won't need to re-enter it.</p>
+          <!-- hidden input retained for any legacy references -->
+          <input type="hidden" id="groq-key-input">
         </div>
       </div>
       <div class="form-group">
@@ -3504,16 +3503,32 @@ function saveGroqKey(val) {
   if (val && val.trim()) localStorage.setItem('av_groq_key', val.trim());
 }
 function loadGroqKey() {
-  const saved = localStorage.getItem('av_groq_key');
-  const el = document.getElementById('groq-key-input');
-  if (saved && el && !el.value) el.value = saved;
+  // no-op: key is fetched from Supabase automatically
+}
+
+let _cachedGroqKey = null;
+async function getGroqKey() {
+  if (_cachedGroqKey) return _cachedGroqKey;
+  const local = localStorage.getItem('av_groq_key');
+  if (local) { _cachedGroqKey = local; return local; }
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/app_config?key=eq.groq_api_key&select=value`, {
+      headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
+    });
+    if (res.ok) {
+      const data = await res.json();
+      if (data && data[0] && data[0].value) {
+        _cachedGroqKey = data[0].value;
+        return _cachedGroqKey;
+      }
+    }
+  } catch(e) { /* fall through */ }
+  throw new Error('AI generation is temporarily unavailable. Please contact the administrator.');
 }
 
 async function generateWithGroq(systemPrompt, userPrompt) {
-  const saved = localStorage.getItem('av_groq_key');
-  const groqKey = (document.getElementById('groq-key-input').value.trim()) || saved || '';
-  if (groqKey) saveGroqKey(groqKey);
-  if (!groqKey) throw new Error('Please paste your Groq API key above. Get one free at console.groq.com/keys');
+  const groqKey = await getGroqKey();
+  if (!groqKey) throw new Error('AI generation is temporarily unavailable. Please contact the administrator.');
   const models = ['llama-3.3-70b-versatile'];
   let lastError = null;
   for (const model of models) {
