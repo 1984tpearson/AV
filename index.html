@@ -1713,7 +1713,10 @@ function openCategoryScreen(categoryKey) {
         <p>${scenarios.length} scenario${scenarios.length !== 1 ? 's' : ''} across ${orderedSubs.length} sub-categor${orderedSubs.length !== 1 ? 'ies' : 'y'}</p>
       </div>
     </div>
-    <button class="random-btn" onclick="loadRandomScenario('${categoryKey}', null)">🎲 Random ${categoryKey} Scenario</button>
+    <div style="display:flex;gap:10px;margin-bottom:14px">
+      <button class="random-btn" style="margin-bottom:0;flex:1" onclick="loadRandomScenario('${categoryKey}', null)">🎲 Random</button>
+      <button class="random-btn navy" style="margin-bottom:0;flex:1" onclick="openAIModalWithContext('${categoryKey}', null)">✦ Generate</button>
+    </div>
     <div class="subcat-grid">${subcatCards}</div>
   `;
 
@@ -1751,7 +1754,10 @@ function openSubcategoryScreen(categoryKey, subcategoryKey) {
         <p>${sorted.length} scenario${sorted.length !== 1 ? 's' : ''}</p>
       </div>
     </div>
-    <button class="random-btn" onclick="loadRandomScenario('${categoryKey}', '${subcategoryKey.replace(/'/g,"\'")}')">🎲 Random ${subcategoryKey} Scenario</button>
+    <div style="display:flex;gap:10px;margin-bottom:14px">
+      <button class="random-btn" style="margin-bottom:0;flex:1" onclick="loadRandomScenario('${categoryKey}', '${subcategoryKey.replace(/'/g,"\'")}')">🎲 Random</button>
+      <button class="random-btn navy" style="margin-bottom:0;flex:1" onclick="openAIModalWithContext('${categoryKey}', '${subcategoryKey.replace(/'/g,"\'")}')">✦ Generate</button>
+    </div>
     <div class="subcat-scenario-list">${scenarioItems}</div>
   `;
 
@@ -3069,6 +3075,30 @@ function openAIModal() {
   const s = document.getElementById('ai-status');
   s.className = '';
   s.innerHTML = '';
+}
+
+function openAIModalWithContext(category, subcategory) {
+  openAIModal();
+  if (!category) return;
+  // Set the primary category dropdown
+  const catSelect = document.getElementById('gen-category');
+  const targetVal = subcategory ? `${category}|${subcategory}` : null;
+  if (targetVal) {
+    // Try exact match first (Category|Subcategory)
+    const opt = Array.from(catSelect.options).find(o => o.value === targetVal);
+    if (opt) {
+      catSelect.value = targetVal;
+    } else {
+      // Fall back to first option in that category group
+      const fallback = Array.from(catSelect.options).find(o => o.value.startsWith(category + '|'));
+      if (fallback) catSelect.value = fallback.value;
+    }
+  } else {
+    const fallback = Array.from(catSelect.options).find(o => o.value.startsWith(category + '|'));
+    if (fallback) catSelect.value = fallback.value;
+  }
+  // Trigger the subtype dropdown update
+  updateCPGSubtypeDropdown('gen-category', 'gen-subtype-group', 'gen-cpg-subtype');
 }
 function closeAIModal() { document.getElementById('ai-modal').classList.remove('open'); }
 document.getElementById('ai-modal').addEventListener('click', e => { if(e.target===document.getElementById('ai-modal')) closeAIModal(); });
