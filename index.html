@@ -772,7 +772,7 @@ body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background
           <option value="__random__">🎲 Random — surprise me</option>
         </select>
       </div>
-      <div class="form-group"><label>Presentation (optional)</label><input type="text" id="gen-complaint" placeholder="e.g. chest pain, altered consciousness…"><div class="hint">Leave blank for a random presentation.</div></div>
+      <div class="form-group"><label>Presentation (optional)</label><input type="text" id="gen-complaint" placeholder="e.g. 72yo male named John Smith, also septic, patient is blind…"><div class="hint">Anything here shapes the scenario — demographics, comorbidities, presentation, or any requirement. Leave blank for fully random.</div></div>
       <div class="form-group"><label>Complexity</label><select id="gen-complexity"><option value="standard">Standard — core presentation</option><option value="complex">Complex — complication or comorbidity</option><option value="high-acuity">High acuity — multi-system, time-critical</option></select></div>
       <div style="background:var(--blue-light);border:1px solid #AED6F1;border-radius:8px;padding:10px 14px;font-size:12px;color:#1a5276;margin-bottom:14px">
         📋 Scenarios are generated with reference to <strong>AV Clinical Practice Guidelines Version 3.13.1 (December 2025)</strong>. AI-generated content should be independently verified against the current published edition before use in any formal assessment.
@@ -3304,6 +3304,7 @@ function buildCPGContext(catVal1, catVal2) {
   }).filter(Boolean).join('\n');
 
   // Check for a combination note
+  const CPG_COMBINATIONS = {}; // Reserved for future use — no predefined combinations
   let comboNote = '';
   if (catVal2 && keys1.length && keys2.length) {
     const comboKey = Object.keys(CPG_COMBINATIONS).find(k => {
@@ -3414,7 +3415,7 @@ async function generateAIScenario() {
     : null;
 
   const complaintLine = complaint
-    ? `The scenario should involve: ${complaint}.`
+    ? `SCENARIO REQUIREMENTS (highest priority — must be incorporated): ${complaint}. Adapt ALL relevant fields to reflect this — including patient demographics, vitals, medical history, medications, flags, ddx, and any other fields as appropriate. These requirements override the default random patient details below.`
     : toxSubtypeHint
       ? `The scenario must be a ${toxSubtypeHint} presentation — this is the toxicology type provided in the CPG context. Do NOT default to opioids unless the CPG context specifies opioid toxicity.`
       : `Choose a realistic and educationally valuable ${categoryLabel} presentation.`;
@@ -3434,7 +3435,9 @@ async function generateAIScenario() {
   const ageStr = (patientCategory === 'Newborn') ? 'newborn'
     : (typeof patient.age === 'string' && patient.age.includes('month')) ? `${patient.age} old`
     : `${patient.age}yo`;
-  const patientNote = `Patient demographics: ${ageStr} ${patient.gender}, name: ${patient.name}. Use this name and demographics in the dispatch and scenario. Do NOT change the patient age — use exactly ${ageStr}.`;
+  const patientNote = complaint
+    ? `Default patient demographics (use only for any details not already specified in the scenario requirements above): ${ageStr} ${patient.gender}, name: ${patient.name}.`
+    : `Patient demographics: ${ageStr} ${patient.gender}, name: ${patient.name}. Use this name and demographics in the dispatch and scenario. Do NOT change the patient age — use exactly ${ageStr}.`;
 
   const cpgInstruction = cpgContext
     ? `You MUST use the exact drug doses, thresholds, and management steps from the CPG content provided below. Do not invent doses or deviate from the provided protocol.${cpgContext}`
