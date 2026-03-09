@@ -3445,10 +3445,13 @@ async function generateAIScenario() {
 
   const systemPrompt = `You are a clinical scenario writer for Ambulance Victoria (AV) paramedic education. Write accurate ALS (Level C/D) verbal assessment scenarios based strictly on AV Clinical Practice Guidelines v3.13.1 (December 2025). Respond with valid JSON only — no markdown, no preamble. CRITICAL RULE: All clinical content (treatment, drug doses, management steps, assessment criteria, key questions and answers) must be drawn exclusively from the AV CPG content provided. Do NOT add management steps, drug doses, or clinical guidance that are not explicitly stated in the CPGs — not even if they are standard clinical practice. The ONLY exception is the "discussion" field, which is intentionally separate and may draw on broader clinical knowledge. AUSTRALIAN TERMINOLOGY: Use Australian medical terminology and drug names throughout (e.g. adrenaline not epinephrine, paracetamol not acetaminophen, salbutamol not albuterol). Use mmol/L for BGL. Use Australian English spelling. This is an Ambulance Victoria scenario — do not use US EMS terminology, ACLS protocols, or American drug names anywhere in the output. ${cpgInstruction}`;
 
+  const seedSection = complaint
+    ? `\n== SCENARIO SEED (non-negotiable anchors) ==\n${complaint}\nThese details MUST appear in the scenario. Use them as a creative brief — build a rich, realistic backstory and narrative around them. Any name given must appear in the dispatch and subtitle. Any demographics given (age, gender) must be used exactly. Any clinical details (e.g. choking on watermelon, also septic, patient is blind) must be woven naturally into the relevant fields (dispatch, key_hx, medical_conditions, vitals, etc.). Do NOT invent contradictory details. Write a specific, believable scenario grounded in these anchors, not generic placeholder text.\n== END SEED ==\n`
+    : '';
+
   const userPrompt = `Generate an ALS (Level C/D) verbal scenario for Ambulance Victoria.
 Category: ${categoryLabel}
-${complaintLine}
-${complexityNote}
+${seedSection}${complaint ? '' : complaintLine + '\n'}${complexityNote}
 ${patientNote}
 Do NOT generate treatment or management steps — these are supplied from official CPG data. Leave treatment_als and treatment_mica out of the JSON entirely. Focus on generating an accurate, realistic scenario with correct vitals, flags, ddx, provisional diagnosis, and knowledge questions.
 For medical_conditions: provide a concise array of conditions only — no explanations unless clinically essential (e.g. ["Epilepsy (breakthrough seizure last month)", "Type 2 Diabetes", "Hypertension"]). Max 4 items.
