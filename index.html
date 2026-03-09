@@ -1586,7 +1586,7 @@ async function loadDevNotes() {
     if (editBtn) editBtn.style.display = isAdmin() ? '' : 'none';
     if (!content) {
       // Show empty banner to admin so they can add notes
-      if (isAdmin()) { body.innerHTML = ''; banner.style.display = ''; }
+      if (isAdmin()) { body.innerHTML = ''; banner.style.display = 'block'; }
       else banner.style.display = 'none';
       return;
     }
@@ -1595,12 +1595,12 @@ async function loadDevNotes() {
     const dismissed = localStorage.getItem('dev_notes_dismissed');
     // Show if never dismissed or content has changed since last dismiss
     if (dismissed !== hash || isAdmin()) {
-      banner.style.display = '';
+      banner.style.display = 'block';
     } else {
       banner.style.display = 'none';
     }
   } catch (e) {
-    if (isAdmin()) banner.style.display = '';
+    if (isAdmin()) banner.style.display = 'block';
     else banner.style.display = 'none';
   }
 }
@@ -1642,7 +1642,7 @@ async function saveDevNotes() {
     // Clear dismissed hash so all users see the updated note
     localStorage.removeItem('dev_notes_dismissed');
     closeDevNotesEditor();
-    banner.style.display = content ? '' : (isAdmin() ? '' : 'none');
+    banner.style.display = content ? 'block' : (isAdmin() ? 'block' : 'none');
     showToast('📋 Dev notes saved');
   } catch (e) {
     showToast('⚠️ Failed to save: ' + e.message);
