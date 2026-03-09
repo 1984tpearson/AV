@@ -1605,6 +1605,12 @@ async function loadDevNotes() {
   }
 }
 
+function openDevNotesBanner() {
+  const banner = document.getElementById('dev-notes-banner');
+  banner.style.display = 'block';
+  openDevNotesEditor();
+}
+
 function dismissDevNotes() {
   const banner = document.getElementById('dev-notes-banner');
   const body = document.getElementById('dev-notes-body');
@@ -3741,7 +3747,7 @@ function renderManageModal() {
   const { uuid, name } = getIdentity();
   const adminBadge = isAdmin() ? ' 🔑 Admin' : '';
   const adminLink = isAdmin()
-    ? `<span style="color:var(--grey)"> · <a href="#" onclick="adminLogout();return false;" style="color:var(--grey);text-decoration:underline;font-size:11px">Logout admin</a></span>`
+    ? `<span style="color:var(--grey)"> · <a href="#" onclick="adminLogout();return false;" style="color:var(--grey);text-decoration:underline;font-size:11px">Logout admin</a> · <a href="#" onclick="openDevNotesBanner();return false;" style="color:var(--grey);text-decoration:underline;font-size:11px">Dev Notes</a></span>`
     : `<span style="color:var(--grey)"> · <a href="#" onclick="adminLogin();return false;" style="color:var(--grey);text-decoration:none;font-size:11px">···</a></span>`;
   const cloudBanner = `<div style="background:#E8F8F5;border:1px solid #A2D9CE;border-radius:8px;padding:8px 12px;font-size:12px;color:#1E8449;margin-bottom:12px">☁️ <strong>Supabase sync active</strong> — scenarios shared with all users.${adminBadge ? `<span style="color:var(--amber);font-weight:700"> ${adminBadge}</span>` : ''}<br><span style="color:var(--grey)">You: ${name || 'Anonymous'}</span>${adminLink}</div>`;
 
