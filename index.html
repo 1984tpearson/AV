@@ -3415,7 +3415,7 @@ async function generateAIScenario() {
     : null;
 
   const complaintLine = complaint
-    ? `SCENARIO REQUIREMENTS (highest priority — must be incorporated): ${complaint}. Adapt ALL relevant fields to reflect this — including patient demographics, vitals, medical history, medications, flags, ddx, and any other fields as appropriate. These requirements override the default random patient details below.`
+    ? `SCENARIO SEED (use as a creative brief — honour these details but build a full, realistic scenario around them with appropriate context, backstory, and clinical depth): ${complaint}. Adapt ALL relevant fields to reflect this — including patient demographics, vitals, medical history, medications, flags, ddx, and any other fields as appropriate. Do not copy the seed text verbatim into the scenario fields.`
     : toxSubtypeHint
       ? `The scenario must be a ${toxSubtypeHint} presentation — this is the toxicology type provided in the CPG context. Do NOT default to opioids unless the CPG context specifies opioid toxicity.`
       : `Choose a realistic and educationally valuable ${categoryLabel} presentation.`;
