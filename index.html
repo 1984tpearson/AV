@@ -2005,119 +2005,82 @@ function loadScenario(id) {
 // ============================================================
 // ECG RHYTHM → WIKIMEDIA IMAGE MAP
 // ============================================================
+// ECG image library — hosted at GitHub Pages /ecg/ folder
+const ECG_BASE = 'https://1984tpearson.github.io/AV/ecg/';
 const ECG_IMAGES = {
-  // Key: lowercase regex-friendly strings matched against v.Rhythm
-  // Value: { url, page, label }
-  'sinus tachycardia': {
-    url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/d/d0/Sinus_Tachycardia_%286_seconds%29.svg/800px-Sinus_Tachycardia_%286_seconds%29.svg.png',
-    page: 'https://commons.wikimedia.org/wiki/File:Sinus_Tachycardia_(6_seconds).svg',
-    label: 'Sinus Tachycardia'
-  },
-  'sinus bradycardia': {
-    url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/44/Sinus_Bradycardia_%286_seconds%29.svg/800px-Sinus_Bradycardia_%286_seconds%29.svg.png',
-    page: 'https://commons.wikimedia.org/wiki/File:Sinus_Bradycardia_(6_seconds).svg',
-    label: 'Sinus Bradycardia'
-  },
-  'normal sinus': {
-    url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/bd/Normal_Sinus_Rhythm_Unlabeled.jpg/800px-Normal_Sinus_Rhythm_Unlabeled.jpg',
-    page: 'https://commons.wikimedia.org/wiki/File:Normal_Sinus_Rhythm_Unlabeled.jpg',
-    label: 'Normal Sinus Rhythm'
-  },
-  'sinus rhythm': {
-    url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/bd/Normal_Sinus_Rhythm_Unlabeled.jpg/800px-Normal_Sinus_Rhythm_Unlabeled.jpg',
-    page: 'https://commons.wikimedia.org/wiki/File:Normal_Sinus_Rhythm_Unlabeled.jpg',
-    label: 'Normal Sinus Rhythm'
-  },
-  'atrial fibrillation': {
-    url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/3/34/Afib_small_%28CardioNetworks_ECGpedia%29.svg/800px-Afib_small_%28CardioNetworks_ECGpedia%29.svg.png',
-    page: 'https://commons.wikimedia.org/wiki/File:Afib_small_(CardioNetworks_ECGpedia).svg',
-    label: 'Atrial Fibrillation'
-  },
-  'atrial flutter': {
-    url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/a/ac/Afl_small_%28CardioNetworks_ECGpedia%29.svg/800px-Afl_small_%28CardioNetworks_ECGpedia%29.svg.png',
-    page: 'https://commons.wikimedia.org/wiki/File:Afl_small_(CardioNetworks_ECGpedia).svg',
-    label: 'Atrial Flutter'
-  },
-  'svt': {
-    url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/d/dc/Supraventricular_Tachycardia.svg/800px-Supraventricular_Tachycardia.svg.png',
-    page: 'https://commons.wikimedia.org/wiki/File:Supraventricular_Tachycardia.svg',
-    label: 'Supraventricular Tachycardia (SVT)'
-  },
-  'supraventricular tachycardia': {
-    url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/d/dc/Supraventricular_Tachycardia.svg/800px-Supraventricular_Tachycardia.svg.png',
-    page: 'https://commons.wikimedia.org/wiki/File:Supraventricular_Tachycardia.svg',
-    label: 'Supraventricular Tachycardia (SVT)'
-  },
-  'ventricular tachycardia': {
-    url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/48/Ventricular_Tachycardia.svg/800px-Ventricular_Tachycardia.svg.png',
-    page: 'https://commons.wikimedia.org/wiki/File:Ventricular_Tachycardia.svg',
-    label: 'Ventricular Tachycardia (VT)'
-  },
-  'ventricular fibrillation': {
-    url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/17/Ventricular_Fibrillation.svg/800px-Ventricular_Fibrillation.svg.png',
-    page: 'https://commons.wikimedia.org/wiki/File:Ventricular_Fibrillation.svg',
-    label: 'Ventricular Fibrillation (VF)'
-  },
-  'complete heart block': {
-    url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/0/02/Completeheartblock.jpg/800px-Completeheartblock.jpg',
-    page: 'https://commons.wikimedia.org/wiki/File:Completeheartblock.jpg',
-    label: 'Complete (3rd Degree) Heart Block'
-  },
-  '3rd degree': {
-    url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/0/02/Completeheartblock.jpg/800px-Completeheartblock.jpg',
-    page: 'https://commons.wikimedia.org/wiki/File:Completeheartblock.jpg',
-    label: 'Complete (3rd Degree) Heart Block'
-  },
-  'third degree': {
-    url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/0/02/Completeheartblock.jpg/800px-Completeheartblock.jpg',
-    page: 'https://commons.wikimedia.org/wiki/File:Completeheartblock.jpg',
-    label: 'Complete (3rd Degree) Heart Block'
-  },
-  'torsades': {
-    url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/ca/Torsades_de_Pointes_%28polymorphic_VT%29.svg/800px-Torsades_de_Pointes_%28polymorphic_VT%29.svg.png',
-    page: 'https://commons.wikimedia.org/wiki/File:Torsades_de_Pointes_(polymorphic_VT).svg',
-    label: 'Torsades de Pointes'
-  },
-  'pulseless electrical activity': {
-    url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/bd/Normal_Sinus_Rhythm_Unlabeled.jpg/800px-Normal_Sinus_Rhythm_Unlabeled.jpg',
-    page: 'https://commons.wikimedia.org/wiki/File:Normal_Sinus_Rhythm_Unlabeled.jpg',
-    label: 'PEA (Organised Rhythm — No Pulse)'
-  },
-  'pea': {
-    url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/bd/Normal_Sinus_Rhythm_Unlabeled.jpg/800px-Normal_Sinus_Rhythm_Unlabeled.jpg',
-    page: 'https://commons.wikimedia.org/wiki/File:Normal_Sinus_Rhythm_Unlabeled.jpg',
-    label: 'PEA (Organised Rhythm — No Pulse)'
-  },
-  'asystole': {
-    url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/6/6e/Asystole_2009.jpg/800px-Asystole_2009.jpg',
-    page: 'https://commons.wikimedia.org/wiki/File:Asystole_2009.jpg',
-    label: 'Asystole'
-  },
-  '1st degree': {
-    url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/6/6e/First_degree_heart_block.svg/800px-First_degree_heart_block.svg.png',
-    page: 'https://commons.wikimedia.org/wiki/File:First_degree_heart_block.svg',
-    label: '1st Degree AV Block'
-  },
-  'first degree': {
-    url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/6/6e/First_degree_heart_block.svg/800px-First_degree_heart_block.svg.png',
-    page: 'https://commons.wikimedia.org/wiki/File:First_degree_heart_block.svg',
-    label: '1st Degree AV Block'
-  },
-  'premature ventricular': {
-    url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/7/7d/Premature_Ventricular_Complex.svg/800px-Premature_Ventricular_Complex.svg.png',
-    page: 'https://commons.wikimedia.org/wiki/File:Premature_Ventricular_Complex.svg',
-    label: 'Premature Ventricular Complex (PVC)'
-  },
-  'pvc': {
-    url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/7/7d/Premature_Ventricular_Complex.svg/800px-Premature_Ventricular_Complex.svg.png',
-    page: 'https://commons.wikimedia.org/wiki/File:Premature_Ventricular_Complex.svg',
-    label: 'Premature Ventricular Complex (PVC)'
-  },
+  // Key: lowercase substring matched against vitals.Rhythm
+  // Value: { url, label }
+  'sinus tachycardia':            { url: ECG_BASE+'ECG-Sinus-Tachycardia.jpg',                               label: 'Sinus Tachycardia' },
+  'sinus bradycardia':            { url: ECG_BASE+'ECG-Sin-us-bradycardia.jpg',                               label: 'Sinus Bradycardia' },
+  'normal sinus':                 { url: ECG_BASE+'normal-sinus-rhythm-2.jpg',                                label: 'Normal Sinus Rhythm' },
+  'sinus rhythm':                 { url: ECG_BASE+'normal-sinus-rhythm-2.jpg',                                label: 'Normal Sinus Rhythm' },
+  'sinus arrhythmia':             { url: ECG_BASE+'ECG-Sinus-arrhythmia-12-lead.jpg',                        label: 'Sinus Arrhythmia' },
+  'atrial fibrillation':          { url: ECG_BASE+'ECG-Atrial-Fibrillation-3.jpg',                           label: 'Atrial Fibrillation' },
+  'atrial flutter':               { url: ECG_BASE+'ECG-Atrial-Flutter-with-2-1-Block-1-.jpg',                label: 'Atrial Flutter' },
+  'svt':                          { url: ECG_BASE+'ECG-SVT-with-ST-depression.jpg',                          label: 'SVT' },
+  'supraventricular tachycardia': { url: ECG_BASE+'ECG-SVT-with-ST-depression.jpg',                          label: 'Supraventricular Tachycardia (SVT)' },
+  'avnrt':                        { url: ECG_BASE+'Slow-Fast-Typical-AVNRT.jpg',                             label: 'AVNRT' },
+  'ventricular tachycardia':      { url: ECG_BASE+'Monomorphic-ventricular-tachycardia-VT-2.jpg',            label: 'Ventricular Tachycardia (VT)' },
+  'ventricular fibrillation':     { url: ECG_BASE+'ECG-12-lead-VF-ventricular-fibrillation.jpg',             label: 'Ventricular Fibrillation (VF)' },
+  'vf':                           { url: ECG_BASE+'ECG-12-lead-VF-ventricular-fibrillation.jpg',             label: 'Ventricular Fibrillation (VF)' },
+  'asystole':                     { url: ECG_BASE+'ECG-12-lead-VF-ventricular-fibrillation.jpg',             label: 'Asystole' },
+  'complete heart block':         { url: ECG_BASE+'ECG-Complete-heart-block-CHB.jpg',                        label: 'Complete Heart Block (3rd Degree)' },
+  '3rd degree':                   { url: ECG_BASE+'ECG-Complete-heart-block-CHB.jpg',                        label: 'Complete Heart Block (3rd Degree)' },
+  'third degree':                 { url: ECG_BASE+'ECG-Complete-heart-block-CHB.jpg',                        label: 'Complete Heart Block (3rd Degree)' },
+  'chb':                          { url: ECG_BASE+'ECG-Complete-heart-block-CHB.jpg',                        label: 'Complete Heart Block (3rd Degree)' },
+  '1st degree':                   { url: ECG_BASE+'ECG-1st-degree-AV-block-2.jpg',                          label: '1st Degree AV Block' },
+  'first degree':                 { url: ECG_BASE+'ECG-1st-degree-AV-block-2.jpg',                          label: '1st Degree AV Block' },
+  'wenckebach':                   { url: ECG_BASE+'ECG-Wenckebach-AV-block-1.jpg',                          label: 'Wenckebach (Mobitz I)' },
+  'mobitz i':                     { url: ECG_BASE+'ECG-Wenckebach-AV-block-1.jpg',                          label: 'Mobitz I (Wenckebach)' },
+  'mobitz ii':                    { url: ECG_BASE+'Mobitz-II-Hay-block-e1761887989480.png',                  label: 'Mobitz II (2nd Degree AV Block)' },
+  '2nd degree':                   { url: ECG_BASE+'ECG-Wenckebach-AV-block-1.jpg',                          label: '2nd Degree AV Block' },
+  'torsades':                     { url: ECG_BASE+'ECG-hypokalaemia-torsades-3.jpg',                         label: 'Torsades de Pointes' },
+  'polymorphic vt':               { url: ECG_BASE+'ECG-hypokalaemia-torsades-3.jpg',                         label: 'Polymorphic VT / Torsades de Pointes' },
+  'premature ventricular':        { url: ECG_BASE+'ECG-Premature-Ventricular-Complex-PVC-Bigeminy.jpg',      label: 'Premature Ventricular Complex (PVC)' },
+  'pvc':                          { url: ECG_BASE+'ECG-Premature-Ventricular-Complex-PVC-Bigeminy.jpg',      label: 'Premature Ventricular Complex (PVC)' },
+  'lbbb':                         { url: ECG_BASE+'ECG-Left-Bundle-Branch-Block-LBBB-2-2-1024x428.jpg',     label: 'Left Bundle Branch Block (LBBB)' },
+  'left bundle branch block':     { url: ECG_BASE+'ECG-Left-Bundle-Branch-Block-LBBB-2-2-1024x428.jpg',     label: 'Left Bundle Branch Block (LBBB)' },
+  'rbbb':                         { url: ECG_BASE+'Isolated RBBB.png',                                       label: 'Right Bundle Branch Block (RBBB)' },
+  'right bundle branch block':    { url: ECG_BASE+'Isolated RBBB.png',                                       label: 'Right Bundle Branch Block (RBBB)' },
+  'stemi':                        { url: ECG_BASE+'ECG-Extensive-Anterior-STEMI-acute.jpg',                  label: 'STEMI' },
+  'st elevation':                 { url: ECG_BASE+'ECG-Extensive-Anterior-STEMI-acute.jpg',                  label: 'ST Elevation' },
+  'inferior stemi':               { url: ECG_BASE+'Inferior-STEMI-RV.jpeg',                                  label: 'Inferior STEMI' },
+  'anterior stemi':               { url: ECG_BASE+'ECG-Anterior-STEMI-evolving.jpg',                         label: 'Anterior STEMI' },
+  'nstemi':                       { url: ECG_BASE+'nstemi1.jpg',                                             label: 'NSTEMI' },
+  'hyperkalaemia':                { url: ECG_BASE+'ECG-Hyperkalaemia-peaked-T-waves-serum-potassium-7.0.jpg', label: 'Hyperkalaemia' },
+  'hyperkalemia':                 { url: ECG_BASE+'ECG-Hyperkalaemia-peaked-T-waves-serum-potassium-7.0.jpg', label: 'Hyperkalaemia' },
+  'hypokalaemia':                 { url: ECG_BASE+'ECG-severe-hypokalemia-serum-potassium-1.9.jpg',          label: 'Hypokalaemia' },
+  'hypokalemia':                  { url: ECG_BASE+'ECG-severe-hypokalemia-serum-potassium-1.9.jpg',          label: 'Hypokalaemia' },
+  'pulmonary embolism':           { url: ECG_BASE+'ECG-bilateral-PE.jpeg',                                   label: 'Pulmonary Embolism' },
+  'junctional':                   { url: ECG_BASE+'ECG-Junctional-bradycardia.jpg',                          label: 'Junctional Rhythm' },
+  'idioventricular':              { url: ECG_BASE+'Accelerated-Idioventricular-Rhythm-AIVR-ECG-1.jpg',       label: 'Idioventricular Rhythm' },
+  'wpw':                          { url: ECG_BASE+'Type-A-WPW-ECG-1.jpg',                                    label: 'Wolff-Parkinson-White (WPW)' },
+  'wolff':                        { url: ECG_BASE+'Type-A-WPW-ECG-1.jpg',                                    label: 'Wolff-Parkinson-White (WPW)' },
+  'brugada':                      { url: ECG_BASE+'ECG-Brugada-Syndrome-Type-1-2.jpg',                       label: 'Brugada Syndrome' },
+  'pericarditis':                 { url: ECG_BASE+'ECG-Pericarditis.jpg',                                    label: 'Pericarditis' },
+  'hypothermia':                  { url: ECG_BASE+'ECG-Hypothermia-sinus-bradycardia-1.jpg',                 label: 'Hypothermia' },
+  'prolonged qt':                 { url: ECG_BASE+'ECG-Hypocalcaemia-QTc-500.jpg',                           label: 'Prolonged QT' },
+  'long qt':                      { url: ECG_BASE+'ECG-Hypocalcaemia-QTc-500.jpg',                           label: 'Long QT' },
 };
+
+// PEA can be any organised rhythm — pick randomly at render time
+const PEA_POOL = [
+  { url: ECG_BASE+'normal-sinus-rhythm-2.jpg',                           label: 'PEA — Normal Sinus Rhythm' },
+  { url: ECG_BASE+'ECG-Sin-us-bradycardia.jpg',                          label: 'PEA — Sinus Bradycardia' },
+  { url: ECG_BASE+'ECG-1st-degree-AV-block-2.jpg',                       label: 'PEA — 1st Degree AV Block' },
+  { url: ECG_BASE+'ECG-Junctional-bradycardia.jpg',                      label: 'PEA — Junctional Bradycardia' },
+  { url: ECG_BASE+'Accelerated-Idioventricular-Rhythm-AIVR-ECG-1.jpg',  label: 'PEA — Idioventricular Rhythm' },
+  { url: ECG_BASE+'ECG-Wenckebach-AV-block-1.jpg',                       label: 'PEA — Wenckebach' },
+  { url: ECG_BASE+'ECG-Sinus-bradycardia-1st-degree-AV-block.jpg',       label: 'PEA — Sinus Bradycardia with 1st Degree Block' },
+];
 
 function getECGImage(rhythmStr) {
   if (!rhythmStr) return null;
   const r = String(rhythmStr).toLowerCase();
+  // PEA — pick a random organised rhythm from the pool
+  if (r.includes('pulseless electrical activity') || r === 'pea' || r.includes(' pea')) {
+    return PEA_POOL[Math.floor(Math.random() * PEA_POOL.length)];
+  }
   for (const [key, val] of Object.entries(ECG_IMAGES)) {
     if (r.includes(key)) return val;
   }
@@ -2397,7 +2360,7 @@ function renderScenario(s) {
     <div class="section-body open" id="sec-flags">
       <ul class="flags-list">${flagsHtml}</ul>
       ${(s.provisional||s.ddx)?`<div class="ddx-info"><strong>Provisional Dx:</strong> ${s.provisional||'—'}<br><strong>DDx:</strong> ${(s.ddx||[]).join(' / ')||'—'}</div>`:''}
-      ${(()=>{ const ecg = getECGImage(s.vitals&&s.vitals.Rhythm); if(!ecg) return ''; return `<div class="ecg-strip-section"><div class="ecg-strip-label">📈 Reference ECG Strip — ${ecg.label}</div><img class="ecg-strip-img" id="ecg-img-${s.id}" alt="${ecg.label}" onerror="this.style.opacity=0.3"><div class="ecg-strip-caption">Source: <a href="${ecg.page}" target="_blank" rel="noopener">Wikimedia Commons</a> — CC BY-SA / Public Domain</div></div>`; })()}
+      ${(()=>{ const ecg = getECGImage(s.vitals&&s.vitals.Rhythm); if(!ecg) return ''; return `<div class="ecg-strip-section"><div class="ecg-strip-label">📈 Reference ECG Strip — ${ecg.label}</div><img class="ecg-strip-img" id="ecg-img-${s.id}" alt="${ecg.label}" onerror="this.style.opacity=0.3"></div>`; })()}
     </div>
   </div>
 
@@ -3678,6 +3641,7 @@ Do NOT generate treatment or management steps — these are supplied from offici
 For medical_conditions: provide a concise array of conditions only — no explanations unless clinically essential (e.g. ["Epilepsy (breakthrough seizure last month)", "Type 2 Diabetes", "Hypertension"]). Max 4 items.
 For medications: provide a concise array of medication names with doses — no extra description (e.g. ["Levetiracetam 500mg BD", "Metformin 500mg daily", "Amlodipine 10mg"]). Max 6 items. Use empty array if none.
 For allergies: approximately 25% of patients have allergies. Vary the allergen — do NOT default to penicillin every time. Use realistic Australian options: morphine, aspirin, ibuprofen, sulfonamides, latex, bee stings, nuts, shellfish, contrast dye, codeine, tramadol, or others as clinically plausible. For anaphylaxis scenarios always include the relevant allergen. Most patients (75%) have no allergy — return "" in those cases.
+For vitals.Rhythm: Always include a cardiac rhythm using standard clinical terms (e.g. "Atrial Fibrillation", "Sinus Tachycardia", "Normal Sinus Rhythm"). Rules: (1) Non-cardiac scenarios: default to rate-appropriate sinus rhythm — "Sinus Tachycardia" if HR >100, "Sinus Bradycardia" if HR <60, otherwise "Normal Sinus Rhythm". (2) Consider age-appropriate incidental rhythms that don't affect primary management — e.g. a 78yo with pneumonia may coincidentally be in Atrial Fibrillation; a 72yo trauma patient may have 1st Degree AV Block. This is realistic and encouraged for patients over 65. (3) Cardiac scenarios: use a clinically appropriate rhythm for the presentation. (4) PEA cardiac arrest: use "Pulseless Electrical Activity (PEA)" — do NOT use VF or Asystole for PEA. (5) Never leave Rhythm blank.
 For the "discussion" field: provide 2–4 brief bullet points about management or considerations that are BEYOND AV scope — e.g. in-hospital treatment, specialist interventions, or relevant clinical nuance not covered by AV CPGs. These are suggested discussion prompts for the CI to use with the student. They are NOT assessable and NOT part of AV management. Label them clearly as beyond-scope. Return as an array of strings.
 Return ONLY a valid JSON object:
 ${SCENARIO_JSON_TEMPLATE.replace('CAT', category).replace('SUB', subcategory)}`;
