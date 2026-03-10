@@ -441,7 +441,7 @@ body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background
 #ecg-lightbox { display: none; position: fixed; inset: 0; z-index: 9999; background: rgba(0,0,0,0.92); align-items: center; justify-content: center; cursor: zoom-out; }
 #ecg-lightbox.open { display: flex; }
 #ecg-lightbox img { max-width: 96vw; max-height: 92vh; border-radius: 8px; box-shadow: 0 8px 40px rgba(0,0,0,0.6); }
-#ecg-lightbox-label { position: fixed; bottom: 24px; left: 0; right: 0; text-align: center; color: rgba(255,255,255,0.7); font-size: 12px; font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase; pointer-events: none; }
+#ecg-lightbox-label { display: none; }
 #ecg-lightbox-close { position: fixed; top: 18px; right: 22px; color: white; font-size: 28px; line-height: 1; cursor: pointer; opacity: 0.7; }
 /* ============================================================ VITAL HINTS */
 .vital-hint { display: inline-block; margin-left: 6px; background: var(--navy); color: white; font-size: 10px; font-weight: 600; padding: 1px 6px; border-radius: 4px; vertical-align: middle; opacity: 0.9; font-family: monospace; letter-spacing: 0.3px; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
