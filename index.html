@@ -4294,18 +4294,24 @@ function buildScenarioNav() {
   if (_snavObserver) { _snavObserver.disconnect(); _snavObserver = null; }
 
   // Scroll listener: find the last nav target whose top is above the middle of the screen
+  let _snavScrollTimer = null;
   function updateActiveFromScroll() {
-    const topbarH = 56;
-    const stickyH = document.getElementById('sticky-bar')?.classList.contains('visible') ? 44 : 0;
-    const threshold = topbarH + stickyH + 20;
-    let activeId = SNAV_ITEMS[0].id;
-    for (const item of SNAV_ITEMS) {
-      const el = document.getElementById(item.id);
-      if (!el) continue;
-      const rect = el.getBoundingClientRect();
-      if (rect.top <= threshold + 10) activeId = item.id;
-    }
-    snavSetActive(activeId);
+    clearTimeout(_snavScrollTimer);
+    _snavScrollTimer = setTimeout(() => {
+      const topbar = document.getElementById('topbar');
+      const stickyBar = document.getElementById('sticky-bar');
+      const topbarH = topbar ? topbar.getBoundingClientRect().height : 56;
+      const stickyH = (stickyBar && stickyBar.classList.contains('visible')) ? stickyBar.getBoundingClientRect().height : 0;
+      const threshold = topbarH + stickyH + 10;
+      let activeId = SNAV_ITEMS[0].id;
+      for (const item of SNAV_ITEMS) {
+        const el = document.getElementById(item.id);
+        if (!el) continue;
+        const rect = el.getBoundingClientRect();
+        if (rect.top <= threshold + 10) activeId = item.id;
+      }
+      snavSetActive(activeId);
+    }, 80);
   }
 
   window.addEventListener('scroll', updateActiveFromScroll, { passive: true });
@@ -4325,9 +4331,11 @@ function snavSetActive(targetId) {
 function snavScrollTo(targetId) {
   const el = document.getElementById(targetId);
   if (!el) return;
-  const topbarH = 56;
-  const stickyBarH = document.getElementById('sticky-bar')?.classList.contains('visible') ? 44 : 0;
-  const offset = topbarH + stickyBarH + 8;
+  const topbar = document.getElementById('topbar');
+  const stickyBar = document.getElementById('sticky-bar');
+  const topbarH = topbar ? topbar.getBoundingClientRect().height : 56;
+  const stickyBarH = (stickyBar && stickyBar.classList.contains('visible')) ? stickyBar.getBoundingClientRect().height : 0;
+  const offset = topbarH + stickyBarH + 4;
   const y = el.getBoundingClientRect().top + window.scrollY - offset;
   window.scrollTo({ top: y, behavior: 'smooth' });
 }
