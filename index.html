@@ -233,8 +233,8 @@ body.snav-active #content { padding-left: 60px; }
 .section-icon.purple { background: var(--purple); }
 .section-title { font-size: 13px; font-weight: 700; flex: 1; }
 .section-badge { background: var(--light); border: 1px solid var(--border); border-radius: 12px; padding: 3px 8px; font-size: 11px; font-weight: 700; white-space: nowrap; }
-.section-chevron { font-size: 14px; color: var(--grey); transition: transform 0.2s; flex-shrink: 0; cursor: pointer; padding: 6px 8px; margin: -6px -8px; border-radius: 6px; }
-.section-chevron:hover { background: var(--light); color: var(--navy); }
+.section-chevron { font-size: 14px; color: var(--grey); transition: transform 0.2s; flex-shrink: 0; pointer-events: none; }
+.section-header { cursor: pointer; }
 .section-header.open .section-chevron { transform: rotate(180deg); }
 .section-body { padding: 0 16px 14px; display: none; }
 .section-body.open { display: block; }
@@ -2434,10 +2434,10 @@ function renderScenario(s) {
 
   <!-- DISPATCH -->
   <div class="section">
-    <div class="section-header open">
+    <div class="section-header open" onclick="toggleSection(this)">
       <div class="section-icon navy">📻</div>
       <div class="section-title">Dispatch & Presentation</div>
-      <div class="section-chevron" onclick="toggleSectionByChevron(this)">▾</div>
+      <div class="section-chevron">▾</div>
     </div>
     <div class="section-body open" id="sec-dispatch">
       <div class="dispatch-card" style="margin:-14px -16px 12px; border-radius:0">
@@ -2453,10 +2453,10 @@ function renderScenario(s) {
 
   <!-- FLAGS -->
   <div class="section">
-    <div class="section-header open">
+    <div class="section-header open" onclick="toggleSection(this)">
       <div class="section-icon red">⚑</div>
       <div class="section-title">Clinical Flags & Assessor Notes</div>
-      <div class="section-chevron" onclick="toggleSectionByChevron(this)">▾</div>
+      <div class="section-chevron">▾</div>
     </div>
     <div class="section-body open" id="sec-flags">
       <ul class="flags-list">${flagsHtml}</ul>
@@ -2473,11 +2473,11 @@ function renderScenario(s) {
 
   <!-- KNOWLEDGE QUESTIONS -->
   <div class="section">
-    <div class="section-header" id="nav-s3">
+    <div class="section-header" id="nav-s3" onclick="toggleSection(this)">
       <div class="section-icon blue">3</div>
       <div class="section-title">Section 3: Knowledge Questions</div>
       <span class="section-badge" id="s3-badge">0/5 pts</span>
-      <div class="section-chevron" onclick="toggleSectionByChevron(this)">▾</div>
+      <div class="section-chevron">▾</div>
     </div>
     <div class="section-body">
       ${kqHtml || '<p style="color:var(--grey);font-size:13px;padding:10px 0">No knowledge questions defined for this scenario.</p>'}
@@ -2487,10 +2487,10 @@ function renderScenario(s) {
 
   <!-- COMMENTS -->
   <div class="section">
-    <div class="section-header">
+    <div class="section-header" onclick="toggleSection(this)">
       <div class="section-icon grey" style="background:var(--grey)">💬</div>
       <div class="section-title">Assessor Comments & Feedback</div>
-      <div class="section-chevron" onclick="toggleSectionByChevron(this)">▾</div>
+      <div class="section-chevron">▾</div>
     </div>
     <div class="section-body">
       <div class="comments-area" style="padding:0">
@@ -2662,11 +2662,11 @@ function renderSection1(s, isTrauma) {
 
   return `
   <div class="section">
-    <div class="section-header open" id="nav-s1">
+    <div class="section-header open" id="nav-s1" onclick="toggleSection(this)">
       <div class="section-icon navy">1</div>
       <div class="section-title">Section 1: Patient Assessment</div>
       <span class="section-badge" id="s1-badge">Not scored</span>
-      <div class="section-chevron" onclick="toggleSectionByChevron(this)">▾</div>
+      <div class="section-chevron">▾</div>
     </div>
     <div class="section-body open" id="sec-patient-assessment">
 
@@ -2803,11 +2803,11 @@ function renderSection2(s) {
 
   return `
   <div class="section">
-    <div class="section-header open" id="nav-s2">
+    <div class="section-header open" id="nav-s2" onclick="toggleSection(this)">
       <div class="section-icon amber">2</div>
       <div class="section-title">Section 2: Diagnosis, Care Pathways & Treatment</div>
       <span class="section-badge" id="s2-badge">Not scored</span>
-      <div class="section-chevron" onclick="toggleSectionByChevron(this)">▾</div>
+      <div class="section-chevron">▾</div>
     </div>
     <div class="section-body open" id="sec-diagnosis">
       <div class="asmt-section-header" id="nav-risk"><div class="asmt-section-title diagnosis">Risk &amp; Patient Safety</div><button class="all-complete-btn" onclick="markGroupComplete('risk')">✓ All Complete</button></div>
@@ -4290,24 +4290,29 @@ function buildScenarioNav() {
   nav.classList.add('visible');
   document.body.classList.add('snav-active');
 
-  // Set up IntersectionObserver
-  if (_snavObserver) _snavObserver.disconnect();
-  _snavObserver = new IntersectionObserver((entries) => {
-    entries.forEach(entry => {
-      if (entry.isIntersecting) {
-        const targetId = entry.target.id;
-        snavSetActive(targetId);
-      }
-    });
-  }, { rootMargin: '-10% 0px -80% 0px', threshold: 0 });
+  // Disconnect old observer if any
+  if (_snavObserver) { _snavObserver.disconnect(); _snavObserver = null; }
 
-  SNAV_ITEMS.forEach(item => {
-    const el = document.getElementById(item.id);
-    if (el) _snavObserver.observe(el);
-  });
+  // Scroll listener: find the last nav target whose top is above the middle of the screen
+  function updateActiveFromScroll() {
+    const topbarH = 56;
+    const stickyH = document.getElementById('sticky-bar')?.classList.contains('visible') ? 44 : 0;
+    const threshold = topbarH + stickyH + 20;
+    let activeId = SNAV_ITEMS[0].id;
+    for (const item of SNAV_ITEMS) {
+      const el = document.getElementById(item.id);
+      if (!el) continue;
+      const rect = el.getBoundingClientRect();
+      if (rect.top <= threshold + 10) activeId = item.id;
+    }
+    snavSetActive(activeId);
+  }
 
-  // Set first item active by default
-  snavSetActive('nav-s1');
+  window.addEventListener('scroll', updateActiveFromScroll, { passive: true });
+  _snavObserver = { disconnect: () => window.removeEventListener('scroll', updateActiveFromScroll) };
+
+  // Set initial active
+  updateActiveFromScroll();
 }
 
 function snavSetActive(targetId) {
