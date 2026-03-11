@@ -165,10 +165,11 @@ body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background
 
 /* SECTIONS */
 .section { border-bottom: 1px solid var(--border); }
-.section-header { padding: 14px 16px; display: flex; align-items: center; gap: 10px; cursor: pointer; user-select: none; transition: background 0.15s; min-height: 54px; position: sticky; top: 56px; z-index: 30; background: white; border-bottom: 1px solid var(--border); box-shadow: 0 2px 6px rgba(0,0,0,0.07); }
+.section-header { padding: 14px 16px; display: flex; align-items: center; gap: 10px; cursor: default; user-select: none; transition: background 0.15s; min-height: 54px; position: sticky; top: 56px; z-index: 30; background: white; border-bottom: 1px solid var(--border); box-shadow: 0 2px 6px rgba(0,0,0,0.07); }
 .section-header:active { background: var(--light); }
 /* When vitals sticky bar is visible, section headers drop below it */
 #scenario-view.vitals-sticky .section-header { top: 100px; }
+#scenario-view.vitals-sticky .asmt-section-header { top: 154px; }
 .section-icon { width: 30px; height: 30px; border-radius: 7px; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 800; color: white; flex-shrink: 0; }
 .section-icon.navy { background: var(--navy); }
 .section-icon.red { background: var(--red); }
@@ -178,7 +179,8 @@ body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background
 .section-icon.purple { background: var(--purple); }
 .section-title { font-size: 13px; font-weight: 700; flex: 1; }
 .section-badge { background: var(--light); border: 1px solid var(--border); border-radius: 12px; padding: 3px 8px; font-size: 11px; font-weight: 700; white-space: nowrap; }
-.section-chevron { font-size: 12px; color: var(--grey); transition: transform 0.2s; flex-shrink: 0; }
+.section-chevron { font-size: 14px; color: var(--grey); transition: transform 0.2s; flex-shrink: 0; cursor: pointer; padding: 6px 8px; margin: -6px -8px; border-radius: 6px; }
+.section-chevron:hover { background: var(--light); color: var(--navy); }
 .section-header.open .section-chevron { transform: rotate(180deg); }
 .section-body { padding: 0 16px 14px; display: none; }
 .section-body.open { display: block; }
@@ -460,7 +462,7 @@ body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background
 .vital-hint { display: inline-block; margin-left: 6px; background: var(--navy); color: white; font-size: 10px; font-weight: 600; padding: 1px 6px; border-radius: 4px; vertical-align: middle; opacity: 0.9; font-family: monospace; letter-spacing: 0.3px; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .elem-label { vertical-align: middle; }
 /* ============================================================ ALL-COMPLETE BUTTON */
-.asmt-section-header { display: flex; align-items: center; justify-content: space-between; margin-top: 10px; }
+.asmt-section-header { display: flex; align-items: center; justify-content: space-between; margin-top: 10px; position: sticky; top: 110px; z-index: 20; background: var(--light); padding-top: 4px; }
 .asmt-section-header .asmt-section-title { margin-top: 0; flex: 1; border-radius: 6px 0 0 6px; }
 .all-complete-btn { background: var(--green); color: white; border: none; border-radius: 0 6px 6px 0; padding: 0 12px; font-size: 11px; font-weight: 700; cursor: pointer; white-space: nowrap; flex-shrink: 0; height: 32px; line-height: 32px; }
 .all-complete-btn:active { opacity: 0.85; }
@@ -2375,10 +2377,10 @@ function renderScenario(s) {
 
   <!-- DISPATCH -->
   <div class="section">
-    <div class="section-header open" onclick="toggleSection(this)">
+    <div class="section-header open">
       <div class="section-icon navy">📻</div>
       <div class="section-title">Dispatch & Presentation</div>
-      <div class="section-chevron">▾</div>
+      <div class="section-chevron" onclick="toggleSectionByChevron(this)">▾</div>
     </div>
     <div class="section-body open" id="sec-dispatch">
       <div class="dispatch-card" style="margin:-14px -16px 12px; border-radius:0">
@@ -2394,10 +2396,10 @@ function renderScenario(s) {
 
   <!-- FLAGS -->
   <div class="section">
-    <div class="section-header open" onclick="toggleSection(this)">
+    <div class="section-header open">
       <div class="section-icon red">⚑</div>
       <div class="section-title">Clinical Flags & Assessor Notes</div>
-      <div class="section-chevron">▾</div>
+      <div class="section-chevron" onclick="toggleSectionByChevron(this)">▾</div>
     </div>
     <div class="section-body open" id="sec-flags">
       <ul class="flags-list">${flagsHtml}</ul>
@@ -2414,11 +2416,11 @@ function renderScenario(s) {
 
   <!-- KNOWLEDGE QUESTIONS -->
   <div class="section">
-    <div class="section-header" onclick="toggleSection(this)">
+    <div class="section-header">
       <div class="section-icon blue">3</div>
       <div class="section-title">Section 3: Knowledge Questions</div>
       <span class="section-badge" id="s3-badge">0/5 pts</span>
-      <div class="section-chevron">▾</div>
+      <div class="section-chevron" onclick="toggleSectionByChevron(this)">▾</div>
     </div>
     <div class="section-body">
       ${kqHtml || '<p style="color:var(--grey);font-size:13px;padding:10px 0">No knowledge questions defined for this scenario.</p>'}
@@ -2428,10 +2430,10 @@ function renderScenario(s) {
 
   <!-- COMMENTS -->
   <div class="section">
-    <div class="section-header" onclick="toggleSection(this)">
+    <div class="section-header">
       <div class="section-icon grey" style="background:var(--grey)">💬</div>
       <div class="section-title">Assessor Comments & Feedback</div>
-      <div class="section-chevron">▾</div>
+      <div class="section-chevron" onclick="toggleSectionByChevron(this)">▾</div>
     </div>
     <div class="section-body">
       <div class="comments-area" style="padding:0">
@@ -2603,11 +2605,11 @@ function renderSection1(s, isTrauma) {
 
   return `
   <div class="section">
-    <div class="section-header open" onclick="toggleSection(this)">
+    <div class="section-header open">
       <div class="section-icon navy">1</div>
       <div class="section-title">Section 1: Patient Assessment</div>
       <span class="section-badge" id="s1-badge">Not scored</span>
-      <div class="section-chevron">▾</div>
+      <div class="section-chevron" onclick="toggleSectionByChevron(this)">▾</div>
     </div>
     <div class="section-body open" id="sec-patient-assessment">
 
@@ -2744,11 +2746,11 @@ function renderSection2(s) {
 
   return `
   <div class="section">
-    <div class="section-header open" onclick="toggleSection(this)">
+    <div class="section-header open">
       <div class="section-icon amber">2</div>
       <div class="section-title">Section 2: Diagnosis, Care Pathways & Treatment</div>
       <span class="section-badge" id="s2-badge">Not scored</span>
-      <div class="section-chevron">▾</div>
+      <div class="section-chevron" onclick="toggleSectionByChevron(this)">▾</div>
     </div>
     <div class="section-body open" id="sec-diagnosis">
       <div class="asmt-section-header"><div class="asmt-section-title diagnosis">Risk &amp; Patient Safety</div><button class="all-complete-btn" onclick="markGroupComplete('risk')">✓ All Complete</button></div>
@@ -2960,6 +2962,10 @@ function toggleSection(header) {
   const body = header.nextElementSibling;
   header.classList.toggle('open');
   body.classList.toggle('open');
+}
+function toggleSectionByChevron(chevron) {
+  const header = chevron.closest('.section-header');
+  toggleSection(header);
 }
 function expandAll() { document.querySelectorAll('.section-body').forEach(b=>b.classList.add('open')); document.querySelectorAll('.section-header').forEach(h=>h.classList.add('open')); }
 function collapseAll() { document.querySelectorAll('.section-body').forEach(b=>b.classList.remove('open')); document.querySelectorAll('.section-header').forEach(h=>h.classList.remove('open')); }
