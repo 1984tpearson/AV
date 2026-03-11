@@ -3,7 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>AV Verbal Scenario Assessment Tool v15</title>
+<title>AV Scenario Assessment Tool</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M16 2L4 9V16C4 22.6 9.4 28.7 16 30C22.6 28.7 28 22.6 28 16V9L16 2Z' fill='%231C3A6E'/%3E%3Cpath d='M15 15H12V17H15V20H17V17H20V15H17V12H15V15Z' fill='white'/%3E%3C/svg%3E">
 <style>
 :root {
   --navy: #1C3A6E; --navy-dark: #122849; --navy-light: #2A4F8F;
@@ -630,7 +631,7 @@ body.snav-active #content { padding-left: 60px; }
 
 <div id="topbar">
   <button id="hamburger" onclick="toggleSidebar()">☰</button>
-  <div class="logo">
+  <div class="logo" onclick="goHome()" style="cursor:pointer" title="Go to home screen">
     <div class="logo-icon">
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
         <path d="M12 2L4 7V12C4 16.55 7.84 20.74 12 22C16.16 20.74 20 16.55 20 12V7L12 2Z" fill="#1C3A6E"/>
@@ -638,8 +639,7 @@ body.snav-active #content { padding-left: 60px; }
       </svg>
     </div>
     <div>
-      <h1>AV Scenario Assessment</h1>
-      <div class="subtitle">Ambulance Victoria — ALS Level C/D</div>
+      <h1>AV Scenario Assessment Tool</h1>
     </div>
   </div>
   <div class="topbar-actions">
@@ -913,13 +913,42 @@ body.snav-active #content { padding-left: 60px; }
         Scenarios are <strong>shared across all users</strong>. Enter your name so others can see who created a scenario.
       </div>
 
-      <div class="form-group" style="margin-bottom:8px">
-        <label>Your name <span style="color:var(--red)">*</span></label>
-        <input type="text" id="identity-name-input" placeholder="e.g. Lisa Smith (CI), James O'Brien (PE)…" style="font-size:15px" maxlength="40">
+      <div style="font-size:13px;font-weight:700;color:var(--navy);margin-bottom:8px;text-transform:uppercase;letter-spacing:0.5px">Your Details (CI / PE)</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+        <div class="form-group" style="margin-bottom:0">
+          <label>First Name <span style="color:var(--red)">*</span></label>
+          <input type="text" id="identity-firstname-input" placeholder="e.g. Lisa" style="font-size:15px" maxlength="30">
+        </div>
+        <div class="form-group" style="margin-bottom:0">
+          <label>Last Name <span style="color:var(--red)">*</span></label>
+          <input type="text" id="identity-lastname-input" placeholder="e.g. Smith" style="font-size:15px" maxlength="30">
+        </div>
+      </div>
+      <div class="form-group" style="margin-bottom:16px">
+        <label>Service Number <span style="color:var(--red)">*</span></label>
+        <input type="text" id="identity-svcnum-input" placeholder="e.g. 12345" style="font-size:15px" maxlength="20">
       </div>
 
-      <button class="modal-submit-btn navy" onclick="saveIdentityAndStart()" style="width:100%;margin-top:12px;font-size:15px">I understand — get started →</button>
-      <p style="font-size:11px;color:var(--grey);margin-top:10px;text-align:center">Your name is stored on this device only.</p>
+      <div style="border-top:1px solid var(--border);padding-top:14px;margin-bottom:14px">
+        <div style="font-size:13px;font-weight:700;color:var(--navy);margin-bottom:8px;text-transform:uppercase;letter-spacing:0.5px">Graduate Being Assessed <span style="font-size:11px;font-weight:400;color:var(--grey);text-transform:none;letter-spacing:0">(optional — saves locally for this session)</span></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+          <div class="form-group" style="margin-bottom:0">
+            <label>First Name</label>
+            <input type="text" id="identity-grad-firstname" placeholder="e.g. James" style="font-size:14px" maxlength="30">
+          </div>
+          <div class="form-group" style="margin-bottom:0">
+            <label>Last Name</label>
+            <input type="text" id="identity-grad-lastname" placeholder="e.g. O'Brien" style="font-size:14px" maxlength="30">
+          </div>
+        </div>
+        <div class="form-group" style="margin-bottom:0">
+          <label>Graduate Service Number</label>
+          <input type="text" id="identity-grad-svcnum" placeholder="e.g. 98765" style="font-size:14px" maxlength="20">
+        </div>
+      </div>
+
+      <button class="modal-submit-btn navy" onclick="saveIdentityAndStart()" style="width:100%;margin-top:4px;font-size:15px">I understand — get started →</button>
+      <p style="font-size:11px;color:var(--grey);margin-top:10px;text-align:center">Your details are stored on this device only.</p>
     </div>
   </div>
 </div>
@@ -1280,15 +1309,45 @@ const ADMIN_UUID    = 'fe1f2d3f-2139-44ec-bbe0-14ad6bb748ac';
 // Soft identity — persists in localStorage
 function getIdentity() {
   let uuid = localStorage.getItem('av_user_uuid');
-  let name = localStorage.getItem('av_user_name');
+  const firstName = localStorage.getItem('av_ci_firstname') || '';
+  const lastName  = localStorage.getItem('av_ci_lastname') || '';
+  const svcNum    = localStorage.getItem('av_ci_svcnum') || '';
+  const name = (firstName || lastName) ? [firstName, lastName].filter(Boolean).join(' ') : (localStorage.getItem('av_user_name') || '');
   if (!uuid) {
     uuid = crypto.randomUUID();
     localStorage.setItem('av_user_uuid', uuid);
   }
-  return { uuid, name };
+  return { uuid, name, firstName, lastName, svcNum };
 }
 function setIdentityName(name) {
   localStorage.setItem('av_user_name', name);
+}
+function setCIIdentity(firstName, lastName, svcNum) {
+  localStorage.setItem('av_ci_firstname', firstName);
+  localStorage.setItem('av_ci_lastname', lastName);
+  localStorage.setItem('av_ci_svcnum', svcNum);
+  localStorage.setItem('av_user_name', [firstName, lastName].filter(Boolean).join(' '));
+}
+function getCIDisplayName() {
+  const id = getIdentity();
+  return id.name || 'Unknown';
+}
+// Graduate info — local convenience only, no cloud storage
+function getGraduate() {
+  return {
+    firstName: localStorage.getItem('av_grad_firstname') || '',
+    lastName:  localStorage.getItem('av_grad_lastname') || '',
+    svcNum:    localStorage.getItem('av_grad_svcnum') || '',
+  };
+}
+function setGraduate(firstName, lastName, svcNum) {
+  localStorage.setItem('av_grad_firstname', firstName);
+  localStorage.setItem('av_grad_lastname', lastName);
+  localStorage.setItem('av_grad_svcnum', svcNum);
+}
+function getGraduateDisplayName() {
+  const g = getGraduate();
+  return [g.firstName, g.lastName].filter(Boolean).join(' ');
 }
 function isAdmin() {
   return getIdentity().uuid === ADMIN_UUID;
@@ -1390,7 +1449,8 @@ function fromRow(r) {
     creator_name: r.creator_name,
     ai_generated: r.ai_generated,
     is_builtin:   r.is_builtin,
-    custom:       !r.is_builtin
+    custom:       !r.is_builtin,
+    created_at:   r.created_at
   };
 }
 
@@ -1530,14 +1590,28 @@ function getOverallScore() {
 document.addEventListener('DOMContentLoaded', async () => {
   // Ensure user has an identity
   const identity = getIdentity();
-  if (!identity.name || !localStorage.getItem('av_disclaimer_accepted')) {
+  const hasCIDetails = identity.firstName && identity.lastName && identity.svcNum;
+  if (!hasCIDetails || !localStorage.getItem('av_disclaimer_accepted')) {
     // Show combined welcome/disclaimer on first run, or if disclaimer not yet accepted
     document.getElementById('identity-modal').classList.add('open');
-    // Pre-fill name if they have one but haven't accepted disclaimer
-    if (identity.name) {
-      const el = document.getElementById('identity-name-input');
-      if (el) el.value = identity.name;
+    // Pre-fill if they have details but haven't accepted disclaimer yet
+    if (identity.firstName) {
+      const fn = document.getElementById('identity-firstname-input');
+      if (fn) fn.value = identity.firstName;
     }
+    if (identity.lastName) {
+      const ln = document.getElementById('identity-lastname-input');
+      if (ln) ln.value = identity.lastName;
+    }
+    if (identity.svcNum) {
+      const sn = document.getElementById('identity-svcnum-input');
+      if (sn) sn.value = identity.svcNum;
+    }
+    // Pre-fill graduate if saved
+    const grad = getGraduate();
+    if (grad.firstName) { const el = document.getElementById('identity-grad-firstname'); if (el) el.value = grad.firstName; }
+    if (grad.lastName)  { const el = document.getElementById('identity-grad-lastname');  if (el) el.value = grad.lastName; }
+    if (grad.svcNum)    { const el = document.getElementById('identity-grad-svcnum');    if (el) el.value = grad.svcNum; }
   } else {
     await initApp();
   }
@@ -2408,6 +2482,7 @@ function renderScenario(s) {
       ${s.ai_generated?'<span class="ai-generated-badge">✦ AI</span>':''}
       ${s.custom&&!s.ai_generated?'<span class="badge custom-badge">Custom</span>':''}
       ${s._edited?'<span class="badge" style="background:#16A085">✎ Edited</span>':''}
+      ${s.created_at ? `<span class="badge" style="background:#4A5568;font-size:10px">📅 ${(d => d.getDate().toString().padStart(2,'0')+'/'+(d.getMonth()+1).toString().padStart(2,'0')+'/'+(d.getFullYear().toString().slice(2)))(new Date(s.created_at))}</span>` : ''}
     </div>
     ${isCustom?'<div class="ai-disclaimer">⚠️ Custom scenario — verify all clinical content against current AV CPGs before use.</div>':''}
   </div>
@@ -2417,9 +2492,10 @@ function renderScenario(s) {
 </div>
 <div class="scenario-body">
   <div class="grad-bar">
-    <div class="grad-field"><label>Graduate:</label><input type="text" id="grad-name" placeholder="Name"></div>
-    <div class="grad-field"><label>ID:</label><input type="text" id="grad-id" placeholder="Emp #" style="width:90px"></div>
-    <div class="grad-field"><label>Assessor:</label><input type="text" id="grad-assessor" placeholder="Name"></div>
+    <div class="grad-field"><label>Graduate:</label><input type="text" id="grad-name" placeholder="Name" value="${(() => { const g = getGraduate(); return [g.firstName, g.lastName].filter(Boolean).join(' '); })()}" oninput="onGradNameChange(this.value)"></div>
+    <div class="grad-field"><label>Grad ID:</label><input type="text" id="grad-id" placeholder="Emp #" style="width:90px" value="${getGraduate().svcNum||''}" oninput="onGradSvcNumChange(this.value)"></div>
+    <div class="grad-field"><label>Assessor:</label><input type="text" id="grad-assessor" placeholder="Name" value="${getCIDisplayName()}" oninput="onAssessorNameChange(this.value)"></div>
+    <div class="grad-field"><label>Assessor ID:</label><input type="text" id="grad-assessor-id" placeholder="Emp #" style="width:90px" value="${getIdentity().svcNum||''}" oninput="onAssessorSvcNumChange(this.value)"></div>
     <div class="grad-field"><label>Date:</label><input type="date" id="grad-date" value="${new Date().toISOString().slice(0,10)}"></div>
     <div class="grad-field"><label>Level:</label><select id="grad-level"><option>C</option><option>D</option></select></div>
   </div>
@@ -4825,19 +4901,57 @@ function acceptDisclaimer() {
 // IDENTITY
 // ============================================================
 function saveIdentityAndStart() {
-  const name = (document.getElementById('identity-name-input').value || '').trim();
-  if (!name) { showToast('⚠️ Please enter your name'); return; }
-  setIdentityName(name);
+  const firstName = (document.getElementById('identity-firstname-input').value || '').trim();
+  const lastName  = (document.getElementById('identity-lastname-input').value || '').trim();
+  const svcNum    = (document.getElementById('identity-svcnum-input').value || '').trim();
+  if (!firstName || !lastName) { showToast('⚠️ Please enter your first and last name'); return; }
+  if (!svcNum) { showToast('⚠️ Please enter your service number'); return; }
+  setCIIdentity(firstName, lastName, svcNum);
+  // Save graduate info if provided
+  const gFirst = (document.getElementById('identity-grad-firstname').value || '').trim();
+  const gLast  = (document.getElementById('identity-grad-lastname').value || '').trim();
+  const gSvc   = (document.getElementById('identity-grad-svcnum').value || '').trim();
+  if (gFirst || gLast || gSvc) setGraduate(gFirst, gLast, gSvc);
   localStorage.setItem('av_disclaimer_accepted', '1');
   document.getElementById('identity-modal').classList.remove('open');
   initApp();
 }
 
-// Allow pressing Enter in the name field
+// Allow pressing Enter in last name / svcnum fields to submit
 document.addEventListener('DOMContentLoaded', () => {
-  const inp = document.getElementById('identity-name-input');
-  if (inp) inp.addEventListener('keydown', e => { if (e.key === 'Enter') saveIdentityAndStart(); });
+  ['identity-lastname-input','identity-svcnum-input'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('keydown', e => { if (e.key === 'Enter') saveIdentityAndStart(); });
+  });
 });
+
+// ============================================================
+// GRAD BAR LIVE-EDIT — updates localStorage when fields changed in scenario view
+// ============================================================
+function onGradNameChange(val) {
+  // Update graduate name in localStorage from the scenario bar
+  const parts = val.trim().split(/\s+/);
+  const fn = parts[0] || '';
+  const ln = parts.slice(1).join(' ') || '';
+  const g = getGraduate();
+  setGraduate(fn, ln, g.svcNum);
+}
+function onGradSvcNumChange(val) {
+  const g = getGraduate();
+  setGraduate(g.firstName, g.lastName, val.trim());
+}
+function onAssessorNameChange(val) {
+  // Update CI name in localStorage from the scenario bar
+  const parts = val.trim().split(/\s+/);
+  const fn = parts[0] || '';
+  const ln = parts.slice(1).join(' ') || '';
+  const id = getIdentity();
+  setCIIdentity(fn, ln, id.svcNum);
+}
+function onAssessorSvcNumChange(val) {
+  const id = getIdentity();
+  setCIIdentity(id.firstName, id.lastName, val.trim());
+}
 
 // ============================================================
 // TOAST
