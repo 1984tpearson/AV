@@ -224,6 +224,7 @@ body.snav-active #content { padding-left: 60px; }
 .snav-section-item.active .snav-label { color: var(--navy); }
 .snav-divider { height: 1px; background: var(--border); margin: 3px 6px; flex-shrink: 0; }
 @media print { #scenario-nav { display: none !important; } }
+.snav-anchor { height: 0; margin: 0; padding: 0; border: none; }
 .section-icon { width: 30px; height: 30px; border-radius: 7px; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 800; color: white; flex-shrink: 0; }
 .section-icon.navy { background: var(--navy); }
 .section-icon.red { background: var(--red); }
@@ -2473,7 +2474,8 @@ function renderScenario(s) {
 
   <!-- KNOWLEDGE QUESTIONS -->
   <div class="section">
-    <div class="section-header" id="nav-s3" onclick="toggleSection(this)">
+    <div id="nav-s3" class="snav-anchor"></div>
+    <div class="section-header" onclick="toggleSection(this)">
       <div class="section-icon blue">3</div>
       <div class="section-title">Section 3: Knowledge Questions</div>
       <span class="section-badge" id="s3-badge">0/5 pts</span>
@@ -2645,14 +2647,14 @@ function renderSection1(s, isTrauma) {
   const ltRows = _ltSteps.slice(0,3).map((t,i) => mkRow(`lt${i+1}`, t||`Life threat ${i+1}`)).join('') || mkRow('lt1','Life threat 1')+mkRow('lt2','Life threat 2')+mkRow('lt3','Life threat 3');
 
   const secondarySurvey = isTrauma ? `
-    <div class="asmt-section-header" id="nav-ss"><div class="asmt-section-title trauma">Secondary Survey — Trauma Head-to-Toe</div><button class="all-complete-btn" onclick="markGroupComplete('ss')">✓ All Complete</button></div>
+    <div id="nav-ss" class="snav-anchor"></div><div class="asmt-section-header"><div class="asmt-section-title trauma">Secondary Survey — Trauma Head-to-Toe</div><button class="all-complete-btn" onclick="markGroupComplete('ss')">✓ All Complete</button></div>
     <table class="asmt-table" data-group="ss">
       <thead><tr><th class="left">Element</th><th>Prompting</th><th>Incomplete</th><th>Complete</th></tr></thead>
       <tbody>
         ${mkRow('ss-head','Head and face (eyes/pupils)')}${mkRow('ss-neck','Neck',true)}${mkRow('ss-chest','Chest',true)}${mkRow('ss-abdomen','Abdomen',true)}${mkRow('ss-back','Back',true)}${mkRow('ss-pelvis','Pelvis',true)}${mkRow('ss-limbs','Limbs (incl. neurovascular)',true)}${mkRow('ss-other','Other/medical consideration',true)}
       </tbody>
     </table>` : `
-    <div class="asmt-section-header" id="nav-ss"><div class="asmt-section-title">Secondary Survey — Body Systems</div><button class="all-complete-btn" onclick="markGroupComplete('ss')">✓ All Complete</button></div>
+    <div id="nav-ss" class="snav-anchor"></div><div class="asmt-section-header"><div class="asmt-section-title">Secondary Survey — Body Systems</div><button class="all-complete-btn" onclick="markGroupComplete('ss')">✓ All Complete</button></div>
     <table class="asmt-table" data-group="ss">
       <thead><tr><th class="left">Element</th><th>Prompting</th><th>Incomplete</th><th>Complete</th></tr></thead>
       <tbody>
@@ -2662,7 +2664,8 @@ function renderSection1(s, isTrauma) {
 
   return `
   <div class="section">
-    <div class="section-header open" id="nav-s1" onclick="toggleSection(this)">
+    <div id="nav-s1" class="snav-anchor"></div>
+    <div class="section-header open" onclick="toggleSection(this)">
       <div class="section-icon navy">1</div>
       <div class="section-title">Section 1: Patient Assessment</div>
       <span class="section-badge" id="s1-badge">Not scored</span>
@@ -2670,7 +2673,7 @@ function renderSection1(s, isTrauma) {
     </div>
     <div class="section-body open" id="sec-patient-assessment">
 
-      <div class="asmt-section-header" id="nav-prearr"><div class="asmt-section-title">Pre-arrival &amp; Scene</div><button class="all-complete-btn" onclick="markGroupComplete('prearr')">✓ All Complete</button></div>
+      <div id="nav-prearr" class="snav-anchor"></div><div class="asmt-section-header"><div class="asmt-section-title">Pre-arrival &amp; Scene</div><button class="all-complete-btn" onclick="markGroupComplete('prearr')">✓ All Complete</button></div>
       <table class="asmt-table" data-group="prearr">
         <thead><tr><th class="left" style="width:46%">Element</th><th style="width:18%">Prompting Required</th><th style="width:18%">Sub-section Incomplete</th><th style="width:18%">All Complete</th></tr></thead>
         <tbody>
@@ -2682,7 +2685,7 @@ function renderSection1(s, isTrauma) {
         </tbody>
       </table>
 
-      <div class="asmt-section-header" id="nav-rabcde"><div class="asmt-section-title">Primary Survey — RABCDE</div><button class="all-complete-btn" onclick="markGroupComplete('rabcde')">✓ All Complete</button></div>
+      <div id="nav-rabcde" class="snav-anchor"></div><div class="asmt-section-header"><div class="asmt-section-title">Primary Survey — RABCDE</div><button class="all-complete-btn" onclick="markGroupComplete('rabcde')">✓ All Complete</button></div>
       <table class="asmt-table" data-group="rabcde">
         <thead><tr><th class="left">Element</th><th>Prompting</th><th>Incomplete</th><th>Complete</th></tr></thead>
         <tbody>
@@ -2691,13 +2694,13 @@ function renderSection1(s, isTrauma) {
         </tbody>
       </table>
 
-      <div class="asmt-section-header" id="nav-lt"><div class="asmt-section-title">Life Threat Management</div><button class="all-complete-btn" onclick="markGroupComplete('lt')">✓ All Complete</button></div>
+      <div id="nav-lt" class="snav-anchor"></div><div class="asmt-section-header"><div class="asmt-section-title">Life Threat Management</div><button class="all-complete-btn" onclick="markGroupComplete('lt')">✓ All Complete</button></div>
       <table class="asmt-table" data-group="lt">
         <thead><tr><th class="left">Expected management (from scenario)</th><th>Prompting</th><th>Incomplete</th><th>Complete</th></tr></thead>
         <tbody>${ltRows}</tbody>
       </table>
 
-      <div class="asmt-section-header" id="nav-hx"><div class="asmt-section-title history">History &amp; Past History</div><button class="all-complete-btn" onclick="markGroupComplete('hx')">✓ All Complete</button></div>
+      <div id="nav-hx" class="snav-anchor"></div><div class="asmt-section-header"><div class="asmt-section-title history">History &amp; Past History</div><button class="all-complete-btn" onclick="markGroupComplete('hx')">✓ All Complete</button></div>
       <table class="asmt-table" data-group="hx">
         <thead><tr><th class="left">Element</th><th>Prompting</th><th>Incomplete</th><th>Complete</th></tr></thead>
         <tbody>
@@ -2710,7 +2713,7 @@ function renderSection1(s, isTrauma) {
         </tbody>
       </table>
 
-      <div class="asmt-section-header" id="nav-vss"><div class="asmt-section-title vss">Vital Signs Survey</div><button class="all-complete-btn" onclick="markGroupComplete('vss')">✓ All Complete</button></div>
+      <div id="nav-vss" class="snav-anchor"></div><div class="asmt-section-header"><div class="asmt-section-title vss">Vital Signs Survey</div><button class="all-complete-btn" onclick="markGroupComplete('vss')">✓ All Complete</button></div>
       <table class="asmt-table" data-group="vss">
         <thead><tr><th class="left">Element</th><th>Prompting</th><th>Incomplete</th><th>Complete</th></tr></thead>
         <tbody>
@@ -2729,7 +2732,7 @@ function renderSection1(s, isTrauma) {
 
       ${secondarySurvey}
 
-      <div class="asmt-section-header" id="nav-fa"><div class="asmt-section-title">Focussed Assessments</div><button class="all-complete-btn" onclick="markGroupComplete('fa')">✓ All Complete</button></div>
+      <div id="nav-fa" class="snav-anchor"></div><div class="asmt-section-header"><div class="asmt-section-title">Focussed Assessments</div><button class="all-complete-btn" onclick="markGroupComplete('fa')">✓ All Complete</button></div>
       <table class="asmt-table" data-group="fa">
         <tbody>
           ${mkFreeRow('fa1','Tool 1 (MASS, qSOFA, Anaphylaxis criteria, ACT FAST…)')}
@@ -2803,14 +2806,15 @@ function renderSection2(s) {
 
   return `
   <div class="section">
-    <div class="section-header open" id="nav-s2" onclick="toggleSection(this)">
+    <div id="nav-s2" class="snav-anchor"></div>
+    <div class="section-header open" onclick="toggleSection(this)">
       <div class="section-icon amber">2</div>
       <div class="section-title">Section 2: Diagnosis, Care Pathways & Treatment</div>
       <span class="section-badge" id="s2-badge">Not scored</span>
       <div class="section-chevron">▾</div>
     </div>
     <div class="section-body open" id="sec-diagnosis">
-      <div class="asmt-section-header" id="nav-risk"><div class="asmt-section-title diagnosis">Risk &amp; Patient Safety</div><button class="all-complete-btn" onclick="markGroupComplete('risk')">✓ All Complete</button></div>
+      <div id="nav-risk" class="snav-anchor"></div><div class="asmt-section-header"><div class="asmt-section-title diagnosis">Risk &amp; Patient Safety</div><button class="all-complete-btn" onclick="markGroupComplete('risk')">✓ All Complete</button></div>
       <table class="asmt-table" data-group="risk">
         <thead><tr><th class="left" style="width:46%">Element</th><th style="width:18%">Prompting Required</th><th style="width:18%">Sub-section Incomplete</th><th style="width:18%">All Complete</th></tr></thead>
         <tbody>
@@ -2820,7 +2824,7 @@ function renderSection2(s) {
         </tbody>
       </table>
 
-      <div class="asmt-section-header" id="nav-ddx"><div class="asmt-section-title diagnosis">Differential Diagnosis</div><button class="all-complete-btn" onclick="markGroupComplete('ddxgrp')">✓ All Complete</button></div>
+      <div id="nav-ddx" class="snav-anchor"></div><div class="asmt-section-header"><div class="asmt-section-title diagnosis">Differential Diagnosis</div><button class="all-complete-btn" onclick="markGroupComplete('ddxgrp')">✓ All Complete</button></div>
       <table class="asmt-table" data-group="ddxgrp">
         <tbody>
           <tr>
@@ -2840,7 +2844,7 @@ function renderSection2(s) {
         </tbody>
       </table>
 
-      <div class="asmt-section-header" id="nav-care"><div class="asmt-section-title diagnosis">Care Pathways — Plan</div><button class="all-complete-btn" onclick="markGroupComplete('care')">✓ All Complete</button></div>
+      <div id="nav-care" class="snav-anchor"></div><div class="asmt-section-header"><div class="asmt-section-title diagnosis">Care Pathways — Plan</div><button class="all-complete-btn" onclick="markGroupComplete('care')">✓ All Complete</button></div>
       <table class="asmt-table" data-group="care">
         <thead><tr><th class="left">Element</th><th>Prompting</th><th>Incomplete</th><th>Complete</th></tr></thead>
         <tbody>
@@ -2856,7 +2860,7 @@ function renderSection2(s) {
         </tbody>
       </table>
 
-      <div class="asmt-section-header" id="nav-impl"><div class="asmt-section-title implement">Implement &amp; Reassess</div><button class="all-complete-btn" onclick="markGroupComplete('impl')">✓ All Complete</button></div>
+      <div id="nav-impl" class="snav-anchor"></div><div class="asmt-section-header"><div class="asmt-section-title implement">Implement &amp; Reassess</div><button class="all-complete-btn" onclick="markGroupComplete('impl')">✓ All Complete</button></div>
       <table class="asmt-table" data-group="impl" id="sec-implement">
         <thead><tr><th class="left">Element</th><th>Prompting</th><th>Incomplete</th><th>Complete</th></tr></thead>
         <tbody>
