@@ -165,8 +165,10 @@ body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background
 
 /* SECTIONS */
 .section { border-bottom: 1px solid var(--border); }
-.section-header { padding: 14px 16px; display: flex; align-items: center; gap: 10px; cursor: pointer; user-select: none; transition: background 0.15s; min-height: 54px; }
+.section-header { padding: 14px 16px; display: flex; align-items: center; gap: 10px; cursor: pointer; user-select: none; transition: background 0.15s; min-height: 54px; position: sticky; top: 56px; z-index: 30; background: white; border-bottom: 1px solid var(--border); box-shadow: 0 2px 6px rgba(0,0,0,0.07); }
 .section-header:active { background: var(--light); }
+/* When vitals sticky bar is visible, section headers drop below it */
+#scenario-view.vitals-sticky .section-header { top: 100px; }
 .section-icon { width: 30px; height: 30px; border-radius: 7px; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 800; color: white; flex-shrink: 0; }
 .section-icon.navy { background: var(--navy); }
 .section-icon.red { background: var(--red); }
@@ -484,6 +486,7 @@ body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background
   #content { margin: 0 !important; padding: 0 !important; }
   .section-body { display: block !important; }
   .kq-answer { display: block !important; }
+  .section-header { position: static !important; box-shadow: none !important; border-bottom: none !important; }
   body { font-size: 11px; }
 }
 
@@ -4145,11 +4148,15 @@ function hideStickyBar() {
   const offset = document.getElementById('sticky-bar-offset');
   if (bar) bar.classList.remove('visible');
   if (offset) offset.classList.remove('visible');
+  const sv = document.getElementById('scenario-view');
+  if (sv) sv.classList.remove('vitals-sticky');
 }
 
 function showStickyBar(s) {
   document.getElementById('sticky-bar').classList.add('visible');
   document.getElementById('sticky-bar-offset').classList.add('visible');
+  const sv = document.getElementById('scenario-view');
+  if (sv) sv.classList.add('vitals-sticky');
 
   // Title
   document.getElementById('sticky-title-name').textContent = s.title || '—';
