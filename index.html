@@ -77,6 +77,7 @@ body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background
 
 /* ============================================================ CONTENT */
 #content { flex: 1; padding: 16px; min-height: calc(100vh - 56px); width: 100%; }
+body.snav-active #content { padding-left: 60px; }
 
 /* ============================================================ SCORE PANEL — bottom sheet on iPad */
 #score-panel { display: none; }
@@ -170,6 +171,59 @@ body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background
 /* When vitals sticky bar is visible, section headers drop below it */
 #scenario-view.vitals-sticky .section-header { top: 100px; }
 #scenario-view.vitals-sticky .asmt-section-header { top: 154px; }
+/* Vertical nav strip */
+#scenario-nav {
+  display: none;
+  position: fixed;
+  left: 0; top: 56px;
+  width: 48px;
+  height: calc(100vh - 56px);
+  overflow-y: auto;
+  overflow-x: hidden;
+  background: #f7f8fa;
+  border-right: 1px solid var(--border);
+  z-index: 25;
+  padding: 6px 0;
+  scrollbar-width: none;
+}
+#scenario-nav::-webkit-scrollbar { display: none; }
+#scenario-nav.visible { display: flex; flex-direction: column; }
+.snav-item {
+  display: flex; flex-direction: column; align-items: center;
+  padding: 5px 2px;
+  cursor: pointer;
+  position: relative;
+  border-left: 3px solid transparent;
+  transition: background 0.15s, border-color 0.15s;
+  user-select: none;
+}
+.snav-item:hover { background: #edf0f5; }
+.snav-item.active { background: #e8edf5; border-left-color: var(--navy); }
+.snav-item.active .snav-dot { opacity: 1; transform: scale(1.15); }
+.snav-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  margin-bottom: 3px; opacity: 0.45;
+  flex-shrink: 0;
+  transition: opacity 0.15s, transform 0.15s;
+}
+.snav-dot.navy  { background: var(--navy); }
+.snav-dot.amber { background: var(--amber); }
+.snav-dot.green { background: var(--green); }
+.snav-dot.purple{ background: var(--purple); }
+.snav-dot.grey  { background: var(--grey); }
+.snav-dot.red   { background: var(--red); }
+.snav-dot.teal  { background: #1a9e8f; }
+.snav-dot.blue  { background: var(--blue); }
+.snav-label {
+  font-size: 8.5px; font-weight: 600; color: #666;
+  text-align: center; line-height: 1.2;
+  max-width: 42px; word-break: break-word;
+}
+.snav-item.active .snav-label { color: var(--navy); }
+.snav-section-item .snav-label { font-weight: 800; font-size: 9px; color: #333; }
+.snav-section-item.active .snav-label { color: var(--navy); }
+.snav-divider { height: 1px; background: var(--border); margin: 3px 6px; flex-shrink: 0; }
+@media print { #scenario-nav { display: none !important; } }
 .section-icon { width: 30px; height: 30px; border-radius: 7px; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 800; color: white; flex-shrink: 0; }
 .section-icon.navy { background: var(--navy); }
 .section-icon.red { background: var(--red); }
@@ -625,6 +679,8 @@ body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background
     <button class="sidebar-bottom-btn purple" onclick="closeSidebar();openManageModal()">⚙ Manage Custom</button>
   </div>
 </div>
+
+<div id="scenario-nav"></div>
 
 <div id="main-wrapper">
   <div id="content">
@@ -1684,7 +1740,8 @@ function showScreen(name) {
   // Score FAB only on scenario view
   const fab = document.getElementById('score-panel-toggle');
   if (fab) fab.classList.toggle('visible', name === 'scenario-view');
-  if (name !== 'scenario-view') hideStickyBar();
+  if (name !== 'scenario-view') { hideStickyBar(); hideScenarioNav(); }
+  else { setTimeout(buildScenarioNav, 100); }
   window.scrollTo(0, 0);
 }
 
@@ -2416,7 +2473,7 @@ function renderScenario(s) {
 
   <!-- KNOWLEDGE QUESTIONS -->
   <div class="section">
-    <div class="section-header">
+    <div class="section-header" id="nav-s3">
       <div class="section-icon blue">3</div>
       <div class="section-title">Section 3: Knowledge Questions</div>
       <span class="section-badge" id="s3-badge">0/5 pts</span>
@@ -2588,14 +2645,14 @@ function renderSection1(s, isTrauma) {
   const ltRows = _ltSteps.slice(0,3).map((t,i) => mkRow(`lt${i+1}`, t||`Life threat ${i+1}`)).join('') || mkRow('lt1','Life threat 1')+mkRow('lt2','Life threat 2')+mkRow('lt3','Life threat 3');
 
   const secondarySurvey = isTrauma ? `
-    <div class="asmt-section-header"><div class="asmt-section-title trauma">Secondary Survey — Trauma Head-to-Toe</div><button class="all-complete-btn" onclick="markGroupComplete('ss')">✓ All Complete</button></div>
+    <div class="asmt-section-header" id="nav-ss"><div class="asmt-section-title trauma">Secondary Survey — Trauma Head-to-Toe</div><button class="all-complete-btn" onclick="markGroupComplete('ss')">✓ All Complete</button></div>
     <table class="asmt-table" data-group="ss">
       <thead><tr><th class="left">Element</th><th>Prompting</th><th>Incomplete</th><th>Complete</th></tr></thead>
       <tbody>
         ${mkRow('ss-head','Head and face (eyes/pupils)')}${mkRow('ss-neck','Neck',true)}${mkRow('ss-chest','Chest',true)}${mkRow('ss-abdomen','Abdomen',true)}${mkRow('ss-back','Back',true)}${mkRow('ss-pelvis','Pelvis',true)}${mkRow('ss-limbs','Limbs (incl. neurovascular)',true)}${mkRow('ss-other','Other/medical consideration',true)}
       </tbody>
     </table>` : `
-    <div class="asmt-section-header"><div class="asmt-section-title">Secondary Survey — Body Systems</div><button class="all-complete-btn" onclick="markGroupComplete('ss')">✓ All Complete</button></div>
+    <div class="asmt-section-header" id="nav-ss"><div class="asmt-section-title">Secondary Survey — Body Systems</div><button class="all-complete-btn" onclick="markGroupComplete('ss')">✓ All Complete</button></div>
     <table class="asmt-table" data-group="ss">
       <thead><tr><th class="left">Element</th><th>Prompting</th><th>Incomplete</th><th>Complete</th></tr></thead>
       <tbody>
@@ -2605,7 +2662,7 @@ function renderSection1(s, isTrauma) {
 
   return `
   <div class="section">
-    <div class="section-header open">
+    <div class="section-header open" id="nav-s1">
       <div class="section-icon navy">1</div>
       <div class="section-title">Section 1: Patient Assessment</div>
       <span class="section-badge" id="s1-badge">Not scored</span>
@@ -2613,7 +2670,7 @@ function renderSection1(s, isTrauma) {
     </div>
     <div class="section-body open" id="sec-patient-assessment">
 
-      <div class="asmt-section-header"><div class="asmt-section-title">Pre-arrival &amp; Scene</div><button class="all-complete-btn" onclick="markGroupComplete('prearr')">✓ All Complete</button></div>
+      <div class="asmt-section-header" id="nav-prearr"><div class="asmt-section-title">Pre-arrival &amp; Scene</div><button class="all-complete-btn" onclick="markGroupComplete('prearr')">✓ All Complete</button></div>
       <table class="asmt-table" data-group="prearr">
         <thead><tr><th class="left" style="width:46%">Element</th><th style="width:18%">Prompting Required</th><th style="width:18%">Sub-section Incomplete</th><th style="width:18%">All Complete</th></tr></thead>
         <tbody>
@@ -2625,7 +2682,7 @@ function renderSection1(s, isTrauma) {
         </tbody>
       </table>
 
-      <div class="asmt-section-header"><div class="asmt-section-title">Primary Survey — RABCDE</div><button class="all-complete-btn" onclick="markGroupComplete('rabcde')">✓ All Complete</button></div>
+      <div class="asmt-section-header" id="nav-rabcde"><div class="asmt-section-title">Primary Survey — RABCDE</div><button class="all-complete-btn" onclick="markGroupComplete('rabcde')">✓ All Complete</button></div>
       <table class="asmt-table" data-group="rabcde">
         <thead><tr><th class="left">Element</th><th>Prompting</th><th>Incomplete</th><th>Complete</th></tr></thead>
         <tbody>
@@ -2634,13 +2691,13 @@ function renderSection1(s, isTrauma) {
         </tbody>
       </table>
 
-      <div class="asmt-section-header"><div class="asmt-section-title">Life Threat Management</div><button class="all-complete-btn" onclick="markGroupComplete('lt')">✓ All Complete</button></div>
+      <div class="asmt-section-header" id="nav-lt"><div class="asmt-section-title">Life Threat Management</div><button class="all-complete-btn" onclick="markGroupComplete('lt')">✓ All Complete</button></div>
       <table class="asmt-table" data-group="lt">
         <thead><tr><th class="left">Expected management (from scenario)</th><th>Prompting</th><th>Incomplete</th><th>Complete</th></tr></thead>
         <tbody>${ltRows}</tbody>
       </table>
 
-      <div class="asmt-section-header"><div class="asmt-section-title history">History &amp; Past History</div><button class="all-complete-btn" onclick="markGroupComplete('hx')">✓ All Complete</button></div>
+      <div class="asmt-section-header" id="nav-hx"><div class="asmt-section-title history">History &amp; Past History</div><button class="all-complete-btn" onclick="markGroupComplete('hx')">✓ All Complete</button></div>
       <table class="asmt-table" data-group="hx">
         <thead><tr><th class="left">Element</th><th>Prompting</th><th>Incomplete</th><th>Complete</th></tr></thead>
         <tbody>
@@ -2653,7 +2710,7 @@ function renderSection1(s, isTrauma) {
         </tbody>
       </table>
 
-      <div class="asmt-section-header"><div class="asmt-section-title vss">Vital Signs Survey</div><button class="all-complete-btn" onclick="markGroupComplete('vss')">✓ All Complete</button></div>
+      <div class="asmt-section-header" id="nav-vss"><div class="asmt-section-title vss">Vital Signs Survey</div><button class="all-complete-btn" onclick="markGroupComplete('vss')">✓ All Complete</button></div>
       <table class="asmt-table" data-group="vss">
         <thead><tr><th class="left">Element</th><th>Prompting</th><th>Incomplete</th><th>Complete</th></tr></thead>
         <tbody>
@@ -2672,7 +2729,7 @@ function renderSection1(s, isTrauma) {
 
       ${secondarySurvey}
 
-      <div class="asmt-section-header"><div class="asmt-section-title">Focussed Assessments</div><button class="all-complete-btn" onclick="markGroupComplete('fa')">✓ All Complete</button></div>
+      <div class="asmt-section-header" id="nav-fa"><div class="asmt-section-title">Focussed Assessments</div><button class="all-complete-btn" onclick="markGroupComplete('fa')">✓ All Complete</button></div>
       <table class="asmt-table" data-group="fa">
         <tbody>
           ${mkFreeRow('fa1','Tool 1 (MASS, qSOFA, Anaphylaxis criteria, ACT FAST…)')}
@@ -2746,14 +2803,14 @@ function renderSection2(s) {
 
   return `
   <div class="section">
-    <div class="section-header open">
+    <div class="section-header open" id="nav-s2">
       <div class="section-icon amber">2</div>
       <div class="section-title">Section 2: Diagnosis, Care Pathways & Treatment</div>
       <span class="section-badge" id="s2-badge">Not scored</span>
       <div class="section-chevron" onclick="toggleSectionByChevron(this)">▾</div>
     </div>
     <div class="section-body open" id="sec-diagnosis">
-      <div class="asmt-section-header"><div class="asmt-section-title diagnosis">Risk &amp; Patient Safety</div><button class="all-complete-btn" onclick="markGroupComplete('risk')">✓ All Complete</button></div>
+      <div class="asmt-section-header" id="nav-risk"><div class="asmt-section-title diagnosis">Risk &amp; Patient Safety</div><button class="all-complete-btn" onclick="markGroupComplete('risk')">✓ All Complete</button></div>
       <table class="asmt-table" data-group="risk">
         <thead><tr><th class="left" style="width:46%">Element</th><th style="width:18%">Prompting Required</th><th style="width:18%">Sub-section Incomplete</th><th style="width:18%">All Complete</th></tr></thead>
         <tbody>
@@ -2763,7 +2820,7 @@ function renderSection2(s) {
         </tbody>
       </table>
 
-      <div class="asmt-section-header"><div class="asmt-section-title diagnosis">Differential Diagnosis</div><button class="all-complete-btn" onclick="markGroupComplete('ddxgrp')">✓ All Complete</button></div>
+      <div class="asmt-section-header" id="nav-ddx"><div class="asmt-section-title diagnosis">Differential Diagnosis</div><button class="all-complete-btn" onclick="markGroupComplete('ddxgrp')">✓ All Complete</button></div>
       <table class="asmt-table" data-group="ddxgrp">
         <tbody>
           <tr>
@@ -2783,7 +2840,7 @@ function renderSection2(s) {
         </tbody>
       </table>
 
-      <div class="asmt-section-header"><div class="asmt-section-title diagnosis">Care Pathways — Plan</div><button class="all-complete-btn" onclick="markGroupComplete('care')">✓ All Complete</button></div>
+      <div class="asmt-section-header" id="nav-care"><div class="asmt-section-title diagnosis">Care Pathways — Plan</div><button class="all-complete-btn" onclick="markGroupComplete('care')">✓ All Complete</button></div>
       <table class="asmt-table" data-group="care">
         <thead><tr><th class="left">Element</th><th>Prompting</th><th>Incomplete</th><th>Complete</th></tr></thead>
         <tbody>
@@ -2799,7 +2856,7 @@ function renderSection2(s) {
         </tbody>
       </table>
 
-      <div class="asmt-section-header"><div class="asmt-section-title implement">Implement &amp; Reassess</div><button class="all-complete-btn" onclick="markGroupComplete('impl')">✓ All Complete</button></div>
+      <div class="asmt-section-header" id="nav-impl"><div class="asmt-section-title implement">Implement &amp; Reassess</div><button class="all-complete-btn" onclick="markGroupComplete('impl')">✓ All Complete</button></div>
       <table class="asmt-table" data-group="impl" id="sec-implement">
         <thead><tr><th class="left">Element</th><th>Prompting</th><th>Incomplete</th><th>Complete</th></tr></thead>
         <tbody>
@@ -4193,6 +4250,90 @@ function showStickyBar(s) {
   const m = Math.floor(remaining/60), ss = remaining%60;
   const el = document.getElementById('sticky-timer-display');
   if (el) el.textContent = `${String(m).padStart(2,'0')}:${String(ss).padStart(2,'0')}`;
+}
+
+// ============================================================
+// SCENARIO NAV STRIP
+// ============================================================
+let _snavObserver = null;
+
+const SNAV_ITEMS = [
+  { id: 'nav-s1',     label: 'S1',      dot: 'navy',   section: true },
+  { id: 'nav-prearr', label: 'Pre',     dot: 'navy' },
+  { id: 'nav-rabcde', label: 'RABCDE',  dot: 'navy' },
+  { id: 'nav-lt',     label: 'LT Mgmt', dot: 'red' },
+  { id: 'nav-hx',     label: 'Hx',      dot: 'teal' },
+  { id: 'nav-vss',    label: 'VSS',     dot: 'blue' },
+  { id: 'nav-ss',     label: 'SS',      dot: 'navy' },
+  { id: 'nav-fa',     label: 'FA',      dot: 'purple' },
+  { id: 'nav-s2',     label: 'S2',      dot: 'amber',  section: true },
+  { id: 'nav-risk',   label: 'Risk',    dot: 'amber' },
+  { id: 'nav-ddx',    label: 'DDx',     dot: 'amber' },
+  { id: 'nav-care',   label: 'Care',    dot: 'amber' },
+  { id: 'nav-impl',   label: 'Impl',    dot: 'green' },
+  { id: 'nav-s3',     label: 'S3',      dot: 'blue',   section: true },
+];
+
+function buildScenarioNav() {
+  const nav = document.getElementById('scenario-nav');
+  if (!nav) return;
+
+  // Build HTML
+  nav.innerHTML = SNAV_ITEMS.map((item, i) => {
+    const divider = (i > 0 && item.section) ? '<div class="snav-divider"></div>' : '';
+    return `${divider}<div class="snav-item${item.section ? ' snav-section-item' : ''}" id="snav-${item.id}" onclick="snavScrollTo('${item.id}')">
+      <div class="snav-dot ${item.dot}"></div>
+      <div class="snav-label">${item.label}</div>
+    </div>`;
+  }).join('');
+
+  nav.classList.add('visible');
+  document.body.classList.add('snav-active');
+
+  // Set up IntersectionObserver
+  if (_snavObserver) _snavObserver.disconnect();
+  _snavObserver = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        const targetId = entry.target.id;
+        snavSetActive(targetId);
+      }
+    });
+  }, { rootMargin: '-10% 0px -80% 0px', threshold: 0 });
+
+  SNAV_ITEMS.forEach(item => {
+    const el = document.getElementById(item.id);
+    if (el) _snavObserver.observe(el);
+  });
+
+  // Set first item active by default
+  snavSetActive('nav-s1');
+}
+
+function snavSetActive(targetId) {
+  SNAV_ITEMS.forEach(item => {
+    const btn = document.getElementById('snav-' + item.id);
+    if (btn) btn.classList.toggle('active', item.id === targetId);
+  });
+}
+
+function snavScrollTo(targetId) {
+  const el = document.getElementById(targetId);
+  if (!el) return;
+  const topbarH = 56;
+  const stickyBarH = document.getElementById('sticky-bar')?.classList.contains('visible') ? 44 : 0;
+  const offset = topbarH + stickyBarH + 8;
+  const y = el.getBoundingClientRect().top + window.scrollY - offset;
+  window.scrollTo({ top: y, behavior: 'smooth' });
+}
+
+function hideScenarioNav() {
+  const nav = document.getElementById('scenario-nav');
+  if (!nav) return;
+  nav.classList.remove('visible');
+  nav.innerHTML = '';
+  document.body.classList.remove('snav-active');
+  if (_snavObserver) { _snavObserver.disconnect(); _snavObserver = null; }
 }
 
 // ============================================================
