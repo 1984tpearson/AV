@@ -649,23 +649,6 @@ body.snav-active #content { padding-left: 60px; }
   </div>
 </div>
 
-<!-- Sticky scenario bar: timer + vitals -->
-<div id="sticky-bar">
-  <div id="sticky-bar-inner">
-    <div id="sticky-timer">
-      <div id="sticky-timer-display">28:00</div>
-      <button class="sticky-timer-btn" onclick="startTimer()">▶</button>
-      <button class="sticky-timer-btn" onclick="stopTimer()">⏸</button>
-      <button class="sticky-timer-btn" onclick="resetTimer()">↺</button>
-    </div>
-    <div id="sticky-title">
-      <div class="st-name" id="sticky-title-name">—</div>
-      <div class="st-sub" id="sticky-title-sub">—</div>
-    </div>
-    <div id="sticky-vitals"></div>
-    <button id="sticky-edit-btn" onclick="openEditModal()">✏️ Edit</button>
-  </div>
-</div>
 <div class="sticky-bar-offset" id="sticky-bar-offset"></div>
 
 <div id="sidebar-overlay" onclick="closeSidebar()"></div>
@@ -4304,8 +4287,7 @@ function showStickyBar(s) {
     if (k === 'GCS') {
       const g = gcsFromVitals(rawVal);
       displayVal = g.display;
-      const descHtml = g.description ? `<div class="sv-gcs-desc">${g.description}</div>` : '';
-      return `<div class="sv-item sv-gcs-item${abn?' abnormal':''}"><div class="sv-label">GCS</div><div class="sv-value">${displayVal}</div>${descHtml}</div>`;
+      return `<div class="sv-item${abn?' abnormal':''}"><div class="sv-label">GCS</div><div class="sv-value">${displayVal}</div></div>`;
     }
     displayVal = rawVal;
     return `<div class="sv-item${abn?' abnormal':''}"><div class="sv-label">${k}</div><div class="sv-value">${displayVal}</div></div>`;
@@ -4965,5 +4947,22 @@ function closeECGLightbox() {
 }
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closeECGLightbox(); });
 </script>
+<!-- Sticky scenario bar: timer + vitals — placed last in body for reliable fixed positioning across all browsers -->
+<div id="sticky-bar">
+  <div id="sticky-bar-inner">
+    <div id="sticky-timer">
+      <div id="sticky-timer-display">28:00</div>
+      <button class="sticky-timer-btn" onclick="startTimer()">▶</button>
+      <button class="sticky-timer-btn" onclick="stopTimer()">⏸</button>
+      <button class="sticky-timer-btn" onclick="resetTimer()">↺</button>
+    </div>
+    <div id="sticky-title">
+      <div class="st-name" id="sticky-title-name">—</div>
+      <div class="st-sub" id="sticky-title-sub">—</div>
+    </div>
+    <div id="sticky-vitals"></div>
+    <button id="sticky-edit-btn" onclick="openEditModal()">✏️ Edit</button>
+  </div>
+</div>
 </body>
 </html>
