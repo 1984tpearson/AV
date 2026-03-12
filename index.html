@@ -18,7 +18,7 @@
   --tap: 48px; /* minimum tap target */
 }
 * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
-html { font-size: 16px; }
+html, body { height: 100%; overflow: hidden; }
 body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background: var(--light); color: var(--text); line-height: 1.5; overscroll-behavior: none; }
 
 /* ============================================================ TOP BAR */
@@ -36,8 +36,9 @@ body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background
 #hamburger { background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.3); color: white; width: 44px; height: 44px; border-radius: 8px; cursor: pointer; font-size: 18px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 #hamburger:active { background: rgba(255,255,255,0.3); }
 
+html { font-size: 16px; }
 /* ============================================================ LAYOUT */
-#main-wrapper { display: flex; margin-top: 56px; min-height: calc(100vh - 56px); }
+#main-wrapper { display: flex; position: fixed; top: 56px; left: 0; right: 0; bottom: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; }
 
 /* ============================================================ SIDEBAR — slide-over drawer on iPad */
 #sidebar-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 60; top: 56px; }
@@ -77,7 +78,7 @@ body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background
 .sidebar-bottom-btn:active { opacity: 0.85; }
 
 /* ============================================================ CONTENT */
-#content { flex: 1; padding: 16px; min-height: calc(100vh - 56px); width: 100%; }
+#content { flex: 1; padding: 16px; min-height: 100%; width: 100%; }
 body.snav-active #content { padding-left: 60px; }
 
 /* ============================================================ SCORE PANEL — bottom sheet on iPad */
@@ -198,7 +199,7 @@ body.snav-active #content { padding-left: 60px; }
   user-select: none;
 }
 .snav-item:hover { background: #edf0f5; }
-.snav-item.active { background: #e8edf5; border-left-color: var(--navy); }
+.snav-item.active { background: #cce0f5; border-left-color: #1a7bbf; }
 .snav-item.active .snav-dot { opacity: 1; transform: scale(1.15); }
 .snav-dot {
   width: 8px; height: 8px; border-radius: 50%;
@@ -219,7 +220,7 @@ body.snav-active #content { padding-left: 60px; }
   text-align: center; line-height: 1.2;
   max-width: 42px; word-break: break-word;
 }
-.snav-item.active .snav-label { color: var(--navy); }
+.snav-item.active .snav-label { color: #1a7bbf; }
 .snav-section-item .snav-label { font-weight: 800; font-size: 9px; color: #333; }
 .snav-section-item.active .snav-label { color: var(--navy); }
 .snav-divider { height: 1px; background: var(--border); margin: 3px 6px; flex-shrink: 0; }
@@ -581,9 +582,7 @@ body.snav-active #content { padding-left: 60px; }
 #sticky-edit-btn { padding: 6px 12px; background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.25); color: white; border-radius: 6px; cursor: pointer; font-size: 11px; font-weight: 700; flex-shrink: 0; margin: 0 8px; min-height: 32px; display: flex; align-items: center; gap: 4px; }
 #sticky-edit-btn:active { background: rgba(255,255,255,0.25); }
 
-/* Push content down to account for topbar + sticky bar */
-#main-wrapper { margin-top: 56px; }
-#content { padding-top: 16px; }
+/* Push content down when sticky bar is visible */
 .sticky-bar-offset { height: 0; transition: height 0.2s; }
 .sticky-bar-offset.visible { height: 44px; }
 
@@ -1776,7 +1775,7 @@ function showScreen(name) {
   if (fab) fab.classList.toggle('visible', name === 'scenario-view');
   if (name !== 'scenario-view') { hideStickyBar(); hideScenarioNav(); }
   else { setTimeout(buildScenarioNav, 100); }
-  window.scrollTo(0, 0);
+  document.getElementById("main-wrapper").scrollTop = 0;
 }
 
 function goHome() {
@@ -2133,7 +2132,7 @@ function loadScenario(id) {
 
   updateScoreSheet();
   showStickyBar(s);
-  window.scrollTo(0,0);
+  document.getElementById("main-wrapper").scrollTop = 0;
 }
 
 
@@ -4307,19 +4306,19 @@ let _snavObserver = null;
 
 const SNAV_ITEMS = [
   { id: 'nav-s1',     label: 'S1',      dot: 'navy',   section: true },
-  { id: 'nav-prearr', label: 'Pre',     dot: 'navy' },
-  { id: 'nav-rabcde', label: 'RABCDE',  dot: 'navy' },
-  { id: 'nav-lt',     label: 'LT Mgmt', dot: 'red' },
+  { id: 'nav-prearr', label: 'O/A',     dot: 'navy' },
+  { id: 'nav-rabcde', label: '1st°',    dot: 'navy' },
+  { id: 'nav-lt',     label: 'Mx 1',    dot: 'red' },
   { id: 'nav-hx',     label: 'Hx',      dot: 'teal' },
   { id: 'nav-vss',    label: 'VSS',     dot: 'blue' },
-  { id: 'nav-ss',     label: 'SS',      dot: 'navy' },
+  { id: 'nav-ss',     label: '2nd°',    dot: 'navy' },
   { id: 'nav-fa',     label: 'FA',      dot: 'purple' },
   { id: 'nav-s2',     label: 'S2',      dot: 'amber',  section: true },
-  { id: 'nav-risk',   label: 'Risk',    dot: 'amber' },
+  { id: 'nav-risk',   label: 'flgs',    dot: 'amber' },
   { id: 'nav-ddx',    label: 'DDx',     dot: 'amber' },
   { id: 'nav-care',   label: 'Care',    dot: 'amber' },
   { id: 'nav-impl',   label: 'Impl',    dot: 'green' },
-  { id: 'nav-s3',     label: 'S3',      dot: 'blue',   section: true },
+  { id: 'nav-s3',     label: 'Mgmt',    dot: 'blue',   section: true },
 ];
 
 function buildScenarioNav() {
@@ -4362,8 +4361,9 @@ function buildScenarioNav() {
     }, 80);
   }
 
-  window.addEventListener('scroll', updateActiveFromScroll, { passive: true });
-  _snavObserver = { disconnect: () => window.removeEventListener('scroll', updateActiveFromScroll) };
+  const _scrollContainer = document.getElementById('main-wrapper');
+  _scrollContainer.addEventListener('scroll', updateActiveFromScroll, { passive: true });
+  _snavObserver = { disconnect: () => _scrollContainer.removeEventListener('scroll', updateActiveFromScroll) };
 
   // Set initial active
   updateActiveFromScroll();
@@ -4384,8 +4384,9 @@ function snavScrollTo(targetId) {
   const topbarH = topbar ? topbar.getBoundingClientRect().height : 56;
   const stickyBarH = (stickyBar && stickyBar.classList.contains('visible')) ? stickyBar.getBoundingClientRect().height : 0;
   const offset = topbarH + stickyBarH + 4;
-  const y = el.getBoundingClientRect().top + window.scrollY - offset;
-  window.scrollTo({ top: y, behavior: 'smooth' });
+  const wrapper = document.getElementById('main-wrapper');
+  const y = el.getBoundingClientRect().top + wrapper.scrollTop - offset;
+  wrapper.scrollTo({ top: y, behavior: 'smooth' });
 }
 
 function hideScenarioNav() {
