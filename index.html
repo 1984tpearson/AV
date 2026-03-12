@@ -18,7 +18,7 @@
   --tap: 48px; /* minimum tap target */
 }
 * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
-html, body { height: 100%; overflow: hidden; }
+html { font-size: 16px; }
 body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background: var(--light); color: var(--text); line-height: 1.5; overscroll-behavior: none; }
 
 /* ============================================================ TOP BAR */
@@ -36,9 +36,8 @@ body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background
 #hamburger { background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.3); color: white; width: 44px; height: 44px; border-radius: 8px; cursor: pointer; font-size: 18px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 #hamburger:active { background: rgba(255,255,255,0.3); }
 
-html { font-size: 16px; }
 /* ============================================================ LAYOUT */
-#main-wrapper { display: flex; position: fixed; top: 56px; left: 0; right: 0; bottom: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+#main-wrapper { display: flex; margin-top: 56px; min-height: calc(100vh - 56px); }
 
 /* ============================================================ SIDEBAR — slide-over drawer on iPad */
 #sidebar-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 60; top: 56px; }
@@ -78,7 +77,7 @@ html { font-size: 16px; }
 .sidebar-bottom-btn:active { opacity: 0.85; }
 
 /* ============================================================ CONTENT */
-#content { flex: 1; padding: 16px; min-height: 100%; width: 100%; }
+#content { flex: 1; padding: 16px; min-height: calc(100vh - 56px); width: 100%; }
 body.snav-active #content { padding-left: 60px; }
 
 /* ============================================================ SCORE PANEL — bottom sheet on iPad */
@@ -525,7 +524,7 @@ body.snav-active #content { padding-left: 60px; }
 /* ============================================================ AUTO-SCORE */
 .auto-score-indicator { font-size: 10px; color: var(--grey); margin-top: 4px; font-style: italic; }
 /* ============================================================ FOOTER */
-#site-footer { background: #1a1a2e; color: rgba(255,255,255,0.5); padding: 24px 24px 32px; font-size: 11px; line-height: 1.7; border-top: 1px solid rgba(255,255,255,0.08); margin-top: 40px; }
+#site-footer { background: #1a1a2e; color: rgba(255,255,255,0.5); padding: 24px 24px 32px; font-size: 11px; line-height: 1.7; border-top: 1px solid rgba(255,255,255,0.08); margin-top: 40px; width: 100vw; display: block; }
 #site-footer .footer-inner { max-width: 960px; margin: 0 auto; }
 #site-footer hr { border: none; border-top: 1px solid rgba(255,255,255,0.1); margin: 12px 0; }
 #site-footer strong { color: rgba(255,255,255,0.75); font-weight: 600; }
@@ -582,7 +581,9 @@ body.snav-active #content { padding-left: 60px; }
 #sticky-edit-btn { padding: 6px 12px; background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.25); color: white; border-radius: 6px; cursor: pointer; font-size: 11px; font-weight: 700; flex-shrink: 0; margin: 0 8px; min-height: 32px; display: flex; align-items: center; gap: 4px; }
 #sticky-edit-btn:active { background: rgba(255,255,255,0.25); }
 
-/* Push content down when sticky bar is visible */
+/* Push content down to account for topbar + sticky bar */
+#main-wrapper { margin-top: 56px; }
+#content { padding-top: 16px; }
 .sticky-bar-offset { height: 0; transition: height 0.2s; }
 .sticky-bar-offset.visible { height: 44px; }
 
@@ -710,18 +711,19 @@ body.snav-active #content { padding-left: 60px; }
     <div id="category-screen"></div>
     <div id="subcategory-screen"></div>
     <div id="scenario-view"></div>
-    <!-- Site Footer -->
-    <footer id="site-footer">
-      <div class="footer-inner">
-        <p><strong>Clinical Content Notice:</strong> The clinical scenarios, drug doses, CPG references, and assessment criteria contained in this tool are based on <strong>Ambulance Victoria Clinical Practice Guidelines (CPGs) Version 3.13.0</strong>. Clinical content derived from AV CPGs remains the intellectual property of Ambulance Victoria. This tool reproduces CPG-based clinical content for educational and assessment purposes only. AV CPGs are publicly available documents intended to guide clinical practice; reproduction of scenario-based educational content derived from these guidelines is undertaken in good faith for non-commercial training use.</p>
-        <hr>
-        <p><strong>Tool Design &amp; Purpose &copy; 2026 Tim Pearson.</strong> The design, structure, user interface, assessment framework, scoring methodology, and overall concept of this tool — including the digital adaptation of AV verbal scenario assessment processes, the RABCDE-based checklist format, the three-section scoring system, and the AI-assisted scenario generation feature — are original works. Unauthorised reproduction, redistribution, or commercial use of the tool design is prohibited.</p>
-        <hr>
-        <p>This tool is <strong>not affiliated with, endorsed by, or approved by Ambulance Victoria</strong>. It is an independent educational aid. All clinical content should be verified against current official AV CPGs before use in formal assessment. &nbsp;|&nbsp; <strong>v0.9-beta</strong> &nbsp;|&nbsp; Built for ALS Level C/D verbal scenario assessment</p>
-      </div>
-    </footer>
   </div>
 </div>
+
+<!-- Site Footer -->
+<footer id="site-footer">
+  <div class="footer-inner">
+    <p><strong>Clinical Content Notice:</strong> The clinical scenarios, drug doses, CPG references, and assessment criteria contained in this tool are based on <strong>Ambulance Victoria Clinical Practice Guidelines (CPGs) Version 3.13.0</strong>. Clinical content derived from AV CPGs remains the intellectual property of Ambulance Victoria. This tool reproduces CPG-based clinical content for educational and assessment purposes only. AV CPGs are publicly available documents intended to guide clinical practice; reproduction of scenario-based educational content derived from these guidelines is undertaken in good faith for non-commercial training use.</p>
+    <hr>
+    <p><strong>Tool Design &amp; Purpose &copy; 2026 Tim Pearson.</strong> The design, structure, user interface, assessment framework, scoring methodology, and overall concept of this tool — including the digital adaptation of AV verbal scenario assessment processes, the RABCDE-based checklist format, the three-section scoring system, and the AI-assisted scenario generation feature — are original works. Unauthorised reproduction, redistribution, or commercial use of the tool design is prohibited.</p>
+    <hr>
+    <p>This tool is <strong>not affiliated with, endorsed by, or approved by Ambulance Victoria</strong>. It is an independent educational aid. All clinical content should be verified against current official AV CPGs before use in formal assessment. &nbsp;|&nbsp; <strong>v0.9-beta</strong> &nbsp;|&nbsp; Built for ALS Level C/D verbal scenario assessment</p>
+  </div>
+</footer>
 
 <!-- Score FAB + Sheet -->
 <button id="score-panel-toggle" onclick="toggleScoreSheet()">📊</button>
@@ -1774,7 +1776,7 @@ function showScreen(name) {
   if (fab) fab.classList.toggle('visible', name === 'scenario-view');
   if (name !== 'scenario-view') { hideStickyBar(); hideScenarioNav(); }
   else { setTimeout(buildScenarioNav, 100); }
-  document.getElementById("main-wrapper").scrollTop = 0;
+  window.scrollTo(0, 0);
 }
 
 function goHome() {
@@ -2131,7 +2133,7 @@ function loadScenario(id) {
 
   updateScoreSheet();
   showStickyBar(s);
-  document.getElementById("main-wrapper").scrollTop = 0;
+  window.scrollTo(0, 0);
 }
 
 
@@ -4360,9 +4362,8 @@ function buildScenarioNav() {
     }, 80);
   }
 
-  const _scrollContainer = document.getElementById('main-wrapper');
-  _scrollContainer.addEventListener('scroll', updateActiveFromScroll, { passive: true });
-  _snavObserver = { disconnect: () => _scrollContainer.removeEventListener('scroll', updateActiveFromScroll) };
+  window.addEventListener('scroll', updateActiveFromScroll, { passive: true });
+  _snavObserver = { disconnect: () => window.removeEventListener('scroll', updateActiveFromScroll) };
 
   // Set initial active
   updateActiveFromScroll();
@@ -4383,9 +4384,8 @@ function snavScrollTo(targetId) {
   const topbarH = topbar ? topbar.getBoundingClientRect().height : 56;
   const stickyBarH = (stickyBar && stickyBar.classList.contains('visible')) ? stickyBar.getBoundingClientRect().height : 0;
   const offset = topbarH + stickyBarH + 4;
-  const wrapper = document.getElementById('main-wrapper');
-  const y = el.getBoundingClientRect().top + wrapper.scrollTop - offset;
-  wrapper.scrollTo({ top: y, behavior: 'smooth' });
+  const y = el.getBoundingClientRect().top + window.scrollY - offset;
+  window.scrollTo({ top: y, behavior: 'smooth' });
 }
 
 function hideScenarioNav() {
