@@ -198,7 +198,7 @@ body.snav-active #content { padding-left: 60px; }
   user-select: none;
 }
 .snav-item:hover { background: #edf0f5; }
-.snav-item.active { background: #e8edf5; border-left-color: var(--navy); }
+.snav-item.active { background: #cce0f5; border-left-color: #1a7bbf; }
 .snav-item.active .snav-dot { opacity: 1; transform: scale(1.15); }
 .snav-dot {
   width: 8px; height: 8px; border-radius: 50%;
@@ -219,7 +219,7 @@ body.snav-active #content { padding-left: 60px; }
   text-align: center; line-height: 1.2;
   max-width: 42px; word-break: break-word;
 }
-.snav-item.active .snav-label { color: var(--navy); }
+.snav-item.active .snav-label { color: #1a7bbf; }
 .snav-section-item .snav-label { font-weight: 800; font-size: 9px; color: #333; }
 .snav-section-item.active .snav-label { color: var(--navy); }
 .snav-divider { height: 1px; background: var(--border); margin: 3px 6px; flex-shrink: 0; }
@@ -4307,19 +4307,19 @@ let _snavObserver = null;
 
 const SNAV_ITEMS = [
   { id: 'nav-s1',     label: 'S1',      dot: 'navy',   section: true },
-  { id: 'nav-prearr', label: 'Pre',     dot: 'navy' },
-  { id: 'nav-rabcde', label: 'RABCDE',  dot: 'navy' },
-  { id: 'nav-lt',     label: 'LT Mgmt', dot: 'red' },
+  { id: 'nav-prearr', label: 'O/A',     dot: 'navy' },
+  { id: 'nav-rabcde', label: '1st°',    dot: 'navy' },
+  { id: 'nav-lt',     label: 'Mx 1',    dot: 'red' },
   { id: 'nav-hx',     label: 'Hx',      dot: 'teal' },
   { id: 'nav-vss',    label: 'VSS',     dot: 'blue' },
-  { id: 'nav-ss',     label: 'SS',      dot: 'navy' },
+  { id: 'nav-ss',     label: '2nd°',    dot: 'navy' },
   { id: 'nav-fa',     label: 'FA',      dot: 'purple' },
   { id: 'nav-s2',     label: 'S2',      dot: 'amber',  section: true },
-  { id: 'nav-risk',   label: 'Risk',    dot: 'amber' },
+  { id: 'nav-risk',   label: 'flgs',    dot: 'amber' },
   { id: 'nav-ddx',    label: 'DDx',     dot: 'amber' },
   { id: 'nav-care',   label: 'Care',    dot: 'amber' },
   { id: 'nav-impl',   label: 'Impl',    dot: 'green' },
-  { id: 'nav-s3',     label: 'S3',      dot: 'blue',   section: true },
+  { id: 'nav-s3',     label: 'Mgmt',    dot: 'blue',   section: true },
 ];
 
 function buildScenarioNav() {
