@@ -548,7 +548,7 @@ body.snav-active #content { padding-left: 60px; }
 }
 
 /* ============================================================ STICKY SCENARIO BAR (timer + vitals) */
-#sticky-bar { display: none; position: fixed; top: 56px; left: 0; right: 0; z-index: 45; background: var(--navy-dark); color: white; box-shadow: 0 2px 8px rgba(0,0,0,0.25); }
+#sticky-bar { display: none; position: fixed; top: 56px; left: 0; right: 0; z-index: 45; background: var(--navy-dark); color: white; border-bottom: 1px solid rgba(0,0,0,0.3); }
 #sticky-bar.visible { display: block; }
 #sticky-bar-inner { display: flex; align-items: center; gap: 0; overflow: hidden; }
 
@@ -4943,7 +4943,7 @@ function showToast(msg, duration) {
   t.textContent = msg;
   t.classList.add('show');
   setTimeout(() => t.classList.remove('show'), 2800);
-} 
+}
 
 </script>
 
