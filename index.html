@@ -4262,6 +4262,8 @@ function hideStickyBar() {
   if (offset) offset.classList.remove('visible');
   const sv = document.getElementById('scenario-view');
   if (sv) sv.classList.remove('vitals-sticky');
+  const nav = document.getElementById('scenario-nav');
+  if (nav) { nav.style.top = '56px'; nav.style.height = 'calc(100vh - 56px)'; }
 }
 
 function showStickyBar(s) {
@@ -4269,6 +4271,8 @@ function showStickyBar(s) {
   document.getElementById('sticky-bar-offset').classList.add('visible');
   const sv = document.getElementById('scenario-view');
   if (sv) sv.classList.add('vitals-sticky');
+  const nav = document.getElementById('scenario-nav');
+  if (nav) { nav.style.top = '100px'; nav.style.height = 'calc(100vh - 100px)'; }
 
   // Title
   document.getElementById('sticky-title-name').textContent = s.title || '—';
@@ -4315,7 +4319,7 @@ const SNAV_ITEMS = [
   { id: 'nav-ss',     label: '2nd°',    dot: 'navy' },
   { id: 'nav-fa',     label: 'FA',      dot: 'purple' },
   { id: 'nav-s2',     label: 'S2',      dot: 'amber',  section: true },
-  { id: 'nav-risk',   label: 'flgs',    dot: 'amber' },
+  { id: 'nav-risk',   label: 'Flags',   dot: 'amber' },
   { id: 'nav-ddx',    label: 'DDx',     dot: 'amber' },
   { id: 'nav-care',   label: 'Care',    dot: 'amber' },
   { id: 'nav-impl',   label: 'Impl',    dot: 'green' },
@@ -4341,11 +4345,13 @@ function buildScenarioNav() {
   // Disconnect old observer if any
   if (_snavObserver) { _snavObserver.disconnect(); _snavObserver = null; }
 
-  // Scroll listener: find the last nav target whose top is above the middle of the screen
-  let _snavScrollTimer = null;
+  // Scroll listener: find the last nav target whose top is above the threshold
+  let _snavRafPending = false;
   function updateActiveFromScroll() {
-    clearTimeout(_snavScrollTimer);
-    _snavScrollTimer = setTimeout(() => {
+    if (_snavRafPending) return;
+    _snavRafPending = true;
+    requestAnimationFrame(() => {
+      _snavRafPending = false;
       const topbar = document.getElementById('topbar');
       const stickyBar = document.getElementById('sticky-bar');
       const topbarH = topbar ? topbar.getBoundingClientRect().height : 56;
@@ -4359,7 +4365,7 @@ function buildScenarioNav() {
         if (rect.top <= threshold + 10) activeId = item.id;
       }
       snavSetActive(activeId);
-    }, 80);
+    });
   }
 
   window.addEventListener('scroll', updateActiveFromScroll, { passive: true });
