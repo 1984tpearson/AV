@@ -770,50 +770,6 @@ body.snav-active #content { padding-left: 60px; }
       <div class="form-group">
         <label>Primary Category</label>
         <select id="gen-category" onchange="updateCPGSubtypeDropdown('gen-category','gen-subtype-group','gen-cpg-subtype')">
-        <optgroup label="Adult">
-          <option value="Adult|Cardiac Arrest">Adult — Cardiac Arrest</option>
-          <option value="Adult|Airway Management">Adult — Airway Management</option>
-          <option value="Adult|Cardiac">Adult — Cardiac</option>
-          <option value="Adult|Pain Relief">Adult — Pain Relief</option>
-          <option value="Adult|Respiratory">Adult — Respiratory</option>
-          <option value="Adult|Medical">Adult — Medical</option>
-          <option value="Adult|Infection">Adult — Infection</option>
-          <option value="Adult|Mental Health">Adult — Mental Health</option>
-          <option value="Adult|Palliative Care">Adult — Palliative Care</option>
-          <option value="Adult|Syncope">Adult — Syncope</option>
-          <option value="Adult|Trauma">Adult — Trauma</option>
-          <option value="Adult|Environment">Adult — Environment</option>
-          <option value="Adult|Toxicology">Adult — Toxicology</option>
-        </optgroup>
-        <optgroup label="Paediatric">
-          <option value="Paediatric|Cardiac Arrest">Paediatric — Cardiac Arrest</option>
-          <option value="Paediatric|Airway Management">Paediatric — Airway Management</option>
-          <option value="Paediatric|Pain Relief">Paediatric — Pain Relief</option>
-          <option value="Paediatric|Respiratory">Paediatric — Respiratory</option>
-          <option value="Paediatric|Medical">Paediatric — Medical</option>
-          <option value="Paediatric|Infection">Paediatric — Infection</option>
-          <option value="Paediatric|Trauma">Paediatric — Trauma</option>
-          <option value="Paediatric|Environment">Paediatric — Environment</option>
-          <option value="Paediatric|Toxicology">Paediatric — Toxicology</option>
-        </optgroup>
-        <optgroup label="Maternity">
-          <option value="Maternity|Antepartum Haemorrhage">Maternity — Antepartum Haemorrhage</option>
-          <option value="Maternity|Pre-eclampsia / Eclampsia">Maternity — Pre-eclampsia / Eclampsia</option>
-          <option value="Maternity|Normal Birth">Maternity — Normal Birth</option>
-          <option value="Maternity|Breech / Compound">Maternity — Breech / Compound</option>
-          <option value="Maternity|Preterm Labour">Maternity — Preterm Labour</option>
-          <option value="Maternity|Cord Prolapse">Maternity — Cord Prolapse</option>
-          <option value="Maternity|Shoulder Dystocia">Maternity — Shoulder Dystocia</option>
-          <option value="Maternity|Primary Postpartum Haemorrhage">Maternity — Primary PPH</option>
-          <option value="Maternity|Miscarriage">Maternity — Miscarriage</option>
-        </optgroup>
-        <optgroup label="Newborn">
-          <option value="Newborn|Newborn Resuscitation">Newborn — Resuscitation</option>
-        </optgroup>
-        <optgroup label="Treat and Refer">
-          <option value="Treat and Refer|Epistaxis">Treat and Refer — Epistaxis</option>
-          <option value="Treat and Refer|Minor Burns">Treat and Refer — Minor Burns</option>
-        </optgroup>
         </select>
       </div>
       <div class="form-group" id="gen-subtype-group" style="display:none">
@@ -825,51 +781,6 @@ body.snav-active #content { padding-left: 60px; }
       <div class="form-group">
         <label>Secondary Category <span style="font-weight:400;color:var(--grey);font-size:11px">(optional — creates a multi-CPG scenario)</span></label>
         <select id="gen-category-2" onchange="updateCPGSubtypeDropdown('gen-category-2','gen-subtype-group-2','gen-cpg-subtype-2')">
-          <option value="__none__">— None (single scenario) —</option>
-          <optgroup label="Adult">
-          <option value="Adult|Cardiac Arrest">Adult — Cardiac Arrest</option>
-          <option value="Adult|Airway Management">Adult — Airway Management</option>
-          <option value="Adult|Cardiac">Adult — Cardiac</option>
-          <option value="Adult|Pain Relief">Adult — Pain Relief</option>
-          <option value="Adult|Respiratory">Adult — Respiratory</option>
-          <option value="Adult|Medical">Adult — Medical</option>
-          <option value="Adult|Infection">Adult — Infection</option>
-          <option value="Adult|Mental Health">Adult — Mental Health</option>
-          <option value="Adult|Palliative Care">Adult — Palliative Care</option>
-          <option value="Adult|Syncope">Adult — Syncope</option>
-          <option value="Adult|Trauma">Adult — Trauma</option>
-          <option value="Adult|Environment">Adult — Environment</option>
-          <option value="Adult|Toxicology">Adult — Toxicology</option>
-        </optgroup>
-        <optgroup label="Paediatric">
-          <option value="Paediatric|Cardiac Arrest">Paediatric — Cardiac Arrest</option>
-          <option value="Paediatric|Airway Management">Paediatric — Airway Management</option>
-          <option value="Paediatric|Pain Relief">Paediatric — Pain Relief</option>
-          <option value="Paediatric|Respiratory">Paediatric — Respiratory</option>
-          <option value="Paediatric|Medical">Paediatric — Medical</option>
-          <option value="Paediatric|Infection">Paediatric — Infection</option>
-          <option value="Paediatric|Trauma">Paediatric — Trauma</option>
-          <option value="Paediatric|Environment">Paediatric — Environment</option>
-          <option value="Paediatric|Toxicology">Paediatric — Toxicology</option>
-        </optgroup>
-        <optgroup label="Maternity">
-          <option value="Maternity|Antepartum Haemorrhage">Maternity — Antepartum Haemorrhage</option>
-          <option value="Maternity|Pre-eclampsia / Eclampsia">Maternity — Pre-eclampsia / Eclampsia</option>
-          <option value="Maternity|Normal Birth">Maternity — Normal Birth</option>
-          <option value="Maternity|Breech / Compound">Maternity — Breech / Compound</option>
-          <option value="Maternity|Preterm Labour">Maternity — Preterm Labour</option>
-          <option value="Maternity|Cord Prolapse">Maternity — Cord Prolapse</option>
-          <option value="Maternity|Shoulder Dystocia">Maternity — Shoulder Dystocia</option>
-          <option value="Maternity|Primary Postpartum Haemorrhage">Maternity — Primary PPH</option>
-          <option value="Maternity|Miscarriage">Maternity — Miscarriage</option>
-        </optgroup>
-        <optgroup label="Newborn">
-          <option value="Newborn|Newborn Resuscitation">Newborn — Resuscitation</option>
-        </optgroup>
-        <optgroup label="Treat and Refer">
-          <option value="Treat and Refer|Epistaxis">Treat and Refer — Epistaxis</option>
-          <option value="Treat and Refer|Minor Burns">Treat and Refer — Minor Burns</option>
-        </optgroup>
         </select>
       </div>
       <div class="form-group" id="gen-subtype-group-2" style="display:none">
@@ -981,50 +892,6 @@ body.snav-active #content { padding-left: 60px; }
       <div class="form-group"><label>Subtitle</label><input type="text" id="c-subtitle" placeholder="e.g. 42yo Female — Bee Sting"></div>
       <div class="form-group"><label>Category *</label>
         <select id="c-category">
-          <optgroup label="Adult">
-          <option value="Adult|Cardiac Arrest">Adult — Cardiac Arrest</option>
-          <option value="Adult|Airway Management">Adult — Airway Management</option>
-          <option value="Adult|Cardiac">Adult — Cardiac</option>
-          <option value="Adult|Pain Relief">Adult — Pain Relief</option>
-          <option value="Adult|Respiratory">Adult — Respiratory</option>
-          <option value="Adult|Medical">Adult — Medical</option>
-          <option value="Adult|Infection">Adult — Infection</option>
-          <option value="Adult|Mental Health">Adult — Mental Health</option>
-          <option value="Adult|Palliative Care">Adult — Palliative Care</option>
-          <option value="Adult|Syncope">Adult — Syncope</option>
-          <option value="Adult|Trauma">Adult — Trauma</option>
-          <option value="Adult|Environment">Adult — Environment</option>
-          <option value="Adult|Toxicology">Adult — Toxicology</option>
-        </optgroup>
-        <optgroup label="Paediatric">
-          <option value="Paediatric|Cardiac Arrest">Paediatric — Cardiac Arrest</option>
-          <option value="Paediatric|Airway Management">Paediatric — Airway Management</option>
-          <option value="Paediatric|Pain Relief">Paediatric — Pain Relief</option>
-          <option value="Paediatric|Respiratory">Paediatric — Respiratory</option>
-          <option value="Paediatric|Medical">Paediatric — Medical</option>
-          <option value="Paediatric|Infection">Paediatric — Infection</option>
-          <option value="Paediatric|Trauma">Paediatric — Trauma</option>
-          <option value="Paediatric|Environment">Paediatric — Environment</option>
-          <option value="Paediatric|Toxicology">Paediatric — Toxicology</option>
-        </optgroup>
-        <optgroup label="Maternity">
-          <option value="Maternity|Antepartum Haemorrhage">Maternity — Antepartum Haemorrhage</option>
-          <option value="Maternity|Pre-eclampsia / Eclampsia">Maternity — Pre-eclampsia / Eclampsia</option>
-          <option value="Maternity|Normal Birth">Maternity — Normal Birth</option>
-          <option value="Maternity|Breech / Compound">Maternity — Breech / Compound</option>
-          <option value="Maternity|Preterm Labour">Maternity — Preterm Labour</option>
-          <option value="Maternity|Cord Prolapse">Maternity — Cord Prolapse</option>
-          <option value="Maternity|Shoulder Dystocia">Maternity — Shoulder Dystocia</option>
-          <option value="Maternity|Primary Postpartum Haemorrhage">Maternity — Primary PPH</option>
-          <option value="Maternity|Miscarriage">Maternity — Miscarriage</option>
-        </optgroup>
-        <optgroup label="Newborn">
-          <option value="Newborn|Newborn Resuscitation">Newborn — Resuscitation</option>
-        </optgroup>
-        <optgroup label="Treat and Refer">
-          <option value="Treat and Refer|Epistaxis">Treat and Refer — Epistaxis</option>
-          <option value="Treat and Refer|Minor Burns">Treat and Refer — Minor Burns</option>
-        </optgroup>
         </select>
       </div>
       <div class="form-group"><label>CPG Reference</label><input type="text" id="c-cpg" placeholder="e.g. CPG A0704"></div>
@@ -1107,50 +974,6 @@ body.snav-active #content { padding-left: 60px; }
       <div class="form-group"><label>Subtitle <span style="font-size:11px;color:var(--grey);font-weight:400">(changing age here auto-updates vitals for paediatric scenarios)</span></label><input type="text" id="e-subtitle" oninput="onEditSubtitleChange(this.value)"></div>
       <div class="form-group"><label>Category</label>
         <select id="e-category">
-          <optgroup label="Adult">
-          <option value="Adult|Cardiac Arrest">Adult — Cardiac Arrest</option>
-          <option value="Adult|Airway Management">Adult — Airway Management</option>
-          <option value="Adult|Cardiac">Adult — Cardiac</option>
-          <option value="Adult|Pain Relief">Adult — Pain Relief</option>
-          <option value="Adult|Respiratory">Adult — Respiratory</option>
-          <option value="Adult|Medical">Adult — Medical</option>
-          <option value="Adult|Infection">Adult — Infection</option>
-          <option value="Adult|Mental Health">Adult — Mental Health</option>
-          <option value="Adult|Palliative Care">Adult — Palliative Care</option>
-          <option value="Adult|Syncope">Adult — Syncope</option>
-          <option value="Adult|Trauma">Adult — Trauma</option>
-          <option value="Adult|Environment">Adult — Environment</option>
-          <option value="Adult|Toxicology">Adult — Toxicology</option>
-        </optgroup>
-        <optgroup label="Paediatric">
-          <option value="Paediatric|Cardiac Arrest">Paediatric — Cardiac Arrest</option>
-          <option value="Paediatric|Airway Management">Paediatric — Airway Management</option>
-          <option value="Paediatric|Pain Relief">Paediatric — Pain Relief</option>
-          <option value="Paediatric|Respiratory">Paediatric — Respiratory</option>
-          <option value="Paediatric|Medical">Paediatric — Medical</option>
-          <option value="Paediatric|Infection">Paediatric — Infection</option>
-          <option value="Paediatric|Trauma">Paediatric — Trauma</option>
-          <option value="Paediatric|Environment">Paediatric — Environment</option>
-          <option value="Paediatric|Toxicology">Paediatric — Toxicology</option>
-        </optgroup>
-        <optgroup label="Maternity">
-          <option value="Maternity|Antepartum Haemorrhage">Maternity — Antepartum Haemorrhage</option>
-          <option value="Maternity|Pre-eclampsia / Eclampsia">Maternity — Pre-eclampsia / Eclampsia</option>
-          <option value="Maternity|Normal Birth">Maternity — Normal Birth</option>
-          <option value="Maternity|Breech / Compound">Maternity — Breech / Compound</option>
-          <option value="Maternity|Preterm Labour">Maternity — Preterm Labour</option>
-          <option value="Maternity|Cord Prolapse">Maternity — Cord Prolapse</option>
-          <option value="Maternity|Shoulder Dystocia">Maternity — Shoulder Dystocia</option>
-          <option value="Maternity|Primary Postpartum Haemorrhage">Maternity — Primary PPH</option>
-          <option value="Maternity|Miscarriage">Maternity — Miscarriage</option>
-        </optgroup>
-        <optgroup label="Newborn">
-          <option value="Newborn|Newborn Resuscitation">Newborn — Resuscitation</option>
-        </optgroup>
-        <optgroup label="Treat and Refer">
-          <option value="Treat and Refer|Epistaxis">Treat and Refer — Epistaxis</option>
-          <option value="Treat and Refer|Minor Burns">Treat and Refer — Minor Burns</option>
-        </optgroup>
         </select>
       </div>
       <div class="form-group"><label>CPG Reference</label><input type="text" id="e-cpg"></div>
@@ -1205,7 +1028,7 @@ body.snav-active #content { padding-left: 60px; }
 
       <div style="display:flex;gap:10px;margin-top:20px">
         <button class="modal-submit-btn amber" style="flex:1" onclick="saveEditedScenario()">💾 Save Changes</button>
-        <button class="modal-submit-btn" style="flex:0 0 auto;background:var(--red-light);color:var(--red);border:1px solid #F5B7B1" onclick="revertScenarioEdits()">↺ Revert to Original</button>
+        <button class="modal-submit-btn" style="flex:0 0 auto;background:var(--red-light);color:var(--red);border:1px solid #F5B7B1" onclick="revertScenarioEdits()">🗑 Delete Scenario</button>
       </div>
     </div>
   </div>
@@ -1505,11 +1328,6 @@ function updateCustomCount() {
   if (el) el.textContent = customScenarios.length;
 }
 
-function updateCustomCount() {
-  const el = document.getElementById('custom-count');
-  if (el) el.textContent = customScenarios.length;
-}
-
 // ============================================================
 // SCORING LOOKUP TABLES
 // ============================================================
@@ -1580,23 +1398,20 @@ document.addEventListener('DOMContentLoaded', async () => {
 async function initApp() {
   showToast('☁️ Loading scenarios…', 3000);
   await seedBuiltinsIfNeeded();
-  await loadCustomScenarios();
 
-  // After cloud load, rebuild getAllScenarios to use cloud data properly
-  try {
-    const allCloud = await loadAllScenariosFromCloud();
-    if (allCloud && allCloud.length > 0) {
-      // Override customScenarios with full cloud set (non-builtins)
-      customScenarios = allCloud.filter(s => !s.is_builtin);
-      // Replace getAllScenarios to return full cloud set
-      window._cloudScenarios = allCloud;
-    }
-  } catch(e) {}
+  // Single cloud fetch — populates both customScenarios and _cloudScenarios
+  const allCloud = await loadAllScenariosFromCloud();
+  if (allCloud && allCloud.length > 0) {
+    customScenarios = allCloud.filter(s => !s.is_builtin);
+    window._cloudScenarios = allCloud;
+  } else {
+    customScenarios = [];
+  }
+  updateCustomCount();
 
   buildSidebar(getAllScenarios());
   buildHomeCategoryCards();
   buildRecentScenariosList();
-  updateCustomCount();
   loadDevNotes();
 
   // Pulse the hamburger button briefly to draw attention to it
@@ -1607,8 +1422,6 @@ async function initApp() {
       hb.addEventListener('animationend', () => hb.classList.remove('pulse'), { once: true });
     }
   }, 800);
-
-  // Disclaimer is now part of the first-run identity modal — no separate popup needed
 }
 
 // Get all scenarios — cloud cache if available, otherwise local builtin + custom merge
@@ -1709,13 +1522,11 @@ function buildRecentScenariosList() {
     return;
   }
 
-  const catColors = { Adult:'var(--navy)', Paediatric:'var(--blue)', Maternity:'var(--purple)', Newborn:'var(--green)', 'Treat and Refer':'#6D4C41', Custom:'var(--amber)' };
-
   container.innerHTML = `
     <div class="recent-scenarios-section">
       <div class="recent-scenarios-title">🕐 Recently Added</div>
       ${recent.map(s => {
-        const dot = catColors[s.category] || 'var(--grey)';
+        const dot = CAT_COLORS[s.category] || 'var(--grey)';
         const badge = s.ai_generated
           ? '<span class="recent-si-badge ai">AI</span>'
           : (!s.is_builtin ? '<span class="recent-si-badge custom">Custom</span>' : '');
@@ -1758,13 +1569,48 @@ const CAT_ICONS = {
 };
 
 const SUBCAT_ORDER = {
-  'Adult': ['Cardiac Arrest','Airway Management','Cardiac','Pain Relief','Respiratory','Medical','Infection','Mental Health','Trauma','Environment','Toxicology'],
+  'Adult': ['Cardiac Arrest','Airway Management','Cardiac','Pain Relief','Respiratory','Medical','Infection','Mental Health','Palliative Care','Syncope','Trauma','Environment','Toxicology'],
   'Paediatric': ['Cardiac Arrest','Airway Management','Pain Relief','Respiratory','Medical','Infection','Trauma','Environment','Toxicology'],
   'Maternity': ['Antepartum Haemorrhage','Pre-eclampsia / Eclampsia','Normal Birth','Breech / Compound','Preterm Labour','Cord Prolapse','Shoulder Dystocia','Primary Postpartum Haemorrhage','Miscarriage'],
   'Newborn': ['Newborn Resuscitation'],
   'Treat and Refer': ['Epistaxis','Minor Burns'],
   'Custom': []
 };
+
+// Display overrides for option labels — where the display text differs from subcategory name
+const SUBCAT_DISPLAY = {
+  'Primary Postpartum Haemorrhage': 'Primary PPH',
+  'Newborn Resuscitation': 'Resuscitation',
+};
+
+// Populate a <select> element with the standard category/subcategory optgroups.
+// prefixOption: optional string for a leading option (e.g. "— None —")
+function populateCategorySelect(selectId, prefixOption) {
+  const el = document.getElementById(selectId);
+  if (!el) return;
+  let html = '';
+  if (prefixOption) html += `<option value="__none__">${prefixOption}</option>`;
+  const groups = ['Adult','Paediatric','Maternity','Newborn','Treat and Refer'];
+  groups.forEach(grp => {
+    const subs = SUBCAT_ORDER[grp] || [];
+    if (!subs.length) return;
+    html += `<optgroup label="${grp}">`;
+    subs.forEach(sub => {
+      const display = SUBCAT_DISPLAY[sub] || sub;
+      html += `<option value="${grp}|${sub}">${grp} — ${display}</option>`;
+    });
+    html += '</optgroup>';
+  });
+  el.innerHTML = html;
+}
+
+// Populate all category selects on page load
+document.addEventListener('DOMContentLoaded', () => {
+  populateCategorySelect('gen-category');
+  populateCategorySelect('gen-category-2', '— None (single scenario) —');
+  populateCategorySelect('c-category');
+  populateCategorySelect('e-category');
+});
 
 function showScreen(name) {
   ['home-screen','category-screen','subcategory-screen','scenario-view'].forEach(id => {
@@ -2004,22 +1850,8 @@ function buildSidebar(scenarios) {
   const list = document.getElementById('scenario-list');
   list.innerHTML = '';
 
-  // Top-level group order and colours
+  // Top-level group order
   const groupOrder = ['Adult', 'Paediatric', 'Maternity', 'Newborn', 'Treat and Refer', 'Custom'];
-  const groupColors = {
-    'Adult': 'var(--navy)', 'Paediatric': 'var(--blue)', 'Maternity': 'var(--purple)',
-    'Newborn': 'var(--green)', 'Treat and Refer': '#6D4C41', 'Custom': 'var(--amber)'
-  };
-
-  // Subcategory order within each group
-  const subcatOrder = {
-    'Adult': ['Cardiac Arrest','Airway Management','Cardiac','Pain Relief','Respiratory','Medical','Infection','Mental Health','Trauma','Environment','Toxicology'],
-    'Paediatric': ['Cardiac Arrest','Airway Management','Pain Relief','Respiratory','Medical','Infection','Trauma','Environment','Toxicology'],
-    'Maternity': ['Antepartum Haemorrhage','Pre-eclampsia / Eclampsia','Normal Birth','Breech / Compound','Preterm Labour','Cord Prolapse','Shoulder Dystocia','Primary Postpartum Haemorrhage','Miscarriage'],
-    'Newborn': ['Newborn Resuscitation'],
-    'Treat and Refer': ['Epistaxis','Minor Burns'],
-    'Custom': []
-  };
 
   // Group scenarios by category → subcategory
   const groups = {};
@@ -2036,7 +1868,7 @@ function buildSidebar(scenarios) {
 
   allGroups.forEach(grp => {
     const subcats = groups[grp];
-    const color = groupColors[grp] || 'var(--grey)';
+    const color = CAT_COLORS[grp] || 'var(--grey)';
     const totalCount = Object.values(subcats).reduce((n, arr) => n + arr.length, 0);
 
     const groupEl = document.createElement('div');
@@ -2044,7 +1876,7 @@ function buildSidebar(scenarios) {
     groupEl.dataset.group = grp;
 
     // Build subcategory HTML
-    const orderedSubs = [...(subcatOrder[grp]||[]).filter(s => subcats[s]), ...Object.keys(subcats).filter(s => !(subcatOrder[grp]||[]).includes(s))];
+    const orderedSubs = [...(SUBCAT_ORDER[grp]||[]).filter(s => subcats[s]), ...Object.keys(subcats).filter(s => !(SUBCAT_ORDER[grp]||[]).includes(s))];
 
     const subsHtml = orderedSubs.map(sub => {
       const items = subcats[sub] || [];
@@ -2370,7 +2202,6 @@ function randomAustralianPatient(category) {
 // ============================================================
 function renderScenario(s) {
   const isCustom = s.custom || s.ai_generated;
-  const catColors = { 'Adult':'var(--navy)', 'Paediatric':'var(--blue)', 'Maternity':'var(--purple)', 'Newborn':'var(--green)', 'Treat and Refer':'#6D4C41' };
   const catBg = { 'Adult':'#1C3A6E', 'Paediatric':'#2E86C1', 'Maternity':'#7D3C98', 'Newborn':'#1E8449', 'Treat and Refer':'#4E342E' };
   const isTrauma = (s.subcategory === 'Trauma' || s.category === 'Paediatric' && s.subcategory === 'Trauma');
 
@@ -3222,13 +3053,10 @@ function switchAPITab(tab) {
   document.getElementById('api-tab-groq').classList.toggle('active',      tab === 'groq');
   const labels = { groq: '✦ Generate with Groq (Free)', anthropic: '✦ Generate Scenario' };
   document.getElementById('generate-scenario-btn').textContent = labels[tab] || '✦ Generate Scenario';
-  // Load saved Groq key when switching to groq tab
-  if (tab === 'groq') loadGroqKey();
 }
 
 function openAIModal() {
   document.getElementById('ai-modal').classList.add('open');
-  loadGroqKey();
   const s = document.getElementById('ai-status');
   s.className = '';
   s.innerHTML = '';
@@ -3900,13 +3728,6 @@ async function generateWithAnthropic(apiKey, systemPrompt, userPrompt) {
   return parseFirstJSON(raw);
 }
 
-function saveGroqKey(val) {
-  if (val && val.trim()) localStorage.setItem('av_groq_key', val.trim());
-}
-function loadGroqKey() {
-  // no-op: key is fetched from Supabase automatically
-}
-
 let _cachedGroqKey = null;
 async function getGroqKey() {
   if (_cachedGroqKey) return _cachedGroqKey;
@@ -3969,34 +3790,6 @@ async function generateWithGroq(systemPrompt, userPrompt) {
   throw new Error(`Groq unavailable. (${lastError})`);
 }
 
-
-async function saveLastAIScenario() {
-  if (!lastAIScenario) return;
-  if (customScenarios.find(x => x.id === lastAIScenario.id)) {
-    showToast('Already saved!');
-    return;
-  }
-  const { uuid, name } = getIdentity();
-  lastAIScenario.creator_uuid = uuid;
-  lastAIScenario.creator_name = name || 'Anonymous';
-  lastAIScenario.is_builtin = false;
-  lastAIScenario.custom = true;
-  const btn = document.querySelector('#ai-save-bar button');
-  if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
-  try {
-    await saveScenarioToCloud(lastAIScenario);
-    customScenarios.push(lastAIScenario);
-    if (window._cloudScenarios) window._cloudScenarios.push(lastAIScenario);
-    buildSidebar(getAllScenarios());
-    buildHomeCategoryCards();
-    updateCustomCount();
-    document.getElementById('ai-save-bar').innerHTML = '<p style="color:var(--green)">✓ Saved to shared library! Everyone can see it in the sidebar.</p>';
-    showToast('✓ Scenario saved to shared library');
-  } catch(e) {
-    if (btn) { btn.disabled = false; btn.textContent = '💾 Save to Library'; }
-    showToast('⚠️ Save failed: ' + e.message);
-  }
-}
 
 async function autoSaveAIScenario(scenario) {
   // Auto-save a generated scenario to the cloud library without user interaction
@@ -4930,7 +4723,7 @@ function showToast(msg, duration) {
   const t = document.getElementById('toast');
   t.textContent = msg;
   t.classList.add('show');
-  setTimeout(() => t.classList.remove('show'), 2800);
+  setTimeout(() => t.classList.remove('show'), duration || 2800);
 }
 
 </script>
