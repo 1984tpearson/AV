@@ -113,6 +113,10 @@ body.snav-active #content { padding-left: 60px; }
 .stat-card.green .stat-num { color: var(--green); }
 .category-overview { display: grid; grid-template-columns: 1fr; gap: 10px; }
 @media (min-width: 600px) { .category-overview { grid-template-columns: repeat(2,1fr); } }
+
+/* Home screen two-column layout for tablets/PCs */
+.home-two-col { display: grid; grid-template-columns: 1fr; gap: 16px; }
+@media (min-width: 700px) { .home-two-col { grid-template-columns: 1fr 1fr; align-items: start; } }
 .cat-card { background: white; border-radius: 10px; padding: 14px 18px; border: 1px solid var(--border); border-left: 4px solid var(--navy); box-shadow: var(--shadow); cursor: pointer; transition: transform 0.12s, box-shadow 0.12s; user-select: none; }
 .cat-card:hover { transform: translateY(-2px); box-shadow: 0 4px 16px rgba(28,58,110,0.15); }
 .cat-card:active { transform: translateY(0); box-shadow: var(--shadow); opacity: 0.85; }
@@ -679,7 +683,15 @@ body.snav-active #content { padding-left: 60px; }
       </div>
       <button class="home-random-btn" onclick="loadRandomScenario(null, null)">🎲 Random Scenario — Any Category</button>
 
-      <div id="dev-notes-banner">
+      <div class="home-two-col">
+        <div class="category-overview" id="home-category-overview">
+          <!-- populated by buildHomeCategoryCards() -->
+        </div>
+        <div id="home-recent-scenarios">
+          <!-- populated by buildRecentScenariosList() -->
+        </div>
+      </div>
+      <div id="dev-notes-banner" style="margin-top:16px">
         <div class="dev-notes-banner-header">
           <div class="dev-notes-banner-title">⚠️ Dev Notes</div>
           <div class="dev-notes-banner-actions">
@@ -700,12 +712,6 @@ body.snav-active #content { padding-left: 60px; }
             <button class="dev-notes-cancel-btn" onclick="closeDevNotesEditor()">Cancel</button>
           </div>
         </div>
-      </div>
-      <div id="home-recent-scenarios" style="margin:18px 0 4px">
-        <!-- populated by buildRecentScenariosList() -->
-      </div>
-      <div class="category-overview" id="home-category-overview">
-        <!-- populated by buildHomeCategoryCards() -->
       </div>
     </div>
     <div id="category-screen"></div>
@@ -1514,7 +1520,7 @@ function buildRecentScenariosList() {
   const recent = withTime
     .filter(x => x.t > 0)
     .sort((a, b) => b.t - a.t)
-    .slice(0, 5)
+    .slice(0, 10)
     .map(x => x.s);
 
   if (recent.length === 0) {
