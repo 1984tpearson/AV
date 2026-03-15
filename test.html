@@ -684,11 +684,11 @@ body.snav-active #content { padding-left: 60px; }
       <button class="home-random-btn" onclick="loadRandomScenario(null, null)">🎲 Random Scenario — Any Category</button>
 
       <div class="home-two-col">
-        <div id="home-recent-scenarios">
-          <!-- populated by buildRecentScenariosList() -->
-        </div>
         <div class="category-overview" id="home-category-overview">
           <!-- populated by buildHomeCategoryCards() -->
+        </div>
+        <div id="home-recent-scenarios">
+          <!-- populated by buildRecentScenariosList() -->
         </div>
       </div>
       <div id="dev-notes-banner" style="margin-top:16px">
@@ -1520,7 +1520,7 @@ function buildRecentScenariosList() {
   const recent = withTime
     .filter(x => x.t > 0)
     .sort((a, b) => b.t - a.t)
-    .slice(0, 5)
+    .slice(0, 10)
     .map(x => x.s);
 
   if (recent.length === 0) {
