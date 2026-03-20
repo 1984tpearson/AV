@@ -541,14 +541,70 @@ body.snav-active #content { padding-left: 60px; }
 .comments-area textarea { width: 100%; border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; font-size: 14px; font-family: inherit; resize: vertical; min-height: 80px; outline: none; }
 .comments-area textarea:focus { border-color: var(--navy); }
 
+/* ============================================================ SUMMARY OVERLAY */
+#summary-overlay { display: none; position: fixed; inset: 0; z-index: 200; background: white; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+#summary-overlay.open { display: block; }
+#summary-inner { max-width: 780px; margin: 0 auto; padding: 20px 16px 40px; }
+.sum-topbar { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; }
+.sum-topbar h2 { font-size: 16px; font-weight: 800; color: var(--navy); }
+.sum-topbar-actions { display: flex; gap: 8px; }
+.sum-btn { padding: 8px 16px; border-radius: 8px; border: none; font-size: 12px; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 6px; min-height: 40px; }
+.sum-btn:active { opacity: 0.85; }
+.sum-btn.navy { background: var(--navy); color: white; }
+.sum-btn.green { background: var(--green); color: white; }
+.sum-btn.outline { background: white; color: var(--navy); border: 2px solid var(--navy); }
+.sum-meta { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 4px 16px; font-size: 12px; padding: 10px 14px; background: var(--light); border-radius: 8px; margin-bottom: 12px; border: 1px solid var(--border); }
+.sum-meta-item { display: flex; gap: 6px; }
+.sum-meta-item .ml { font-weight: 700; color: var(--grey); white-space: nowrap; }
+.sum-meta-item .mv { font-weight: 600; color: var(--text); }
+.sum-section { margin-bottom: 10px; }
+.sum-section-title { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; color: var(--navy); padding: 6px 0 4px; border-bottom: 2px solid var(--navy); margin-bottom: 4px; }
+.sum-section-title.amber { color: var(--amber); border-color: var(--amber); }
+.sum-section-title.green { color: var(--green); border-color: var(--green); }
+.sum-section-title.grey { color: var(--grey); border-color: var(--grey); }
+.sum-group-title { font-size: 10px; font-weight: 700; color: var(--grey); text-transform: uppercase; letter-spacing: 0.4px; padding: 4px 0 2px; }
+.sum-row-grid { display: grid; grid-template-columns: 1fr auto 1fr auto; gap: 0 12px; font-size: 11px; line-height: 1.6; }
+.sum-row-grid .sr-label { padding: 1px 0; color: var(--text); border-bottom: 1px solid #f0f0f0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sum-row-grid .sr-label.indent { padding-left: 10px; color: var(--grey); }
+.sum-row-grid .sr-marks { padding: 1px 0; text-align: right; border-bottom: 1px solid #f0f0f0; white-space: nowrap; font-weight: 700; min-width: 24px; }
+.sr-c { color: var(--green); } .sr-p { color: var(--amber); } .sr-i { color: var(--red); } .sr-none { color: #ccc; }
+.sum-score-row { display: flex; justify-content: space-between; align-items: center; padding: 6px 10px; background: var(--light); border-radius: 6px; margin-top: 4px; font-size: 12px; font-weight: 700; }
+.sum-score-val { font-size: 16px; font-weight: 900; color: var(--navy); }
+.sum-kq { font-size: 11px; margin-bottom: 2px; line-height: 1.5; }
+.sum-kq .kq-q { font-weight: 600; }
+.sum-kq .kq-s { font-weight: 800; float: right; }
+.sum-kq .kq-s.zero { color: var(--red); }
+.sum-comment-block { margin-bottom: 6px; }
+.sum-comment-label { font-size: 10px; font-weight: 700; color: var(--grey); text-transform: uppercase; }
+.sum-comment-text { font-size: 12px; color: var(--text); line-height: 1.4; padding: 2px 0; white-space: pre-wrap; }
+.sum-overall { text-align: center; padding: 14px; background: var(--light); border-radius: 10px; margin-top: 10px; border: 2px solid var(--border); }
+.sum-overall .so-num { font-size: 36px; font-weight: 900; color: var(--navy); }
+.sum-overall .so-denom { font-size: 18px; font-weight: 600; color: var(--grey); }
+.sum-overall .so-label { font-size: 11px; color: var(--grey); margin-top: 2px; }
+.sum-result-badge { display: inline-block; padding: 4px 16px; border-radius: 20px; font-size: 13px; font-weight: 800; margin-top: 6px; }
+.sum-result-badge.pass { background: var(--green-light); color: var(--green); border: 2px solid var(--green); }
+.sum-result-badge.fail { background: var(--red-light); color: var(--red); border: 2px solid var(--red); }
+
 /* ============================================================ PRINT */
 @media print {
   #topbar, #sidebar, #sidebar-overlay, .modal-overlay, .action-bar, .timer-controls, .sidebar-bottom, #score-panel-toggle, #score-sheet, #score-sheet-overlay, #sticky-bar, .sticky-bar-offset { display: none !important; }
-  #content { margin: 0 !important; padding: 0 !important; }
-  .section-body { display: block !important; }
-  .kq-answer { display: block !important; }
-  .section-header { border-bottom: none !important; }
-  body { font-size: 11px; }
+  /* If summary is open, print ONLY the summary */
+  #summary-overlay.open { position: static !important; display: block !important; overflow: visible !important; }
+  body:has(#summary-overlay.open) #main-wrapper { display: none !important; }
+  body:has(#summary-overlay.open) #site-footer { display: none !important; }
+  body:has(#summary-overlay.open) #score-panel-toggle { display: none !important; }
+  #summary-inner { padding: 0 !important; }
+  .sum-topbar-actions { display: none !important; }
+  .sum-btn { display: none !important; }
+  /* If summary is NOT open, print the assessment normally */
+  body:not(:has(#summary-overlay.open)) #content { margin: 0 !important; padding: 0 !important; }
+  body:not(:has(#summary-overlay.open)) .section-body { display: block !important; }
+  body:not(:has(#summary-overlay.open)) .kq-answer { display: block !important; }
+  body { font-size: 10px; }
+  .sum-row-grid { font-size: 10px; }
+  .sum-section { break-inside: auto; }
+  .sum-group-title { break-after: avoid; }
+  .sum-overall { break-inside: avoid; }
 }
 
 /* ============================================================ STICKY SCENARIO BAR (timer + vitals) */
@@ -741,6 +797,11 @@ body.snav-active #content { padding-left: 60px; }
     <button id="close-score-sheet" onclick="closeScoreSheet()">✕</button>
   </div>
   <div id="score-sheet-body"></div>
+</div>
+
+<!-- Summary Overlay -->
+<div id="summary-overlay">
+  <div id="summary-inner"></div>
 </div>
 
 <!-- AI Modal -->
@@ -2415,7 +2476,7 @@ function renderScenario(s) {
     <button class="action-btn" onclick="goHome()" style="font-weight:700">← Home</button>
     <button class="action-btn" onclick="expandAll()">⊕ Expand All</button>
     <button class="action-btn" onclick="collapseAll()">⊖ Collapse All</button>
-    <button class="action-btn" onclick="window.print()">🖨 Print</button>
+    <button class="action-btn" onclick="showSummary()">📋 Summary</button>
     <button class="action-btn" onclick="resetAll()">↺ Reset</button>
     <button class="action-btn" onclick="toggleScoreSheet()" style="background:var(--navy);color:white;border-color:var(--navy)">📊 Score</button>
   </div>
@@ -2505,6 +2566,10 @@ function renderScenario(s) {
         <textarea style="min-height:100px" placeholder="Overall feedback for graduate…"></textarea>
       </div>
     </div>
+  </div>
+
+  <div style="text-align:center;padding:16px 0 8px">
+    <button class="action-btn" onclick="showSummary()" style="background:var(--navy);color:white;border-color:var(--navy);font-size:14px;padding:12px 28px;font-weight:800">📋 View Assessment Summary</button>
   </div>
 
 </div>
@@ -3254,6 +3319,360 @@ function updateScoreSheet() {
 
   bodyHtml += `<button id="reset-btn" onclick="resetAll()">↺ Reset Assessment</button>`;
   document.getElementById('score-sheet-body').innerHTML = bodyHtml;
+}
+
+// ============================================================
+// SUMMARY PAGE
+// ============================================================
+function showSummary() {
+  if (!currentScenario) return;
+  const s = currentScenario;
+  const cfg = LEVEL_CONFIG[currentLevel];
+
+  // --- Gather meta ---
+  const gradName = document.getElementById('grad-name')?.value || '';
+  const gradId = document.getElementById('grad-id')?.value || '';
+  const assessorName = document.getElementById('grad-assessor')?.value || '';
+  const assessorId = document.getElementById('grad-assessor-id')?.value || '';
+  const dateVal = document.getElementById('grad-date')?.value || '';
+
+  // --- Gather comments ---
+  const commentAreas = document.querySelectorAll('.comments-area textarea');
+  const commentLabels = ['Section 1 — Patient Assessment','Section 2 — Diagnosis & Care','Section 3 — Knowledge','Overall / Summary Feedback'];
+  const comments = [];
+  commentAreas.forEach((ta, i) => {
+    if (ta.value.trim()) comments.push({ label: commentLabels[i] || `Comment ${i+1}`, text: ta.value.trim() });
+  });
+
+  // --- Gather row states from DOM tables ---
+  function collectGroupRows(groupName) {
+    const table = document.querySelector(`table[data-group="${groupName}"]`);
+    if (!table) return [];
+    const rows = [];
+    table.querySelectorAll('tbody tr').forEach(tr => {
+      const labelTd = tr.querySelector('td.elem-label');
+      if (!labelTd) return;
+      // Get label text only (strip hint spans)
+      const clone = labelTd.cloneNode(true);
+      clone.querySelectorAll('.vital-hint').forEach(h => h.remove());
+      const label = clone.textContent.trim();
+      // Find tick buttons in this row
+      const btns = tr.querySelectorAll('.tick-btn');
+      let mark = '';
+      btns.forEach(btn => {
+        if (btn.classList.contains('complete')) mark = '✓';
+        else if (btn.classList.contains('prompted') && !mark) mark = 'P';
+        else if (btn.classList.contains('incomplete') && mark !== '✓') mark = '✕';
+      });
+      const indent = labelTd.classList.contains('indent');
+      rows.push({ label, mark, indent });
+    });
+    // Also find prompt-only rows (sub-rows that have free-text inputs)
+    table.querySelectorAll('tbody tr').forEach(tr => {
+      if (tr.querySelector('td.elem-label')) return; // already handled
+      const btn = tr.querySelector('.tick-btn');
+      if (!btn) return;
+      const spanLabel = tr.querySelector('span');
+      const inputEl = tr.querySelector('input.ddx-input');
+      const inputVal = inputEl ? inputEl.value.trim() : '';
+      const label = (spanLabel ? spanLabel.textContent.replace(':','').trim() : 'Item') + (inputVal ? `: ${inputVal}` : '');
+      let mark = '';
+      if (btn.classList.contains('prompted')) mark = 'P';
+      else if (btn.classList.contains('incomplete')) mark = '✕';
+      else if (btn.classList.contains('complete')) mark = '✓';
+      rows.push({ label, mark, indent: true });
+    });
+    return rows;
+  }
+
+  // Section 1 groups
+  const sec1Groups = [
+    { name: 'prearr', title: 'Pre-arrival & Scene' },
+    { name: 'rabcde', title: 'Primary Survey — RABCDE' },
+    { name: 'lt', title: 'Life Threat Management' },
+    { name: 'hx', title: 'History & Past History' },
+    { name: 'vss', title: 'Vital Signs Survey' },
+    { name: 'ss', title: 'Secondary Survey' },
+    { name: 'fa', title: 'Focussed Assessments' }
+  ];
+  // Section 2 groups
+  const sec2Groups = [
+    { name: 'risk', title: 'Risk & Patient Safety' },
+    { name: 'ddxgrp', title: 'Differential Diagnosis' },
+    { name: 'care', title: 'Care Pathways — Plan' },
+    { name: 'impl', title: 'Implement & Reassess' }
+  ];
+
+  function renderGroupRows(groups) {
+    let html = '';
+    groups.forEach(g => {
+      const rows = collectGroupRows(g.name);
+      if (!rows.length) return;
+      html += `<div class="sum-group-title">${g.title}</div><div class="sum-row-grid">`;
+      rows.forEach(r => {
+        const markClass = r.mark === '✓' ? 'sr-c' : r.mark === 'P' ? 'sr-p' : r.mark === '✕' ? 'sr-i' : 'sr-none';
+        const markText = r.mark || '—';
+        html += `<div class="sr-label${r.indent ? ' indent' : ''}">${r.label}</div><div class="sr-marks ${markClass}">${markText}</div>`;
+      });
+      // Pad odd row count so grid stays clean
+      if (rows.length % 2 !== 0) html += `<div></div><div></div>`;
+      html += `</div>`;
+    });
+    return html;
+  }
+
+  // --- Scores ---
+  const s1 = sectionScores['sec1'] || null;
+  const s2 = sectionScores['sec2'] || null;
+  const kqRaw = Object.values(kqScores).reduce((a,v) => a + (v||0), 0);
+  const kqMax = (s.kq) ? s.kq.reduce((a,q) => a + q.max, 0) : 5;
+  const s3 = kqRawToSec3(kqRaw);
+
+  // --- Knowledge Questions ---
+  let kqHtml = '';
+  if (s.kq && s.kq.length) {
+    s.kq.forEach((q, i) => {
+      const sc = kqScores[i] || 0;
+      kqHtml += `<div class="sum-kq"><span class="kq-s${sc === 0 ? ' zero' : ''}">${sc}/${q.max}</span> <span class="kq-q">Q${i+1}:</span> ${q.q}</div>`;
+    });
+  }
+
+  // --- Overall score logic ---
+  let overallNum = null, overallMax = cfg.maxScore, resultHtml = '';
+  if (currentLevel === 'A') {
+    overallNum = kqRaw > 0 ? s3 : null;
+  } else if (currentLevel === 'B') {
+    overallNum = (s1 && kqRaw > 0) ? s1 + s3 : null;
+  } else {
+    const result = getOverallScore();
+    if (result) overallNum = result.overall;
+  }
+  if (overallNum !== null) {
+    const pass = overallNum >= cfg.passThreshold;
+    resultHtml = `<div class="sum-result-badge ${pass ? 'pass' : 'fail'}">${pass ? '✓ SATISFACTORY' : '✗ NOT SATISFACTORY'}</div>`;
+  }
+
+  // --- Build HTML ---
+  let html = `
+  <div class="sum-topbar">
+    <h2>📋 Assessment Summary</h2>
+    <div class="sum-topbar-actions">
+      <button class="sum-btn outline" onclick="closeSummary()">← Back</button>
+      <button class="sum-btn green" onclick="emailSummary()">✉ Email</button>
+      <button class="sum-btn navy" onclick="window.print()">🖨 Print</button>
+    </div>
+  </div>
+
+  <div style="font-size:14px;font-weight:800;color:var(--text);margin-bottom:2px">${s.title}</div>
+  <div style="font-size:12px;color:var(--grey);margin-bottom:8px">${s.subtitle || ''} ${s.cpg ? '· ' + s.cpg : ''} ${s.ai_generated ? '· AI-generated' : ''}</div>
+
+  <div class="sum-meta">
+    <div class="sum-meta-item"><span class="ml">Graduate:</span><span class="mv">${gradName || '—'}</span></div>
+    <div class="sum-meta-item"><span class="ml">Grad ID:</span><span class="mv">${gradId || '—'}</span></div>
+    <div class="sum-meta-item"><span class="ml">Assessor:</span><span class="mv">${assessorName || '—'}</span></div>
+    <div class="sum-meta-item"><span class="ml">Assessor ID:</span><span class="mv">${assessorId || '—'}</span></div>
+    <div class="sum-meta-item"><span class="ml">Date:</span><span class="mv">${dateVal || '—'}</span></div>
+    <div class="sum-meta-item"><span class="ml">Level:</span><span class="mv">${currentLevel}</span></div>
+  </div>`;
+
+  // Section 1 — always shown
+  const showSec1 = cfg.sec1Subs && cfg.sec1Subs.length > 0;
+  if (showSec1) {
+    // Filter groups to only those visible at current level
+    const visibleSec1 = sec1Groups.filter(g => {
+      const sub = g.name;
+      // Map group names to sec1Sub keys
+      return cfg.sec1Subs.includes(sub);
+    });
+    html += `<div class="sum-section">
+      <div class="sum-section-title">Section 1 — Patient Assessment ${s1 ? `<span style="float:right;font-size:13px">${s1}/5</span>` : ''}</div>
+      ${renderGroupRows(visibleSec1.length ? visibleSec1 : sec1Groups)}
+    </div>`;
+  }
+
+  // Section 2 — if visible
+  if (cfg.showSec2) {
+    html += `<div class="sum-section">
+      <div class="sum-section-title amber">Section 2 — Diagnosis, Care & Treatment ${s2 ? `<span style="float:right;font-size:13px">${s2}/5</span>` : ''}</div>
+      ${renderGroupRows(sec2Groups)}
+    </div>`;
+  }
+
+  // Section 3 — Knowledge
+  html += `<div class="sum-section">
+    <div class="sum-section-title green">Section 3 — Knowledge Questions <span style="float:right;font-size:13px">${kqRaw}/${kqMax} → ${s3}/5</span></div>
+    ${kqHtml || '<div style="font-size:11px;color:var(--grey);padding:4px 0">No questions scored</div>'}
+  </div>`;
+
+  // Comments
+  if (comments.length) {
+    html += `<div class="sum-section">
+      <div class="sum-section-title grey">Assessor Comments</div>
+      ${comments.map(c => `<div class="sum-comment-block"><div class="sum-comment-label">${c.label}</div><div class="sum-comment-text">${c.text}</div></div>`).join('')}
+    </div>`;
+  }
+
+  // Overall
+  html += `<div class="sum-overall">
+    <div><span class="so-num">${overallNum !== null ? overallNum : '—'}</span><span class="so-denom">/${overallMax}</span></div>
+    <div class="so-label">${cfg.label}</div>
+    ${resultHtml}
+  </div>
+
+  <div style="text-align:center;margin-top:16px;display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
+    <button class="sum-btn outline" onclick="closeSummary()">← Back to Assessment</button>
+    <button class="sum-btn green" onclick="emailSummary()">✉ Email Summary</button>
+    <button class="sum-btn navy" onclick="window.print()">🖨 Print</button>
+  </div>
+
+  <div style="text-align:center;font-size:10px;color:var(--grey);margin-top:12px">
+    AV Scenario Assessment Tool · Not an official AV product · AI-generated content may not be clinically accurate — verify against current AV CPGs · ${new Date().toLocaleDateString('en-AU')}
+  </div>`;
+
+  document.getElementById('summary-inner').innerHTML = html;
+  document.getElementById('summary-overlay').classList.add('open');
+  document.getElementById('summary-overlay').scrollTop = 0;
+  document.body.style.overflow = 'hidden';
+}
+
+function closeSummary() {
+  document.getElementById('summary-overlay').classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+function emailSummary() {
+  if (!currentScenario) return;
+  const s = currentScenario;
+  const cfg = LEVEL_CONFIG[currentLevel];
+  const gradName = document.getElementById('grad-name')?.value || '—';
+  const gradId = document.getElementById('grad-id')?.value || '';
+  const assessorName = document.getElementById('grad-assessor')?.value || '—';
+  const assessorId = document.getElementById('grad-assessor-id')?.value || '';
+  const dateVal = document.getElementById('grad-date')?.value || '';
+
+  const s1 = sectionScores['sec1'] || null;
+  const s2 = sectionScores['sec2'] || null;
+  const kqRaw = Object.values(kqScores).reduce((a,v) => a + (v||0), 0);
+  const kqMax = (s.kq) ? s.kq.reduce((a,q) => a + q.max, 0) : 5;
+  const s3 = kqRawToSec3(kqRaw);
+
+  let overallNum = null;
+  if (currentLevel === 'A') overallNum = kqRaw > 0 ? s3 : null;
+  else if (currentLevel === 'B') overallNum = (s1 && kqRaw > 0) ? s1 + s3 : null;
+  else { const r = getOverallScore(); if (r) overallNum = r.overall; }
+
+  const pass = overallNum !== null ? (overallNum >= cfg.passThreshold ? 'SATISFACTORY' : 'NOT SATISFACTORY') : '';
+
+  // Build plain text summary
+  let body = `ASSESSMENT SUMMARY\n`;
+  body += `==================\n`;
+  body += `Scenario: ${s.title}\n`;
+  body += `${s.subtitle || ''}${s.cpg ? ' · ' + s.cpg : ''}\n\n`;
+  body += `Graduate: ${gradName}${gradId ? ' (' + gradId + ')' : ''}\n`;
+  body += `Assessor: ${assessorName}${assessorId ? ' (' + assessorId + ')' : ''}\n`;
+  body += `Date: ${dateVal}\n`;
+  body += `Level: ${currentLevel}\n\n`;
+
+  // Row states — collect from DOM
+  function collectPlainRows(groupName) {
+    const table = document.querySelector(`table[data-group="${groupName}"]`);
+    if (!table) return [];
+    const items = [];
+    table.querySelectorAll('tbody tr').forEach(tr => {
+      const labelTd = tr.querySelector('td.elem-label');
+      if (labelTd) {
+        const clone = labelTd.cloneNode(true);
+        clone.querySelectorAll('.vital-hint').forEach(h => h.remove());
+        const label = clone.textContent.trim();
+        const btns = tr.querySelectorAll('.tick-btn');
+        let mark = '—';
+        btns.forEach(btn => {
+          if (btn.classList.contains('complete')) mark = '✓';
+          else if (btn.classList.contains('prompted') && mark === '—') mark = 'P';
+          else if (btn.classList.contains('incomplete') && mark !== '✓') mark = '✕';
+        });
+        const indent = labelTd.classList.contains('indent');
+        items.push(`${indent ? '  ' : ''}${mark} ${label}`);
+      } else {
+        const btn = tr.querySelector('.tick-btn');
+        if (!btn) return;
+        const span = tr.querySelector('span');
+        const input = tr.querySelector('input.ddx-input');
+        const inputVal = input ? input.value.trim() : '';
+        const label = (span ? span.textContent.replace(':','').trim() : 'Item') + (inputVal ? ': ' + inputVal : '');
+        let mark = '—';
+        if (btn.classList.contains('prompted')) mark = 'P';
+        else if (btn.classList.contains('incomplete')) mark = '✕';
+        else if (btn.classList.contains('complete')) mark = '✓';
+        items.push(`  ${mark} ${label}`);
+      }
+    });
+    return items;
+  }
+
+  const sec1Groups = [
+    { name: 'prearr', title: 'Pre-arrival & Scene' },
+    { name: 'rabcde', title: 'Primary Survey' },
+    { name: 'lt', title: 'Life Threat Mgmt' },
+    { name: 'hx', title: 'History' },
+    { name: 'vss', title: 'Vital Signs' },
+    { name: 'ss', title: 'Secondary Survey' },
+    { name: 'fa', title: 'Focussed Assessments' }
+  ];
+  const sec2Groups = [
+    { name: 'risk', title: 'Risk & Safety' },
+    { name: 'ddxgrp', title: 'Diff Diagnosis' },
+    { name: 'care', title: 'Care Pathways' },
+    { name: 'impl', title: 'Implement & Reassess' }
+  ];
+
+  body += `SECTION 1 — Patient Assessment${s1 ? ' (' + s1 + '/5)' : ''}\n`;
+  body += `----------------------------------\n`;
+  sec1Groups.forEach(g => {
+    if (!cfg.sec1Subs.includes(g.name)) return;
+    const rows = collectPlainRows(g.name);
+    if (!rows.length) return;
+    body += `${g.title}:\n${rows.join('\n')}\n`;
+  });
+  body += `\n`;
+
+  if (cfg.showSec2) {
+    body += `SECTION 2 — Diagnosis & Care${s2 ? ' (' + s2 + '/5)' : ''}\n`;
+    body += `----------------------------------\n`;
+    sec2Groups.forEach(g => {
+      const rows = collectPlainRows(g.name);
+      if (!rows.length) return;
+      body += `${g.title}:\n${rows.join('\n')}\n`;
+    });
+    body += `\n`;
+  }
+
+  body += `SECTION 3 — Knowledge (${kqRaw}/${kqMax} → ${s3}/5)\n`;
+  body += `----------------------------------\n`;
+  if (s.kq) s.kq.forEach((q, i) => {
+    body += `Q${i+1} (${kqScores[i]||0}/${q.max}): ${q.q}\n`;
+  });
+  body += `\n`;
+
+  // Comments
+  const commentAreas = document.querySelectorAll('.comments-area textarea');
+  const commentLabels = ['Section 1','Section 2','Section 3','Overall Feedback'];
+  let hasComments = false;
+  commentAreas.forEach((ta, i) => {
+    if (ta.value.trim()) {
+      if (!hasComments) { body += `COMMENTS\n--------\n`; hasComments = true; }
+      body += `${commentLabels[i] || 'Comment'}:\n${ta.value.trim()}\n\n`;
+    }
+  });
+
+  body += `==================\n`;
+  body += `OVERALL: ${overallNum !== null ? overallNum : '—'}/${cfg.maxScore}`;
+  if (pass) body += ` — ${pass}`;
+  body += `\n`;
+
+  const subject = `Assessment Summary — ${gradName} — ${s.title} — ${dateVal}`;
+  const mailto = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  window.location.href = mailto;
 }
 
 // ============================================================
