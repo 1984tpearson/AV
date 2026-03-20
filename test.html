@@ -2529,14 +2529,14 @@ function renderSection1(s, isTrauma) {
 
   const secondarySurvey = isTrauma ? `
     <div id="nav-ss" class="snav-anchor"></div><div class="asmt-section-header"><div class="asmt-section-title trauma">Secondary Survey — Trauma Head-to-Toe</div><button class="all-complete-btn" onclick="markGroupComplete('ss')">✓ All Complete</button></div>
-    <table class="asmt-table" data-group="ss">
+    <table class="asmt-table" data-group="ss" data-section="sec1">
       <thead><tr><th class="left">Element</th><th>Prompting</th><th>Incomplete</th><th>Complete</th></tr></thead>
       <tbody>
         ${mkRow('ss-head','Head and face (eyes/pupils)')}${mkRow('ss-neck','Neck',true)}${mkRow('ss-chest','Chest',true)}${mkRow('ss-abdomen','Abdomen',true)}${mkRow('ss-back','Back',true)}${mkRow('ss-pelvis','Pelvis',true)}${mkRow('ss-limbs','Limbs (incl. neurovascular)',true)}${mkRow('ss-other','Other/medical consideration',true)}
       </tbody>
     </table>` : `
     <div id="nav-ss" class="snav-anchor"></div><div class="asmt-section-header"><div class="asmt-section-title">Secondary Survey — Body Systems</div><button class="all-complete-btn" onclick="markGroupComplete('ss')">✓ All Complete</button></div>
-    <table class="asmt-table" data-group="ss">
+    <table class="asmt-table" data-group="ss" data-section="sec1">
       <thead><tr><th class="left">Element</th><th>Prompting</th><th>Incomplete</th><th>Complete</th></tr></thead>
       <tbody>
         ${mkRow('ss-neuro','Neurological')}${mkRow('ss-cardio','Cardiovascular',true)}${mkRow('ss-resp','Respiratory',true)}${mkRow('ss-gi','Gastrointestinal',true)}${mkRow('ss-gu','Genitourinary',true)}${mkRow('ss-msk','Musculoskeletal',true)}${mkRow('ss-skin','Integumentary/Skin',true)}${mkRow('ss-other','Other/trauma consideration',true)}
@@ -2555,7 +2555,7 @@ function renderSection1(s, isTrauma) {
     <div class="section-body open" id="sec-patient-assessment">
 
       <div id="nav-prearr" class="snav-anchor"></div><div class="asmt-section-header"><div class="asmt-section-title">Pre-arrival &amp; Scene</div><button class="all-complete-btn" onclick="markGroupComplete('prearr')">✓ All Complete</button></div>
-      <table class="asmt-table" data-group="prearr">
+      <table class="asmt-table" data-group="prearr" data-section="sec1">
         <thead><tr><th class="left" style="width:46%">Element</th><th style="width:18%">Prompting Required</th><th style="width:18%">Sub-section Incomplete</th><th style="width:18%">All Complete</th></tr></thead>
         <tbody>
           ${mkRow('hf','Human Factors and Biases')}
@@ -2567,7 +2567,7 @@ function renderSection1(s, isTrauma) {
       </table>
 
       <div id="nav-rabcde" class="snav-anchor"></div><div class="asmt-section-header"><div class="asmt-section-title">Primary Survey — RABCDE</div><button class="all-complete-btn" onclick="markGroupComplete('rabcde')">✓ All Complete</button></div>
-      <table class="asmt-table" data-group="rabcde">
+      <table class="asmt-table" data-group="rabcde" data-section="sec1">
         <thead><tr><th class="left">Element</th><th>Prompting</th><th>Incomplete</th><th>Complete</th></tr></thead>
         <tbody>
           ${mkRow('response','Response')}
@@ -2576,13 +2576,13 @@ function renderSection1(s, isTrauma) {
       </table>
 
       <div id="nav-lt" class="snav-anchor"></div><div class="asmt-section-header"><div class="asmt-section-title">Life Threat Management</div><button class="all-complete-btn" onclick="markGroupComplete('lt')">✓ All Complete</button></div>
-      <table class="asmt-table" data-group="lt">
+      <table class="asmt-table" data-group="lt" data-section="sec1">
         <thead><tr><th class="left">Expected management (from scenario)</th><th>Prompting</th><th>Incomplete</th><th>Complete</th></tr></thead>
         <tbody>${ltRows}</tbody>
       </table>
 
       <div id="nav-hx" class="snav-anchor"></div><div class="asmt-section-header"><div class="asmt-section-title history">History &amp; Past History</div><button class="all-complete-btn" onclick="markGroupComplete('hx')">✓ All Complete</button></div>
-      <table class="asmt-table" data-group="hx">
+      <table class="asmt-table" data-group="hx" data-section="sec1">
         <thead><tr><th class="left">Element</th><th>Prompting</th><th>Incomplete</th><th>Complete</th></tr></thead>
         <tbody>
           ${mkRow('sitrep','Early SITREP / Request backup')}
@@ -2595,7 +2595,7 @@ function renderSection1(s, isTrauma) {
       </table>
 
       <div id="nav-vss" class="snav-anchor"></div><div class="asmt-section-header"><div class="asmt-section-title vss">Vital Signs Survey</div><button class="all-complete-btn" onclick="markGroupComplete('vss')">✓ All Complete</button></div>
-      <table class="asmt-table" data-group="vss">
+      <table class="asmt-table" data-group="vss" data-section="sec1">
         <thead><tr><th class="left">Element</th><th>Prompting</th><th>Incomplete</th><th>Complete</th></tr></thead>
         <tbody>
           ${mkRow('rsa','RSA — Respiratory')}
@@ -2614,7 +2614,7 @@ function renderSection1(s, isTrauma) {
       ${secondarySurvey}
 
       <div id="nav-fa" class="snav-anchor"></div><div class="asmt-section-header"><div class="asmt-section-title">Focussed Assessments</div><button class="all-complete-btn" onclick="markGroupComplete('fa')">✓ All Complete</button></div>
-      <table class="asmt-table" data-group="fa">
+      <table class="asmt-table" data-group="fa" data-section="sec1">
         <tbody>
           ${mkFreeRow('fa1','Tool 1 (MASS, qSOFA, Anaphylaxis criteria, ACT FAST…)')}
           ${mkFreeRow('fa2','Tool 2')}
@@ -2696,7 +2696,7 @@ function renderSection2(s) {
     </div>
     <div class="section-body open" id="sec-diagnosis">
       <div id="nav-risk" class="snav-anchor"></div><div class="asmt-section-header"><div class="asmt-section-title diagnosis">Risk &amp; Patient Safety</div><button class="all-complete-btn" onclick="markGroupComplete('risk')">✓ All Complete</button></div>
-      <table class="asmt-table" data-group="risk">
+      <table class="asmt-table" data-group="risk" data-section="sec2">
         <thead><tr><th class="left" style="width:46%">Element</th><th style="width:18%">Prompting Required</th><th style="width:18%">Sub-section Incomplete</th><th style="width:18%">All Complete</th></tr></thead>
         <tbody>
           ${mkRow('flags-id', `Clinical flags / Patient Safety (CPG A0/P0108)${flagsHint ? infoHint(flagsHint) : ''}`)}
@@ -2706,7 +2706,7 @@ function renderSection2(s) {
       </table>
 
       <div id="nav-ddx" class="snav-anchor"></div><div class="asmt-section-header"><div class="asmt-section-title diagnosis">Differential Diagnosis</div><button class="all-complete-btn" onclick="markGroupComplete('ddxgrp')">✓ All Complete</button></div>
-      <table class="asmt-table" data-group="ddxgrp">
+      <table class="asmt-table" data-group="ddxgrp" data-section="sec2">
         <tbody>
           <tr>
             <td colspan="4" style="padding:6px 8px">
@@ -2726,7 +2726,7 @@ function renderSection2(s) {
       </table>
 
       <div id="nav-care" class="snav-anchor"></div><div class="asmt-section-header"><div class="asmt-section-title diagnosis">Care Pathways — Plan</div><button class="all-complete-btn" onclick="markGroupComplete('care')">✓ All Complete</button></div>
-      <table class="asmt-table" data-group="care">
+      <table class="asmt-table" data-group="care" data-section="sec2">
         <thead><tr><th class="left">Element</th><th>Prompting</th><th>Incomplete</th><th>Complete</th></tr></thead>
         <tbody>
           <tr>
@@ -2742,7 +2742,7 @@ function renderSection2(s) {
       </table>
 
       <div id="nav-impl" class="snav-anchor"></div><div class="asmt-section-header"><div class="asmt-section-title implement">Implement &amp; Reassess</div><button class="all-complete-btn" onclick="markGroupComplete('impl')">✓ All Complete</button></div>
-      <table class="asmt-table" data-group="impl" id="sec-implement">
+      <table class="asmt-table" data-group="impl" data-section="sec2" id="sec-implement">
         <thead><tr><th class="left">Element</th><th>Prompting</th><th>Incomplete</th><th>Complete</th></tr></thead>
         <tbody>
           ${mkRow('mgmt', `Appropriate management as per CPGs${s.cpg ? hint(s.cpg) : ''}`)}
@@ -2795,8 +2795,10 @@ function toggleTick(rowId, type) {
   if (!btn) return;
   btn.className = 'tick-btn' + (rowStates[rowId][type] ? ' '+type : '');
   btn.textContent = rowStates[rowId][type] ? (type==='prompted'?'P':type==='incomplete'?'✕':'✓') : '—';
-  if (!scoreOverridden.sec1) autoScore('sec1');
-  if (!scoreOverridden.sec2) autoScore('sec2');
+  // Auto-score only the section this tick belongs to
+  const parentTable = btn.closest('table.asmt-table[data-section]');
+  const sec = parentTable ? parentTable.dataset.section : null;
+  if (sec && !scoreOverridden[sec]) autoScore(sec);
   updateScoreSheet();
 }
 
@@ -2825,16 +2827,28 @@ function markGroupComplete(groupId) {
       btn.className = 'tick-btn'; btn.textContent = '—';
     }
   });
-  scoreOverridden.sec1 = false; scoreOverridden.sec2 = false;
-  autoScore('sec1'); autoScore('sec2');
+  // Auto-score only the section this group belongs to
+  const sec = table.dataset.section;
+  if (sec) {
+    scoreOverridden[sec] = false;
+    autoScore(sec);
+  }
   updateScoreSheet();
   showToast('✓ Group marked complete');
 }
 
 function autoScore(sec) {
   if (scoreOverridden[sec]) return;
+  // Collect row IDs that belong to this section by scanning tables with matching data-section
+  const sectionRowIds = new Set();
+  document.querySelectorAll(`table.asmt-table[data-section="${sec}"] .tick-btn`).forEach(btn => {
+    const m = btn.id.match(/^tick-(.+)-(complete|prompted|incomplete)$/);
+    if (m) sectionRowIds.add(m[1]);
+  });
   let redCount = 0, promptedCount = 0, hasAny = false;
-  Object.values(rowStates).forEach(state => {
+  sectionRowIds.forEach(rowId => {
+    const state = rowStates[rowId];
+    if (!state) return;
     if (state.incomplete) redCount++;
     if (state.prompted) promptedCount++;
     if (state.complete || state.incomplete || state.prompted) hasAny = true;
@@ -4121,8 +4135,8 @@ const SNAV_ITEMS = [
   { id: 'nav-risk',   label: 'Flags',   dot: 'amber' },
   { id: 'nav-ddx',    label: 'DDx',     dot: 'amber' },
   { id: 'nav-care',   label: 'Care',    dot: 'amber' },
-  { id: 'nav-impl',   label: 'Impl',    dot: 'green' },
-  { id: 'nav-s3',     label: 'Mgmt',    dot: 'blue',   section: true },
+  { id: 'nav-impl',   label: 'Mgmt',    dot: 'green' },
+  { id: 'nav-s3',     label: 'KQ',      dot: 'blue',   section: true },
 ];
 
 function buildScenarioNav() {
