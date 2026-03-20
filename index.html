@@ -2974,6 +2974,18 @@ function toggleTick(rowId, type) {
   const current = (rowStates[rowId] || {})[type];
   if (!rowStates[rowId]) rowStates[rowId] = {};
   rowStates[rowId][type] = current ? null : type;
+
+  // Mutual exclusion: complete and incomplete cancel each other
+  if (type === 'complete' && rowStates[rowId][type]) {
+    rowStates[rowId].incomplete = null;
+    const iBtn = document.getElementById(`tick-${rowId}-incomplete`);
+    if (iBtn) { iBtn.className = 'tick-btn'; iBtn.textContent = '—'; }
+  } else if (type === 'incomplete' && rowStates[rowId][type]) {
+    rowStates[rowId].complete = null;
+    const cBtn = document.getElementById(`tick-${rowId}-complete`);
+    if (cBtn) { cBtn.className = 'tick-btn'; cBtn.textContent = '—'; }
+  }
+
   const btn = document.getElementById(`tick-${rowId}-${type}`);
   if (!btn) return;
   btn.className = 'tick-btn' + (rowStates[rowId][type] ? ' '+type : '');
