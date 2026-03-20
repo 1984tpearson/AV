@@ -3356,16 +3356,16 @@ function showSummary() {
       const clone = labelTd.cloneNode(true);
       clone.querySelectorAll('.vital-hint').forEach(h => h.remove());
       const label = clone.textContent.trim();
-      // Find tick buttons in this row
+      // Collect ALL active marks
       const btns = tr.querySelectorAll('.tick-btn');
-      let mark = '';
+      let hasP = false, hasI = false, hasC = false;
       btns.forEach(btn => {
-        if (btn.classList.contains('complete')) mark = '✓';
-        else if (btn.classList.contains('prompted') && !mark) mark = 'P';
-        else if (btn.classList.contains('incomplete') && mark !== '✓') mark = '✕';
+        if (btn.classList.contains('prompted')) hasP = true;
+        if (btn.classList.contains('incomplete')) hasI = true;
+        if (btn.classList.contains('complete')) hasC = true;
       });
       const indent = labelTd.classList.contains('indent');
-      rows.push({ label, mark, indent });
+      rows.push({ label, hasP, hasI, hasC, indent });
     });
     // Also find prompt-only rows (sub-rows that have free-text inputs)
     table.querySelectorAll('tbody tr').forEach(tr => {
@@ -3376,11 +3376,10 @@ function showSummary() {
       const inputEl = tr.querySelector('input.ddx-input');
       const inputVal = inputEl ? inputEl.value.trim() : '';
       const label = (spanLabel ? spanLabel.textContent.replace(':','').trim() : 'Item') + (inputVal ? `: ${inputVal}` : '');
-      let mark = '';
-      if (btn.classList.contains('prompted')) mark = 'P';
-      else if (btn.classList.contains('incomplete')) mark = '✕';
-      else if (btn.classList.contains('complete')) mark = '✓';
-      rows.push({ label, mark, indent: true });
+      let hasP = btn.classList.contains('prompted');
+      let hasI = btn.classList.contains('incomplete');
+      let hasC = btn.classList.contains('complete');
+      rows.push({ label, hasP, hasI, hasC, indent: true });
     });
     return rows;
   }
@@ -3410,9 +3409,13 @@ function showSummary() {
       if (!rows.length) return;
       html += `<div class="sum-group-title">${g.title}</div><div class="sum-row-grid">`;
       rows.forEach(r => {
-        const markClass = r.mark === '✓' ? 'sr-c' : r.mark === 'P' ? 'sr-p' : r.mark === '✕' ? 'sr-i' : 'sr-none';
-        const markText = r.mark || '—';
-        html += `<div class="sr-label${r.indent ? ' indent' : ''}">${r.label}</div><div class="sr-marks ${markClass}">${markText}</div>`;
+        // Build combined mark display showing all active states
+        const parts = [];
+        if (r.hasP) parts.push('<span class="sr-p">P</span>');
+        if (r.hasI) parts.push('<span class="sr-i">✕</span>');
+        if (r.hasC) parts.push('<span class="sr-c">✓</span>');
+        const markHtml = parts.length ? parts.join(' ') : '<span class="sr-none">—</span>';
+        html += `<div class="sr-label${r.indent ? ' indent' : ''}">${r.label}</div><div class="sr-marks">${markHtml}</div>`;
       });
       // Pad odd row count so grid stays clean
       if (rows.length % 2 !== 0) html += `<div></div><div></div>`;
@@ -3585,14 +3588,15 @@ function emailSummary() {
         clone.querySelectorAll('.vital-hint').forEach(h => h.remove());
         const label = clone.textContent.trim();
         const btns = tr.querySelectorAll('.tick-btn');
-        let mark = '—';
+        const marks = [];
         btns.forEach(btn => {
-          if (btn.classList.contains('complete')) mark = '✓';
-          else if (btn.classList.contains('prompted') && mark === '—') mark = 'P';
-          else if (btn.classList.contains('incomplete') && mark !== '✓') mark = '✕';
+          if (btn.classList.contains('prompted')) marks.push('P');
+          if (btn.classList.contains('incomplete')) marks.push('✕');
+          if (btn.classList.contains('complete')) marks.push('✓');
         });
+        const mark = marks.length ? marks.join(' ') : '—';
         const indent = labelTd.classList.contains('indent');
-        items.push(`${indent ? '  ' : ''}${mark} ${label}`);
+        items.push(`${indent ? '  ' : ''}[${mark}] ${label}`);
       } else {
         const btn = tr.querySelector('.tick-btn');
         if (!btn) return;
@@ -3600,11 +3604,12 @@ function emailSummary() {
         const input = tr.querySelector('input.ddx-input');
         const inputVal = input ? input.value.trim() : '';
         const label = (span ? span.textContent.replace(':','').trim() : 'Item') + (inputVal ? ': ' + inputVal : '');
-        let mark = '—';
-        if (btn.classList.contains('prompted')) mark = 'P';
-        else if (btn.classList.contains('incomplete')) mark = '✕';
-        else if (btn.classList.contains('complete')) mark = '✓';
-        items.push(`  ${mark} ${label}`);
+        const marks = [];
+        if (btn.classList.contains('prompted')) marks.push('P');
+        if (btn.classList.contains('incomplete')) marks.push('✕');
+        if (btn.classList.contains('complete')) marks.push('✓');
+        const mark = marks.length ? marks.join(' ') : '—';
+        items.push(`  [${mark}] ${label}`);
       }
     });
     return items;
