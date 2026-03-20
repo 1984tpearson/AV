@@ -674,7 +674,7 @@ body.snav-active #content { padding-left: 60px; }
     <div id="home-screen">
       <div class="welcome-header">
         <h2>AV Verbal Scenario Assessment Tool</h2>
-        <p>Assessor-facing tool for ALS (Level C/D) verbal scenarios. Select a scenario from the library or create your own.</p>
+        <p>Assessor-facing tool for ALS verbal scenarios. Select a scenario from the library or create your own.</p>
       </div>
       <div class="quick-actions">
         <button class="quick-action-btn amber" onclick="openAIModal()">✦ AI Generator</button>
@@ -1086,7 +1086,7 @@ let currentScenario = null;
 let timerInterval = null;
 let timerSeconds = 0;
 let timerRunning = false;
-let currentLevel = 'C'; // A, B, C, D
+let currentLevel = 'D'; // A, B, C, D
 
 // Level configuration: timer (seconds), max score, pass threshold, visible sections
 const LEVEL_CONFIG = {
@@ -2409,7 +2409,7 @@ function renderScenario(s) {
     <div class="grad-field"><label>Assessor:</label><input type="text" id="grad-assessor" placeholder="Name" value="${getCIDisplayName()}" oninput="onAssessorNameChange(this.value)"></div>
     <div class="grad-field"><label>Assessor ID:</label><input type="text" id="grad-assessor-id" placeholder="Emp #" style="width:90px" value="${getIdentity().svcNum||''}" oninput="onAssessorSvcNumChange(this.value)"></div>
     <div class="grad-field"><label>Date:</label><input type="date" id="grad-date" value="${new Date().toISOString().slice(0,10)}"></div>
-    <div class="grad-field"><label>Level:</label><select id="grad-level" onchange="applyLevel(this.value)"><option value="A">A</option><option value="B">B</option><option value="C" selected>C</option><option value="D">D</option></select></div>
+    <div class="grad-field"><label>Level:</label><select id="grad-level" onchange="applyLevel(this.value)"><option value="A">A</option><option value="B">B</option><option value="C">C</option><option value="D" selected>D</option></select></div>
   </div>
   <div class="action-bar">
     <button class="action-btn" onclick="goHome()" style="font-weight:700">← Home</button>
@@ -4985,7 +4985,7 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape') closeECGLigh
 <div id="sticky-bar">
   <div id="sticky-bar-inner">
     <div id="sticky-timer">
-      <div id="sticky-level-badge" style="background:rgba(255,255,255,0.2);color:white;font-size:11px;font-weight:800;padding:2px 7px;border-radius:4px;letter-spacing:0.5px">C</div>
+      <div id="sticky-level-badge" style="background:rgba(255,255,255,0.2);color:white;font-size:11px;font-weight:800;padding:2px 7px;border-radius:4px;letter-spacing:0.5px">D</div>
       <div id="sticky-timer-display">28:00</div>
       <button class="sticky-timer-btn" onclick="startTimer()">▶</button>
       <button class="sticky-timer-btn" onclick="stopTimer()">⏸</button>
