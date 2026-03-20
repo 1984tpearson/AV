@@ -563,10 +563,10 @@ body.snav-active #content { padding-left: 60px; }
 .sum-section-title.green { color: var(--green); border-color: var(--green); }
 .sum-section-title.grey { color: var(--grey); border-color: var(--grey); }
 .sum-group-title { font-size: 10px; font-weight: 700; color: var(--grey); text-transform: uppercase; letter-spacing: 0.4px; padding: 4px 0 2px; }
-.sum-row-grid { display: grid; grid-template-columns: 1fr auto; gap: 0; font-size: 11px; line-height: 1.6; }
+.sum-row-grid { display: grid; grid-template-columns: 1fr auto 1fr auto; gap: 0 12px; font-size: 11px; line-height: 1.6; }
 .sum-row-grid .sr-label { padding: 1px 0; color: var(--text); border-bottom: 1px solid #f0f0f0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .sum-row-grid .sr-label.indent { padding-left: 10px; color: var(--grey); }
-.sum-row-grid .sr-marks { padding: 1px 0; text-align: right; border-bottom: 1px solid #f0f0f0; white-space: nowrap; font-weight: 700; min-width: 40px; }
+.sum-row-grid .sr-marks { padding: 1px 0; text-align: right; border-bottom: 1px solid #f0f0f0; white-space: nowrap; font-weight: 700; min-width: 24px; }
 .sr-c { color: var(--green); } .sr-p { color: var(--amber); } .sr-i { color: var(--red); } .sr-none { color: #ccc; }
 .sum-score-row { display: flex; justify-content: space-between; align-items: center; padding: 6px 10px; background: var(--light); border-radius: 6px; margin-top: 4px; font-size: 12px; font-weight: 700; }
 .sum-score-val { font-size: 16px; font-weight: 900; color: var(--navy); }
@@ -590,8 +590,9 @@ body.snav-active #content { padding-left: 60px; }
   #topbar, #sidebar, #sidebar-overlay, .modal-overlay, .action-bar, .timer-controls, .sidebar-bottom, #score-panel-toggle, #score-sheet, #score-sheet-overlay, #sticky-bar, .sticky-bar-offset { display: none !important; }
   /* If summary is open, print ONLY the summary */
   #summary-overlay.open { position: static !important; display: block !important; overflow: visible !important; }
-  #summary-overlay.open ~ #main-wrapper, #summary-overlay.open + * { }
   body:has(#summary-overlay.open) #main-wrapper { display: none !important; }
+  body:has(#summary-overlay.open) #site-footer { display: none !important; }
+  body:has(#summary-overlay.open) #score-panel-toggle { display: none !important; }
   #summary-inner { padding: 0 !important; }
   .sum-topbar-actions { display: none !important; }
   .sum-btn { display: none !important; }
@@ -3412,6 +3413,8 @@ function showSummary() {
         const markText = r.mark || '—';
         html += `<div class="sr-label${r.indent ? ' indent' : ''}">${r.label}</div><div class="sr-marks ${markClass}">${markText}</div>`;
       });
+      // Pad odd row count so grid stays clean
+      if (rows.length % 2 !== 0) html += `<div></div><div></div>`;
       html += `</div>`;
     });
     return html;
@@ -3522,7 +3525,7 @@ function showSummary() {
   </div>
 
   <div style="text-align:center;font-size:10px;color:var(--grey);margin-top:12px">
-    AV Scenario Assessment Tool · Not an official AV product · ${new Date().toLocaleDateString('en-AU')}
+    AV Scenario Assessment Tool · Not an official AV product · AI-generated content may not be clinically accurate — verify against current AV CPGs · ${new Date().toLocaleDateString('en-AU')}
   </div>`;
 
   document.getElementById('summary-inner').innerHTML = html;
