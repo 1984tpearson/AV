@@ -2364,12 +2364,15 @@ function renderScenario(s) {
     </div>
     <div class="section-body open">
       ${kqHtml || '<p style="color:var(--grey);font-size:13px;padding:10px 0">No knowledge questions defined for this scenario.</p>'}
-      <div style="margin-top:12px">
+      <div class="score-row" style="margin-top:12px">
         <table class="asmt-table">
           <tr>
             <td style="padding:10px;font-size:12px;font-weight:700;width:40%">Section 3 Score</td>
             <td style="padding:10px">
-              <div class="auto-score-indicator" id="s3-auto-note">Score based on knowledge question points: 0-1pts→1 &nbsp; 2pts→2 &nbsp; 3pts→3 &nbsp; 4pts→4 &nbsp; 5pts→5</div>
+              <div class="score-radio-group">
+                ${[1,2,3,4,5].map(n=>`<button class="score-radio-btn" id="s3-btn-${n}">${n}</button>`).join('')}
+              </div>
+              <div class="auto-score-indicator" id="s3-auto-note">Auto-calculated from knowledge question points</div>
             </td>
           </tr>
         </table>
@@ -2915,10 +2918,17 @@ function setKQScore(idx, score, max) {
   const kqRaw = Object.values(kqScores).reduce((a,v)=>a+(v||0),0);
   const badge = document.getElementById('s3-badge');
   if (badge) badge.textContent = `${kqRaw}/${kqMax} pts`;
+  // Update S3 radio buttons
+  const s3Score = kqRaw > 0 ? kqRawToSec3(kqRaw) : null;
+  [1,2,3,4,5].forEach(i => {
+    const btn = document.getElementById(`s3-btn-${i}`);
+    if (btn) btn.className = 'score-radio-btn' + (s3Score===i ? ` sel-${i}` : '');
+  });
   const s3Note = document.getElementById('s3-auto-note');
   if (s3Note) {
-    const s3Score = kqRawToSec3(kqRaw);
-    s3Note.textContent = `Auto: ${s3Score}/5 (${kqRaw}/${kqMax} pts)`;
+    s3Note.textContent = kqRaw > 0
+      ? `Auto: ${s3Score}/5 (${kqRaw}/${kqMax} pts)`
+      : 'Auto-calculated from knowledge question points';
   }
   updateScoreSheet();
 }
