@@ -1086,6 +1086,108 @@ let currentScenario = null;
 let timerInterval = null;
 let timerSeconds = 0;
 let timerRunning = false;
+let currentLevel = 'C'; // A, B, C, D
+
+// Level configuration: timer (seconds), max score, pass threshold, visible sections
+const LEVEL_CONFIG = {
+  A: { timerSec: 15*60, maxScore: 5,  passThreshold: 3, templateMin: 2,
+       sec1Subs: ['prearr','rabcde','lt'],  // only assessment subsections
+       showSec2: false, showSec1Score: false,
+       label: 'Level A — Assessment + Knowledge' },
+  B: { timerSec: 20*60, maxScore: 10, passThreshold: 6, templateMin: 3,
+       sec1Subs: ['prearr','rabcde','lt','hx','vss','ss','fa'],  // all of section 1
+       showSec2: false, showSec1Score: true,
+       label: 'Level B — Patient Assessment + Knowledge' },
+  C: { timerSec: 28*60, maxScore: 15, passThreshold: 9, templateMin: 3,
+       sec1Subs: ['prearr','rabcde','lt','hx','vss','ss','fa'],
+       showSec2: true, showSec1Score: true,
+       label: 'Level C — Full Assessment' },
+  D: { timerSec: 28*60, maxScore: 15, passThreshold: 9, templateMin: 3,
+       sec1Subs: ['prearr','rabcde','lt','hx','vss','ss','fa'],
+       showSec2: true, showSec1Score: true,
+       label: 'Level D — Full Assessment' }
+};
+
+// ============================================================
+// LEVEL SWITCHING
+// ============================================================
+// Map of Section 1 subsection keys to their nav-anchor IDs
+const SEC1_SUB_NAV = {
+  prearr: 'nav-prearr', rabcde: 'nav-rabcde', lt: 'nav-lt',
+  hx: 'nav-hx', vss: 'nav-vss', ss: 'nav-ss', fa: 'nav-fa'
+};
+
+function applyLevel(level) {
+  if (!LEVEL_CONFIG[level]) return;
+  currentLevel = level;
+  const cfg = LEVEL_CONFIG[level];
+
+  // --- 1. Hide/show Section 1 subsections ---
+  // Each subsection is: anchor div, then asmt-section-header div, then table
+  // We walk from each anchor and hide/show sibling elements up to the next anchor or score-row
+  const allSec1Subs = ['prearr','rabcde','lt','hx','vss','ss','fa'];
+  allSec1Subs.forEach(sub => {
+    const anchor = document.getElementById(SEC1_SUB_NAV[sub]);
+    if (!anchor) return;
+    const visible = cfg.sec1Subs.includes(sub);
+    // Walk next siblings: the asmt-section-header and the asmt-table
+    let el = anchor.nextElementSibling;
+    // Hide/show: anchor itself (zero-height, but still), header, table
+    // Continue until we hit another snav-anchor or a score-row or run out
+    let count = 0;
+    while (el && count < 3) {
+      if (el.classList.contains('snav-anchor')) break;
+      if (el.classList.contains('score-row')) break;
+      el.style.display = visible ? '' : 'none';
+      el = el.nextElementSibling;
+      count++;
+    }
+  });
+
+  // Section 1 score row: hide at Level A (no S1 score), show otherwise
+  const s1ScoreRow = document.querySelector('#sec-patient-assessment > .score-row');
+  if (s1ScoreRow) s1ScoreRow.style.display = cfg.showSec1Score ? '' : 'none';
+
+  // --- 2. Hide/show entire Section 2 ---
+  // Section 2 is the .section containing #sec-diagnosis
+  const sec2Body = document.getElementById('sec-diagnosis');
+  if (sec2Body) {
+    const sec2Wrapper = sec2Body.closest('.section');
+    if (sec2Wrapper) sec2Wrapper.style.display = cfg.showSec2 ? '' : 'none';
+  }
+
+  // --- 3. Update timer ---
+  // If timer hasn't started, reset display to new duration
+  if (!timerRunning && timerSeconds === 0) {
+    const m = Math.floor(cfg.timerSec / 60);
+    const timeStr = `${String(m).padStart(2,'0')}:00`;
+    const sticky = document.getElementById('sticky-timer-display');
+    if (sticky) sticky.textContent = timeStr;
+    const legacy = document.getElementById('timer-display');
+    if (legacy) legacy.textContent = timeStr;
+  }
+
+  // --- 4. Update level badge in scenario header ---
+  const badges = document.querySelectorAll('.sh-badges .badge');
+  badges.forEach(b => {
+    if (b.textContent.startsWith('Level ')) b.textContent = `Level ${level}`;
+  });
+
+  // --- 5. Rebuild side nav ---
+  buildScenarioNav();
+
+  // --- 6. Update score sheet ---
+  updateScoreSheet();
+
+  // --- 7. Sync dropdown if called programmatically ---
+  const dd = document.getElementById('grad-level');
+  if (dd && dd.value !== level) dd.value = level;
+
+  // --- 8. Update sticky bar level badge ---
+  const stickyLvl = document.getElementById('sticky-level-badge');
+  if (stickyLvl) stickyLvl.textContent = level;
+}
+
 let customScenarios = []; // loaded from localStorage
 let lastAIScenario = null; // holds the most recent AI-generated scenario pending save
 
@@ -1944,7 +2046,7 @@ function loadScenario(id) {
   if (!s) return;
   currentScenario = s;
   rowStates = {}; sectionScores = {}; kqScores = {};
-  stopTimer(); timerSeconds = 0; updateTimerDisplay();
+  resetTimer();
 
   document.querySelectorAll('.scenario-item').forEach(el => el.classList.remove('active'));
   const si = document.getElementById('si-'+id);
@@ -1971,6 +2073,10 @@ function loadScenario(id) {
 
   updateScoreSheet();
   showStickyBar(s);
+
+  // Apply current level (hides/shows sections, rebuilds nav, updates timer)
+  applyLevel(currentLevel);
+
   window.scrollTo(0, 0);
 }
 
@@ -2303,7 +2409,7 @@ function renderScenario(s) {
     <div class="grad-field"><label>Assessor:</label><input type="text" id="grad-assessor" placeholder="Name" value="${getCIDisplayName()}" oninput="onAssessorNameChange(this.value)"></div>
     <div class="grad-field"><label>Assessor ID:</label><input type="text" id="grad-assessor-id" placeholder="Emp #" style="width:90px" value="${getIdentity().svcNum||''}" oninput="onAssessorSvcNumChange(this.value)"></div>
     <div class="grad-field"><label>Date:</label><input type="date" id="grad-date" value="${new Date().toISOString().slice(0,10)}"></div>
-    <div class="grad-field"><label>Level:</label><select id="grad-level"><option>C</option><option>D</option></select></div>
+    <div class="grad-field"><label>Level:</label><select id="grad-level" onchange="applyLevel(this.value)"><option value="A">A</option><option value="B">B</option><option value="C" selected>C</option><option value="D">D</option></select></div>
   </div>
   <div class="action-bar">
     <button class="action-btn" onclick="goHome()" style="font-weight:700">← Home</button>
@@ -2960,10 +3066,20 @@ function collapseAll() { document.querySelectorAll('.section-body').forEach(b=>b
 // ============================================================
 function startTimer() { if (!timerRunning) { timerRunning=true; timerInterval=setInterval(updateTimerDisplay,1000); } }
 function stopTimer() { timerRunning=false; clearInterval(timerInterval); }
-function resetTimer() { stopTimer(); timerSeconds=0; updateTimerDisplay(); }
+function resetTimer() {
+  stopTimer(); timerSeconds=0;
+  const duration = LEVEL_CONFIG[currentLevel].timerSec;
+  const m = Math.floor(duration/60);
+  const timeStr = `${String(m).padStart(2,'0')}:00`;
+  const sticky = document.getElementById('sticky-timer-display');
+  if (sticky) { sticky.textContent = timeStr; sticky.className = ''; }
+  const legacy = document.getElementById('timer-display');
+  if (legacy) { legacy.textContent = timeStr; legacy.className = ''; }
+}
 function updateTimerDisplay() {
   timerSeconds++;
-  const remaining = Math.max(0, 28*60 - timerSeconds);
+  const duration = LEVEL_CONFIG[currentLevel].timerSec;
+  const remaining = Math.max(0, duration - timerSeconds);
   const m = Math.floor(remaining/60), s = remaining%60;
   const timeStr = `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
   const cls = remaining===0?'danger':remaining<=300?'warning':'';
@@ -3030,63 +3146,114 @@ function closeScoreSheet() {
 }
 
 function updateScoreSheet() {
-  const result = getOverallScore();
+  const cfg = LEVEL_CONFIG[currentLevel];
   const s = currentScenario;
   const kqRaw = Object.values(kqScores).reduce((a,v)=>a+(v||0),0);
   const kqMax = (s&&s.kq) ? s.kq.reduce((a,q)=>a+q.max,0) : 5;
   const s3 = kqRawToSec3(kqRaw);
-
   const scoreColorClass = n => n ? `s${Math.min(n,5)}` : 'none';
 
-  const t1Html = result ? `
-    <div class="sp-section">
-      <div class="sp-section-label">Table 1 (Sec1 + Sec2)</div>
-      <div class="sp-score-row"><span>Combined score</span><span class="sp-score-val">${result.t1}/10</span></div>
-    </div>` : '';
+  let bodyHtml = '';
 
-  const table1Grid = (() => {
-    const s1 = sectionScores['sec1'];
-    const s2 = sectionScores['sec2'];
-    let html = `<div class="sp-section"><div class="sp-section-label">Table 1 Lookup</div><table class="lookup-table"><tr><th>S2↓ S1→</th>${[1,2,3,4,5].map(i=>`<th>${i}</th>`).join('')}</tr>`;
-    for (let r=1;r<=5;r++) {
-      html+=`<tr><th>${r}</th>`;
-      for (let c=1;c<=5;c++) {
-        const v = (TABLE1[r]||{})[c]||'';
-        const hl = (s1===c&&s2===r)?'highlight':'';
-        html+=`<td class="${hl}">${v}</td>`;
+  if (currentLevel === 'A') {
+    // Level A: Knowledge only (5 pts)
+    const overall = kqRaw > 0 ? s3 : null;
+    bodyHtml = `
+      <div class="sp-section" style="padding:8px 0;margin-bottom:6px;border-bottom:1px solid var(--border)">
+        <div style="font-size:11px;font-weight:700;color:var(--navy);text-transform:uppercase;letter-spacing:0.5px">Level A — Knowledge Only</div>
+      </div>
+      <div class="sp-section">
+        <div class="sp-section-label">Knowledge Questions</div>
+        <div class="sp-score-row"><span>Raw points</span><span>${kqRaw}/${kqMax}</span></div>
+        <div class="sp-score-row"><span>Section score</span><span class="sp-score-val">${s3}/5</span></div>
+      </div>
+      <div class="total-score-display">
+        <div><span class="ts-num">${overall||'—'}</span><span class="ts-denom">/5</span></div>
+        <div class="ts-label">Overall Score</div>
+        ${overall ? `<div class="result-badge ${overall>=cfg.passThreshold?'pass':'fail'}">${overall>=cfg.passThreshold?'✓ SATISFACTORY':'✗ NOT SATISFACTORY'}</div>` : ''}
+      </div>`;
+
+  } else if (currentLevel === 'B') {
+    // Level B: S1 (5) + Knowledge (5) = 10
+    const s1 = sectionScores['sec1'] || null;
+    const overall = (s1 && kqRaw > 0) ? s1 + s3 : null;
+    bodyHtml = `
+      <div class="sp-section" style="padding:8px 0;margin-bottom:6px;border-bottom:1px solid var(--border)">
+        <div style="font-size:11px;font-weight:700;color:var(--navy);text-transform:uppercase;letter-spacing:0.5px">Level B — Assessment + Knowledge</div>
+      </div>
+      <div class="sp-section">
+        <div class="sp-section-label">Section 1 — Patient Assessment</div>
+        <div class="sp-score-row"><span>Score</span><span class="sp-score-val ${scoreColorClass(s1)}">${s1?s1+'/5':'—'}</span></div>
+      </div>
+      <div class="sp-section">
+        <div class="sp-section-label">Knowledge Questions</div>
+        <div class="sp-score-row"><span>Raw points</span><span>${kqRaw}/${kqMax}</span></div>
+        <div class="sp-score-row"><span>Section score</span><span class="sp-score-val">${s3}/5</span></div>
+      </div>
+      <div class="total-score-display">
+        <div><span class="ts-num">${overall||'—'}</span><span class="ts-denom">/10</span></div>
+        <div class="ts-label">Overall Score (S1 + Knowledge)</div>
+        ${overall ? `<div class="result-badge ${overall>=cfg.passThreshold?'pass':'fail'}">${overall>=cfg.passThreshold?'✓ SATISFACTORY':'✗ NOT SATISFACTORY'}</div>` : ''}
+      </div>
+      ${!s1 ? '<div style="text-align:center;color:var(--grey);font-size:12px;padding:6px 0">Score Section 1 to see overall result</div>' : ''}`;
+
+  } else {
+    // Level C/D: full Table 1 + Table 2 = /15
+    const result = getOverallScore();
+    const t1Html = result ? `
+      <div class="sp-section">
+        <div class="sp-section-label">Table 1 (Sec1 + Sec2)</div>
+        <div class="sp-score-row"><span>Combined score</span><span class="sp-score-val">${result.t1}/10</span></div>
+      </div>` : '';
+
+    const table1Grid = (() => {
+      const s1 = sectionScores['sec1'];
+      const s2 = sectionScores['sec2'];
+      let html = `<div class="sp-section"><div class="sp-section-label">Table 1 Lookup</div><table class="lookup-table"><tr><th>S2↓ S1→</th>${[1,2,3,4,5].map(i=>`<th>${i}</th>`).join('')}</tr>`;
+      for (let r=1;r<=5;r++) {
+        html+=`<tr><th>${r}</th>`;
+        for (let c=1;c<=5;c++) {
+          const v = (TABLE1[r]||{})[c]||'';
+          const hl = (s1===c&&s2===r)?'highlight':'';
+          html+=`<td class="${hl}">${v}</td>`;
+        }
+        html+=`</tr>`;
       }
-      html+=`</tr>`;
-    }
-    html+=`</table></div>`;
-    return html;
-  })();
+      html+=`</table></div>`;
+      return html;
+    })();
 
-  const overallHtml = result ? `
-    <div class="total-score-display">
-      <div><span class="ts-num">${result.overall||'—'}</span><span class="ts-denom">/15</span></div>
-      <div class="ts-label">Overall Score</div>
-      ${result.overall ? `<div class="result-badge ${result.overall>=9?'pass':'fail'}">${result.overall>=9?'✓ PASS':'✗ FAIL'}</div>` : ''}
-    </div>` : `<div class="total-score-display"><div class="ts-label" style="color:var(--grey);padding:10px">Score sections 1 & 2 to see overall result</div></div>`;
+    const overallHtml = result ? `
+      <div class="total-score-display">
+        <div><span class="ts-num">${result.overall||'—'}</span><span class="ts-denom">/15</span></div>
+        <div class="ts-label">Overall Score</div>
+        ${result.overall ? `<div class="result-badge ${result.overall>=cfg.passThreshold?'pass':'fail'}">${result.overall>=cfg.passThreshold?'✓ SATISFACTORY':'✗ NOT SATISFACTORY'}</div>` : ''}
+      </div>` : `<div class="total-score-display"><div class="ts-label" style="color:var(--grey);padding:10px">Score sections 1 & 2 to see overall result</div></div>`;
 
-  document.getElementById('score-sheet-body').innerHTML = `
-    <div class="sp-section">
-      <div class="sp-section-label">Section 1 — Patient Assessment</div>
-      <div class="sp-score-row"><span>Score</span><span class="sp-score-val ${scoreColorClass(sectionScores['sec1'])}">${sectionScores['sec1']?sectionScores['sec1']+'/5':'—'}</span></div>
-    </div>
-    <div class="sp-section">
-      <div class="sp-section-label">Section 2 — Diagnosis & Care</div>
-      <div class="sp-score-row"><span>Score</span><span class="sp-score-val ${scoreColorClass(sectionScores['sec2'])}">${sectionScores['sec2']?sectionScores['sec2']+'/5':'—'}</span></div>
-    </div>
-    <div class="sp-section">
-      <div class="sp-section-label">Section 3 — Knowledge</div>
-      <div class="sp-score-row"><span>Raw points</span><span>${kqRaw}/${kqMax}</span></div>
-      <div class="sp-score-row"><span>Section score</span><span class="sp-score-val">${s3}/5</span></div>
-    </div>
-    ${t1Html}
-    ${table1Grid}
-    ${overallHtml}
-    <button id="reset-btn" onclick="resetAll()">↺ Reset Assessment</button>
-  `;
+    bodyHtml = `
+      <div class="sp-section" style="padding:8px 0;margin-bottom:6px;border-bottom:1px solid var(--border)">
+        <div style="font-size:11px;font-weight:700;color:var(--navy);text-transform:uppercase;letter-spacing:0.5px">Level ${currentLevel} — Full Assessment</div>
+      </div>
+      <div class="sp-section">
+        <div class="sp-section-label">Section 1 — Patient Assessment</div>
+        <div class="sp-score-row"><span>Score</span><span class="sp-score-val ${scoreColorClass(sectionScores['sec1'])}">${sectionScores['sec1']?sectionScores['sec1']+'/5':'—'}</span></div>
+      </div>
+      <div class="sp-section">
+        <div class="sp-section-label">Section 2 — Diagnosis & Care</div>
+        <div class="sp-score-row"><span>Score</span><span class="sp-score-val ${scoreColorClass(sectionScores['sec2'])}">${sectionScores['sec2']?sectionScores['sec2']+'/5':'—'}</span></div>
+      </div>
+      <div class="sp-section">
+        <div class="sp-section-label">Section 3 — Knowledge</div>
+        <div class="sp-score-row"><span>Raw points</span><span>${kqRaw}/${kqMax}</span></div>
+        <div class="sp-score-row"><span>Section score</span><span class="sp-score-val">${s3}/5</span></div>
+      </div>
+      ${t1Html}
+      ${table1Grid}
+      ${overallHtml}`;
+  }
+
+  bodyHtml += `<button id="reset-btn" onclick="resetAll()">↺ Reset Assessment</button>`;
+  document.getElementById('score-sheet-body').innerHTML = bodyHtml;
 }
 
 // ============================================================
@@ -4140,7 +4307,8 @@ function showStickyBar(s) {
   }).join('');
 
   // Reset sticky timer display
-  const remaining = Math.max(0, 28*60 - timerSeconds);
+  const duration = LEVEL_CONFIG[currentLevel].timerSec;
+  const remaining = Math.max(0, duration - timerSeconds);
   const m = Math.floor(remaining/60), ss = remaining%60;
   const el = document.getElementById('sticky-timer-display');
   if (el) el.textContent = `${String(m).padStart(2,'0')}:${String(ss).padStart(2,'0')}`;
@@ -4151,29 +4319,46 @@ function showStickyBar(s) {
 // ============================================================
 let _snavObserver = null;
 
-const SNAV_ITEMS = [
-  { id: 'nav-s1',     label: 'S1',      dot: 'navy',   section: true },
-  { id: 'nav-prearr', label: 'O/A',     dot: 'navy' },
-  { id: 'nav-rabcde', label: '1st°',    dot: 'navy' },
-  { id: 'nav-lt',     label: 'Mx 1',    dot: 'red' },
-  { id: 'nav-hx',     label: 'Hx',      dot: 'teal' },
-  { id: 'nav-vss',    label: 'VSS',     dot: 'blue' },
-  { id: 'nav-ss',     label: '2nd°',    dot: 'navy' },
-  { id: 'nav-fa',     label: 'FA',      dot: 'purple' },
-  { id: 'nav-s2',     label: 'S2',      dot: 'amber',  section: true },
-  { id: 'nav-risk',   label: 'Flags',   dot: 'amber' },
-  { id: 'nav-ddx',    label: 'DDx',     dot: 'amber' },
-  { id: 'nav-care',   label: 'Care',    dot: 'amber' },
-  { id: 'nav-impl',   label: 'Mgmt',    dot: 'green' },
-  { id: 'nav-s3',     label: 'Qs',      dot: 'blue',   section: true },
+const SNAV_ITEMS_ALL = [
+  { id: 'nav-s1',     label: 'S1',      dot: 'navy',   section: true,  sub: null },
+  { id: 'nav-prearr', label: 'O/A',     dot: 'navy',   sub: 'prearr' },
+  { id: 'nav-rabcde', label: '1st°',    dot: 'navy',   sub: 'rabcde' },
+  { id: 'nav-lt',     label: 'Mx 1',    dot: 'red',    sub: 'lt' },
+  { id: 'nav-hx',     label: 'Hx',      dot: 'teal',   sub: 'hx' },
+  { id: 'nav-vss',    label: 'VSS',     dot: 'blue',   sub: 'vss' },
+  { id: 'nav-ss',     label: '2nd°',    dot: 'navy',   sub: 'ss' },
+  { id: 'nav-fa',     label: 'FA',      dot: 'purple',  sub: 'fa' },
+  { id: 'nav-s2',     label: 'S2',      dot: 'amber',  section: true,  sub: null, requiresSec2: true },
+  { id: 'nav-risk',   label: 'Flags',   dot: 'amber',  sub: 'risk',  requiresSec2: true },
+  { id: 'nav-ddx',    label: 'DDx',     dot: 'amber',  sub: 'ddx',   requiresSec2: true },
+  { id: 'nav-care',   label: 'Care',    dot: 'amber',  sub: 'care',  requiresSec2: true },
+  { id: 'nav-impl',   label: 'Mgmt',    dot: 'green',  sub: 'impl',  requiresSec2: true },
+  { id: 'nav-s3',     label: 'Qs',      dot: 'blue',   section: true,  sub: null },
 ];
+
+function getSnavItemsForLevel(level) {
+  const cfg = LEVEL_CONFIG[level];
+  return SNAV_ITEMS_ALL.filter(item => {
+    // Knowledge (S3) always visible
+    if (item.id === 'nav-s3') return true;
+    // S1 header always visible (even at Level A it has some content)
+    if (item.id === 'nav-s1') return true;
+    // Section 2 items
+    if (item.requiresSec2) return cfg.showSec2;
+    // Section 1 subsections
+    if (item.sub) return cfg.sec1Subs.includes(item.sub);
+    return true;
+  });
+}
 
 function buildScenarioNav() {
   const nav = document.getElementById('scenario-nav');
   if (!nav) return;
 
+  const items = getSnavItemsForLevel(currentLevel);
+
   // Build HTML
-  nav.innerHTML = SNAV_ITEMS.map((item, i) => {
+  nav.innerHTML = items.map((item, i) => {
     const divider = (i > 0 && item.section) ? '<div class="snav-divider"></div>' : '';
     return `${divider}<div class="snav-item${item.section ? ' snav-section-item' : ''}" id="snav-${item.id}" onclick="snavScrollTo('${item.id}')">
       <div class="snav-dot ${item.dot}"></div>
@@ -4199,8 +4384,8 @@ function buildScenarioNav() {
       const topbarH = topbar ? topbar.getBoundingClientRect().height : 56;
       const stickyH = (stickyBar && stickyBar.classList.contains('visible')) ? stickyBar.getBoundingClientRect().height : 0;
       const threshold = topbarH + stickyH + 10;
-      let activeId = SNAV_ITEMS[0].id;
-      for (const item of SNAV_ITEMS) {
+      let activeId = items[0].id;
+      for (const item of items) {
         const el = document.getElementById(item.id);
         if (!el) continue;
         const rect = el.getBoundingClientRect();
@@ -4218,7 +4403,8 @@ function buildScenarioNav() {
 }
 
 function snavSetActive(targetId) {
-  SNAV_ITEMS.forEach(item => {
+  const items = getSnavItemsForLevel(currentLevel);
+  items.forEach(item => {
     const btn = document.getElementById('snav-' + item.id);
     if (btn) btn.classList.toggle('active', item.id === targetId);
   });
@@ -4799,6 +4985,7 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape') closeECGLigh
 <div id="sticky-bar">
   <div id="sticky-bar-inner">
     <div id="sticky-timer">
+      <div id="sticky-level-badge" style="background:rgba(255,255,255,0.2);color:white;font-size:11px;font-weight:800;padding:2px 7px;border-radius:4px;letter-spacing:0.5px">C</div>
       <div id="sticky-timer-display">28:00</div>
       <button class="sticky-timer-btn" onclick="startTimer()">▶</button>
       <button class="sticky-timer-btn" onclick="stopTimer()">⏸</button>
