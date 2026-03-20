@@ -2452,7 +2452,7 @@ function renderScenario(s) {
     <div class="sh-badges">
       <span class="badge" style="background:${catBg[s.category]||'#1C3A6E'}">${s.category}${s.subcategory ? ' — '+s.subcategory : ''}</span>
       ${s.cpg?`<span class="badge amber-badge">${s.cpg}</span>`:''}
-      <span class="badge">Level ${s.level||'C/D'}</span>
+      <select id="grad-level" onchange="applyLevel(this.value)" style="appearance:auto;-webkit-appearance:auto;background:rgba(255,255,255,0.18);border:1px solid rgba(255,255,255,0.35);color:white;padding:3px 8px;border-radius:14px;font-size:11px;font-weight:700;cursor:pointer;outline:none"><option value="A" style="color:#1a1a2e">Level A</option><option value="B" style="color:#1a1a2e">Level B</option><option value="C" style="color:#1a1a2e">Level C</option><option value="D" selected style="color:#1a1a2e">Level D</option></select>
       ${s.ai_generated?`<span class="ai-generated-badge">✦ AI</span>${s.created_at ? `<span style="font-size:10px;color:rgba(255,255,255,0.4);font-weight:400;margin-left:1px">${(d => d.getDate().toString().padStart(2,'0')+'/'+(d.getMonth()+1).toString().padStart(2,'0')+'/'+(d.getFullYear().toString().slice(2)))(new Date(s.created_at))}</span>` : ''}`:'' }
       ${s.custom&&!s.ai_generated?'<span class="badge custom-badge">Custom</span>':''}
       ${s._edited?'<span class="badge" style="background:#16A085">✎ Edited</span>':''}
@@ -2470,7 +2470,6 @@ function renderScenario(s) {
     <div class="grad-field"><label>Assessor:</label><input type="text" id="grad-assessor" placeholder="Name" value="${getCIDisplayName()}" oninput="onAssessorNameChange(this.value)"></div>
     <div class="grad-field"><label>Assessor ID:</label><input type="text" id="grad-assessor-id" placeholder="Emp #" style="width:90px" value="${getIdentity().svcNum||''}" oninput="onAssessorSvcNumChange(this.value)"></div>
     <div class="grad-field"><label>Date:</label><input type="date" id="grad-date" value="${new Date().toISOString().slice(0,10)}"></div>
-    <div class="grad-field"><label>Level:</label><select id="grad-level" onchange="applyLevel(this.value)"><option value="A">A</option><option value="B">B</option><option value="C">C</option><option value="D" selected>D</option></select></div>
   </div>
   <div class="action-bar">
     <button class="action-btn" onclick="goHome()" style="font-weight:700">← Home</button>
