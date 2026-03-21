@@ -273,6 +273,11 @@ body.snav-active #content { padding-left: 60px; }
 .tick-btn.prompted { background: var(--amber); border-color: var(--amber); color: white; }
 .tick-btn.incomplete { background: var(--red); border-color: var(--red); color: white; }
 .tick-btn.complete { background: var(--green); border-color: var(--green); color: white; }
+/* Sub-row tick buttons — smaller, grey-toned */
+.sub-tick-btn { width: 28px; height: 28px; border-radius: 5px; border: 1.5px solid #BDC3C7; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 800; transition: all 0.15s; background: #F8F9FA; color: var(--grey); user-select: none; }
+.sub-tick-btn:active { transform: scale(0.9); }
+.sub-tick-btn.prompted { background: #F0A500; border-color: #D4920A; color: white; }
+.sub-tick-btn.complete { background: #5D8A65; border-color: #4A7052; color: white; }
 .score-row td { background: var(--light); font-weight: 700; padding: 10px 8px; font-size: 12px; }
 .score-radio-group { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
 .score-radio-btn { width: 40px; height: 40px; border-radius: 7px; border: 2px solid var(--border); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; font-weight: 800; font-size: 15px; background: white; transition: all 0.15s; }
@@ -640,6 +645,9 @@ body.snav-active #content { padding-left: 60px; }
 /* Edit button in sticky bar */
 #sticky-edit-btn { padding: 6px 12px; background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.25); color: white; border-radius: 6px; cursor: pointer; font-size: 11px; font-weight: 700; flex-shrink: 0; margin: 0 8px; min-height: 32px; display: flex; align-items: center; gap: 4px; }
 #sticky-edit-btn:active { background: rgba(255,255,255,0.25); }
+#sticky-ecg-btn { padding: 6px 10px; background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.25); color: white; border-radius: 6px; cursor: pointer; font-size: 11px; font-weight: 700; flex-shrink: 0; margin: 0 0 0 0; min-height: 32px; display: none; align-items: center; gap: 4px; }
+#sticky-ecg-btn.visible { display: flex; }
+#sticky-ecg-btn:active { background: rgba(255,255,255,0.25); }
 
 /* Push content down to account for topbar + sticky bar */
 #main-wrapper { margin-top: 56px; }
@@ -1253,6 +1261,7 @@ let customScenarios = []; // loaded from localStorage
 let lastAIScenario = null; // holds the most recent AI-generated scenario pending save
 
 let rowStates = {};
+let subRowStates = {};
 let sectionScores = {};
 let kqScores = {};
 
@@ -2509,7 +2518,6 @@ function renderScenario(s) {
     <div class="section-body open" id="sec-flags">
       <ul class="flags-list">${flagsHtml}</ul>
       ${(s.provisional||s.ddx)?`<div class="ddx-info"><strong>Provisional Dx:</strong> ${s.provisional||'—'}<br><strong>DDx:</strong> ${(s.ddx||[]).join(' / ')||'—'}</div>`:''}
-      ${(()=>{ const ecg = getECGImage(s.vitals&&s.vitals.Rhythm); if(!ecg) return ''; return `<div class="ecg-strip-section"><div class="ecg-strip-label">📈 Reference ECG Strip — ${ecg.label} <span style="font-size:10px;opacity:0.6;font-weight:400;text-transform:none">(tap to expand)</span></div><img class="ecg-strip-img" id="ecg-img-${s.id}" alt="${ecg.label}" onerror="this.style.opacity=0.3" onclick="if(this.src)openECGLightbox(this.src,'${ecg.label.replace(/'/g,"\\'")}')"><div style="font-size:10px;color:var(--grey);font-style:italic;margin-top:5px">⚠ ECG shown is a rhythm reference only — rate depicted may not match the scenario heart rate.</div></div>`; })()}
     </div>
   </div>
 
@@ -2658,17 +2666,17 @@ function renderSection1(s, isTrauma) {
 
   const mkTick = (id, type, label) => `<button class="tick-btn" id="tick-${id}-${type}" onclick="toggleTick('${id}','${type}')" title="${label}">—</button>`;
   const mkRow = (id, label, indent=false) => `
-    <tr>
+    <tr data-row-id="${id}">
       <td class="elem-label${indent?' indent':''}">${label}</td>
       <td class="tick-col">${mkTick(id,'prompted','Prompting Required')}</td>
       <td class="tick-col">${mkTick(id,'incomplete','Incomplete/Incorrect')}</td>
       <td class="tick-col">${mkTick(id,'complete','All Complete')}</td>
     </tr>`;
-  const mkSubRow = (id, label, hintVal='', hintKey='', info=false) => `
-    <tr>
+  const mkSubRow = (id, label, hintVal='', hintKey='', info=false, parentId='') => `
+    <tr data-row-id="${id}" data-parent="${parentId}">
       <td class="elem-label indent">${label}${info ? infoHint(hintVal) : hint(hintVal, hintKey)}</td>
-      <td class="tick-col">${mkTick(id,'prompted','Prompting Required')}</td>
-      <td colspan="2"></td>
+      <td class="tick-col"><button class="sub-tick-btn" id="sub-${id}-prompted" onclick="toggleSubTick('${id}','prompted','${parentId}')" title="Prompting Required">—</button></td>
+      <td class="tick-col" colspan="2"><button class="sub-tick-btn" id="sub-${id}-complete" onclick="toggleSubTick('${id}','complete','${parentId}')" title="Complete">—</button></td>
     </tr>`;
   const mkFreeRow = (id, label) => `
     <tr>
@@ -2742,9 +2750,9 @@ function renderSection1(s, isTrauma) {
         <tbody>
           ${mkRow('hf','Human Factors and Biases')}
           ${mkRow('dra','Dynamic Risk Assessment')}
-          ${mkSubRow('ppe','PPE')}${mkSubRow('dangers','Dangers')}
+          ${mkSubRow('ppe','PPE','','','','dra')}${mkSubRow('dangers','Dangers','','','','dra')}
           ${mkRow('rapid','Rapid Assessment (Adult/PAT)')}
-          ${mkSubRow('alertness','Alertness', gcsNum < 15 ? `GCS ${gcs.display}` : 'Alert', gcsNum < 14 ? 'GCS' : '')}${mkSubRow('wob1','Work of Breathing', wobHint)}${mkSubRow('skin1','Skin')}${mkSubRow('wellunwell','Well / Unwell', wellHint, wellHint==='UNWELL'?'flag':'')}
+          ${mkSubRow('alertness','Alertness', gcsNum < 15 ? `GCS ${gcs.display}` : 'Alert', gcsNum < 14 ? 'GCS' : '','','rapid')}${mkSubRow('wob1','Work of Breathing', wobHint,'','','rapid')}${mkSubRow('skin1','Skin','','','','rapid')}${mkSubRow('wellunwell','Well / Unwell', wellHint, wellHint==='UNWELL'?'flag':'','','rapid')}
         </tbody>
       </table>
 
@@ -2753,7 +2761,7 @@ function renderSection1(s, isTrauma) {
         <thead><tr><th class="left">Element</th><th>Prompting</th><th>Incomplete</th><th>Complete</th></tr></thead>
         <tbody>
           ${mkRow('response','Response')}
-          ${mkSubRow('airway','Airway')}${mkSubRow('cspine','Cervical Spine consideration')}${mkSubRow('breathing','Breathing', v.RR ? `${v.RR}, SpO₂ ${v.SpO2||'?'}` : '')}${mkSubRow('circ','Circulation', v.HR && v.BP ? `HR ${v.HR}, BP ${v.BP}` : '')}${mkSubRow('haem','Haemorrhage')}${mkSubRow('disability','Disability (AVPU)', `${avpu} — GCS ${gcs.display}`)}${mkSubRow('exposure','Exposure')}
+          ${mkSubRow('airway','Airway','','','','response')}${mkSubRow('cspine','Cervical Spine consideration','','','','response')}${mkSubRow('breathing','Breathing', v.RR ? `${v.RR}, SpO₂ ${v.SpO2||'?'}` : '','','','response')}${mkSubRow('circ','Circulation', v.HR && v.BP ? `HR ${v.HR}, BP ${v.BP}` : '','','','response')}${mkSubRow('haem','Haemorrhage','','','','response')}${mkSubRow('disability','Disability (AVPU)', `${avpu} — GCS ${gcs.display}`,'','','response')}${mkSubRow('exposure','Exposure','','','','response')}
         </tbody>
       </table>
 
@@ -2768,11 +2776,11 @@ function renderSection1(s, isTrauma) {
         <thead><tr><th class="left">Element</th><th>Prompting</th><th>Incomplete</th><th>Complete</th></tr></thead>
         <tbody>
           ${mkRow('sitrep','Early SITREP / Request backup')}
-          ${mkSubRow('limitation','Limitation of treatment / Consent')}${mkSubRow('rest','Rest / Position')}${mkSubRow('rapport','Rapport & Reassurance')}
+          ${mkSubRow('limitation','Limitation of treatment / Consent','','','','sitrep')}${mkSubRow('rest','Rest / Position','','','','sitrep')}${mkSubRow('rapport','Rapport & Reassurance','','','','sitrep')}
           ${mkRow('hxhist','History of injury/illness')}
-          ${mkSubRow('hxtimeline','Timeline')}${mkSubRow('hxnature','Nature')}${mkSubRow('hxprodromal','Prodromal symptoms')}${mkSubRow('hxaggreliev','Aggravating / Relieving factors')}${mkSubRow('hxassoc','Associated circumstances')}${mkSubRow('hxsimilar','Similar episodes')}
+          ${mkSubRow('hxtimeline','Timeline','','','','hxhist')}${mkSubRow('hxnature','Nature','','','','hxhist')}${mkSubRow('hxprodromal','Prodromal symptoms','','','','hxhist')}${mkSubRow('hxaggreliev','Aggravating / Relieving factors','','','','hxhist')}${mkSubRow('hxassoc','Associated circumstances','','','','hxhist')}${mkSubRow('hxsimilar','Similar episodes','','','','hxhist')}
           ${mkRow('phmedical', `Medical conditions${keyHxShort ? infoHint(keyHxShort) : ''}`)}
-          ${mkSubRow('phmeds', 'Medications' + (medList.length ? infoHint(medList.join(', ')) : (s.medications ? '' : '')), '', '', false)}${mkSubRow('phallergies','Allergies' + (s.allergies ? infoHint(s.allergies) : ''))}${mkSubRow('phrisk','Risk factors')}${mkSubRow('phsocial','Social & environmental')}
+          ${mkSubRow('phmeds', 'Medications' + (medList.length ? infoHint(medList.join(', ')) : (s.medications ? '' : '')), '', '', false, 'phmedical')}${mkSubRow('phallergies','Allergies' + (s.allergies ? infoHint(s.allergies) : ''),'','',false,'phmedical')}${mkSubRow('phrisk','Risk factors','','','','phmedical')}${mkSubRow('phsocial','Social & environmental','','','','phmedical')}
         </tbody>
       </table>
 
@@ -2781,21 +2789,21 @@ function renderSection1(s, isTrauma) {
         <thead><tr><th class="left">Element</th><th>Prompting</th><th>Incomplete</th><th>Complete</th></tr></thead>
         <tbody>
           ${mkRow('rsa','RSA — Respiratory')}
-          ${mkSubRow('appearance','Appearance')}${mkSubRow('speech','Speech')}${mkSubRow('breathsounds','Breath/Chest sounds')}${mkSubRow('rr','Respiratory Rate', v.RR||'', 'RR')}${mkSubRow('rrhythm','Respiratory Rhythm')}${mkSubRow('wob2','Work of Breathing')}${mkSubRow('spo2','SpO₂', v.SpO2||'', 'SpO2')}
+          ${mkSubRow('appearance','Appearance','','','','rsa')}${mkSubRow('speech','Speech','','','','rsa')}${mkSubRow('breathsounds','Breath/Chest sounds','','','','rsa')}${mkSubRow('rr','Respiratory Rate', v.RR||'', 'RR','','rsa')}${mkSubRow('rrhythm','Respiratory Rhythm','','','','rsa')}${mkSubRow('wob2','Work of Breathing','','','','rsa')}${mkSubRow('spo2','SpO₂', v.SpO2||'', 'SpO2','','rsa')}
           ${mkRow('psa','PSA — Circulatory')}
-          ${mkSubRow('bp','BP', v.BP||'', 'BP')}${mkSubRow('hr','HR', v.HR||'', 'HR')}${mkSubRow('skin2','Skin')}${mkSubRow('conscstate','Conscious State', `GCS ${gcs.display} — ${avpu}`)}
+          ${mkSubRow('bp','BP', v.BP||'', 'BP','','psa')}${mkSubRow('hr','HR', v.HR||'', 'HR','','psa')}${mkSubRow('skin2','Skin','','','','psa')}${mkSubRow('conscstate','Conscious State', `GCS ${gcs.display} — ${avpu}`,'','','psa')}
           ${mkRow('gcstotal', v.GCS ? `GCS — ${gcs.components}${hint(String(gcs.total), 'GCS')}${gcs.description ? infoHint(gcs.description) : ''}` : 'GCS')}
-          ${mkSubRow('eyes','Eyes')}${mkSubRow('verbal','Verbal')}${mkSubRow('motor','Motor')}
+          ${mkSubRow('eyes','Eyes','','','','gcstotal')}${mkSubRow('verbal','Verbal','','','','gcstotal')}${mkSubRow('motor','Motor','','','','gcstotal')}
           ${mkRow('adjuncts','Assessment Adjuncts')}
-          ${mkSubRow('weight','Weight')}${mkSubRow('temp','Temperature', v.Temp||'', 'Temp')}${mkSubRow('bgl','Blood Glucose Level', v.BGL||'', 'BGL')}${mkSubRow('ketones','Blood Ketone Level')}${mkSubRow('etco2','EtCO₂')}
+          ${mkSubRow('weight','Weight','','','','adjuncts')}${mkSubRow('temp','Temperature', v.Temp||'', 'Temp','','adjuncts')}${mkSubRow('bgl','Blood Glucose Level', v.BGL||'', 'BGL','','adjuncts')}${mkSubRow('ketones','Blood Ketone Level','','','','adjuncts')}${mkSubRow('etco2','EtCO₂','','','','adjuncts')}
           ${mkRow('monitor','Monitor / ECG')}
-          ${mkSubRow('vrhythm','Ventricular Rhythm', v.Rhythm||'', 'Rhythm')}${mkSubRow('vrate','Ventricular Rate (±10bpm)', v.HR||'')}${mkSubRow('pwave','P Wave')}${mkSubRow('pr','PR Interval')}${mkSubRow('qrs','QRS Duration')}${mkSubRow('interp','Correct Rhythm Interpretation')}${mkSubRow('lead12','12 Lead (as appropriate)')}
+          ${mkSubRow('vrhythm','Ventricular Rhythm', v.Rhythm||'', 'Rhythm','','monitor')}${mkSubRow('vrate','Ventricular Rate (±10bpm)', v.HR||'','','','monitor')}${mkSubRow('pwave','P Wave','','','','monitor')}${mkSubRow('pr','PR Interval','','','','monitor')}${mkSubRow('qrs','QRS Duration','','','','monitor')}${mkSubRow('interp','Correct Rhythm Interpretation','','','','monitor')}${mkSubRow('lead12','12 Lead (as appropriate)','','','','monitor')}
         </tbody>
       </table>
 
-      ${secondarySurvey}
+      ${(()=>{ const ecg = getECGImage(s.vitals&&s.vitals.Rhythm); if(!ecg) return ''; return `<div class="ecg-strip-section" style="margin:12px 0 4px"><div class="ecg-strip-label">📈 Reference ECG Strip — ${ecg.label} <span style="font-size:10px;opacity:0.6;font-weight:400;text-transform:none">(tap to expand)</span></div><img class="ecg-strip-img" id="ecg-img-${s.id}" alt="${ecg.label}" onerror="this.style.opacity=0.3" onclick="if(this.src)openECGLightbox(this.src,'${ecg.label.replace(/'/g,"\\'")}')"><div style="font-size:10px;color:var(--grey);font-style:italic;margin-top:5px">⚠ ECG shown is a rhythm reference only — rate depicted may not match the scenario heart rate.</div></div>`; })()}
 
-      <div id="nav-fa" class="snav-anchor"></div><div class="asmt-section-header"><div class="asmt-section-title">Focussed Assessments</div><button class="all-complete-btn" onclick="markGroupComplete('fa')">✓ All Complete</button></div>
+      ${secondarySurvey}<div class="asmt-section-header"><div class="asmt-section-title">Focussed Assessments</div><button class="all-complete-btn" onclick="markGroupComplete('fa')">✓ All Complete</button></div>
       <table class="asmt-table" data-group="fa" data-section="sec1">
         <tbody>
           ${mkFreeRow('fa1','Tool 1 (MASS, qSOFA, Anaphylaxis criteria, ACT FAST…)')}
@@ -2979,6 +2987,8 @@ function toggleTick(rowId, type) {
     rowStates[rowId].incomplete = null;
     const iBtn = document.getElementById(`tick-${rowId}-incomplete`);
     if (iBtn) { iBtn.className = 'tick-btn'; iBtn.textContent = '—'; }
+    // Cascade complete down to all sub-rows
+    _cascadeCompleteToChildren(rowId);
   } else if (type === 'incomplete' && rowStates[rowId][type]) {
     rowStates[rowId].complete = null;
     const cBtn = document.getElementById(`tick-${rowId}-complete`);
@@ -2996,10 +3006,88 @@ function toggleTick(rowId, type) {
   updateScoreSheet();
 }
 
+// Sub-row tick toggle (grey smaller buttons)
+function toggleSubTick(subId, type, parentId) {
+  if (!subRowStates[subId]) subRowStates[subId] = {};
+  const current = subRowStates[subId][type];
+  subRowStates[subId][type] = current ? null : type;
+
+  // Mutual exclusion within sub-row
+  if (type === 'complete' && subRowStates[subId][type]) {
+    subRowStates[subId].prompted = null;
+    const pBtn = document.getElementById(`sub-${subId}-prompted`);
+    if (pBtn) { pBtn.className = 'sub-tick-btn'; pBtn.textContent = '—'; }
+  } else if (type === 'prompted' && subRowStates[subId][type]) {
+    subRowStates[subId].complete = null;
+    const cBtn = document.getElementById(`sub-${subId}-complete`);
+    if (cBtn) { cBtn.className = 'sub-tick-btn'; cBtn.textContent = '—'; }
+  }
+
+  // Update button appearance
+  const btn = document.getElementById(`sub-${subId}-${type}`);
+  if (btn) {
+    btn.className = 'sub-tick-btn' + (subRowStates[subId][type] ? ' ' + type : '');
+    btn.textContent = subRowStates[subId][type] ? (type === 'prompted' ? 'P' : '✓') : '—';
+  }
+
+  // Check if all sub-rows under this parent are complete → auto-complete parent
+  if (parentId) _checkParentFromChildren(parentId);
+
+  // Auto-score the section
+  const parentTable = btn && btn.closest('table.asmt-table[data-section]');
+  const sec = parentTable ? parentTable.dataset.section : null;
+  if (sec && !scoreOverridden[sec]) autoScore(sec);
+  updateScoreSheet();
+}
+
+// Cascade parent complete tick down to all its sub-rows
+function _cascadeCompleteToChildren(parentId) {
+  document.querySelectorAll(`tr[data-parent="${parentId}"]`).forEach(tr => {
+    const subId = tr.dataset.rowId;
+    if (!subId) return;
+    if (!subRowStates[subId]) subRowStates[subId] = {};
+    subRowStates[subId].complete = 'complete';
+    subRowStates[subId].prompted = null;
+    const cBtn = document.getElementById(`sub-${subId}-complete`);
+    const pBtn = document.getElementById(`sub-${subId}-prompted`);
+    if (cBtn) { cBtn.className = 'sub-tick-btn complete'; cBtn.textContent = '✓'; }
+    if (pBtn) { pBtn.className = 'sub-tick-btn'; pBtn.textContent = '—'; }
+  });
+}
+
+// Check all sub-rows under a parent; if all are complete, auto-tick parent complete
+function _checkParentFromChildren(parentId) {
+  const subRows = document.querySelectorAll(`tr[data-parent="${parentId}"]`);
+  if (!subRows.length) return;
+  const allComplete = Array.from(subRows).every(tr => {
+    const subId = tr.dataset.rowId;
+    return subId && subRowStates[subId] && subRowStates[subId].complete;
+  });
+  const parentCompleteBtn = document.getElementById(`tick-${parentId}-complete`);
+  if (!parentCompleteBtn) return;
+  if (allComplete) {
+    if (!rowStates[parentId]) rowStates[parentId] = {};
+    rowStates[parentId].complete = 'complete';
+    rowStates[parentId].incomplete = null;
+    rowStates[parentId].prompted = null;
+    parentCompleteBtn.className = 'tick-btn complete'; parentCompleteBtn.textContent = '✓';
+    const pBtn = document.getElementById(`tick-${parentId}-prompted`);
+    const iBtn = document.getElementById(`tick-${parentId}-incomplete`);
+    if (pBtn) { pBtn.className = 'tick-btn'; pBtn.textContent = '—'; }
+    if (iBtn) { iBtn.className = 'tick-btn'; iBtn.textContent = '—'; }
+  } else {
+    // If parent was auto-completed but a child is now un-ticked, revert parent
+    if (rowStates[parentId] && rowStates[parentId].complete) {
+      rowStates[parentId].complete = null;
+      parentCompleteBtn.className = 'tick-btn'; parentCompleteBtn.textContent = '—';
+    }
+  }
+}
+
 function markGroupComplete(groupId) {
   const table = document.querySelector(`table[data-group="${groupId}"]`);
   if (!table) return;
-  // Mark all complete-column buttons as complete
+  // Mark all parent complete-column buttons as complete
   table.querySelectorAll('.tick-btn[id$="-complete"]').forEach(btn => {
     const id = btn.id.replace('tick-','').replace('-complete','');
     if (!rowStates[id]) rowStates[id] = {};
@@ -3011,15 +3099,8 @@ function markGroupComplete(groupId) {
     const iBtn = document.getElementById(`tick-${id}-incomplete`);
     if (pBtn) { pBtn.className = 'tick-btn'; pBtn.textContent = '—'; }
     if (iBtn) { iBtn.className = 'tick-btn'; iBtn.textContent = '—'; }
-  });
-  // Clear any prompted sub-row buttons (they don't have a complete col)
-  table.querySelectorAll('.tick-btn[id$="-prompted"]').forEach(btn => {
-    const id = btn.id.replace('tick-','').replace('-prompted','');
-    if (!document.getElementById(`tick-${id}-complete`)) {
-      if (!rowStates[id]) rowStates[id] = {};
-      rowStates[id].prompted = null;
-      btn.className = 'tick-btn'; btn.textContent = '—';
-    }
+    // Cascade down to sub-rows
+    _cascadeCompleteToChildren(id);
   });
   // Auto-score only the section this group belongs to
   const sec = table.dataset.section;
@@ -3170,9 +3251,10 @@ function updateTimerDisplay() {
 // RESET
 // ============================================================
 function resetAll() {
-  rowStates = {}; sectionScores = {}; kqScores = {};
+  rowStates = {}; subRowStates = {}; sectionScores = {}; kqScores = {};
   scoreOverridden = { sec1: false, sec2: false };
   document.querySelectorAll('.tick-btn').forEach(el => { el.className='tick-btn'; el.textContent='—'; });
+  document.querySelectorAll('.sub-tick-btn').forEach(el => { el.className='sub-tick-btn'; el.textContent='—'; });
   document.querySelectorAll('.score-radio-btn').forEach(el => el.className='score-radio-btn');
   document.querySelectorAll('.kq-score-btn').forEach(el => el.className='kq-score-btn');
   document.querySelectorAll('.kq-answer').forEach(el => el.classList.remove('visible'));
@@ -3472,8 +3554,7 @@ function showSummary() {
     <h2>📋 Assessment Summary</h2>
     <div class="sum-topbar-actions">
       <button class="sum-btn outline" onclick="closeSummary()">← Back</button>
-      <button class="sum-btn green" onclick="downloadPDF()">📥 Save PDF</button>
-      <button class="sum-btn navy" onclick="emailSummary()">✉ Email</button>
+      <button class="sum-btn navy" onclick="window.print()">🖨 Print / PDF</button>
     </div>
   </div>
 
@@ -3535,8 +3616,7 @@ function showSummary() {
 
   <div style="text-align:center;margin-top:16px;display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
     <button class="sum-btn outline" onclick="closeSummary()">← Back to Assessment</button>
-    <button class="sum-btn green" onclick="downloadPDF()">📥 Save PDF</button>
-    <button class="sum-btn navy" onclick="emailSummary()">✉ Email</button>
+    <button class="sum-btn navy" onclick="window.print()">🖨 Print / PDF</button>
   </div>
 
   <div style="text-align:center;font-size:10px;color:var(--grey);margin-top:12px">
@@ -4689,6 +4769,21 @@ function showStickyBar(s) {
   const m = Math.floor(remaining/60), ss = remaining%60;
   const el = document.getElementById('sticky-timer-display');
   if (el) el.textContent = `${String(m).padStart(2,'0')}:${String(ss).padStart(2,'0')}`;
+
+  // ECG button — show only if scenario has a matching ECG
+  const ecgBtn = document.getElementById('sticky-ecg-btn');
+  if (ecgBtn) {
+    const ecgData = getECGImage(s.vitals && s.vitals.Rhythm);
+    if (ecgData) {
+      ecgBtn.classList.add('visible');
+      ecgBtn._ecgSrc = ecgData.url;
+      ecgBtn._ecgLabel = ecgData.label;
+    } else {
+      ecgBtn.classList.remove('visible');
+      ecgBtn._ecgSrc = null;
+      ecgBtn._ecgLabel = null;
+    }
+  }
 }
 
 // ============================================================
@@ -5356,6 +5451,11 @@ function openECGLightbox(src, label) {
 function closeECGLightbox() {
   document.getElementById('ecg-lightbox').classList.remove('open');
 }
+
+function openStickyECG() {
+  const btn = document.getElementById('sticky-ecg-btn');
+  if (btn && btn._ecgSrc) openECGLightbox(btn._ecgSrc, btn._ecgLabel);
+}
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closeECGLightbox(); });
 </script>
 <!-- Sticky scenario bar: timer + vitals — placed last in body for reliable fixed positioning across all browsers -->
@@ -5373,6 +5473,7 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape') closeECGLigh
       <div class="st-sub" id="sticky-title-sub">—</div>
     </div>
     <div id="sticky-vitals"></div>
+    <button id="sticky-ecg-btn" onclick="openStickyECG()">📈 ECG</button>
     <button id="sticky-edit-btn" onclick="openEditModal()">✏️ Edit</button>
   </div>
 </div>
