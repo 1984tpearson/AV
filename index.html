@@ -3043,31 +3043,54 @@ function _cascadeCompleteToChildren(parentId) {
 }
 
 // Check all sub-rows under a parent; if all are complete, auto-tick parent complete
+// Also: if any child is prompted, auto-tick parent prompted
 function _checkParentFromChildren(parentId) {
   const subRows = document.querySelectorAll(`tr[data-parent="${parentId}"]`);
   if (!subRows.length) return;
+
   const allComplete = Array.from(subRows).every(tr => {
     const subId = tr.dataset.rowId;
     return subId && subRowStates[subId] && subRowStates[subId].complete;
   });
+  const anyPrompted = Array.from(subRows).some(tr => {
+    const subId = tr.dataset.rowId;
+    return subId && subRowStates[subId] && subRowStates[subId].prompted;
+  });
+
+  if (!rowStates[parentId]) rowStates[parentId] = {};
+
+  // Handle complete
   const parentCompleteBtn = document.getElementById(`tick-${parentId}-complete`);
-  if (!parentCompleteBtn) return;
-  if (allComplete) {
-    if (!rowStates[parentId]) rowStates[parentId] = {};
-    rowStates[parentId].complete = 'complete';
-    rowStates[parentId].incomplete = null;
-    rowStates[parentId].prompted = null;
-    parentCompleteBtn.className = 'tick-btn complete'; parentCompleteBtn.textContent = '✓';
-    const pBtn = document.getElementById(`tick-${parentId}-prompted`);
-    const iBtn = document.getElementById(`tick-${parentId}-incomplete`);
-    if (pBtn) { pBtn.className = 'tick-btn'; pBtn.textContent = '—'; }
-    if (iBtn) { iBtn.className = 'tick-btn'; iBtn.textContent = '—'; }
-  } else {
-    // If parent was auto-completed but a child is now un-ticked, revert parent
-    if (rowStates[parentId] && rowStates[parentId].complete) {
-      rowStates[parentId].complete = null;
-      parentCompleteBtn.className = 'tick-btn'; parentCompleteBtn.textContent = '—';
+  if (parentCompleteBtn) {
+    if (allComplete) {
+      rowStates[parentId].complete = 'complete';
+      rowStates[parentId].incomplete = null;
+      parentCompleteBtn.className = 'tick-btn complete'; parentCompleteBtn.textContent = '✓';
+      const iBtn = document.getElementById(`tick-${parentId}-incomplete`);
+      if (iBtn) { iBtn.className = 'tick-btn'; iBtn.textContent = '—'; }
+    } else {
+      if (rowStates[parentId].complete) {
+        rowStates[parentId].complete = null;
+        parentCompleteBtn.className = 'tick-btn'; parentCompleteBtn.textContent = '—';
+      }
     }
+  }
+
+  // Handle prompted — set if any child prompted, clear only if no children are prompted
+  const parentPromptedBtn = document.getElementById(`tick-${parentId}-prompted`);
+  if (parentPromptedBtn) {
+    if (anyPrompted) {
+      rowStates[parentId].prompted = 'prompted';
+      parentPromptedBtn.className = 'tick-btn prompted'; parentPromptedBtn.textContent = 'P';
+    } else {
+      // Only auto-clear if it was auto-set (not manually set by assessor)
+      if (rowStates[parentId]._promptedByChild) {
+        rowStates[parentId].prompted = null;
+        rowStates[parentId]._promptedByChild = false;
+        parentPromptedBtn.className = 'tick-btn'; parentPromptedBtn.textContent = '—';
+      }
+    }
+    if (anyPrompted) rowStates[parentId]._promptedByChild = true;
   }
 }
 
