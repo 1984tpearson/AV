@@ -3074,19 +3074,16 @@ function _checkParentFromChildren(parentId) {
 function markGroupComplete(groupId) {
   const table = document.querySelector(`table[data-group="${groupId}"]`);
   if (!table) return;
-  // Mark all parent complete-column buttons as complete
+  // Mark all parent complete-column buttons as complete, leaving prompted untouched
   table.querySelectorAll('.tick-btn[id$="-complete"]').forEach(btn => {
     const id = btn.id.replace('tick-','').replace('-complete','');
     if (!rowStates[id]) rowStates[id] = {};
     rowStates[id].complete = 'complete';
-    rowStates[id].prompted = null;
     rowStates[id].incomplete = null;
     btn.className = 'tick-btn complete'; btn.textContent = '✓';
-    const pBtn = document.getElementById(`tick-${id}-prompted`);
     const iBtn = document.getElementById(`tick-${id}-incomplete`);
-    if (pBtn) { pBtn.className = 'tick-btn'; pBtn.textContent = '—'; }
     if (iBtn) { iBtn.className = 'tick-btn'; iBtn.textContent = '—'; }
-    // Cascade down to sub-rows
+    // Cascade complete down to sub-rows (preserving their prompted state)
     _cascadeCompleteToChildren(id);
   });
   // Auto-score only the section this group belongs to
