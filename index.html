@@ -3037,11 +3037,8 @@ function _cascadeCompleteToChildren(parentId) {
     if (!subId) return;
     if (!subRowStates[subId]) subRowStates[subId] = {};
     subRowStates[subId].complete = 'complete';
-    subRowStates[subId].prompted = null;
     const cBtn = document.getElementById(`sub-${subId}-complete`);
-    const pBtn = document.getElementById(`sub-${subId}-prompted`);
     if (cBtn) { cBtn.className = 'sub-tick-btn complete'; cBtn.textContent = '✓'; }
-    if (pBtn) { pBtn.className = 'sub-tick-btn'; pBtn.textContent = '—'; }
   });
 }
 
