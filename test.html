@@ -274,10 +274,10 @@ body.snav-active #content { padding-left: 60px; }
 .tick-btn.incomplete { background: var(--red); border-color: var(--red); color: white; }
 .tick-btn.complete { background: var(--green); border-color: var(--green); color: white; }
 /* Sub-row tick buttons — smaller, grey-toned */
-.sub-tick-btn { width: 28px; height: 28px; border-radius: 5px; border: 1.5px solid #BDC3C7; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 800; transition: all 0.15s; background: #F8F9FA; color: var(--grey); user-select: none; }
+.sub-tick-btn { width: 28px; height: 28px; border-radius: 5px; border: 1.5px solid #D5D8DC; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; transition: all 0.15s; background: #F8F9FA; color: #AAB0B7; user-select: none; }
 .sub-tick-btn:active { transform: scale(0.9); }
-.sub-tick-btn.prompted { background: #F0A500; border-color: #D4920A; color: white; }
-.sub-tick-btn.complete { background: #5D8A65; border-color: #4A7052; color: white; }
+.sub-tick-btn.prompted { background: #FDEBD0; border-color: #F0C080; color: #C87D20; }
+.sub-tick-btn.complete { background: #D5ECD9; border-color: #A8CFB0; color: #4A8A56; }
 .score-row td { background: var(--light); font-weight: 700; padding: 10px 8px; font-size: 12px; }
 .score-radio-group { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
 .score-radio-btn { width: 40px; height: 40px; border-radius: 7px; border: 2px solid var(--border); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; font-weight: 800; font-size: 15px; background: white; transition: all 0.15s; }
@@ -2676,7 +2676,8 @@ function renderSection1(s, isTrauma) {
     <tr data-row-id="${id}" data-parent="${parentId}">
       <td class="elem-label indent">${label}${info ? infoHint(hintVal) : hint(hintVal, hintKey)}</td>
       <td class="tick-col"><button class="sub-tick-btn" id="sub-${id}-prompted" onclick="toggleSubTick('${id}','prompted','${parentId}')" title="Prompting Required">—</button></td>
-      <td class="tick-col" colspan="2"><button class="sub-tick-btn" id="sub-${id}-complete" onclick="toggleSubTick('${id}','complete','${parentId}')" title="Complete">—</button></td>
+      <td class="tick-col"></td>
+      <td class="tick-col"><button class="sub-tick-btn" id="sub-${id}-complete" onclick="toggleSubTick('${id}','complete','${parentId}')" title="Complete">—</button></td>
     </tr>`;
   const mkFreeRow = (id, label) => `
     <tr>
@@ -2760,8 +2761,125 @@ function renderSection1(s, isTrauma) {
       <table class="asmt-table" data-group="rabcde" data-section="sec1">
         <thead><tr><th class="left">Element</th><th>Prompting</th><th>Incomplete</th><th>Complete</th></tr></thead>
         <tbody>
-          ${mkRow('response','Response')}
-          ${mkSubRow('airway','Airway','','','','response')}${mkSubRow('cspine','Cervical Spine consideration','','','','response')}${mkSubRow('breathing','Breathing', v.RR ? `${v.RR}, SpO₂ ${v.SpO2||'?'}` : '','','','response')}${mkSubRow('circ','Circulation', v.HR && v.BP ? `HR ${v.HR}, BP ${v.BP}` : '','','','response')}${mkSubRow('haem','Haemorrhage','','','','response')}${mkSubRow('disability','Disability (AVPU)', `${avpu} — GCS ${gcs.display}`,'','','response')}${mkSubRow('exposure','Exposure','','','','response')}
+          ${(()=>{
+            const isPaed = s.category === 'Paediatric' || s.category === 'Newborn';
+            const flagsText = (s.flags||[]).join(' ').toLowerCase();
+            const dispatchText = (s.dispatch||'').toLowerCase();
+            const titleText = (s.title||'').toLowerCase();
+            const provisionalText = (s.provisional||'').toLowerCase();
+            const allText = flagsText + ' ' + dispatchText + ' ' + titleText + ' ' + provisionalText;
+
+            // RESPONSE — AVPU
+            const avpuLabel = avpu === 'A' ? 'Alert'
+              : avpu === 'V' ? 'Responds to voice'
+              : avpu === 'P' ? 'Responds to pain'
+              : 'Unresponsive';
+            const responseHint = `${avpu} — ${avpuLabel}`;
+
+            // AIRWAY — context-aware
+            const airwayOccluded = /\b(obstruct|foreign body|fb|airway block|choking|occlu|vomit|secretion|blood in airway|haemoptysis)\b/.test(allText);
+            const airwayPartial = /\b(stridor|partial|gurgling|snoring|tongue|positional|unconscious|unresponsive|reduced gcs|overdose|od\b|obtunded|seizure|post-ictal|postictal|anaphylaxis|angioedema|epiglottitis|croup)\b/.test(allText) && gcsNum < 12;
+            const airwayHint = airwayOccluded ? 'Occluded'
+              : airwayPartial ? 'Partial occlusion'
+              : 'Patent';
+            const airwayAbn = airwayHint !== 'Patent';
+
+            // CERVICAL SPINE
+            const cspineRelevant = isTrauma || /\b(trauma|mvc|mva|fall|mechanism|neck|c.?spine|cervical|rolled|ejected|struck|assault|biker|cyclist|pedestrian)\b/.test(allText);
+            const cspineHint = cspineRelevant ? 'Consider C-spine precautions' : 'N/A';
+            const cspineAbn = cspineRelevant;
+
+            // BREATHING — Adequate/Inadequate (adults); RR + SpO₂ for paeds
+            const isArrest = String(v.Rhythm||'').toLowerCase().match(/vf|vt\b|asystole|pea|arrest/) || rrNum < 1;
+            const breathingInadequate = isArrest || rrNum < 8;
+            let breathingHint;
+            if (isPaed) {
+              breathingHint = v.RR ? `RR ${v.RR}${v.SpO2 ? `, SpO₂ ${v.SpO2}` : ''}` : '';
+            } else {
+              breathingHint = breathingInadequate ? 'Inadequate' : 'Adequate';
+            }
+            const breathingAbn = isPaed ? false : breathingInadequate;
+
+            // CIRCULATION — Pulse present/absent (adults); HR for paeds
+            const noCirc = isArrest || sbp < 40;
+            let circHint;
+            if (isPaed) {
+              circHint = v.HR ? `HR ${v.HR}` : '';
+            } else {
+              circHint = noCirc ? 'No pulse' : 'Pulse present';
+            }
+            const circAbn = noCirc;
+
+            // HAEMORRHAGE — life-threatening bleed context
+            const lifeThreateningBleed = /\b(amput|haemorrhage|hemorrhage|major bleed|arterial|exsanguinat|tourniquet|limb loss|penetrating|impalement|stab|shoot|gunshot|blast|eviscerat)\b/.test(allText);
+            const haemHint = lifeThreateningBleed ? 'Life-threatening haemorrhage present' : 'No life-threatening haemorrhage';
+            const haemAbn = lifeThreateningBleed;
+
+            // EXPOSURE — relevant only if environmental/hazmat/anaphylaxis context
+            const exposureRelevant = /\b(hypoth|hypertherm|heat stroke|cold|burns|chemical|hazmat|haz.?mat|toxin|anaphylaxis|allergen|antigen|sting|bite|rash|environ)\b/.test(allText);
+            const exposureHint = exposureRelevant
+              ? (/\b(hypoth|cold)\b/.test(allText) ? 'Environmental cold exposure'
+                : /\b(hypertherm|heat)\b/.test(allText) ? 'Environmental heat exposure'
+                : /\b(burns|chemical|hazmat)\b/.test(allText) ? 'Chemical/burn exposure — PPE'
+                : /\b(anaphylaxis|allergen|antigen|sting|bite)\b/.test(allText) ? 'Antigen exposure'
+                : 'Environmental factor — consider exposure')
+              : '';
+
+            const mkHint = (val, isAbn) => val
+              ? `<span class="vital-hint" style="background:${isAbn ? 'var(--red)' : 'var(--navy)'}">${val}</span>`
+              : '';
+
+            return `
+          ${mkRow('ps-primary','Primary Survey')}
+          <tr data-row-id="ps-response" data-parent="ps-primary">
+            <td class="elem-label indent">Response${mkHint(responseHint, avpu !== 'A')}</td>
+            <td class="tick-col"><button class="sub-tick-btn" id="sub-ps-response-prompted" onclick="toggleSubTick('ps-response','prompted','ps-primary')" title="Prompting Required">—</button></td>
+            <td class="tick-col"></td>
+            <td class="tick-col"><button class="sub-tick-btn" id="sub-ps-response-complete" onclick="toggleSubTick('ps-response','complete','ps-primary')" title="Complete">—</button></td>
+          </tr>
+          <tr data-row-id="ps-airway" data-parent="ps-primary">
+            <td class="elem-label indent">Airway${mkHint(airwayHint, airwayAbn)}</td>
+            <td class="tick-col"><button class="sub-tick-btn" id="sub-ps-airway-prompted" onclick="toggleSubTick('ps-airway','prompted','ps-primary')" title="Prompting Required">—</button></td>
+            <td class="tick-col"></td>
+            <td class="tick-col"><button class="sub-tick-btn" id="sub-ps-airway-complete" onclick="toggleSubTick('ps-airway','complete','ps-primary')" title="Complete">—</button></td>
+          </tr>
+          <tr data-row-id="ps-cspine" data-parent="ps-primary">
+            <td class="elem-label indent">Cervical Spine${mkHint(cspineHint, cspineAbn)}</td>
+            <td class="tick-col"><button class="sub-tick-btn" id="sub-ps-cspine-prompted" onclick="toggleSubTick('ps-cspine','prompted','ps-primary')" title="Prompting Required">—</button></td>
+            <td class="tick-col"></td>
+            <td class="tick-col"><button class="sub-tick-btn" id="sub-ps-cspine-complete" onclick="toggleSubTick('ps-cspine','complete','ps-primary')" title="Complete">—</button></td>
+          </tr>
+          <tr data-row-id="ps-breathing" data-parent="ps-primary">
+            <td class="elem-label indent">Breathing${mkHint(breathingHint, breathingAbn)}</td>
+            <td class="tick-col"><button class="sub-tick-btn" id="sub-ps-breathing-prompted" onclick="toggleSubTick('ps-breathing','prompted','ps-primary')" title="Prompting Required">—</button></td>
+            <td class="tick-col"></td>
+            <td class="tick-col"><button class="sub-tick-btn" id="sub-ps-breathing-complete" onclick="toggleSubTick('ps-breathing','complete','ps-primary')" title="Complete">—</button></td>
+          </tr>
+          <tr data-row-id="ps-circ" data-parent="ps-primary">
+            <td class="elem-label indent">Circulation${mkHint(circHint, circAbn)}</td>
+            <td class="tick-col"><button class="sub-tick-btn" id="sub-ps-circ-prompted" onclick="toggleSubTick('ps-circ','prompted','ps-primary')" title="Prompting Required">—</button></td>
+            <td class="tick-col"></td>
+            <td class="tick-col"><button class="sub-tick-btn" id="sub-ps-circ-complete" onclick="toggleSubTick('ps-circ','complete','ps-primary')" title="Complete">—</button></td>
+          </tr>
+          <tr data-row-id="ps-haem" data-parent="ps-primary">
+            <td class="elem-label indent">Haemorrhage${mkHint(haemHint, haemAbn)}</td>
+            <td class="tick-col"><button class="sub-tick-btn" id="sub-ps-haem-prompted" onclick="toggleSubTick('ps-haem','prompted','ps-primary')" title="Prompting Required">—</button></td>
+            <td class="tick-col"></td>
+            <td class="tick-col"><button class="sub-tick-btn" id="sub-ps-haem-complete" onclick="toggleSubTick('ps-haem','complete','ps-primary')" title="Complete">—</button></td>
+          </tr>
+          <tr data-row-id="ps-disability" data-parent="ps-primary">
+            <td class="elem-label indent">Disability (AVPU)${mkHint(`${avpu} — GCS ${gcs.display}`, avpu !== 'A')}</td>
+            <td class="tick-col"><button class="sub-tick-btn" id="sub-ps-disability-prompted" onclick="toggleSubTick('ps-disability','prompted','ps-primary')" title="Prompting Required">—</button></td>
+            <td class="tick-col"></td>
+            <td class="tick-col"><button class="sub-tick-btn" id="sub-ps-disability-complete" onclick="toggleSubTick('ps-disability','complete','ps-primary')" title="Complete">—</button></td>
+          </tr>
+          <tr data-row-id="ps-exposure" data-parent="ps-primary">
+            <td class="elem-label indent">Exposure${mkHint(exposureHint, exposureRelevant)}</td>
+            <td class="tick-col"><button class="sub-tick-btn" id="sub-ps-exposure-prompted" onclick="toggleSubTick('ps-exposure','prompted','ps-primary')" title="Prompting Required">—</button></td>
+            <td class="tick-col"></td>
+            <td class="tick-col"><button class="sub-tick-btn" id="sub-ps-exposure-complete" onclick="toggleSubTick('ps-exposure','complete','ps-primary')" title="Complete">—</button></td>
+          </tr>`;
+          })()}
         </tbody>
       </table>
 
@@ -3012,17 +3130,6 @@ function toggleSubTick(subId, type, parentId) {
   const current = subRowStates[subId][type];
   subRowStates[subId][type] = current ? null : type;
 
-  // Mutual exclusion within sub-row
-  if (type === 'complete' && subRowStates[subId][type]) {
-    subRowStates[subId].prompted = null;
-    const pBtn = document.getElementById(`sub-${subId}-prompted`);
-    if (pBtn) { pBtn.className = 'sub-tick-btn'; pBtn.textContent = '—'; }
-  } else if (type === 'prompted' && subRowStates[subId][type]) {
-    subRowStates[subId].complete = null;
-    const cBtn = document.getElementById(`sub-${subId}-complete`);
-    if (cBtn) { cBtn.className = 'sub-tick-btn'; cBtn.textContent = '—'; }
-  }
-
   // Update button appearance
   const btn = document.getElementById(`sub-${subId}-${type}`);
   if (btn) {
@@ -3047,59 +3154,76 @@ function _cascadeCompleteToChildren(parentId) {
     if (!subId) return;
     if (!subRowStates[subId]) subRowStates[subId] = {};
     subRowStates[subId].complete = 'complete';
-    subRowStates[subId].prompted = null;
     const cBtn = document.getElementById(`sub-${subId}-complete`);
-    const pBtn = document.getElementById(`sub-${subId}-prompted`);
     if (cBtn) { cBtn.className = 'sub-tick-btn complete'; cBtn.textContent = '✓'; }
-    if (pBtn) { pBtn.className = 'sub-tick-btn'; pBtn.textContent = '—'; }
   });
 }
 
 // Check all sub-rows under a parent; if all are complete, auto-tick parent complete
+// Also: if any child is prompted, auto-tick parent prompted
 function _checkParentFromChildren(parentId) {
   const subRows = document.querySelectorAll(`tr[data-parent="${parentId}"]`);
   if (!subRows.length) return;
+
   const allComplete = Array.from(subRows).every(tr => {
     const subId = tr.dataset.rowId;
     return subId && subRowStates[subId] && subRowStates[subId].complete;
   });
+  const anyPrompted = Array.from(subRows).some(tr => {
+    const subId = tr.dataset.rowId;
+    return subId && subRowStates[subId] && subRowStates[subId].prompted;
+  });
+
+  if (!rowStates[parentId]) rowStates[parentId] = {};
+
+  // Handle complete
   const parentCompleteBtn = document.getElementById(`tick-${parentId}-complete`);
-  if (!parentCompleteBtn) return;
-  if (allComplete) {
-    if (!rowStates[parentId]) rowStates[parentId] = {};
-    rowStates[parentId].complete = 'complete';
-    rowStates[parentId].incomplete = null;
-    rowStates[parentId].prompted = null;
-    parentCompleteBtn.className = 'tick-btn complete'; parentCompleteBtn.textContent = '✓';
-    const pBtn = document.getElementById(`tick-${parentId}-prompted`);
-    const iBtn = document.getElementById(`tick-${parentId}-incomplete`);
-    if (pBtn) { pBtn.className = 'tick-btn'; pBtn.textContent = '—'; }
-    if (iBtn) { iBtn.className = 'tick-btn'; iBtn.textContent = '—'; }
-  } else {
-    // If parent was auto-completed but a child is now un-ticked, revert parent
-    if (rowStates[parentId] && rowStates[parentId].complete) {
-      rowStates[parentId].complete = null;
-      parentCompleteBtn.className = 'tick-btn'; parentCompleteBtn.textContent = '—';
+  if (parentCompleteBtn) {
+    if (allComplete) {
+      rowStates[parentId].complete = 'complete';
+      rowStates[parentId].incomplete = null;
+      parentCompleteBtn.className = 'tick-btn complete'; parentCompleteBtn.textContent = '✓';
+      const iBtn = document.getElementById(`tick-${parentId}-incomplete`);
+      if (iBtn) { iBtn.className = 'tick-btn'; iBtn.textContent = '—'; }
+    } else {
+      if (rowStates[parentId].complete) {
+        rowStates[parentId].complete = null;
+        parentCompleteBtn.className = 'tick-btn'; parentCompleteBtn.textContent = '—';
+      }
     }
+  }
+
+  // Handle prompted — set if any child prompted, clear only if no children are prompted
+  const parentPromptedBtn = document.getElementById(`tick-${parentId}-prompted`);
+  if (parentPromptedBtn) {
+    if (anyPrompted) {
+      rowStates[parentId].prompted = 'prompted';
+      parentPromptedBtn.className = 'tick-btn prompted'; parentPromptedBtn.textContent = 'P';
+    } else {
+      // Only auto-clear if it was auto-set (not manually set by assessor)
+      if (rowStates[parentId]._promptedByChild) {
+        rowStates[parentId].prompted = null;
+        rowStates[parentId]._promptedByChild = false;
+        parentPromptedBtn.className = 'tick-btn'; parentPromptedBtn.textContent = '—';
+      }
+    }
+    if (anyPrompted) rowStates[parentId]._promptedByChild = true;
   }
 }
 
 function markGroupComplete(groupId) {
   const table = document.querySelector(`table[data-group="${groupId}"]`);
   if (!table) return;
-  // Mark all parent complete-column buttons as complete
+  // Mark all parent complete-column buttons as complete, leaving prompted untouched
   table.querySelectorAll('.tick-btn[id$="-complete"]').forEach(btn => {
     const id = btn.id.replace('tick-','').replace('-complete','');
     if (!rowStates[id]) rowStates[id] = {};
     rowStates[id].complete = 'complete';
-    rowStates[id].prompted = null;
     rowStates[id].incomplete = null;
     btn.className = 'tick-btn complete'; btn.textContent = '✓';
-    const pBtn = document.getElementById(`tick-${id}-prompted`);
     const iBtn = document.getElementById(`tick-${id}-incomplete`);
-    if (pBtn) { pBtn.className = 'tick-btn'; pBtn.textContent = '—'; }
     if (iBtn) { iBtn.className = 'tick-btn'; iBtn.textContent = '—'; }
-    // Cascade down to sub-rows
+    // Cascade complete down to sub-rows (preserving their prompted state)
     _cascadeCompleteToChildren(id);
   });
   // Auto-score only the section this group belongs to
@@ -5474,7 +5598,6 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape') closeECGLigh
     </div>
     <div id="sticky-vitals"></div>
     <button id="sticky-ecg-btn" onclick="openStickyECG()">📈 ECG</button>
-    <button id="sticky-edit-btn" onclick="openEditModal()">✏️ Edit</button>
   </div>
 </div>
 </body>
