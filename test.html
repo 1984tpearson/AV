@@ -2909,11 +2909,68 @@ function renderSection1(s, isTrauma) {
           ${mkRow('rsa','RSA — Respiratory')}
           ${mkSubRow('appearance','Appearance','','','','rsa')}${mkSubRow('speech','Speech','','','','rsa')}${mkSubRow('breathsounds','Breath/Chest sounds','','','','rsa')}${mkSubRow('rr','Respiratory Rate', v.RR||'', 'RR','','rsa')}${mkSubRow('rrhythm','Respiratory Rhythm','','','','rsa')}${mkSubRow('wob2','Work of Breathing','','','','rsa')}${mkSubRow('spo2','SpO₂', v.SpO2||'', 'SpO2','','rsa')}
           ${mkRow('psa','PSA — Circulatory')}
-          ${mkSubRow('bp','BP', v.BP||'', 'BP','','psa')}${mkSubRow('hr','HR', v.HR||'', 'HR','','psa')}${mkSubRow('skin2','Skin','','','','psa')}${mkSubRow('conscstate','Conscious State', `GCS ${gcs.display} — ${avpu}`,'','','psa')}
+          ${(()=>{
+            // SKIN — context-derived
+            const allTextVss = ((s.flags||[]).join(' ') + ' ' + (s.dispatch||'') + ' ' + (s.title||'') + ' ' + (s.provisional||'')).toLowerCase();
+            const skinHint = (() => {
+              if (/\b(vf|vt\b|asystole|pea|cardiac arrest|arrest)\b/.test(String(v.Rhythm||'').toLowerCase())) return 'Pale, cyanotic, mottled';
+              if (sbp < 90 || (/\b(shock|haemorrhage|hemorrhage|sepsis|septic)\b/.test(allTextVss))) return 'Pale, diaphoretic';
+              if (/\b(anaphylaxis|allergic|urticaria|hives|flush)\b/.test(allTextVss)) return 'Flushed, urticarial';
+              if (/\b(fever|febrile|infection|sepsis|hypertherm)\b/.test(allTextVss) && v.Temp && parseFloat(v.Temp) > 38) return 'Warm, flushed';
+              if (/\b(hypotherm|cold|exposure)\b/.test(allTextVss) || (v.Temp && parseFloat(v.Temp) < 35)) return 'Cold, pale';
+              if (/\b(jaundice|hepat|liver|biliary)\b/.test(allTextVss)) return 'Jaundiced';
+              if (spo2N < 90) return 'Cyanotic, diaphoretic';
+              if (/\b(diabet|dka|hyperglycaem)\b/.test(allTextVss)) return 'Dry, flushed';
+              return 'Normal — warm, dry, pink';
+            })();
+            const skinAbn = skinHint !== 'Normal — warm, dry, pink';
+
+            // CONSCIOUS STATE
+            const conscHint = `GCS ${gcs.display} — ${avpu}`;
+
+            // GCS component hints
+            const eyesHint = gcs.isObject ? `E${gcs.E || (gcs.total>=14?4:gcs.total>=10?3:gcs.total>=6?2:1)}` : '';
+            const verbalHint = gcs.isObject ? `V${gcs.V || (gcs.total>=14?5:gcs.total>=10?3:gcs.total>=6?2:1)}` : '';
+            const motorHint = gcs.isObject ? `M${gcs.M || (gcs.total>=14?6:gcs.total>=10?5:gcs.total>=6?4:2)}` : '';
+
+            // WEIGHT — estimated from age/category
+            const ageNum = parseAgeFromSubtitle(s.subtitle||'');
+            const weightHint = (() => {
+              if (s.category === 'Newborn') return '~3–4 kg est.';
+              if (ageNum !== null && ageNum < 1) return `~${Math.round(ageNum * 12 * 0.6 + 3)} kg est.`;
+              if (ageNum !== null && ageNum < 12) return `~${Math.round((ageNum * 2) + 8)} kg est.`;
+              if (ageNum !== null && ageNum < 16) return `~${Math.round((ageNum * 3) + 7)} kg est.`;
+              return 'Obtain weight';
+            })();
+
+            // KETONES — relevant for DKA / hyperglycaemia
+            const bglNum = parseFloat(String(v.BGL||'')) || 0;
+            const ketoneRelevant = /\b(dka|diabetic ketoacid|hyperglycaem|keto)\b/.test(allTextVss) || bglNum > 15;
+            const ketoneHint = ketoneRelevant ? 'Obtain ketones' : 'Not indicated';
+            const ketoneAbn = ketoneRelevant;
+
+            // EtCO₂ — relevant for intubation, ROSC, respiratory, overdose
+            const etco2Relevant = /\b(intubat|rosc|return of spontaneous|ventilat|overdose|od\b|opioid|resp.*arrest|cardiac arrest|arrest)\b/.test(allTextVss)
+              || rrNum < 8 || rrNum > 30;
+            const etco2Hint = etco2Relevant ? 'Obtain EtCO₂' : 'Not indicated';
+            const etco2Abn = etco2Relevant;
+
+            return `
+          ${mkSubRow('bp','BP', v.BP||'', 'BP','','psa')}
+          ${mkSubRow('hr','HR', v.HR||'', 'HR','','psa')}
+          ${mkSubRow('skin2',`Skin${skinHint ? `<span class="vital-hint" style="background:${skinAbn ? 'var(--red)' : 'var(--navy)'}">${skinHint}</span>` : ''}`, '','','','psa')}
+          ${mkSubRow('conscstate',`Conscious State${`<span class="vital-hint" style="background:${avpu !== 'A' ? 'var(--red)' : 'var(--navy)'}">${conscHint}</span>`}`, '','','','psa')}
           ${mkRow('gcstotal', v.GCS ? `GCS — ${gcs.components}${hint(String(gcs.total), 'GCS')}${gcs.description ? infoHint(gcs.description) : ''}` : 'GCS')}
-          ${mkSubRow('eyes','Eyes','','','','gcstotal')}${mkSubRow('verbal','Verbal','','','','gcstotal')}${mkSubRow('motor','Motor','','','','gcstotal')}
+          ${mkSubRow('eyes',`Eyes${eyesHint ? `<span class="vital-hint" style="background:var(--navy)">${eyesHint}</span>` : ''}`, '','','','gcstotal')}
+          ${mkSubRow('verbal',`Verbal${verbalHint ? `<span class="vital-hint" style="background:var(--navy)">${verbalHint}</span>` : ''}`, '','','','gcstotal')}
+          ${mkSubRow('motor',`Motor${motorHint ? `<span class="vital-hint" style="background:var(--navy)">${motorHint}</span>` : ''}`, '','','','gcstotal')}
           ${mkRow('adjuncts','Assessment Adjuncts')}
-          ${mkSubRow('weight','Weight','','','','adjuncts')}${mkSubRow('temp','Temperature', v.Temp||'', 'Temp','','adjuncts')}${mkSubRow('bgl','Blood Glucose Level', v.BGL||'', 'BGL','','adjuncts')}${mkSubRow('ketones','Blood Ketone Level','','','','adjuncts')}${mkSubRow('etco2','EtCO₂','','','','adjuncts')}
+          ${mkSubRow('weight',`Weight<span class="vital-hint" style="background:var(--navy)">${weightHint}</span>`, '','','','adjuncts')}
+          ${mkSubRow('temp','Temperature', v.Temp||'', 'Temp','','adjuncts')}
+          ${mkSubRow('bgl','Blood Glucose Level', v.BGL||'', 'BGL','','adjuncts')}
+          ${mkSubRow('ketones',`Blood Ketone Level<span class="vital-hint" style="background:${ketoneAbn ? 'var(--amber)' : 'var(--grey)'}">${ketoneHint}</span>`, '','','','adjuncts')}
+          ${mkSubRow('etco2',`EtCO₂<span class="vital-hint" style="background:${etco2Abn ? 'var(--amber)' : 'var(--grey)'}">${etco2Hint}</span>`, '','','','adjuncts')}`;
+          })()}
           ${mkRow('monitor','Monitor / ECG')}
           ${mkSubRow('vrhythm','Ventricular Rhythm', v.Rhythm||'', 'Rhythm','','monitor')}${mkSubRow('vrate','Ventricular Rate (±10bpm)', v.HR||'','','','monitor')}${mkSubRow('pwave','P Wave','','','','monitor')}${mkSubRow('pr','PR Interval','','','','monitor')}${mkSubRow('qrs','QRS Duration','','','','monitor')}${mkSubRow('interp','Correct Rhythm Interpretation','','','','monitor')}${mkSubRow('lead12','12 Lead (as appropriate)','','','','monitor')}
         </tbody>
