@@ -33,6 +33,7 @@ body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background
 .ai-dot { width: 8px; height: 8px; border-radius: 50%; background: #F39C12; }
 .ai-active .ai-dot { background: #2ECC71; animation: pulse 2s infinite; }
 @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+@keyframes pulseRed { 0%,100%{background:rgba(255,255,255,0.15);box-shadow:none} 50%{background:rgba(192,57,43,0.7);box-shadow:0 0 12px rgba(192,57,43,0.8)} }
 #hamburger { background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.3); color: white; width: 44px; height: 44px; border-radius: 8px; cursor: pointer; font-size: 18px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 #hamburger:active { background: rgba(255,255,255,0.3); }
 
@@ -711,7 +712,7 @@ body.snav-active #content { padding-left: 60px; }
     </div>
   </div>
   <div class="topbar-actions">
-    <button class="tb-btn" id="ai-toggle-btn" onclick="openAIModal()"><span class="ai-dot"></span>✦ AI</button>
+    <button class="tb-btn" id="ai-toggle-btn" onclick="openAIModal()"><span class="ai-dot"></span>✦ Generate AI Case</button>
     <button class="tb-btn" onclick="openCreateModal()" style="background:rgba(39,131,58,0.6)">✏️ Create</button>
     <button class="tb-btn" onclick="openFeedbackModal()" style="background:rgba(125,60,152,0.6)" title="Send feedback or suggestion">💬 Feedback</button>
   </div>
@@ -1571,6 +1572,14 @@ document.addEventListener('DOMContentLoaded', async () => {
   } else {
     await initApp();
   }
+  // Pulse the Generate AI Case button red 3 times on load
+  setTimeout(() => {
+    const btn = document.getElementById('ai-toggle-btn');
+    if (btn) {
+      btn.style.animation = 'pulseRed 0.7s ease-in-out 3';
+      btn.addEventListener('animationend', () => { btn.style.animation = ''; }, { once: true });
+    }
+  }, 800);
 });
 
 async function initApp() {
@@ -2933,27 +2942,28 @@ function renderSection1(s, isTrauma) {
             const verbalHint = gcs.isObject ? `V${gcs.V || (gcs.total>=14?5:gcs.total>=10?3:gcs.total>=6?2:1)}` : '';
             const motorHint = gcs.isObject ? `M${gcs.M || (gcs.total>=14?6:gcs.total>=10?5:gcs.total>=6?4:2)}` : '';
 
-            // WEIGHT — estimated from age/category
+            // WEIGHT — use AI value if present, otherwise estimate from age
             const ageNum = parseAgeFromSubtitle(s.subtitle||'');
-            const weightHint = (() => {
-              if (s.category === 'Newborn') return '~3–4 kg est.';
-              if (ageNum !== null && ageNum < 1) return `~${Math.round(ageNum * 12 * 0.6 + 3)} kg est.`;
-              if (ageNum !== null && ageNum < 12) return `~${Math.round((ageNum * 2) + 8)} kg est.`;
-              if (ageNum !== null && ageNum < 16) return `~${Math.round((ageNum * 3) + 7)} kg est.`;
-              return 'Obtain weight';
-            })();
+            const weightHint = v.Weight
+              ? String(v.Weight)
+              : (() => {
+                  if (s.category === 'Newborn') return '~3–4 kg est.';
+                  if (ageNum !== null && ageNum < 1) return `~${Math.round(ageNum * 12 * 0.6 + 3)} kg est.`;
+                  if (ageNum !== null && ageNum < 12) return `~${Math.round((ageNum * 2) + 8)} kg est.`;
+                  if (ageNum !== null && ageNum < 16) return `~${Math.round((ageNum * 3) + 7)} kg est.`;
+                  return 'Obtain weight';
+                })();
 
-            // KETONES — relevant for DKA / hyperglycaemia
+            // KETONES — use AI value if present, otherwise infer from context
             const bglNum = parseFloat(String(v.BGL||'')) || 0;
-            const ketoneRelevant = /\b(dka|diabetic ketoacid|hyperglycaem|keto)\b/.test(allTextVss) || bglNum > 15;
-            const ketoneHint = ketoneRelevant ? 'Obtain ketones' : 'Not indicated';
-            const ketoneAbn = ketoneRelevant;
+            const ketoneRelevant = v.Ketones || /\b(dka|diabetic ketoacid|hyperglycaem|keto)\b/.test(allTextVss) || bglNum > 15;
+            const ketoneHint = v.Ketones ? String(v.Ketones) : (ketoneRelevant ? 'Obtain ketones' : 'Not indicated');
+            const ketoneAbn = !!ketoneRelevant;
 
-            // EtCO₂ — relevant for intubation, ROSC, respiratory, overdose
-            const etco2Relevant = /\b(intubat|rosc|return of spontaneous|ventilat|overdose|od\b|opioid|resp.*arrest|cardiac arrest|arrest)\b/.test(allTextVss)
-              || rrNum < 8 || rrNum > 30;
-            const etco2Hint = etco2Relevant ? 'Obtain EtCO₂' : 'Not indicated';
-            const etco2Abn = etco2Relevant;
+            // EtCO₂ — use AI value if present, otherwise infer from context
+            const etco2Relevant = v.EtCO2 || /\b(intubat|rosc|return of spontaneous|ventilat|overdose|od\b|opioid|resp.*arrest|cardiac arrest|arrest)\b/.test(allTextVss) || rrNum < 8 || rrNum > 30;
+            const etco2Hint = v.EtCO2 ? String(v.EtCO2) : (etco2Relevant ? 'Obtain EtCO₂' : 'Not indicated');
+            const etco2Abn = !!etco2Relevant;
 
             return `
           ${mkSubRow('bp','BP', v.BP||'', 'BP','','psa')}
@@ -4381,7 +4391,7 @@ function buildCPGContext(catVal1, catVal2) {
   return `\n\nRELEVANT AV CPG CONTENT (v3.13.1) — use these exact doses and thresholds:\n${packageSections}${comboNote}`;
 }
 
-const SCENARIO_JSON_TEMPLATE = `{"title":"","subtitle":"","category":"CAT","subcategory":"SUB","type":"","cpg":"","level":"C/D","dispatch":"","vitals":{"GCS":{"E":0,"V":0,"M":0,"total":0,"description":""},"SpO2":"","RR":"","HR":"","BP":"","Temp":"","BGL":"","Rhythm":""},"key_hx":"","medical_conditions":["","",""],"medications":["","",""],"allergies":"","flags":["","","",""],"ddx":["","","",""],"provisional":"","kq":[{"q":"","max":2,"answer":""},{"q":"","max":2,"answer":""},{"q":"","max":1,"answer":""}],"discussion":[]}`;
+const SCENARIO_JSON_TEMPLATE = `{"title":"","subtitle":"","category":"CAT","subcategory":"SUB","type":"","cpg":"","level":"C/D","dispatch":"","vitals":{"GCS":{"E":0,"V":0,"M":0,"total":0,"description":""},"SpO2":"","RR":"","HR":"","BP":"","Temp":"","BGL":"","Rhythm":"","Weight":"","Ketones":"","EtCO2":""},"key_hx":"","medical_conditions":["","",""],"medications":["","",""],"allergies":"","flags":["","","",""],"ddx":["","","",""],"provisional":"","kq":[{"q":"","max":2,"answer":""},{"q":"","max":2,"answer":""},{"q":"","max":1,"answer":""}],"discussion":[]}`;
 // Note: medical_conditions = short list e.g. ["Asthma (previous ICU admission)", "Type 2 Diabetes", "Hypertension"]
 // medications = short list e.g. ["Metoprolol 50mg daily", "Aspirin 100mg", "Candesartan 8mg"]
 // key_hx = legacy field kept for backwards compat with built-in scenarios
@@ -4519,6 +4529,9 @@ For medications: provide a concise array of medication names with doses — no e
 For allergies: approximately 25% of patients have allergies. Vary the allergen — do NOT default to penicillin every time. Use realistic Australian options: morphine, aspirin, ibuprofen, sulfonamides, latex, bee stings, nuts, shellfish, contrast dye, codeine, tramadol, or others as clinically plausible. For anaphylaxis scenarios always include the relevant allergen. Most patients (75%) have no allergy — return "" in those cases.
 For vitals.GCS: always return the structured object {E, V, M, total, description}. Choose component scores appropriate to the clinical presentation — do NOT default every scenario to GCS 15 / E4V5M6. Impaired consciousness should be reflected with realistic component scores. The description must match the scores (e.g. E2 V3 M5 = "eyes open to pain, inappropriate words, localising to pain").
 For vitals.Rhythm: Always include a cardiac rhythm using standard clinical terms (e.g. "Atrial Fibrillation", "Sinus Tachycardia", "Normal Sinus Rhythm"). Rules: (1) Non-cardiac scenarios: default to rate-appropriate sinus rhythm — "Sinus Tachycardia" if HR >100, "Sinus Bradycardia" if HR <60, otherwise "Normal Sinus Rhythm". (2) Consider age-appropriate incidental rhythms that don't affect primary management — e.g. a 78yo with pneumonia may coincidentally be in Atrial Fibrillation; a 72yo trauma patient may have 1st Degree AV Block. This is realistic and encouraged for patients over 65. (3) Cardiac scenarios: use a clinically appropriate rhythm for the presentation. (4) PEA cardiac arrest: use "Pulseless Electrical Activity (PEA)" — do NOT use VF or Asystole for PEA. (5) Never leave Rhythm blank.
+For vitals.Weight: always provide a realistic weight in kg appropriate to the patient's age and presentation (e.g. "82 kg", "14 kg"). For adults use a realistic Australian adult weight. For paediatric patients use an age-appropriate weight. Never leave blank.
+For vitals.Ketones: provide a realistic blood ketone value in mmol/L (e.g. "4.8 mmol/L") ONLY if clinically indicated — i.e. DKA, hyperglycaemia (BGL >15), starvation, or diabetic emergency. Return "" if not indicated.
+For vitals.EtCO2: provide a realistic end-tidal CO₂ value in mmHg (e.g. "38 mmHg") ONLY if clinically relevant — i.e. cardiac arrest, post-ROSC, intubated patient, opioid overdose, severe respiratory distress, or significant hyperventilation. Return "" if not indicated.
 For the "discussion" field: provide 2–4 brief bullet points about management or considerations that are BEYOND AV scope — e.g. in-hospital treatment, specialist interventions, or relevant clinical nuance not covered by AV CPGs. These are suggested discussion prompts for the CI to use with the student. They are NOT assessable and NOT part of AV management. Label them clearly as beyond-scope. Return as an array of strings.
 Return ONLY a valid JSON object:
 ${SCENARIO_JSON_TEMPLATE.replace('CAT', category).replace('SUB', subcategory)}`;
