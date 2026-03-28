@@ -33,6 +33,7 @@ body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background
 .ai-dot { width: 8px; height: 8px; border-radius: 50%; background: #F39C12; }
 .ai-active .ai-dot { background: #2ECC71; animation: pulse 2s infinite; }
 @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+@keyframes pulseRed { 0%,100%{background:rgba(255,255,255,0.15);box-shadow:none} 50%{background:rgba(192,57,43,0.7);box-shadow:0 0 12px rgba(192,57,43,0.8)} }
 #hamburger { background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.3); color: white; width: 44px; height: 44px; border-radius: 8px; cursor: pointer; font-size: 18px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 #hamburger:active { background: rgba(255,255,255,0.3); }
 
@@ -711,7 +712,7 @@ body.snav-active #content { padding-left: 60px; }
     </div>
   </div>
   <div class="topbar-actions">
-    <button class="tb-btn" id="ai-toggle-btn" onclick="openAIModal()"><span class="ai-dot"></span>✦ AI</button>
+    <button class="tb-btn" id="ai-toggle-btn" onclick="openAIModal()"><span class="ai-dot"></span>✦ Generate AI Case</button>
     <button class="tb-btn" onclick="openCreateModal()" style="background:rgba(39,131,58,0.6)">✏️ Create</button>
     <button class="tb-btn" onclick="openFeedbackModal()" style="background:rgba(125,60,152,0.6)" title="Send feedback or suggestion">💬 Feedback</button>
   </div>
@@ -1571,6 +1572,14 @@ document.addEventListener('DOMContentLoaded', async () => {
   } else {
     await initApp();
   }
+  // Pulse the Generate AI Case button red 3 times on load
+  setTimeout(() => {
+    const btn = document.getElementById('ai-toggle-btn');
+    if (btn) {
+      btn.style.animation = 'pulseRed 0.7s ease-in-out 3';
+      btn.addEventListener('animationend', () => { btn.style.animation = ''; }, { once: true });
+    }
+  }, 800);
 });
 
 async function initApp() {
@@ -2761,8 +2770,125 @@ function renderSection1(s, isTrauma) {
       <table class="asmt-table" data-group="rabcde" data-section="sec1">
         <thead><tr><th class="left">Element</th><th>Prompting</th><th>Incomplete</th><th>Complete</th></tr></thead>
         <tbody>
-          ${mkRow('response','Response')}
-          ${mkSubRow('airway','Airway','','','','response')}${mkSubRow('cspine','Cervical Spine consideration','','','','response')}${mkSubRow('breathing','Breathing', v.RR ? `${v.RR}, SpO₂ ${v.SpO2||'?'}` : '','','','response')}${mkSubRow('circ','Circulation', v.HR && v.BP ? `HR ${v.HR}, BP ${v.BP}` : '','','','response')}${mkSubRow('haem','Haemorrhage','','','','response')}${mkSubRow('disability','Disability (AVPU)', `${avpu} — GCS ${gcs.display}`,'','','response')}${mkSubRow('exposure','Exposure','','','','response')}
+          ${(()=>{
+            const isPaed = s.category === 'Paediatric' || s.category === 'Newborn';
+            const flagsText = (s.flags||[]).join(' ').toLowerCase();
+            const dispatchText = (s.dispatch||'').toLowerCase();
+            const titleText = (s.title||'').toLowerCase();
+            const provisionalText = (s.provisional||'').toLowerCase();
+            const allText = flagsText + ' ' + dispatchText + ' ' + titleText + ' ' + provisionalText;
+
+            // RESPONSE — AVPU
+            const avpuLabel = avpu === 'A' ? 'Alert'
+              : avpu === 'V' ? 'Responds to voice'
+              : avpu === 'P' ? 'Responds to pain'
+              : 'Unresponsive';
+            const responseHint = `${avpu} — ${avpuLabel}`;
+
+            // AIRWAY — context-aware
+            const airwayOccluded = /\b(obstruct|foreign body|fb|airway block|choking|occlu|vomit|secretion|blood in airway|haemoptysis)\b/.test(allText);
+            const airwayPartial = /\b(stridor|partial|gurgling|snoring|tongue|positional|unconscious|unresponsive|reduced gcs|overdose|od\b|obtunded|seizure|post-ictal|postictal|anaphylaxis|angioedema|epiglottitis|croup)\b/.test(allText) && gcsNum < 12;
+            const airwayHint = airwayOccluded ? 'Occluded'
+              : airwayPartial ? 'Partial occlusion'
+              : 'Patent';
+            const airwayAbn = airwayHint !== 'Patent';
+
+            // CERVICAL SPINE
+            const cspineRelevant = isTrauma || /\b(trauma|mvc|mva|fall|mechanism|neck|c.?spine|cervical|rolled|ejected|struck|assault|biker|cyclist|pedestrian)\b/.test(allText);
+            const cspineHint = cspineRelevant ? 'Consider C-spine precautions' : 'N/A';
+            const cspineAbn = cspineRelevant;
+
+            // BREATHING — Adequate/Inadequate (adults); RR + SpO₂ for paeds
+            const isArrest = String(v.Rhythm||'').toLowerCase().match(/vf|vt\b|asystole|pea|arrest/) || rrNum < 1;
+            const breathingInadequate = isArrest || rrNum < 8;
+            let breathingHint;
+            if (isPaed) {
+              breathingHint = v.RR ? `RR ${v.RR}${v.SpO2 ? `, SpO₂ ${v.SpO2}` : ''}` : '';
+            } else {
+              breathingHint = breathingInadequate ? 'Inadequate' : 'Adequate';
+            }
+            const breathingAbn = isPaed ? false : breathingInadequate;
+
+            // CIRCULATION — Pulse present/absent (adults); HR for paeds
+            const noCirc = isArrest || sbp < 40;
+            let circHint;
+            if (isPaed) {
+              circHint = v.HR ? `HR ${v.HR}` : '';
+            } else {
+              circHint = noCirc ? 'No pulse' : 'Pulse present';
+            }
+            const circAbn = noCirc;
+
+            // HAEMORRHAGE — life-threatening bleed context
+            const lifeThreateningBleed = /\b(amput|haemorrhage|hemorrhage|major bleed|arterial|exsanguinat|tourniquet|limb loss|penetrating|impalement|stab|shoot|gunshot|blast|eviscerat)\b/.test(allText);
+            const haemHint = lifeThreateningBleed ? 'Life-threatening haemorrhage present' : 'No life-threatening haemorrhage';
+            const haemAbn = lifeThreateningBleed;
+
+            // EXPOSURE — relevant only if environmental/hazmat/anaphylaxis context
+            const exposureRelevant = /\b(hypoth|hypertherm|heat stroke|cold|burns|chemical|hazmat|haz.?mat|toxin|anaphylaxis|allergen|antigen|sting|bite|rash|environ)\b/.test(allText);
+            const exposureHint = exposureRelevant
+              ? (/\b(hypoth|cold)\b/.test(allText) ? 'Environmental cold exposure'
+                : /\b(hypertherm|heat)\b/.test(allText) ? 'Environmental heat exposure'
+                : /\b(burns|chemical|hazmat)\b/.test(allText) ? 'Chemical/burn exposure — PPE'
+                : /\b(anaphylaxis|allergen|antigen|sting|bite)\b/.test(allText) ? 'Antigen exposure'
+                : 'Environmental factor — consider exposure')
+              : '';
+
+            const mkHint = (val, isAbn) => val
+              ? `<span class="vital-hint" style="background:${isAbn ? 'var(--red)' : 'var(--navy)'}">${val}</span>`
+              : '';
+
+            return `
+          ${mkRow('ps-primary','Primary Survey')}
+          <tr data-row-id="ps-response" data-parent="ps-primary">
+            <td class="elem-label indent">Response${mkHint(responseHint, avpu !== 'A')}</td>
+            <td class="tick-col"><button class="sub-tick-btn" id="sub-ps-response-prompted" onclick="toggleSubTick('ps-response','prompted','ps-primary')" title="Prompting Required">—</button></td>
+            <td class="tick-col"></td>
+            <td class="tick-col"><button class="sub-tick-btn" id="sub-ps-response-complete" onclick="toggleSubTick('ps-response','complete','ps-primary')" title="Complete">—</button></td>
+          </tr>
+          <tr data-row-id="ps-airway" data-parent="ps-primary">
+            <td class="elem-label indent">Airway${mkHint(airwayHint, airwayAbn)}</td>
+            <td class="tick-col"><button class="sub-tick-btn" id="sub-ps-airway-prompted" onclick="toggleSubTick('ps-airway','prompted','ps-primary')" title="Prompting Required">—</button></td>
+            <td class="tick-col"></td>
+            <td class="tick-col"><button class="sub-tick-btn" id="sub-ps-airway-complete" onclick="toggleSubTick('ps-airway','complete','ps-primary')" title="Complete">—</button></td>
+          </tr>
+          <tr data-row-id="ps-cspine" data-parent="ps-primary">
+            <td class="elem-label indent">Cervical Spine${mkHint(cspineHint, cspineAbn)}</td>
+            <td class="tick-col"><button class="sub-tick-btn" id="sub-ps-cspine-prompted" onclick="toggleSubTick('ps-cspine','prompted','ps-primary')" title="Prompting Required">—</button></td>
+            <td class="tick-col"></td>
+            <td class="tick-col"><button class="sub-tick-btn" id="sub-ps-cspine-complete" onclick="toggleSubTick('ps-cspine','complete','ps-primary')" title="Complete">—</button></td>
+          </tr>
+          <tr data-row-id="ps-breathing" data-parent="ps-primary">
+            <td class="elem-label indent">Breathing${mkHint(breathingHint, breathingAbn)}</td>
+            <td class="tick-col"><button class="sub-tick-btn" id="sub-ps-breathing-prompted" onclick="toggleSubTick('ps-breathing','prompted','ps-primary')" title="Prompting Required">—</button></td>
+            <td class="tick-col"></td>
+            <td class="tick-col"><button class="sub-tick-btn" id="sub-ps-breathing-complete" onclick="toggleSubTick('ps-breathing','complete','ps-primary')" title="Complete">—</button></td>
+          </tr>
+          <tr data-row-id="ps-circ" data-parent="ps-primary">
+            <td class="elem-label indent">Circulation${mkHint(circHint, circAbn)}</td>
+            <td class="tick-col"><button class="sub-tick-btn" id="sub-ps-circ-prompted" onclick="toggleSubTick('ps-circ','prompted','ps-primary')" title="Prompting Required">—</button></td>
+            <td class="tick-col"></td>
+            <td class="tick-col"><button class="sub-tick-btn" id="sub-ps-circ-complete" onclick="toggleSubTick('ps-circ','complete','ps-primary')" title="Complete">—</button></td>
+          </tr>
+          <tr data-row-id="ps-haem" data-parent="ps-primary">
+            <td class="elem-label indent">Haemorrhage${mkHint(haemHint, haemAbn)}</td>
+            <td class="tick-col"><button class="sub-tick-btn" id="sub-ps-haem-prompted" onclick="toggleSubTick('ps-haem','prompted','ps-primary')" title="Prompting Required">—</button></td>
+            <td class="tick-col"></td>
+            <td class="tick-col"><button class="sub-tick-btn" id="sub-ps-haem-complete" onclick="toggleSubTick('ps-haem','complete','ps-primary')" title="Complete">—</button></td>
+          </tr>
+          <tr data-row-id="ps-disability" data-parent="ps-primary">
+            <td class="elem-label indent">Disability (AVPU)${mkHint(`${avpu} — GCS ${gcs.display}`, avpu !== 'A')}</td>
+            <td class="tick-col"><button class="sub-tick-btn" id="sub-ps-disability-prompted" onclick="toggleSubTick('ps-disability','prompted','ps-primary')" title="Prompting Required">—</button></td>
+            <td class="tick-col"></td>
+            <td class="tick-col"><button class="sub-tick-btn" id="sub-ps-disability-complete" onclick="toggleSubTick('ps-disability','complete','ps-primary')" title="Complete">—</button></td>
+          </tr>
+          <tr data-row-id="ps-exposure" data-parent="ps-primary">
+            <td class="elem-label indent">Exposure${mkHint(exposureHint, exposureRelevant)}</td>
+            <td class="tick-col"><button class="sub-tick-btn" id="sub-ps-exposure-prompted" onclick="toggleSubTick('ps-exposure','prompted','ps-primary')" title="Prompting Required">—</button></td>
+            <td class="tick-col"></td>
+            <td class="tick-col"><button class="sub-tick-btn" id="sub-ps-exposure-complete" onclick="toggleSubTick('ps-exposure','complete','ps-primary')" title="Complete">—</button></td>
+          </tr>`;
+          })()}
         </tbody>
       </table>
 
@@ -2792,11 +2918,68 @@ function renderSection1(s, isTrauma) {
           ${mkRow('rsa','RSA — Respiratory')}
           ${mkSubRow('appearance','Appearance','','','','rsa')}${mkSubRow('speech','Speech','','','','rsa')}${mkSubRow('breathsounds','Breath/Chest sounds','','','','rsa')}${mkSubRow('rr','Respiratory Rate', v.RR||'', 'RR','','rsa')}${mkSubRow('rrhythm','Respiratory Rhythm','','','','rsa')}${mkSubRow('wob2','Work of Breathing','','','','rsa')}${mkSubRow('spo2','SpO₂', v.SpO2||'', 'SpO2','','rsa')}
           ${mkRow('psa','PSA — Circulatory')}
-          ${mkSubRow('bp','BP', v.BP||'', 'BP','','psa')}${mkSubRow('hr','HR', v.HR||'', 'HR','','psa')}${mkSubRow('skin2','Skin','','','','psa')}${mkSubRow('conscstate','Conscious State', `GCS ${gcs.display} — ${avpu}`,'','','psa')}
+          ${(()=>{
+            // SKIN — context-derived
+            const allTextVss = ((s.flags||[]).join(' ') + ' ' + (s.dispatch||'') + ' ' + (s.title||'') + ' ' + (s.provisional||'')).toLowerCase();
+            const skinHint = (() => {
+              if (/\b(vf|vt\b|asystole|pea|cardiac arrest|arrest)\b/.test(String(v.Rhythm||'').toLowerCase())) return 'Pale, cyanotic, mottled';
+              if (sbp < 90 || (/\b(shock|haemorrhage|hemorrhage|sepsis|septic)\b/.test(allTextVss))) return 'Pale, diaphoretic';
+              if (/\b(anaphylaxis|allergic|urticaria|hives|flush)\b/.test(allTextVss)) return 'Flushed, urticarial';
+              if (/\b(fever|febrile|infection|sepsis|hypertherm)\b/.test(allTextVss) && v.Temp && parseFloat(v.Temp) > 38) return 'Warm, flushed';
+              if (/\b(hypotherm|cold|exposure)\b/.test(allTextVss) || (v.Temp && parseFloat(v.Temp) < 35)) return 'Cold, pale';
+              if (/\b(jaundice|hepat|liver|biliary)\b/.test(allTextVss)) return 'Jaundiced';
+              if (spo2N < 90) return 'Cyanotic, diaphoretic';
+              if (/\b(diabet|dka|hyperglycaem)\b/.test(allTextVss)) return 'Dry, flushed';
+              return 'Normal — warm, dry, pink';
+            })();
+            const skinAbn = skinHint !== 'Normal — warm, dry, pink';
+
+            // CONSCIOUS STATE
+            const conscHint = `GCS ${gcs.display} — ${avpu}`;
+
+            // GCS component hints
+            const eyesHint = gcs.isObject ? `E${gcs.E || (gcs.total>=14?4:gcs.total>=10?3:gcs.total>=6?2:1)}` : '';
+            const verbalHint = gcs.isObject ? `V${gcs.V || (gcs.total>=14?5:gcs.total>=10?3:gcs.total>=6?2:1)}` : '';
+            const motorHint = gcs.isObject ? `M${gcs.M || (gcs.total>=14?6:gcs.total>=10?5:gcs.total>=6?4:2)}` : '';
+
+            // WEIGHT — use AI value if present, otherwise estimate from age
+            const ageNum = parseAgeFromSubtitle(s.subtitle||'');
+            const weightHint = v.Weight
+              ? String(v.Weight)
+              : (() => {
+                  if (s.category === 'Newborn') return '~3–4 kg est.';
+                  if (ageNum !== null && ageNum < 1) return `~${Math.round(ageNum * 12 * 0.6 + 3)} kg est.`;
+                  if (ageNum !== null && ageNum < 12) return `~${Math.round((ageNum * 2) + 8)} kg est.`;
+                  if (ageNum !== null && ageNum < 16) return `~${Math.round((ageNum * 3) + 7)} kg est.`;
+                  return 'Obtain weight';
+                })();
+
+            // KETONES — use AI value if present, otherwise prompt to obtain
+            const bglNum = parseFloat(String(v.BGL||'')) || 0;
+            const ketoneHint = v.Ketones ? String(v.Ketones) : 'Obtain ketones';
+            const ketoneAbn = v.Ketones ? parseFloat(v.Ketones) > 1.5 : false;
+
+            // EtCO₂ — use AI value if present, otherwise prompt to obtain
+            const etco2Relevant = v.EtCO2 || /\b(intubat|rosc|return of spontaneous|ventilat|overdose|od\b|opioid|resp.*arrest|cardiac arrest|arrest)\b/.test(allTextVss) || rrNum < 8 || rrNum > 30;
+            const etco2Hint = v.EtCO2 ? String(v.EtCO2) : 'Obtain EtCO₂';
+            const etco2Abn = v.EtCO2 ? (parseFloat(v.EtCO2) < 30 || parseFloat(v.EtCO2) > 50) : !!etco2Relevant;
+
+            return `
+          ${mkSubRow('bp','BP', v.BP||'', 'BP','','psa')}
+          ${mkSubRow('hr','HR', v.HR||'', 'HR','','psa')}
+          ${mkSubRow('skin2',`Skin${skinHint ? `<span class="vital-hint" style="background:${skinAbn ? 'var(--red)' : 'var(--navy)'}">${skinHint}</span>` : ''}`, '','','','psa')}
+          ${mkSubRow('conscstate',`Conscious State${`<span class="vital-hint" style="background:${avpu !== 'A' ? 'var(--red)' : 'var(--navy)'}">${conscHint}</span>`}`, '','','','psa')}
           ${mkRow('gcstotal', v.GCS ? `GCS — ${gcs.components}${hint(String(gcs.total), 'GCS')}${gcs.description ? infoHint(gcs.description) : ''}` : 'GCS')}
-          ${mkSubRow('eyes','Eyes','','','','gcstotal')}${mkSubRow('verbal','Verbal','','','','gcstotal')}${mkSubRow('motor','Motor','','','','gcstotal')}
+          ${mkSubRow('eyes',`Eyes${eyesHint ? `<span class="vital-hint" style="background:var(--navy)">${eyesHint}</span>` : ''}`, '','','','gcstotal')}
+          ${mkSubRow('verbal',`Verbal${verbalHint ? `<span class="vital-hint" style="background:var(--navy)">${verbalHint}</span>` : ''}`, '','','','gcstotal')}
+          ${mkSubRow('motor',`Motor${motorHint ? `<span class="vital-hint" style="background:var(--navy)">${motorHint}</span>` : ''}`, '','','','gcstotal')}
           ${mkRow('adjuncts','Assessment Adjuncts')}
-          ${mkSubRow('weight','Weight','','','','adjuncts')}${mkSubRow('temp','Temperature', v.Temp||'', 'Temp','','adjuncts')}${mkSubRow('bgl','Blood Glucose Level', v.BGL||'', 'BGL','','adjuncts')}${mkSubRow('ketones','Blood Ketone Level','','','','adjuncts')}${mkSubRow('etco2','EtCO₂','','','','adjuncts')}
+          ${mkSubRow('weight',`Weight<span class="vital-hint" style="background:var(--navy)">${weightHint}</span>`, '','','','adjuncts')}
+          ${mkSubRow('temp','Temperature', v.Temp||'', 'Temp','','adjuncts')}
+          ${mkSubRow('bgl','Blood Glucose Level', v.BGL||'', 'BGL','','adjuncts')}
+          ${mkSubRow('ketones',`Blood Ketone Level<span class="vital-hint" style="background:${ketoneAbn ? 'var(--amber)' : 'var(--grey)'}">${ketoneHint}</span>`, '','','','adjuncts')}
+          ${mkSubRow('etco2',`EtCO₂<span class="vital-hint" style="background:${etco2Abn ? 'var(--amber)' : 'var(--grey)'}">${etco2Hint}</span>`, '','','','adjuncts')}`;
+          })()}
           ${mkRow('monitor','Monitor / ECG')}
           ${mkSubRow('vrhythm','Ventricular Rhythm', v.Rhythm||'', 'Rhythm','','monitor')}${mkSubRow('vrate','Ventricular Rate (±10bpm)', v.HR||'','','','monitor')}${mkSubRow('pwave','P Wave','','','','monitor')}${mkSubRow('pr','PR Interval','','','','monitor')}${mkSubRow('qrs','QRS Duration','','','','monitor')}${mkSubRow('interp','Correct Rhythm Interpretation','','','','monitor')}${mkSubRow('lead12','12 Lead (as appropriate)','','','','monitor')}
         </tbody>
@@ -4207,7 +4390,7 @@ function buildCPGContext(catVal1, catVal2) {
   return `\n\nRELEVANT AV CPG CONTENT (v3.13.1) — use these exact doses and thresholds:\n${packageSections}${comboNote}`;
 }
 
-const SCENARIO_JSON_TEMPLATE = `{"title":"","subtitle":"","category":"CAT","subcategory":"SUB","type":"","cpg":"","level":"C/D","dispatch":"","vitals":{"GCS":{"E":0,"V":0,"M":0,"total":0,"description":""},"SpO2":"","RR":"","HR":"","BP":"","Temp":"","BGL":"","Rhythm":""},"key_hx":"","medical_conditions":["","",""],"medications":["","",""],"allergies":"","flags":["","","",""],"ddx":["","","",""],"provisional":"","kq":[{"q":"","max":2,"answer":""},{"q":"","max":2,"answer":""},{"q":"","max":1,"answer":""}],"discussion":[]}`;
+const SCENARIO_JSON_TEMPLATE = `{"title":"","subtitle":"","category":"CAT","subcategory":"SUB","type":"","cpg":"","level":"C/D","dispatch":"","vitals":{"GCS":{"E":0,"V":0,"M":0,"total":0,"description":""},"SpO2":"","RR":"","HR":"","BP":"","Temp":"","BGL":"","Rhythm":"","Weight":"","Ketones":"","EtCO2":""},"key_hx":"","medical_conditions":["","",""],"medications":["","",""],"allergies":"","flags":["","","",""],"ddx":["","","",""],"provisional":"","kq":[{"q":"","max":2,"answer":""},{"q":"","max":2,"answer":""},{"q":"","max":1,"answer":""}],"discussion":[]}`;
 // Note: medical_conditions = short list e.g. ["Asthma (previous ICU admission)", "Type 2 Diabetes", "Hypertension"]
 // medications = short list e.g. ["Metoprolol 50mg daily", "Aspirin 100mg", "Candesartan 8mg"]
 // key_hx = legacy field kept for backwards compat with built-in scenarios
@@ -4345,6 +4528,9 @@ For medications: provide a concise array of medication names with doses — no e
 For allergies: approximately 25% of patients have allergies. Vary the allergen — do NOT default to penicillin every time. Use realistic Australian options: morphine, aspirin, ibuprofen, sulfonamides, latex, bee stings, nuts, shellfish, contrast dye, codeine, tramadol, or others as clinically plausible. For anaphylaxis scenarios always include the relevant allergen. Most patients (75%) have no allergy — return "" in those cases.
 For vitals.GCS: always return the structured object {E, V, M, total, description}. Choose component scores appropriate to the clinical presentation — do NOT default every scenario to GCS 15 / E4V5M6. Impaired consciousness should be reflected with realistic component scores. The description must match the scores (e.g. E2 V3 M5 = "eyes open to pain, inappropriate words, localising to pain").
 For vitals.Rhythm: Always include a cardiac rhythm using standard clinical terms (e.g. "Atrial Fibrillation", "Sinus Tachycardia", "Normal Sinus Rhythm"). Rules: (1) Non-cardiac scenarios: default to rate-appropriate sinus rhythm — "Sinus Tachycardia" if HR >100, "Sinus Bradycardia" if HR <60, otherwise "Normal Sinus Rhythm". (2) Consider age-appropriate incidental rhythms that don't affect primary management — e.g. a 78yo with pneumonia may coincidentally be in Atrial Fibrillation; a 72yo trauma patient may have 1st Degree AV Block. This is realistic and encouraged for patients over 65. (3) Cardiac scenarios: use a clinically appropriate rhythm for the presentation. (4) PEA cardiac arrest: use "Pulseless Electrical Activity (PEA)" — do NOT use VF or Asystole for PEA. (5) Never leave Rhythm blank.
+For vitals.Weight: always provide a realistic weight in kg appropriate to the patient's age and presentation (e.g. "82 kg", "14 kg"). For adults use a realistic Australian adult weight. For paediatric patients use an age-appropriate weight. Never leave blank.
+For vitals.Ketones: always provide a realistic blood ketone value in mmol/L (e.g. "0.2 mmol/L"). Use elevated values (>1.5 mmol/L) for DKA, hyperglycaemia, or diabetic emergencies. Use normal/low values (0.1–0.5 mmol/L) for all other presentations. Never leave blank.
+For vitals.EtCO2: always provide a realistic end-tidal CO₂ value in mmHg (e.g. "38 mmHg"). Use low values for hyperventilation or poor perfusion states; high values for hypoventilation, opioid OD, or severe respiratory failure; normal range (35–45 mmHg) for most presentations. Never leave blank.
 For the "discussion" field: provide 2–4 brief bullet points about management or considerations that are BEYOND AV scope — e.g. in-hospital treatment, specialist interventions, or relevant clinical nuance not covered by AV CPGs. These are suggested discussion prompts for the CI to use with the student. They are NOT assessable and NOT part of AV management. Label them clearly as beyond-scope. Return as an array of strings.
 Return ONLY a valid JSON object:
 ${SCENARIO_JSON_TEMPLATE.replace('CAT', category).replace('SUB', subcategory)}`;
