@@ -278,6 +278,7 @@ body.snav-active #content { padding-left: 60px; }
 .sub-tick-btn { width: 28px; height: 28px; border-radius: 5px; border: 1.5px solid #D5D8DC; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; transition: all 0.15s; background: #F8F9FA; color: #AAB0B7; user-select: none; }
 .sub-tick-btn:active { transform: scale(0.9); }
 .sub-tick-btn.prompted { background: #FDEBD0; border-color: #F0C080; color: #C87D20; }
+.sub-tick-btn.incomplete { background: #FADBD8; border-color: #F1948A; color: #C0392B; }
 .sub-tick-btn.complete { background: #D5ECD9; border-color: #A8CFB0; color: #4A8A56; }
 .score-row td { background: var(--light); font-weight: 700; padding: 10px 8px; font-size: 12px; }
 .score-radio-group { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
@@ -2396,7 +2397,7 @@ function renderScenario(s) {
   const catBg = { 'Adult':'#1C3A6E', 'Paediatric':'#2E86C1', 'Maternity':'#7D3C98', 'Newborn':'#1E8449', 'Treat and Refer':'#4E342E' };
   const isTrauma = (s.subcategory === 'Trauma' || s.category === 'Paediatric' && s.subcategory === 'Trauma');
 
-  const vitalsHtml = Object.entries(s.vitals||{}).map(([k,v]) => {
+  const vitalsHtml = Object.entries(s.vitals||{}).filter(([k]) => !['Weight','Ketones','EtCO2'].includes(k)).map(([k,v]) => {
     let display;
     if (k === 'GCS') {
       if (v && typeof v === 'object' && 'total' in v) {
@@ -2685,7 +2686,7 @@ function renderSection1(s, isTrauma) {
     <tr data-row-id="${id}" data-parent="${parentId}">
       <td class="elem-label indent">${label}${info ? infoHint(hintVal) : hint(hintVal, hintKey)}</td>
       <td class="tick-col"><button class="sub-tick-btn" id="sub-${id}-prompted" onclick="toggleSubTick('${id}','prompted','${parentId}')" title="Prompting Required">—</button></td>
-      <td class="tick-col"></td>
+      <td class="tick-col"><button class="sub-tick-btn" id="sub-${id}-incomplete" onclick="toggleSubTick('${id}','incomplete','${parentId}')" title="Incomplete/Incorrect">—</button></td>
       <td class="tick-col"><button class="sub-tick-btn" id="sub-${id}-complete" onclick="toggleSubTick('${id}','complete','${parentId}')" title="Complete">—</button></td>
     </tr>`;
   const mkFreeRow = (id, label) => `
@@ -2843,49 +2844,49 @@ function renderSection1(s, isTrauma) {
           <tr data-row-id="ps-response" data-parent="ps-primary">
             <td class="elem-label indent">Response${mkHint(responseHint, avpu !== 'A')}</td>
             <td class="tick-col"><button class="sub-tick-btn" id="sub-ps-response-prompted" onclick="toggleSubTick('ps-response','prompted','ps-primary')" title="Prompting Required">—</button></td>
-            <td class="tick-col"></td>
+            <td class="tick-col"><button class="sub-tick-btn" id="sub-ps-response-incomplete" onclick="toggleSubTick('ps-response','incomplete','ps-primary')" title="Incomplete/Incorrect">—</button></td>
             <td class="tick-col"><button class="sub-tick-btn" id="sub-ps-response-complete" onclick="toggleSubTick('ps-response','complete','ps-primary')" title="Complete">—</button></td>
           </tr>
           <tr data-row-id="ps-airway" data-parent="ps-primary">
             <td class="elem-label indent">Airway${mkHint(airwayHint, airwayAbn)}</td>
             <td class="tick-col"><button class="sub-tick-btn" id="sub-ps-airway-prompted" onclick="toggleSubTick('ps-airway','prompted','ps-primary')" title="Prompting Required">—</button></td>
-            <td class="tick-col"></td>
+            <td class="tick-col"><button class="sub-tick-btn" id="sub-ps-airway-incomplete" onclick="toggleSubTick('ps-airway','incomplete','ps-primary')" title="Incomplete/Incorrect">—</button></td>
             <td class="tick-col"><button class="sub-tick-btn" id="sub-ps-airway-complete" onclick="toggleSubTick('ps-airway','complete','ps-primary')" title="Complete">—</button></td>
           </tr>
           <tr data-row-id="ps-cspine" data-parent="ps-primary">
             <td class="elem-label indent">Cervical Spine${mkHint(cspineHint, cspineAbn)}</td>
             <td class="tick-col"><button class="sub-tick-btn" id="sub-ps-cspine-prompted" onclick="toggleSubTick('ps-cspine','prompted','ps-primary')" title="Prompting Required">—</button></td>
-            <td class="tick-col"></td>
+            <td class="tick-col"><button class="sub-tick-btn" id="sub-ps-cspine-incomplete" onclick="toggleSubTick('ps-cspine','incomplete','ps-primary')" title="Incomplete/Incorrect">—</button></td>
             <td class="tick-col"><button class="sub-tick-btn" id="sub-ps-cspine-complete" onclick="toggleSubTick('ps-cspine','complete','ps-primary')" title="Complete">—</button></td>
           </tr>
           <tr data-row-id="ps-breathing" data-parent="ps-primary">
             <td class="elem-label indent">Breathing${mkHint(breathingHint, breathingAbn)}</td>
             <td class="tick-col"><button class="sub-tick-btn" id="sub-ps-breathing-prompted" onclick="toggleSubTick('ps-breathing','prompted','ps-primary')" title="Prompting Required">—</button></td>
-            <td class="tick-col"></td>
+            <td class="tick-col"><button class="sub-tick-btn" id="sub-ps-breathing-incomplete" onclick="toggleSubTick('ps-breathing','incomplete','ps-primary')" title="Incomplete/Incorrect">—</button></td>
             <td class="tick-col"><button class="sub-tick-btn" id="sub-ps-breathing-complete" onclick="toggleSubTick('ps-breathing','complete','ps-primary')" title="Complete">—</button></td>
           </tr>
           <tr data-row-id="ps-circ" data-parent="ps-primary">
             <td class="elem-label indent">Circulation${mkHint(circHint, circAbn)}</td>
             <td class="tick-col"><button class="sub-tick-btn" id="sub-ps-circ-prompted" onclick="toggleSubTick('ps-circ','prompted','ps-primary')" title="Prompting Required">—</button></td>
-            <td class="tick-col"></td>
+            <td class="tick-col"><button class="sub-tick-btn" id="sub-ps-circ-incomplete" onclick="toggleSubTick('ps-circ','incomplete','ps-primary')" title="Incomplete/Incorrect">—</button></td>
             <td class="tick-col"><button class="sub-tick-btn" id="sub-ps-circ-complete" onclick="toggleSubTick('ps-circ','complete','ps-primary')" title="Complete">—</button></td>
           </tr>
           <tr data-row-id="ps-haem" data-parent="ps-primary">
             <td class="elem-label indent">Haemorrhage${mkHint(haemHint, haemAbn)}</td>
             <td class="tick-col"><button class="sub-tick-btn" id="sub-ps-haem-prompted" onclick="toggleSubTick('ps-haem','prompted','ps-primary')" title="Prompting Required">—</button></td>
-            <td class="tick-col"></td>
+            <td class="tick-col"><button class="sub-tick-btn" id="sub-ps-haem-incomplete" onclick="toggleSubTick('ps-haem','incomplete','ps-primary')" title="Incomplete/Incorrect">—</button></td>
             <td class="tick-col"><button class="sub-tick-btn" id="sub-ps-haem-complete" onclick="toggleSubTick('ps-haem','complete','ps-primary')" title="Complete">—</button></td>
           </tr>
           <tr data-row-id="ps-disability" data-parent="ps-primary">
             <td class="elem-label indent">Disability (AVPU)${mkHint(`${avpu} — GCS ${gcs.display}`, avpu !== 'A')}</td>
             <td class="tick-col"><button class="sub-tick-btn" id="sub-ps-disability-prompted" onclick="toggleSubTick('ps-disability','prompted','ps-primary')" title="Prompting Required">—</button></td>
-            <td class="tick-col"></td>
+            <td class="tick-col"><button class="sub-tick-btn" id="sub-ps-disability-incomplete" onclick="toggleSubTick('ps-disability','incomplete','ps-primary')" title="Incomplete/Incorrect">—</button></td>
             <td class="tick-col"><button class="sub-tick-btn" id="sub-ps-disability-complete" onclick="toggleSubTick('ps-disability','complete','ps-primary')" title="Complete">—</button></td>
           </tr>
           <tr data-row-id="ps-exposure" data-parent="ps-primary">
             <td class="elem-label indent">Exposure${mkHint(exposureHint, exposureRelevant)}</td>
             <td class="tick-col"><button class="sub-tick-btn" id="sub-ps-exposure-prompted" onclick="toggleSubTick('ps-exposure','prompted','ps-primary')" title="Prompting Required">—</button></td>
-            <td class="tick-col"></td>
+            <td class="tick-col"><button class="sub-tick-btn" id="sub-ps-exposure-incomplete" onclick="toggleSubTick('ps-exposure','incomplete','ps-primary')" title="Incomplete/Incorrect">—</button></td>
             <td class="tick-col"><button class="sub-tick-btn" id="sub-ps-exposure-complete" onclick="toggleSubTick('ps-exposure','complete','ps-primary')" title="Complete">—</button></td>
           </tr>`;
           })()}
@@ -2954,16 +2955,15 @@ function renderSection1(s, isTrauma) {
                   return 'Obtain weight';
                 })();
 
-            // KETONES — use AI value if present, otherwise infer from context
+            // KETONES — use AI value if present, otherwise prompt to obtain
             const bglNum = parseFloat(String(v.BGL||'')) || 0;
-            const ketoneRelevant = v.Ketones || /\b(dka|diabetic ketoacid|hyperglycaem|keto)\b/.test(allTextVss) || bglNum > 15;
-            const ketoneHint = v.Ketones ? String(v.Ketones) : (ketoneRelevant ? 'Obtain ketones' : 'Not indicated');
-            const ketoneAbn = !!ketoneRelevant;
+            const ketoneHint = v.Ketones ? String(v.Ketones) : 'Obtain ketones';
+            const ketoneAbn = v.Ketones ? parseFloat(v.Ketones) > 1.5 : false;
 
-            // EtCO₂ — use AI value if present, otherwise infer from context
+            // EtCO₂ — use AI value if present, otherwise prompt to obtain
             const etco2Relevant = v.EtCO2 || /\b(intubat|rosc|return of spontaneous|ventilat|overdose|od\b|opioid|resp.*arrest|cardiac arrest|arrest)\b/.test(allTextVss) || rrNum < 8 || rrNum > 30;
-            const etco2Hint = v.EtCO2 ? String(v.EtCO2) : (etco2Relevant ? 'Obtain EtCO₂' : 'Not indicated');
-            const etco2Abn = !!etco2Relevant;
+            const etco2Hint = v.EtCO2 ? String(v.EtCO2) : 'Obtain EtCO₂';
+            const etco2Abn = v.EtCO2 ? (parseFloat(v.EtCO2) < 30 || parseFloat(v.EtCO2) > 50) : !!etco2Relevant;
 
             return `
           ${mkSubRow('bp','BP', v.BP||'', 'BP','','psa')}
@@ -3201,7 +3201,9 @@ function toggleSubTick(subId, type, parentId) {
   const btn = document.getElementById(`sub-${subId}-${type}`);
   if (btn) {
     btn.className = 'sub-tick-btn' + (subRowStates[subId][type] ? ' ' + type : '');
-    btn.textContent = subRowStates[subId][type] ? (type === 'prompted' ? 'P' : '✓') : '—';
+    btn.textContent = subRowStates[subId][type]
+      ? (type === 'prompted' ? 'P' : type === 'incomplete' ? '✗' : '✓')
+      : '—';
   }
 
   // Check if all sub-rows under this parent are complete → auto-complete parent
@@ -3228,6 +3230,7 @@ function _cascadeCompleteToChildren(parentId) {
 
 // Check all sub-rows under a parent; if all are complete, auto-tick parent complete
 // Also: if any child is prompted, auto-tick parent prompted
+// Also: if any child is incomplete, auto-tick parent incomplete (but not the reverse)
 function _checkParentFromChildren(parentId) {
   const subRows = document.querySelectorAll(`tr[data-parent="${parentId}"]`);
   if (!subRows.length) return;
@@ -3239,6 +3242,10 @@ function _checkParentFromChildren(parentId) {
   const anyPrompted = Array.from(subRows).some(tr => {
     const subId = tr.dataset.rowId;
     return subId && subRowStates[subId] && subRowStates[subId].prompted;
+  });
+  const anyIncomplete = Array.from(subRows).some(tr => {
+    const subId = tr.dataset.rowId;
+    return subId && subRowStates[subId] && subRowStates[subId].incomplete;
   });
 
   if (!rowStates[parentId]) rowStates[parentId] = {};
@@ -3256,6 +3263,22 @@ function _checkParentFromChildren(parentId) {
       if (rowStates[parentId].complete) {
         rowStates[parentId].complete = null;
         parentCompleteBtn.className = 'tick-btn'; parentCompleteBtn.textContent = '—';
+      }
+    }
+  }
+
+  // Handle incomplete — bubble up from any child marked incomplete
+  const parentIncompleteBtn = document.getElementById(`tick-${parentId}-incomplete`);
+  if (parentIncompleteBtn) {
+    if (anyIncomplete) {
+      rowStates[parentId].incomplete = 'incomplete';
+      rowStates[parentId]._incompleteByChild = true;
+      parentIncompleteBtn.className = 'tick-btn incomplete'; parentIncompleteBtn.textContent = '✗';
+    } else {
+      if (rowStates[parentId]._incompleteByChild) {
+        rowStates[parentId].incomplete = null;
+        rowStates[parentId]._incompleteByChild = false;
+        parentIncompleteBtn.className = 'tick-btn'; parentIncompleteBtn.textContent = '—';
       }
     }
   }
@@ -4530,8 +4553,8 @@ For allergies: approximately 25% of patients have allergies. Vary the allergen �
 For vitals.GCS: always return the structured object {E, V, M, total, description}. Choose component scores appropriate to the clinical presentation — do NOT default every scenario to GCS 15 / E4V5M6. Impaired consciousness should be reflected with realistic component scores. The description must match the scores (e.g. E2 V3 M5 = "eyes open to pain, inappropriate words, localising to pain").
 For vitals.Rhythm: Always include a cardiac rhythm using standard clinical terms (e.g. "Atrial Fibrillation", "Sinus Tachycardia", "Normal Sinus Rhythm"). Rules: (1) Non-cardiac scenarios: default to rate-appropriate sinus rhythm — "Sinus Tachycardia" if HR >100, "Sinus Bradycardia" if HR <60, otherwise "Normal Sinus Rhythm". (2) Consider age-appropriate incidental rhythms that don't affect primary management — e.g. a 78yo with pneumonia may coincidentally be in Atrial Fibrillation; a 72yo trauma patient may have 1st Degree AV Block. This is realistic and encouraged for patients over 65. (3) Cardiac scenarios: use a clinically appropriate rhythm for the presentation. (4) PEA cardiac arrest: use "Pulseless Electrical Activity (PEA)" — do NOT use VF or Asystole for PEA. (5) Never leave Rhythm blank.
 For vitals.Weight: always provide a realistic weight in kg appropriate to the patient's age and presentation (e.g. "82 kg", "14 kg"). For adults use a realistic Australian adult weight. For paediatric patients use an age-appropriate weight. Never leave blank.
-For vitals.Ketones: provide a realistic blood ketone value in mmol/L (e.g. "4.8 mmol/L") ONLY if clinically indicated — i.e. DKA, hyperglycaemia (BGL >15), starvation, or diabetic emergency. Return "" if not indicated.
-For vitals.EtCO2: provide a realistic end-tidal CO₂ value in mmHg (e.g. "38 mmHg") ONLY if clinically relevant — i.e. cardiac arrest, post-ROSC, intubated patient, opioid overdose, severe respiratory distress, or significant hyperventilation. Return "" if not indicated.
+For vitals.Ketones: always provide a realistic blood ketone value in mmol/L (e.g. "0.2 mmol/L"). Use elevated values (>1.5 mmol/L) for DKA, hyperglycaemia, or diabetic emergencies. Use normal/low values (0.1–0.5 mmol/L) for all other presentations. Never leave blank.
+For vitals.EtCO2: always provide a realistic end-tidal CO₂ value in mmHg (e.g. "38 mmHg"). Use low values for hyperventilation or poor perfusion states; high values for hypoventilation, opioid OD, or severe respiratory failure; normal range (35–45 mmHg) for most presentations. Never leave blank.
 For the "discussion" field: provide 2–4 brief bullet points about management or considerations that are BEYOND AV scope — e.g. in-hospital treatment, specialist interventions, or relevant clinical nuance not covered by AV CPGs. These are suggested discussion prompts for the CI to use with the student. They are NOT assessable and NOT part of AV management. Label them clearly as beyond-scope. Return as an array of strings.
 Return ONLY a valid JSON object:
 ${SCENARIO_JSON_TEMPLATE.replace('CAT', category).replace('SUB', subcategory)}`;
