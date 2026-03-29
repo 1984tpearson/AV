@@ -3197,12 +3197,23 @@ function toggleSubTick(subId, type, parentId) {
   const current = subRowStates[subId][type];
   subRowStates[subId][type] = current ? null : type;
 
+  // Mutual exclusion: complete and incomplete cancel each other
+  if (type === 'complete' && subRowStates[subId][type]) {
+    subRowStates[subId].incomplete = null;
+    const iBtn = document.getElementById(`sub-${subId}-incomplete`);
+    if (iBtn) { iBtn.className = 'sub-tick-btn'; iBtn.textContent = '—'; }
+  } else if (type === 'incomplete' && subRowStates[subId][type]) {
+    subRowStates[subId].complete = null;
+    const cBtn = document.getElementById(`sub-${subId}-complete`);
+    if (cBtn) { cBtn.className = 'sub-tick-btn'; cBtn.textContent = '—'; }
+  }
+
   // Update button appearance
   const btn = document.getElementById(`sub-${subId}-${type}`);
   if (btn) {
     btn.className = 'sub-tick-btn' + (subRowStates[subId][type] ? ' ' + type : '');
     btn.textContent = subRowStates[subId][type]
-      ? (type === 'prompted' ? 'P' : type === 'incomplete' ? '✗' : '✓')
+      ? (type === 'prompted' ? 'P' : type === 'incomplete' ? '✕' : '✓')
       : '—';
   }
 
@@ -3273,7 +3284,11 @@ function _checkParentFromChildren(parentId) {
     if (anyIncomplete) {
       rowStates[parentId].incomplete = 'incomplete';
       rowStates[parentId]._incompleteByChild = true;
-      parentIncompleteBtn.className = 'tick-btn incomplete'; parentIncompleteBtn.textContent = '✗';
+      parentIncompleteBtn.className = 'tick-btn incomplete'; parentIncompleteBtn.textContent = '✕';
+      // Also clear parent complete if set
+      rowStates[parentId].complete = null;
+      const pCBtn = document.getElementById(`tick-${parentId}-complete`);
+      if (pCBtn) { pCBtn.className = 'tick-btn'; pCBtn.textContent = '—'; }
     } else {
       if (rowStates[parentId]._incompleteByChild) {
         rowStates[parentId].incomplete = null;
