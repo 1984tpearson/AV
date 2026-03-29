@@ -278,6 +278,7 @@ body.snav-active #content { padding-left: 60px; }
 .sub-tick-btn { width: 28px; height: 28px; border-radius: 5px; border: 1.5px solid #D5D8DC; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; transition: all 0.15s; background: #F8F9FA; color: #AAB0B7; user-select: none; }
 .sub-tick-btn:active { transform: scale(0.9); }
 .sub-tick-btn.prompted { background: #FDEBD0; border-color: #F0C080; color: #C87D20; }
+.sub-tick-btn.incomplete { background: #FADBD8; border-color: #F1948A; color: #C0392B; }
 .sub-tick-btn.complete { background: #D5ECD9; border-color: #A8CFB0; color: #4A8A56; }
 .score-row td { background: var(--light); font-weight: 700; padding: 10px 8px; font-size: 12px; }
 .score-radio-group { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
@@ -2396,7 +2397,7 @@ function renderScenario(s) {
   const catBg = { 'Adult':'#1C3A6E', 'Paediatric':'#2E86C1', 'Maternity':'#7D3C98', 'Newborn':'#1E8449', 'Treat and Refer':'#4E342E' };
   const isTrauma = (s.subcategory === 'Trauma' || s.category === 'Paediatric' && s.subcategory === 'Trauma');
 
-  const vitalsHtml = Object.entries(s.vitals||{}).map(([k,v]) => {
+  const vitalsHtml = Object.entries(s.vitals||{}).filter(([k]) => !['Weight','Ketones','EtCO2'].includes(k)).map(([k,v]) => {
     let display;
     if (k === 'GCS') {
       if (v && typeof v === 'object' && 'total' in v) {
@@ -2685,7 +2686,7 @@ function renderSection1(s, isTrauma) {
     <tr data-row-id="${id}" data-parent="${parentId}">
       <td class="elem-label indent">${label}${info ? infoHint(hintVal) : hint(hintVal, hintKey)}</td>
       <td class="tick-col"><button class="sub-tick-btn" id="sub-${id}-prompted" onclick="toggleSubTick('${id}','prompted','${parentId}')" title="Prompting Required">—</button></td>
-      <td class="tick-col"></td>
+      <td class="tick-col"><button class="sub-tick-btn" id="sub-${id}-incomplete" onclick="toggleSubTick('${id}','incomplete','${parentId}')" title="Incomplete/Incorrect">—</button></td>
       <td class="tick-col"><button class="sub-tick-btn" id="sub-${id}-complete" onclick="toggleSubTick('${id}','complete','${parentId}')" title="Complete">—</button></td>
     </tr>`;
   const mkFreeRow = (id, label) => `
@@ -2843,49 +2844,49 @@ function renderSection1(s, isTrauma) {
           <tr data-row-id="ps-response" data-parent="ps-primary">
             <td class="elem-label indent">Response${mkHint(responseHint, avpu !== 'A')}</td>
             <td class="tick-col"><button class="sub-tick-btn" id="sub-ps-response-prompted" onclick="toggleSubTick('ps-response','prompted','ps-primary')" title="Prompting Required">—</button></td>
-            <td class="tick-col"></td>
+            <td class="tick-col"><button class="sub-tick-btn" id="sub-ps-response-incomplete" onclick="toggleSubTick('ps-response','incomplete','ps-primary')" title="Incomplete/Incorrect">—</button></td>
             <td class="tick-col"><button class="sub-tick-btn" id="sub-ps-response-complete" onclick="toggleSubTick('ps-response','complete','ps-primary')" title="Complete">—</button></td>
           </tr>
           <tr data-row-id="ps-airway" data-parent="ps-primary">
             <td class="elem-label indent">Airway${mkHint(airwayHint, airwayAbn)}</td>
             <td class="tick-col"><button class="sub-tick-btn" id="sub-ps-airway-prompted" onclick="toggleSubTick('ps-airway','prompted','ps-primary')" title="Prompting Required">—</button></td>
-            <td class="tick-col"></td>
+            <td class="tick-col"><button class="sub-tick-btn" id="sub-ps-airway-incomplete" onclick="toggleSubTick('ps-airway','incomplete','ps-primary')" title="Incomplete/Incorrect">—</button></td>
             <td class="tick-col"><button class="sub-tick-btn" id="sub-ps-airway-complete" onclick="toggleSubTick('ps-airway','complete','ps-primary')" title="Complete">—</button></td>
           </tr>
           <tr data-row-id="ps-cspine" data-parent="ps-primary">
             <td class="elem-label indent">Cervical Spine${mkHint(cspineHint, cspineAbn)}</td>
             <td class="tick-col"><button class="sub-tick-btn" id="sub-ps-cspine-prompted" onclick="toggleSubTick('ps-cspine','prompted','ps-primary')" title="Prompting Required">—</button></td>
-            <td class="tick-col"></td>
+            <td class="tick-col"><button class="sub-tick-btn" id="sub-ps-cspine-incomplete" onclick="toggleSubTick('ps-cspine','incomplete','ps-primary')" title="Incomplete/Incorrect">—</button></td>
             <td class="tick-col"><button class="sub-tick-btn" id="sub-ps-cspine-complete" onclick="toggleSubTick('ps-cspine','complete','ps-primary')" title="Complete">—</button></td>
           </tr>
           <tr data-row-id="ps-breathing" data-parent="ps-primary">
             <td class="elem-label indent">Breathing${mkHint(breathingHint, breathingAbn)}</td>
             <td class="tick-col"><button class="sub-tick-btn" id="sub-ps-breathing-prompted" onclick="toggleSubTick('ps-breathing','prompted','ps-primary')" title="Prompting Required">—</button></td>
-            <td class="tick-col"></td>
+            <td class="tick-col"><button class="sub-tick-btn" id="sub-ps-breathing-incomplete" onclick="toggleSubTick('ps-breathing','incomplete','ps-primary')" title="Incomplete/Incorrect">—</button></td>
             <td class="tick-col"><button class="sub-tick-btn" id="sub-ps-breathing-complete" onclick="toggleSubTick('ps-breathing','complete','ps-primary')" title="Complete">—</button></td>
           </tr>
           <tr data-row-id="ps-circ" data-parent="ps-primary">
             <td class="elem-label indent">Circulation${mkHint(circHint, circAbn)}</td>
             <td class="tick-col"><button class="sub-tick-btn" id="sub-ps-circ-prompted" onclick="toggleSubTick('ps-circ','prompted','ps-primary')" title="Prompting Required">—</button></td>
-            <td class="tick-col"></td>
+            <td class="tick-col"><button class="sub-tick-btn" id="sub-ps-circ-incomplete" onclick="toggleSubTick('ps-circ','incomplete','ps-primary')" title="Incomplete/Incorrect">—</button></td>
             <td class="tick-col"><button class="sub-tick-btn" id="sub-ps-circ-complete" onclick="toggleSubTick('ps-circ','complete','ps-primary')" title="Complete">—</button></td>
           </tr>
           <tr data-row-id="ps-haem" data-parent="ps-primary">
             <td class="elem-label indent">Haemorrhage${mkHint(haemHint, haemAbn)}</td>
             <td class="tick-col"><button class="sub-tick-btn" id="sub-ps-haem-prompted" onclick="toggleSubTick('ps-haem','prompted','ps-primary')" title="Prompting Required">—</button></td>
-            <td class="tick-col"></td>
+            <td class="tick-col"><button class="sub-tick-btn" id="sub-ps-haem-incomplete" onclick="toggleSubTick('ps-haem','incomplete','ps-primary')" title="Incomplete/Incorrect">—</button></td>
             <td class="tick-col"><button class="sub-tick-btn" id="sub-ps-haem-complete" onclick="toggleSubTick('ps-haem','complete','ps-primary')" title="Complete">—</button></td>
           </tr>
           <tr data-row-id="ps-disability" data-parent="ps-primary">
             <td class="elem-label indent">Disability (AVPU)${mkHint(`${avpu} — GCS ${gcs.display}`, avpu !== 'A')}</td>
             <td class="tick-col"><button class="sub-tick-btn" id="sub-ps-disability-prompted" onclick="toggleSubTick('ps-disability','prompted','ps-primary')" title="Prompting Required">—</button></td>
-            <td class="tick-col"></td>
+            <td class="tick-col"><button class="sub-tick-btn" id="sub-ps-disability-incomplete" onclick="toggleSubTick('ps-disability','incomplete','ps-primary')" title="Incomplete/Incorrect">—</button></td>
             <td class="tick-col"><button class="sub-tick-btn" id="sub-ps-disability-complete" onclick="toggleSubTick('ps-disability','complete','ps-primary')" title="Complete">—</button></td>
           </tr>
           <tr data-row-id="ps-exposure" data-parent="ps-primary">
             <td class="elem-label indent">Exposure${mkHint(exposureHint, exposureRelevant)}</td>
             <td class="tick-col"><button class="sub-tick-btn" id="sub-ps-exposure-prompted" onclick="toggleSubTick('ps-exposure','prompted','ps-primary')" title="Prompting Required">—</button></td>
-            <td class="tick-col"></td>
+            <td class="tick-col"><button class="sub-tick-btn" id="sub-ps-exposure-incomplete" onclick="toggleSubTick('ps-exposure','incomplete','ps-primary')" title="Incomplete/Incorrect">—</button></td>
             <td class="tick-col"><button class="sub-tick-btn" id="sub-ps-exposure-complete" onclick="toggleSubTick('ps-exposure','complete','ps-primary')" title="Complete">—</button></td>
           </tr>`;
           })()}
@@ -3196,11 +3197,24 @@ function toggleSubTick(subId, type, parentId) {
   const current = subRowStates[subId][type];
   subRowStates[subId][type] = current ? null : type;
 
+  // Mutual exclusion: complete and incomplete cancel each other
+  if (type === 'complete' && subRowStates[subId][type]) {
+    subRowStates[subId].incomplete = null;
+    const iBtn = document.getElementById(`sub-${subId}-incomplete`);
+    if (iBtn) { iBtn.className = 'sub-tick-btn'; iBtn.textContent = '—'; }
+  } else if (type === 'incomplete' && subRowStates[subId][type]) {
+    subRowStates[subId].complete = null;
+    const cBtn = document.getElementById(`sub-${subId}-complete`);
+    if (cBtn) { cBtn.className = 'sub-tick-btn'; cBtn.textContent = '—'; }
+  }
+
   // Update button appearance
   const btn = document.getElementById(`sub-${subId}-${type}`);
   if (btn) {
     btn.className = 'sub-tick-btn' + (subRowStates[subId][type] ? ' ' + type : '');
-    btn.textContent = subRowStates[subId][type] ? (type === 'prompted' ? 'P' : '✓') : '—';
+    btn.textContent = subRowStates[subId][type]
+      ? (type === 'prompted' ? 'P' : type === 'incomplete' ? '✕' : '✓')
+      : '—';
   }
 
   // Check if all sub-rows under this parent are complete → auto-complete parent
@@ -3220,13 +3234,19 @@ function _cascadeCompleteToChildren(parentId) {
     if (!subId) return;
     if (!subRowStates[subId]) subRowStates[subId] = {};
     subRowStates[subId].complete = 'complete';
+    subRowStates[subId].incomplete = null;
     const cBtn = document.getElementById(`sub-${subId}-complete`);
     if (cBtn) { cBtn.className = 'sub-tick-btn complete'; cBtn.textContent = '✓'; }
+    const iBtn = document.getElementById(`sub-${subId}-incomplete`);
+    if (iBtn) { iBtn.className = 'sub-tick-btn'; iBtn.textContent = '—'; }
   });
+  // Reset the incompleteByChild flag on the parent since all children are now complete
+  if (rowStates[parentId]) rowStates[parentId]._incompleteByChild = false;
 }
 
 // Check all sub-rows under a parent; if all are complete, auto-tick parent complete
 // Also: if any child is prompted, auto-tick parent prompted
+// Also: if any child is incomplete, auto-tick parent incomplete (but not the reverse)
 function _checkParentFromChildren(parentId) {
   const subRows = document.querySelectorAll(`tr[data-parent="${parentId}"]`);
   if (!subRows.length) return;
@@ -3238,6 +3258,10 @@ function _checkParentFromChildren(parentId) {
   const anyPrompted = Array.from(subRows).some(tr => {
     const subId = tr.dataset.rowId;
     return subId && subRowStates[subId] && subRowStates[subId].prompted;
+  });
+  const anyIncomplete = Array.from(subRows).some(tr => {
+    const subId = tr.dataset.rowId;
+    return subId && subRowStates[subId] && subRowStates[subId].incomplete;
   });
 
   if (!rowStates[parentId]) rowStates[parentId] = {};
@@ -3255,6 +3279,26 @@ function _checkParentFromChildren(parentId) {
       if (rowStates[parentId].complete) {
         rowStates[parentId].complete = null;
         parentCompleteBtn.className = 'tick-btn'; parentCompleteBtn.textContent = '—';
+      }
+    }
+  }
+
+  // Handle incomplete — bubble up from any child marked incomplete
+  const parentIncompleteBtn = document.getElementById(`tick-${parentId}-incomplete`);
+  if (parentIncompleteBtn) {
+    if (anyIncomplete) {
+      rowStates[parentId].incomplete = 'incomplete';
+      rowStates[parentId]._incompleteByChild = true;
+      parentIncompleteBtn.className = 'tick-btn incomplete'; parentIncompleteBtn.textContent = '✕';
+      // Also clear parent complete if set
+      rowStates[parentId].complete = null;
+      const pCBtn = document.getElementById(`tick-${parentId}-complete`);
+      if (pCBtn) { pCBtn.className = 'tick-btn'; pCBtn.textContent = '—'; }
+    } else {
+      if (rowStates[parentId]._incompleteByChild) {
+        rowStates[parentId].incomplete = null;
+        rowStates[parentId]._incompleteByChild = false;
+        parentIncompleteBtn.className = 'tick-btn'; parentIncompleteBtn.textContent = '—';
       }
     }
   }
