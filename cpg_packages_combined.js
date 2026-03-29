@@ -2079,6 +2079,281 @@ const CPG_PACKAGES = {
       { type: "mica", text: "ETT sizes: Extremely preterm < 1 kg (< 28 wks) – 2.5 mm, lip length 6–7 cm, laryngoscope 00 straight Miller blade. Moderately preterm 1–3 kg (28–34 wks) – 3.0 mm, lip length 7–9 cm, laryngoscope 0 or 1 straight Miller blade, i-Gel size 1.0 for > 2 kg. Term/near term > 3 kg (≥ 35 wks) – 3.5 mm, lip length 9–10 cm, laryngoscope 0 or 1 straight Miller blade, i-Gel size 1.0 for > 2 kg" },
     ],
     notes: "Ventilation and warmth = highest priorities. HR rise = best indicator of adequate ventilation. 3:1 CPR ratio. PPV within 60 seconds. PIPER early. Do not resuscitate < 22 weeks. EMMA infant adaptor essential for MICA intubation."
+  },
+
+  // -----------------------------------------------------------
+  // A0401 Acute Coronary Syndromes
+  // -----------------------------------------------------------
+  acs: {
+    cpg: "A0401",
+    title: "Acute Coronary Syndromes",
+    careObjectives: [
+      "Rapid identification of STEMI to facilitate timely reperfusion (PCI or PHT) is the primary goal of prehospital management.",
+      "Provision of antiplatelet therapy (aspirin).",
+      "Reduce cardiac workload by treating associated symptoms (e.g. nausea, pain)."
+    ],
+    management: [
+      { type: "assess", items: [
+        "Signs and symptoms",
+        "12-lead ECG (within 10 minutes)",
+        "Rx already administered (e.g. aspirin, GTN)"
+      ]},
+      { type: "stop", text: "Request early MICA / aeromedical support in suspected STEMI and provide early hospital notification" },
+      { type: "header", text: "Antiplatelet Rx" },
+      { type: "action", text: "Aspirin 300 mg oral if not already administered" },
+      { type: "header", text: "Pain Relief" },
+      { type: "action", text: "GTN 600 mcg S/L if SBP > 100 mmHg OR GTN 300 mcg S/L if no previous administration, borderline BP or small (≤ 60 kg), elderly or frail patients" },
+      { type: "action", text: "Repeat 300 or 600 mcg GTN S/L at 5 minute intervals titrated to pain or side effects" },
+      { type: "action", text: "GTN patch 50 mg (0.4 mg/hr) upper torso/arms — remove patch if BP falls < 100 mmHg" },
+      { type: "note", items: ["Inadequate response or nitrates C/I: treat with opioids as per CPG A0501 Pain Relief"] },
+      { type: "header", text: "Isolated Hypertension (SBP > 160 mmHg or DBP > 100 mmHg)" },
+      { type: "action", text: "GTN 300 mcg S/L — repeat 300 mcg at 5 minute intervals if hypertension persists" },
+      { type: "header", text: "STEMI" },
+      { type: "action", text: "If onset < 12 hours: continue Rx as per CPG A0408 STEMI Management" },
+      { type: "action", text: "If onset > 12 hours: transmit 12-lead ECG and provide hospital notification" },
+      { type: "action", text: "Notify ARV via clinician where secondary transfer may be required" },
+      { type: "header", text: "NSTEACS / Unstable Angina" },
+      { type: "action", text: "Transport to appropriate facility" }
+    ],
+    notes: "Nitrates C/I if HR < 50 bpm. GTN S/L can be substituted with buccal if required. Aspirin dose may be supplemented to 300 mg if lower dose already given. Hyperoxaemia is detrimental in STEMI — oxygen only as per CPG A0001."
+  },
+
+  // -----------------------------------------------------------
+  // A0402 Bradycardia
+  // -----------------------------------------------------------
+  bradycardia: {
+    cpg: "A0402",
+    title: "Bradycardia",
+    careObjectives: [
+      "To increase heart rate where bradycardia is causing haemodynamic compromise, heart failure or life threatening arrhythmia."
+    ],
+    management: [
+      { type: "assess", items: [
+        "Perfusion status",
+        "Cardiac rhythm",
+        "Heart failure",
+        "Ischaemic chest pain"
+      ]},
+      { type: "header", text: "Unstable bradycardia" },
+      { type: "note", items: [
+        "Less than adequate perfusion (including acute STEMI and ischaemic chest pain)",
+        "Profound bradycardia (HR < 40 bpm) and APO",
+        "Runs of VT or ventricular escape rhythms",
+        "HR < 20 bpm"
+      ]},
+      { type: "action", text: "Atropine 600 mcg IV" },
+      { type: "action", text: "Repeat 1200 mcg after 3–5 minutes if inadequate response" },
+      { type: "header", text: "Adequate response" },
+      { type: "action", text: "Continue Atropine 600 mcg IV at 3–5 minute intervals as required (max. 3000 mcg)" },
+      { type: "note", items: ["Manage as per Inadequate response if patient deteriorates"] },
+      { type: "header", text: "Inadequate response (after Atropine 1800 mcg IV)" },
+      { type: "action", text: "Adrenaline infusion 5 mcg/minute — increase to 10 mcg/minute if required" },
+      { type: "note", items: ["Adrenaline infusion: Adrenaline 3 mg added to make 50 mL with D5W or Normal Saline; 1 mL/hr = 1 mcg/min"] },
+      { type: "header", text: "Extremely poor perfusion (altered conscious state/unconscious AND HR < 50 AND BP < 60)" },
+      { type: "mica", text: "Transthoracic pacing — Midazolam 1–2 mg IV and Fentanyl 50 mcg IV as required; commence pacing at 30 mA and a heart rate of 70/min" }
+    ],
+    notes: "Atropine unlikely to be effective in Mobitz II or complete heart block but should still be given. Max total Atropine 3000 mcg. Titrate Adrenaline to response — if no HR increase after 10 mcg/min, commence pacing. Atropine ineffective and potentially harmful post cardiac transplant."
+  },
+
+  // -----------------------------------------------------------
+  // A0403 Tachycardia (Narrow Complex)
+  // -----------------------------------------------------------
+  tachycardia_narrow: {
+    cpg: "A0403",
+    title: "Tachycardia (Narrow complex)",
+    careObjectives: [
+      "Rapid termination of life threatening arrhythmias and transport to a facility capable of definitive care.",
+      "Rapid transport to facilitate the treatment of the arrhythmia where treatment is not available in the prehospital environment.",
+      "Early termination of stable SVT where possible, following ECG capture."
+    ],
+    management: [
+      { type: "note", items: ["Status: QRS < 0.12 sec"] },
+      { type: "stop", text: "If patient loses cardiac output at any stage: manage with synchronised cardioversion in addition to CPG A0201 Cardiac Arrest (MICA only). Sinus tachycardia should be directed at the underlying cause and not treated using this CPG." },
+      { type: "header", text: "Stable — SVT (AVNRT or AVRT) — Exclude AF and atrial flutter" },
+      { type: "note", items: ["SBP ≥ 90 mmHg"] },
+      { type: "action", text: "Record 12-lead ECG prior to commencing Mx" },
+      { type: "action", text: "Modified Valsalva or Standard Valsalva (if manual handling or environmental concern) — repeat x2 at 2 minute intervals (max. 3 attempts)" },
+      { type: "note", items: ["Modified Valsalva: (1) Position semi-recumbent 45°; (2) Forced expiration; (3) Immediately lay flat and raise legs to 45° for 15 seconds; (4) Return to semi-recumbent. Standard Valsalva: (1) Position supine; (2) Forced expiration (~40 mmHg, blow into 10 mL syringe for 15 seconds)"] },
+      { type: "note", items: ["Valsalva reserved for patients with SBP ≥ 90 mmHg. 12-lead ECG should be recorded prior to Mx unless patient requires immediate treatment."] },
+      { type: "action", text: "SBP < 90 mmHg or no reversion with Valsalva: Adenosine 6 mg IV rapid bolus with Normal Saline flush via large proximal vein" },
+      { type: "action", text: "Adenosine 12 mg IV if no reversion after 2 minutes" },
+      { type: "action", text: "Adenosine 12 mg IV if no reversion after a further 2 minutes" },
+      { type: "header", text: "Stable — Other rhythms (AF, atrial flutter, multifocal atrial tachycardia)" },
+      { type: "action", text: "Pain relief as per CPG A0501 Pain Relief" },
+      { type: "header", text: "Unstable and rapidly deteriorating" },
+      { type: "mica", text: "Synchronised cardioversion: Midazolam 1–2 mg IV and Fentanyl 50 mcg IV as required; DCCS 150 J; repeat once if required; if unsuccessful change pads to anterior-posterior vector and DCCS 200 J" },
+      { type: "header", text: "VVED referral criteria (all of)" },
+      { type: "action", text: "Reversion to sinus rhythm, stable vital signs, no red flags remain, no paramedic concern — paramedic-initiated VVED referral; transmit 12-lead ECG to VVED" }
+    ],
+    notes: "Adenosine via large proximal vein followed by Normal Saline flush. AF/SVT deteriorating to cardiac arrest: synchronised cardioversion 200 J. A 12-lead ECG should be recorded prior to Mx."
+  },
+
+  // -----------------------------------------------------------
+  // A0404 Tachycardia (Broad Complex)
+  // -----------------------------------------------------------
+  tachycardia_broad: {
+    cpg: "A0404",
+    title: "Tachycardia (Broad complex)",
+    careObjectives: [
+      "Rapid termination of life threatening arrhythmias and transport to a facility capable of definitive care.",
+      "Rapid transport to facilitate the treatment of the arrhythmia where treatment is not available in the prehospital environment."
+    ],
+    management: [
+      { type: "note", items: ["Status: QRS ≥ 0.12 sec. Treat as VT if uncertain."] },
+      { type: "stop", text: "If patient loses cardiac output at any stage: manage as per CPG A0201 Cardiac Arrest" },
+      { type: "header", text: "Stable: VT or unclear" },
+      { type: "stop", text: "Only dilute Amiodarone with D5W. Do not administer Amiodarone if suspected TCA toxicity (Mx as per CPG A0723) or if VT follows Ondansetron administration." },
+      { type: "mica", text: "Amiodarone infusion 5 mg/kg IV (max. 300 mg) over 20 minutes once only" },
+      { type: "note", items: ["Manage as per Unstable and rapidly deteriorating if patient deteriorates"] },
+      { type: "header", text: "Unstable and rapidly deteriorating" },
+      { type: "mica", text: "Synchronised cardioversion: Midazolam 1–2 mg IV and Fentanyl 50 mcg IV as required; DCCS 150 J; repeat once if required; if unsuccessful change pads to anterior-posterior vector and DCCS 200 J" },
+      { type: "header", text: "No reversion OR reversion to narrow complex rhythm" },
+      { type: "action", text: "Amiodarone infusion as per Stable (if not already established)" },
+      { type: "note", items: ["Other rhythms (e.g. slow wide complex): Rx as per appropriate CPG"] }
+    ],
+    notes: "VT requiring management: lasting > 30 sec, rate > 100, QRS > 0.12 sec, regular, AV dissociation or absent P waves. Amiodarone: D5W dilution only. Do not give if TCA toxicity or post-Ondansetron VT."
+  },
+
+  // -----------------------------------------------------------
+  // A0406 Cardiogenic Pulmonary Oedema
+  // -----------------------------------------------------------
+  pulmonary_oedema: {
+    cpg: "A0406",
+    title: "Cardiogenic Pulmonary Oedema",
+    careObjectives: [
+      "Oxygen therapy if hypoxic.",
+      "NIV for management of respiratory failure.",
+      "Reduce preload and afterload with nitrates to improve cardiac function and reduce pulmonary congestion.",
+      "Furosemide as a second line treatment for management of fluid overload.",
+      "Adrenaline infusion for management of cardiogenic shock."
+    ],
+    management: [
+      { type: "assess", items: [
+        "Acute vs chronic symptoms",
+        "Comorbidities / differential diagnosis",
+        "Identify patients with palliative care needs"
+      ]},
+      { type: "header", text: "Short of breath and crackles" },
+      { type: "action", text: "Oxygen as per CPG A0001 Oxygen Therapy" },
+      { type: "header", text: "Adequate perfusion / hypertensive" },
+      { type: "action", text: "GTN 600 mcg S/L if SBP > 100 mmHg OR GTN 300 mcg S/L if no previous administration, borderline BP or small (≤ 60 kg), elderly or frail patients" },
+      { type: "action", text: "Repeat dose at 5 minute intervals titrated to pain or side effects (no max)" },
+      { type: "action", text: "GTN patch 50 mg (0.4 mg/hr) upper torso/arms — remove patch if BP < 100 mmHg" },
+      { type: "note", items: [
+        "Request MICA if: severe respiratory distress, OR moderate respiratory distress with limited or no improvement after 2 doses of GTN"
+      ]},
+      { type: "header", text: "Signs of fluid overload" },
+      { type: "action", text: "Furosemide 20–40 mg IV or patient's daily dose IV as a single dose (max 80 mg) — administer en-route to hospital once other treatment is established" },
+      { type: "header", text: "Inadequate perfusion / shock" },
+      { type: "action", text: "Request MICA" },
+      { type: "action", text: "Consider adrenaline infusion as per CPG A0407 Inadequate Perfusion (Cardiogenic)" },
+      { type: "header", text: "Severe APO" },
+      { type: "note", items: ["Severe respiratory distress, full field crackles, persistent hypoxia or no improvement from initial management"] },
+      { type: "action", text: "Request MICA" },
+      { type: "mica", text: "CPAP 10 cm H₂O — consider initiating CPAP prior to extrication" },
+      { type: "mica", text: "BiPAP NIV: IPAP 10 cmH₂O, EPAP 5 cmH₂O, FiO₂ 1.0 — increase IPAP to 15 cmH₂O and EPAP to 10 cmH₂O if no improvement; consult AV Medical Advisor via AV Clinician for further adjustments if no improvement; titrate FiO₂ as per CPG A0001 once treatment established and effective" },
+      { type: "mica", text: "GTN infusion (patient on NIV with SBP > 140 mmHg without vasopressors and limited/no clinical improvement): start 10 mcg/min (2 mL/hr); increase 10 mcg/min at 5 min intervals; target SBP 120–140 mmHg; max 200 mcg/min (40 mL/hr); cease if SBP < 100 mmHg — reassess BP at least every 5 minutes during infusion and titrate to response" }
+    ],
+    notes: "Patients ≥ 16 years. Furosemide is second line — establish nitrates first. GTN infusion only for severe APO on NIV with persistent hypertension. CPAP/BiPAP MICA only."
+  },
+
+  // -----------------------------------------------------------
+  // A0407 Inadequate Perfusion (Cardiogenic)
+  // -----------------------------------------------------------
+  inadequate_perfusion_cardiogenic: {
+    cpg: "A0407",
+    title: "Inadequate Perfusion (Cardiogenic)",
+    careObjectives: [
+      "To achieve a perfusion target appropriate to the patient's condition."
+    ],
+    management: [
+      { type: "stop", text: "Manage other causes first — e.g. arrhythmia, pain, hypovolaemia. Stop and consider PANDA enrolment — use metaraminol while assessing eligibility criteria." },
+      { type: "assess", items: ["Signs of pulmonary oedema (crackles)"] },
+      { type: "header", text: "Crackles present" },
+      { type: "action", text: "Adrenaline infusion as per Inadequate or extremely poor perfusion below" },
+      { type: "header", text: "No crackles" },
+      { type: "action", text: "Normal Saline 250 mL IV — repeat 250 mL IV if chest clear and inadequate or extremely poor perfusion persists" },
+      { type: "header", text: "Inadequate or extremely poor perfusion persists" },
+      { type: "action", text: "Adrenaline infusion (3 mg/50 mL D5W or Normal Saline) commencing at 5 mcg/min (5 mL/hr) — titrate to achieve systolic BP 100 mmHg (max 250 mcg/min); reassess patient and delivery system prior to increasing rate beyond 50 mcg/min" },
+      { type: "action", text: "If syringe pump unavailable: Adrenaline 10 mcg IV as required; if poor response Adrenaline 50–100 mcg IV as required" },
+      { type: "action", text: "If chest clear continue Normal Saline 250 mL IV boluses up to 20 mL/kg" }
+    ],
+    notes: "Any IV infusions must be clearly labelled with name, dose, and dilution. Silent MI or cardiomyopathy may present without chest pain. PE causing cardiogenic shock is managed under this CPG. Titrate adrenaline carefully — max 250 mcg/min."
+  },
+
+  // -----------------------------------------------------------
+  // A0408 STEMI Management
+  // -----------------------------------------------------------
+  stemi_management: {
+    cpg: "A0408",
+    title: "STEMI Management",
+    careObjectives: [
+      "Rapid reperfusion via PCI (preferred) or prehospital thrombolysis (PHT) where PCI is not achievable within 90 minutes.",
+      "Thrombolysis only by PHT-endorsed and equipped paramedics following AV Clinician consultation."
+    ],
+    management: [
+      { type: "note", items: ["STEMI identified or monitor identifies acute infarct"] },
+      { type: "action", text: "Transmit ECG" },
+      { type: "action", text: "Request MICA (ALS)" },
+      { type: "action", text: "Treat as per CPG A0401 Acute Coronary Syndromes" },
+      { type: "action", text: "Apply pads" },
+      { type: "assess", items: ["Time to PCI", "Inclusion criteria", "Exclusion criteria", "Relative contraindications"] },
+      { type: "header", text: "Symptoms > 12 hours" },
+      { type: "action", text: "Continue Mx as per CPG A0401 Acute Coronary Syndromes — transport with notification" },
+      { type: "header", text: "Urgent transport to PCI facility" },
+      { type: "note", items: ["Time to PCI < 90 minutes (PHT endorsed and equipped paramedic) OR does not meet all inclusion criteria OR meets one or more exclusion criteria"] },
+      { type: "stop", text: "Paramedics should consult AV Clinician if any uncertainty regarding diagnosis of STEMI or thrombolysis. ALS paramedics MUST consult AV Clinician prior to administering Heparin. Do not delay transport." },
+      { type: "action", text: "Continue Mx as per CPG A0401 Acute Coronary Syndromes" },
+      { type: "action", text: "Transport with hospital notification" },
+      { type: "action", text: "Heparin IV bolus 4000 IU — repeat Heparin IV bolus 1000 IU at 1 hour intervals" },
+      { type: "action", text: "Capture a repeat ECG 30 minutes prior to arrival and transmit to receiving hospital with notification" },
+      { type: "header", text: "Prehospital thrombolysis (PHT)" },
+      { type: "note", items: ["Time to PCI > 90 minutes (PHT endorsed and equipped paramedic) AND all inclusion criteria met AND no exclusion criteria met"] },
+      { type: "stop", text: "ALS paramedics MUST consult AV Clinician prior to progressing to thrombolysis in all cases. MICA paramedics must consult AV Clinician where any relative C/I are present." },
+      { type: "mica", text: "IV access x2, Normal Saline TKVO" },
+      { type: "mica", text: "Complete checklist and read information statement to patient" },
+      { type: "mica", text: "Tenecteplase IV bolus (weight-based — see table): < 60 kg: 30 mg (6,000 IU, 6 mL); 60–69 kg: 35 mg (7,000 IU, 7 mL); 70–79 kg: 40 mg (8,000 IU, 8 mL); 80–89 kg: 45 mg (9,000 IU, 9 mL); ≥ 90 kg: 50 mg (10,000 IU, 10 mL) — dose MUST be halved for patients ≥ 75 years following consultation" },
+      { type: "mica", text: "Heparin IV bolus 4000 IU — repeat Heparin IV bolus 1000 IU at 1 hour intervals" },
+      { type: "mica", text: "Transport with hospital notification — transmit 12-lead ECG to receiving hospital" },
+      { type: "mica", text: "Capture a repeat ECG 30 minutes prior to arrival and transmit to receiving hospital with notification" }
+    ],
+    notes: "PHT endorsed and equipped paramedics only. Tenecteplase dose halved for ≥ 75 years. ALS must consult AV Clinician before Heparin. MICA must consult before thrombolysis. Do not delay transport for PCI pathway."
+  },
+
+  // -----------------------------------------------------------
+  // A0410 Hypertension
+  // -----------------------------------------------------------
+  hypertension: {
+    cpg: "A0410",
+    title: "Hypertension",
+    careObjectives: [
+      "Identify patients suffering from hypertension and the severity.",
+      "Symptomatic management as required.",
+      "Plan care pathway appropriate to patient's condition and risk profile."
+    ],
+    management: [
+      { type: "assess", items: [
+        "History and physical examination",
+        "ECG",
+        "Pregnancy/post-partum status",
+        "Competing medical conditions or significant traumatic injury",
+        "Signs and symptoms of end-organ dysfunction: severe headache, altered level of consciousness, seizure, chest pain, ischaemic ECG, dyspnoea, pulmonary oedema, acute renal failure, anuria"
+      ]},
+      { type: "header", text: "Mild to moderate hypertension" },
+      { type: "note", items: ["Asymptomatic, BP < 180/110 mmHg"] },
+      { type: "action", text: "Self-care advice" },
+      { type: "action", text: "Safety netting" },
+      { type: "action", text: "GP referral when next available (consider PPCC if delays to regular GP appointment)" },
+      { type: "header", text: "Severe hypertension" },
+      { type: "note", items: ["May have signs or symptoms but not of end-organ dysfunction, BP 180–220/110–140 mmHg"] },
+      { type: "action", text: "Symptom relief if required" },
+      { type: "action", text: "VVED referral for potential community management" },
+      { type: "header", text: "Hypertensive emergency" },
+      { type: "note", items: ["Signs and/or symptoms of end-organ dysfunction, BP generally > 220/140 mmHg but may be lower"] },
+      { type: "action", text: "Transport" },
+      { type: "action", text: "Manage symptoms as per appropriate CPG: CPG A0401 Acute Coronary Syndrome, CPG A0406 Pulmonary Oedema, CPG A0502 Headache, CPG A0711 Suspected Stroke or TIA" }
+    ],
+    notes: "Patients ≥ 16 years. Pregnant/post-partum patients excluded — refer to CPG M0202 Pre-Eclampsia/Eclampsia. Hypertensive emergency defined by end-organ dysfunction, not BP alone. Asymptomatic hypertension generally safe to manage in community."
   }
 
 };
