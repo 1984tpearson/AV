@@ -408,11 +408,15 @@ body.snav-active #content { padding-left: 60px; }
 .modal-submit-btn:disabled { background: #ccc; cursor: not-allowed; }
 .modal-submit-btn:active:not(:disabled) { opacity: 0.88; }
 #ai-status { margin-top: 12px; padding: 12px 14px; border-radius: 8px; font-size: 13px; display: none; align-items: center; gap: 10px; }
-#ai-status.loading { background: var(--blue-light); color: var(--blue); display: flex; }
+#ai-status.loading { background: var(--blue-light); color: var(--blue); display: flex; border: 1px solid var(--blue); font-weight: 600; font-size: 14px; padding: 14px 16px; }
 #ai-status.error { background: var(--red-light); color: var(--red); display: block; }
 #ai-status.success { background: var(--green-light); color: var(--green); display: block; }
-.ai-spinner { width: 18px; height: 18px; border: 3px solid rgba(46,134,193,0.25); border-top-color: var(--blue); border-radius: 50%; animation: spin 0.8s linear infinite; flex-shrink: 0; }
+.ai-spinner { width: 22px; height: 22px; border: 3px solid rgba(46,134,193,0.25); border-top-color: var(--blue); border-radius: 50%; animation: spin 0.8s linear infinite; flex-shrink: 0; }
 @keyframes spin { to { transform: rotate(360deg); } }
+@keyframes dotPulse { 0%,80%,100%{opacity:0} 40%{opacity:1} }
+.dot-pulse span { animation: dotPulse 1.4s infinite ease-in-out both; }
+.dot-pulse span:nth-child(2) { animation-delay: 0.2s; }
+.dot-pulse span:nth-child(3) { animation-delay: 0.4s; }
 .save-scenario-bar { background: var(--green-light); border: 1px solid #A9DFBF; border-radius: 8px; padding: 12px 14px; margin-top: 14px; display: none; flex-direction: column; gap: 8px; }
 .save-scenario-bar.visible { display: flex; }
 .save-scenario-bar p { font-size: 12px; color: var(--green); font-weight: 600; }
@@ -4458,10 +4462,9 @@ async function generateAIScenario() {
   const btn = document.getElementById('generate-scenario-btn');
   btn.disabled = true;
   const origLabel = btn.textContent;
-  btn.textContent = 'Generating…';
-  // (save bar removed — auto-save on generation)
+  btn.innerHTML = 'Generating<span class="dot-pulse"><span>.</span><span>.</span><span>.</span></span>';
   lastAIScenario = null;
-  showAIStatus('loading', '✦ Generating scenario… this may take 15–30 seconds.');
+  showAIStatus('loading', '✦ Generating scenario with Sonnet AI — this usually takes 15–20 seconds…');
 
   // Guard: check CPG package data is loaded
   if (typeof CPG_PACKAGES === 'undefined') {
@@ -4562,7 +4565,7 @@ ${SCENARIO_JSON_TEMPLATE.replace('CAT', category).replace('SUB', subcategory)}`;
     const count = storedDate === today ? storedCount : 0;
     if (count >= 5) {
       showAIStatus('error', '⚠️ You have used all 5 AI generations for today. Limit resets at midnight.');
-      btn.textContent = origLabel; btn.disabled = false; return;
+      btn.innerHTML = origLabel; btn.disabled = false; return;
     }
   }
 
@@ -4606,7 +4609,7 @@ ${SCENARIO_JSON_TEMPLATE.replace('CAT', category).replace('SUB', subcategory)}`;
       localStorage.setItem('av_ai_daily_count', String(count + 1));
     }
     updateAIUsageIndicator();
-    btn.textContent = origLabel;
+    btn.innerHTML = origLabel;
     btn.disabled = false;
     // Rebuild sidebar so the scenario is findable, then auto-load and auto-save
     buildSidebar(getAllScenarios());
@@ -4615,7 +4618,7 @@ ${SCENARIO_JSON_TEMPLATE.replace('CAT', category).replace('SUB', subcategory)}`;
     showToast('✦ Scenario generated — saving to library…');
     // Auto-save in background
     autoSaveAIScenario(scenario);
-  } catch(e) { showAIStatus('error', `✕ Error: ${e.message}`); btn.textContent = origLabel; btn.disabled = false; }
+  } catch(e) { showAIStatus('error', `✕ Error: ${e.message}`); btn.innerHTML = origLabel; btn.disabled = false; }
 }
 
 async function generateWithAnthropic(apiKey, systemPrompt, userPrompt) {
