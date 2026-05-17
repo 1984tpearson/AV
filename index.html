@@ -2469,6 +2469,7 @@ function renderScenario(s) {
   </div>
   <div style="display:flex;flex-direction:column;align-items:flex-end;gap:8px;flex-shrink:0">
     <button onclick="openEditModal()" style="background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.3);color:white;padding:7px 14px;border-radius:7px;cursor:pointer;font-size:12px;font-weight:700;white-space:nowrap">✏️ Edit Scenario</button>
+    <button onclick="openPatientSessionModal()" style="background:rgba(39,131,58,0.7);border:1px solid rgba(255,255,255,0.3);color:white;padding:7px 14px;border-radius:7px;cursor:pointer;font-size:12px;font-weight:700;white-space:nowrap">📱 Patient View</button>
   </div>
 </div>
 <div class="scenario-body">
@@ -5179,6 +5180,134 @@ function openEditModal() {
 function closeEditModal() { document.getElementById('edit-modal').classList.remove('open'); }
 document.getElementById('edit-modal').addEventListener('click', e => { if(e.target===document.getElementById('edit-modal')) closeEditModal(); });
 
+// ============================================================
+// PATIENT SESSION
+// ============================================================
+let _patientSessionCode = null;
+
+const PATIENT_VITALS = [
+  { key: 'HR',      label: 'Heart Rate' },
+  { key: 'BP',      label: 'Blood Pressure' },
+  { key: 'SpO2',    label: 'SpO₂' },
+  { key: 'RR',      label: 'Resp Rate' },
+  { key: 'GCS',     label: 'GCS' },
+  { key: 'Temp',    label: 'Temperature' },
+  { key: 'BGL',     label: 'BGL' },
+  { key: 'Rhythm',  label: 'Rhythm' },
+  { key: 'Weight',  label: 'Weight' },
+  { key: 'EtCO2',   label: 'EtCO₂' },
+  { key: 'Ketones', label: 'Ketones' },
+];
+
+function generateSessionCode() {
+  return Math.floor(1000 + Math.random() * 9000).toString();
+}
+
+async function openPatientSessionModal() {
+  if (!currentScenario) return;
+  const modal = document.getElementById('patient-session-modal');
+  modal.classList.add('open');
+  document.getElementById('psm-setup').style.display = 'none';
+  document.getElementById('psm-loading').style.display = 'block';
+  document.getElementById('psm-error').style.display = 'none';
+
+  try {
+    // Generate a unique session code
+    const code = generateSessionCode();
+    _patientSessionCode = code;
+
+    const { uuid } = getIdentity();
+    await sbFetch('active_sessions', {
+      method: 'POST',
+      prefer: 'return=minimal',
+      body: JSON.stringify({
+        session_code: code,
+        scenario_id: String(currentScenario.id),
+        assessor_uuid: uuid,
+        revealed: {}
+      })
+    });
+
+    // Build QR code and reveal grid
+    document.getElementById('psm-code').textContent = code;
+    const patientUrl = `https://1984tpearson.github.io/AV/patient.html?session=${code}`;
+
+    // Generate QR using free QR API
+    const qrDiv = document.getElementById('psm-qr');
+    qrDiv.innerHTML = `<img src="https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(patientUrl)}" width="180" height="180" alt="QR Code">`;
+
+    // Build reveal toggles
+    buildRevealGrid({});
+
+    document.getElementById('psm-loading').style.display = 'none';
+    document.getElementById('psm-setup').style.display = 'block';
+
+  } catch(e) {
+    document.getElementById('psm-loading').style.display = 'none';
+    document.getElementById('psm-setup').style.display = 'block';
+    const errEl = document.getElementById('psm-error');
+    errEl.textContent = 'Failed to start session: ' + e.message;
+    errEl.style.display = 'block';
+  }
+}
+
+function buildRevealGrid(revealed) {
+  const s = currentScenario;
+  const grid = document.getElementById('psm-reveal-grid');
+  grid.innerHTML = '';
+  PATIENT_VITALS.forEach(({ key, label }) => {
+    const val = s.vitals && s.vitals[key];
+    // Skip vitals with no value
+    let displayVal = '';
+    if (!val) return;
+    if (key === 'GCS' && typeof val === 'object') {
+      displayVal = `${val.total} (E${val.E}V${val.V}M${val.M})`;
+    } else {
+      displayVal = String(val);
+    }
+    const isRevealed = !!revealed[key];
+    const btn = document.createElement('button');
+    btn.id = `reveal-btn-${key}`;
+    btn.style.cssText = `padding:10px 12px;border-radius:8px;border:2px solid ${isRevealed ? 'var(--green)' : 'var(--border)'};background:${isRevealed ? '#EAF7EE' : 'white'};cursor:pointer;text-align:left;font-size:12px;transition:all 0.15s`;
+    btn.innerHTML = `<div style="font-weight:700;color:${isRevealed ? 'var(--green)' : 'var(--grey)'}">${isRevealed ? '👁 ' : '🚫 '}${label}</div><div style="font-size:11px;color:#666;margin-top:2px">${displayVal}</div>`;
+    btn.onclick = () => toggleReveal(key, !isRevealed);
+    grid.appendChild(btn);
+  });
+}
+
+async function toggleReveal(key, reveal) {
+  if (!_patientSessionCode) return;
+  try {
+    // Fetch current revealed state
+    const rows = await sbFetch(`active_sessions?session_code=eq.${_patientSessionCode}&select=revealed`);
+    const current = (rows && rows[0] && rows[0].revealed) || {};
+    if (reveal) current[key] = true;
+    else delete current[key];
+
+    await sbFetch(`active_sessions?session_code=eq.${_patientSessionCode}`, {
+      method: 'PATCH',
+      prefer: 'return=minimal',
+      body: JSON.stringify({ revealed: current })
+    });
+
+    // Update button UI
+    buildRevealGrid(current);
+  } catch(e) {
+    showToast('⚠️ Failed to update: ' + e.message);
+  }
+}
+
+function closePatientSessionModal() {
+  document.getElementById('patient-session-modal').classList.remove('open');
+  // Don't delete the session — student may still be viewing
+  _patientSessionCode = null;
+}
+
+document.getElementById('patient-session-modal').addEventListener('click', e => {
+  if (e.target === document.getElementById('patient-session-modal')) closePatientSessionModal();
+});
+
+
 function addRepItemTo(listId, type, value='') {
   const list = document.getElementById(listId);
   const item = document.createElement('div');
@@ -5674,5 +5803,34 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape') closeECGLigh
     <button id="sticky-ecg-btn" onclick="openStickyECG()">📈 ECG</button>
   </div>
 </div>
+
+<!-- PATIENT SESSION MODAL -->
+<div class="modal-overlay" id="patient-session-modal">
+  <div class="modal-box" style="max-width:480px;width:100%">
+    <div class="modal-header" style="background:#1C6B3A">
+      <h2>📱 Patient View</h2>
+      <button class="modal-close" onclick="closePatientSessionModal()">✕</button>
+    </div>
+    <div style="padding:20px">
+      <div id="psm-setup">
+        <p style="font-size:13px;color:var(--grey);margin-bottom:16px">Student opens the Patient View on their iPad and scans this QR code to sync to this scenario.</p>
+        <div style="text-align:center;margin-bottom:16px">
+          <div id="psm-qr" style="display:inline-block;padding:12px;background:white;border-radius:8px;border:1px solid var(--border)"></div>
+          <div style="margin-top:8px;font-size:12px;color:var(--grey)">Session code: <strong id="psm-code" style="font-size:16px;letter-spacing:2px;color:var(--navy)"></strong></div>
+        </div>
+        <hr style="border:none;border-top:1px solid var(--border);margin:16px 0">
+        <div style="font-size:12px;font-weight:700;color:var(--grey);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px">Reveal Vitals</div>
+        <div id="psm-reveal-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:8px"></div>
+        <div style="margin-top:16px;font-size:11px;color:var(--grey);font-style:italic">Tap each vital to reveal it on the student's screen. Tap again to hide.</div>
+      </div>
+      <div id="psm-loading" style="text-align:center;padding:40px 0;display:none">
+        <div style="font-size:24px;margin-bottom:8px">⏳</div>
+        <div style="font-size:13px;color:var(--grey)">Starting session…</div>
+      </div>
+      <div id="psm-error" style="display:none;background:#FEE;border:1px solid #F99;border-radius:8px;padding:12px;font-size:13px;color:#C00;margin-top:12px"></div>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>
