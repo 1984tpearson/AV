@@ -1604,6 +1604,14 @@ async function initApp() {
       hb.addEventListener('animationend', () => hb.classList.remove('pulse'), { once: true });
     }
   }, 800);
+
+  // Restore last open scenario if refreshed mid-session
+  const lastId = localStorage.getItem('av_last_scenario');
+  if (lastId) {
+    const all = getAllScenarios();
+    const s = all.find(x => String(x.id) === lastId);
+    if (s) loadScenario(lastId);
+  }
 }
 
 // Get all scenarios — cloud cache if available, otherwise local builtin + custom merge
@@ -1805,6 +1813,12 @@ function showScreen(name) {
   if (name !== 'scenario-view') { hideStickyBar(); hideScenarioNav(); }
   else { setTimeout(buildScenarioNav, 100); }
   window.scrollTo(0, 0);
+  // Persist current screen
+  if (name === 'scenario-view' && currentScenario) {
+    localStorage.setItem('av_last_scenario', String(currentScenario.id));
+  } else if (name === 'home-screen') {
+    localStorage.removeItem('av_last_scenario');
+  }
 }
 
 function goHome() {
@@ -5867,26 +5881,26 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape') closeECGLigh
 
 <!-- PATIENT SESSION MODAL -->
 <div class="modal-overlay" id="patient-session-modal">
-  <div class="modal-box" style="max-width:380px;width:100%">
+  <div class="modal-box" style="max-width:380px;width:100%;background:#1a2d4a;border:1px solid rgba(255,255,255,0.12);border-radius:14px;box-shadow:0 24px 64px rgba(0,0,0,0.5);overflow:hidden">
     <div class="modal-header" style="background:#1C6B3A">
       <h2>📡 Monitor View</h2>
       <button class="modal-close" onclick="closePatientSessionModal()">✕</button>
     </div>
     <div style="padding:20px">
       <div id="psm-setup" style="display:none">
-        <p style="font-size:13px;color:var(--grey);margin-bottom:16px;text-align:center">Student scans this code on their iPad to sync to this scenario.</p>
+        <p style="font-size:13px;color:rgba(255,255,255,0.6);margin-bottom:16px;text-align:center">Scan with a second device to open the patient monitor screen.</p>
         <div style="text-align:center;margin-bottom:12px">
-          <div id="psm-qr" style="display:inline-block;padding:12px;background:white;border-radius:8px;border:1px solid var(--border)"></div>
-          <div style="margin-top:10px;font-size:12px;color:var(--grey)">Session code</div>
-          <div id="psm-code" style="font-size:32px;font-weight:900;letter-spacing:6px;color:var(--navy);margin-top:2px"></div>
+          <div id="psm-qr" style="display:inline-block;padding:12px;background:white;border-radius:8px;border:1px solid rgba(255,255,255,0.15)"></div>
+          <div style="margin-top:10px;font-size:12px;color:rgba(255,255,255,0.5)">Session code</div>
+          <div id="psm-code" style="font-size:32px;font-weight:900;letter-spacing:6px;color:#7dd4a8;margin-top:2px"></div>
         </div>
-        <p style="font-size:11px;color:var(--grey);text-align:center;font-style:italic">Use the reveal buttons throughout the scenario to push vitals to the student's screen.</p>
+        <p style="font-size:11px;color:rgba(255,255,255,0.4);text-align:center;font-style:italic">Vital signs appear on the monitor screen as assessment items are marked complete.</p>
       </div>
       <div id="psm-loading" style="text-align:center;padding:40px 0">
         <div style="font-size:24px;margin-bottom:8px">⏳</div>
-        <div style="font-size:13px;color:var(--grey)">Starting session…</div>
+        <div style="font-size:13px;color:rgba(255,255,255,0.5)">Starting session…</div>
       </div>
-      <div id="psm-error" style="display:none;background:#FEE;border:1px solid #F99;border-radius:8px;padding:12px;font-size:13px;color:#C00;margin-top:12px"></div>
+      <div id="psm-error" style="display:none;background:rgba(200,50,50,0.2);border:1px solid rgba(200,50,50,0.4);border-radius:8px;padding:12px;font-size:13px;color:#ff9999;margin-top:12px"></div>
     </div>
   </div>
 </div>
