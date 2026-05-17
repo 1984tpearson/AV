@@ -1,0 +1,977 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>12-Lead ECG Monitor</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700&display=swap');
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+  body{background:#060606;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;min-height:100vh;font-family:'Share Tech Mono',monospace;color:#00ff88;padding:16px;}
+  .monitor{width:1100px;background:#050f08;border:1px solid #003318;border-radius:6px;padding:14px 18px 14px;box-shadow:0 0 0 1px #001a0c,0 0 60px rgba(0,255,100,0.04),inset 0 1px 0 rgba(0,255,100,0.04);position:relative;}
+  .monitor::before{content:'';position:absolute;inset:0;background:repeating-linear-gradient(to bottom,transparent,transparent 3px,rgba(0,0,0,0.06) 3px,rgba(0,0,0,0.06) 4px);pointer-events:none;z-index:10;border-radius:6px;}
+  .header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;}
+  .header-left{display:flex;flex-direction:column;gap:3px;}
+  .title-label{font-family:'Orbitron',monospace;font-size:11px;letter-spacing:3px;color:#00cc66;opacity:0.7;}
+  .hr-block{text-align:right;}
+  .hr-label{font-size:9px;letter-spacing:2px;color:#00aa55;opacity:0.6;display:block;}
+  .hr-value{font-family:'Orbitron',monospace;font-size:32px;font-weight:700;color:#00ff88;line-height:1;text-shadow:0 0 14px rgba(0,255,136,0.45);}
+  .hr-unit{font-size:9px;color:#00aa55;opacity:0.6;letter-spacing:1px;}
+  .rhythm-name{font-family:'Orbitron',monospace;font-size:9px;letter-spacing:3px;color:#00ff88;opacity:0.75;text-align:right;margin-top:2px;text-shadow:0 0 8px rgba(0,255,136,0.3);min-height:13px;}
+
+  /* Grid of 12 lead canvases: 4 col x 3 row */
+  .leads-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:0;border:1px solid #002210;margin-bottom:0;}
+  .lead-cell{position:relative;border-right:1px solid #002210;border-bottom:1px solid #002210;}
+  .lead-cell:nth-child(4n){border-right:none;}
+  .lead-cell:nth-child(n+9){border-bottom:none;}
+  .lead-label-tag{position:absolute;top:3px;left:5px;font-size:9px;letter-spacing:1px;color:#00cc66;opacity:0.55;z-index:5;pointer-events:none;}
+  canvas.grid-c{position:absolute;top:0;left:0;z-index:1;background:#020a04;}
+  canvas.trace-c{position:absolute;top:0;left:0;z-index:2;background:transparent;}
+
+  /* Rhythm strip at bottom — full width */
+  .strip-wrapper{position:relative;border:1px solid #002210;border-top:none;margin-bottom:0;}
+  .strip-label{position:absolute;top:3px;left:5px;font-size:9px;letter-spacing:1px;color:#00cc66;opacity:0.55;z-index:5;pointer-events:none;}
+  canvas.strip-grid{position:absolute;top:0;left:0;z-index:1;background:#020a04;}
+  canvas.strip-trace{position:absolute;top:0;left:0;z-index:2;background:transparent;}
+
+  .controls{margin-top:12px;display:flex;flex-direction:column;gap:8px;}
+  .rhythm-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:5px;}
+  .btn{font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:1px;padding:5px 4px;background:transparent;border:1px solid #003a1a;color:#008844;cursor:pointer;border-radius:2px;transition:all .12s;text-align:center;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .btn:hover{background:rgba(0,255,100,0.06);border-color:#006633;color:#00cc66;}
+  .btn.active{background:rgba(0,255,100,0.10);border-color:#00cc66;color:#00ff88;box-shadow:0 0 10px rgba(0,255,100,0.18);}
+  .slider-row{display:flex;align-items:center;gap:12px;height:26px;}
+  .slider-label{font-size:9px;letter-spacing:2px;color:#00aa55;opacity:.7;white-space:nowrap;width:50px;}
+  .slider-bpm{font-family:'Orbitron',monospace;font-size:12px;color:#00ff88;width:58px;text-align:right;white-space:nowrap;}
+  input[type=range]{-webkit-appearance:none;flex:1;height:3px;background:#003318;border-radius:2px;outline:none;cursor:pointer;}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;height:13px;border-radius:50%;background:#00ff88;cursor:pointer;box-shadow:0 0 6px rgba(0,255,136,0.5);}
+  input[type=range]:disabled{opacity:.2;cursor:default;}
+  input[type=range]:disabled::-webkit-slider-thumb{cursor:default;}
+  .slider-note{font-size:9px;color:#005522;letter-spacing:1px;white-space:nowrap;width:180px;text-align:right;}
+  .stemi-btn{border-color:#4a1500!important;color:#cc4400!important;}
+  .stemi-btn:hover{background:rgba(255,80,0,0.08)!important;border-color:#aa3300!important;color:#ff6622!important;}
+  .stemi-btn.active{background:rgba(255,80,0,0.14)!important;border-color:#ff5500!important;color:#ff7744!important;box-shadow:0 0 10px rgba(255,80,0,0.25)!important;}
+  .footer{display:flex;justify-content:space-between;margin-top:8px;font-size:9px;letter-spacing:2px;color:#003a1a;}
+</style>
+</head>
+<body>
+<div class="monitor">
+  <div class="header">
+    <div class="header-left">
+      <div class="title-label">12-LEAD ECG</div>
+    </div>
+    <div class="hr-block">
+      <span class="hr-label">HEART RATE</span>
+      <span class="hr-value" id="hrValue">72</span>
+      <span class="hr-unit"> BPM</span>
+      <div class="rhythm-name" id="rhythmName">SINUS RHYTHM</div>
+    </div>
+  </div>
+
+  <!-- 12 lead grid: I aVR V1 V4 / II aVL V2 V5 / III aVF V3 V6 -->
+  <div class="leads-grid" id="leadsGrid">
+    <!-- Cells injected by JS -->
+  </div>
+
+  <!-- Full-width rhythm strip: Lead II -->
+  <div class="strip-wrapper" id="stripWrapper">
+    <span class="strip-label">LEAD II — RHYTHM STRIP</span>
+  </div>
+
+  <div class="controls">
+    <div class="rhythm-grid">
+      <button class="btn active" id="btn-nsr"   onclick="setRhythm('nsr')">NSR</button>
+      <button class="btn"        id="btn-stach"  onclick="setRhythm('stach')">Sinus Tachy</button>
+      <button class="btn"        id="btn-sbrad"  onclick="setRhythm('sbrad')">Sinus Brady</button>
+      <button class="btn"        id="btn-svt"    onclick="setRhythm('svt')">SVT</button>
+      <button class="btn"        id="btn-af"     onclick="setRhythm('af')">Af</button>
+      <button class="btn"        id="btn-aflut"  onclick="setRhythm('aflut')">A Flutter</button>
+      <button class="btn"        id="btn-vt"     onclick="setRhythm('vt')">VT</button>
+      <button class="btn"        id="btn-vf"     onclick="setRhythm('vf')">VF</button>
+      <button class="btn"        id="btn-mob1"   onclick="setRhythm('mob1')">Mobitz I</button>
+      <button class="btn"        id="btn-mob2"   onclick="setRhythm('mob2')">Mobitz II</button>
+      <button class="btn"        id="btn-chb"    onclick="setRhythm('chb')">3° Block</button>
+      <button class="btn"        id="btn-asys"   onclick="setRhythm('asys')">Asystole</button>
+      <button class="btn"        id="btn-aivr"   onclick="setRhythm('aivr')">Idioventricular</button>
+    </div>
+    <div class="rhythm-grid" style="margin-top:4px;">
+      <button class="btn stemi-btn" id="btn-stemi-inf"  onclick="setRhythm('stemi-inf')" style="grid-column:span 1">STEMI — Inferior</button>
+      <button class="btn stemi-btn" id="btn-stemi-ant"  onclick="setRhythm('stemi-ant')" style="grid-column:span 1">STEMI — Anterior</button>
+      <button class="btn stemi-btn" id="btn-stemi-lat"  onclick="setRhythm('stemi-lat')" style="grid-column:span 1">STEMI — Lateral</button>
+      <button class="btn stemi-btn" id="btn-stemi-post" onclick="setRhythm('stemi-post')" style="grid-column:span 1">STEMI — Posterior</button>
+    </div>
+    <div class="slider-row">
+      <span class="slider-label">RATE</span>
+      <input type="range" id="hrSlider" min="60" max="100" value="72" oninput="onSlider(this.value)">
+      <span class="slider-bpm" id="sliderBpm">72 BPM</span>
+      <span class="slider-note" id="sliderNote"></span>
+    </div>
+  </div>
+  <div class="footer">
+    <span>25 MM/SEC</span><span>10 MM/MV</span><span>0.05–150 HZ</span>
+  </div>
+</div>
+
+<script>
+// =====================================================================
+// LAYOUT
+// Lead order: row1=[I,aVR,V1,V4], row2=[II,aVL,V2,V5], row3=[III,aVF,V3,V6]
+// rhythm strip = Lead II full width
+// =====================================================================
+const LEAD_LAYOUT = ['I','aVR','V1','V4','II','aVL','V2','V5','III','aVF','V3','V6'];
+const LEAD_H = 110;   // px height per lead cell
+const STRIP_H = 80;   // px height rhythm strip
+
+// Canvas width = monitor inner width minus padding
+// Monitor is 1100px, padding 18px each side => 1100-36=1064px
+// Grid: 4 cols, so each col = 1064/4 = 266px
+const MONITOR_W = 1064;
+const LEAD_W = Math.floor(MONITOR_W / 4);   // 266px
+const STRIP_W = MONITOR_W;
+
+// Timing
+// All canvases use the same real-time speed: 25mm/sec = STRIP_W/6000 px/ms
+const PX_PER_MS       = STRIP_W / 6000; // unified speed for all canvases
+const STRIP_PX_PER_MS = PX_PER_MS;      // strip same speed
+const SMALL_SQ_MS  = 40;
+const SMALL_SQ_PX  = SMALL_SQ_MS * PX_PER_MS;
+const BIG_SQ_PX    = SMALL_SQ_PX * 5;
+const STRIP_SMALL_PX = SMALL_SQ_PX;
+const STRIP_BIG_PX   = BIG_SQ_PX;
+
+// =====================================================================
+// BUILD DOM
+// =====================================================================
+const leadsGrid = document.getElementById('leadsGrid');
+const stripWrapper = document.getElementById('stripWrapper');
+stripWrapper.style.height = STRIP_H + 'px';
+stripWrapper.style.width = MONITOR_W + 'px';
+
+// Lead cells
+const leadCanvases = {}; // key: leadName -> {grid, trace}
+LEAD_LAYOUT.forEach(name => {
+  const cell = document.createElement('div');
+  cell.className = 'lead-cell';
+  cell.style.width  = LEAD_W + 'px';
+  cell.style.height = LEAD_H + 'px';
+
+  const tag = document.createElement('span');
+  tag.className = 'lead-label-tag';
+  tag.textContent = name;
+
+  const gc = document.createElement('canvas');
+  gc.className = 'grid-c';
+  gc.width = LEAD_W; gc.height = LEAD_H;
+
+  const tc = document.createElement('canvas');
+  tc.className = 'trace-c';
+  tc.width = LEAD_W; tc.height = LEAD_H;
+
+  cell.appendChild(gc); cell.appendChild(tc); cell.appendChild(tag);
+  leadsGrid.appendChild(cell);
+  leadCanvases[name] = { grid: gc, trace: tc };
+});
+
+// Strip canvases
+const stripGridC  = document.createElement('canvas');
+stripGridC.className  = 'strip-grid';
+stripGridC.width  = STRIP_W; stripGridC.height = STRIP_H;
+const stripTraceC = document.createElement('canvas');
+stripTraceC.className = 'strip-trace';
+stripTraceC.width = STRIP_W; stripTraceC.height = STRIP_H;
+stripWrapper.appendChild(stripGridC);
+stripWrapper.appendChild(stripTraceC);
+
+// =====================================================================
+// DRAW GRIDS (static, once)
+// =====================================================================
+function drawGrid(ctx, w, h, smallPx, bigPx, bg) {
+  ctx.fillStyle = bg || '#020a04';
+  ctx.fillRect(0,0,w,h);
+  ctx.strokeStyle = 'rgba(0,110,50,0.30)';
+  ctx.lineWidth = 0.5;
+  ctx.beginPath();
+  for(let x=0;x<=w;x+=smallPx){ctx.moveTo(x,0);ctx.lineTo(x,h);}
+  for(let y=0;y<=h;y+=smallPx){ctx.moveTo(0,y);ctx.lineTo(w,y);}
+  ctx.stroke();
+  ctx.strokeStyle = 'rgba(0,160,70,0.55)';
+  ctx.lineWidth = 1.0;
+  ctx.beginPath();
+  for(let x=0;x<=w;x+=bigPx){ctx.moveTo(x,0);ctx.lineTo(x,h);}
+  for(let y=0;y<=h;y+=bigPx){ctx.moveTo(0,y);ctx.lineTo(w,y);}
+  ctx.stroke();
+}
+
+LEAD_LAYOUT.forEach(name => {
+  drawGrid(leadCanvases[name].grid.getContext('2d'), LEAD_W, LEAD_H, SMALL_SQ_PX, BIG_SQ_PX);
+});
+drawGrid(stripGridC.getContext('2d'), STRIP_W, STRIP_H, STRIP_SMALL_PX, STRIP_BIG_PX);
+
+// =====================================================================
+// WAVEFORM MATH
+// =====================================================================
+function gauss(t,c,w,a){const d=(t-c)/w;return a*Math.exp(-d*d*4);}
+
+// =====================================================================
+// PER-LEAD MORPHOLOGY TABLES
+// Each entry is a function(ph) -> amplitude in normalised px units
+// Calibrated so Lead II matches the single-lead version (MID baseline)
+//
+// Organisation: for each rhythm we define a morph table keyed by lead name.
+// The table stores either a function or {fn, scale} where scale adjusts amplitude.
+// Leads not explicitly listed fall back to a sensible default.
+// =====================================================================
+
+// --- Shared building blocks ---
+
+// Standard sinus beat Lead II reference
+function sinusII(ph){
+  return gauss(ph,.13,.050,11)-gauss(ph,.268,.016,8)+gauss(ph,.300,.022,68)-gauss(ph,.332,.016,12)+gauss(ph,.52,.090,22);
+}
+// Invert and/or scale for other leads
+function makeSinus(pAmp,rAmp,sAmp,tAmp,tInvert){
+  return function(ph){
+    let y=gauss(ph,.13,.050,pAmp);   // P
+    y-=gauss(ph,.268,.016,rAmp*0.12); // Q
+    y+=gauss(ph,.300,.022,rAmp);      // R
+    y-=gauss(ph,.332,.016,sAmp);      // S
+    y+=(tInvert?-1:1)*gauss(ph,.52,.090,tAmp); // T
+    return y;
+  };
+}
+// aVR: globally inverted (away from heart vector)
+function avrSinus(ph){return -sinusII(ph)*0.7;}
+
+// Wide ventricular beat (VT/AIVR/CHB escape) Lead II reference
+function wideII(ph){
+  return gauss(ph,.16,.048,16)+gauss(ph,.28,.062,58)-gauss(ph,.40,.032,12)-gauss(ph,.48,.048,22)-gauss(ph,.68,.095,30);
+}
+// Narrow QRS (SVT) Lead II reference
+function narrowII(ph){
+  return -gauss(ph,.22,.014,6)+gauss(ph,.248,.019,70)-gauss(ph,.278,.017,16)+gauss(ph,.38,.062,14);
+}
+
+// VF sample (used identically across all leads, just scaled)
+// AF noise
+// Asystole
+
+// =====================================================================
+// MORPHOLOGY DEFINITIONS PER RHYTHM PER LEAD
+// Format: MORPH[rhythmKey][leadName] = function(ph) -> px deflection
+// Missing leads get a default of 0.5× Lead II
+// =====================================================================
+const MORPH = {};
+
+// --- Helper: build a full 12-lead sinus table ---
+// Params: [I, II, III, aVR, aVL, aVF, V1, V2, V3, V4, V5, V6]
+// Each entry: [pAmp, rAmp, sAmp, tAmp, tPolarity (+1 or -1)]
+function buildSinus(params){
+  const leads = ['I','II','III','aVR','aVL','aVF','V1','V2','V3','V4','V5','V6'];
+  const t = {};
+  leads.forEach((name,i)=>{
+    const [pA,rA,sA,tA,tP]=params[i];
+    t[name]=(ph)=>{
+      let y=gauss(ph,.13,.050,pA);
+      y-=gauss(ph,.268,.016,rA*.12);
+      y+=gauss(ph,.300,.022,rA);
+      y-=gauss(ph,.332,.016,sA);
+      y+=tP*gauss(ph,.52,.090,tA);
+      return y;
+    };
+  });
+  return t;
+}
+
+// Normal sinus rhythm / sinus tachy / sinus brady / PEA — same morphology, different rate
+// Lead morphology reference (normal axis ~60°):
+// I: upright P,R,T  II: tall upright (reference)  III: smaller upright
+// aVR: inverted everything  aVL: small/biphasic  aVF: upright like II but smaller
+// V1: rS pattern (small r, big S, biphasic/inverted P)
+// V2: rS (bigger r than V1)  V3: RS transition  V4: Rs (R>S)
+// V5: qRs (tallest R)  V6: qR (smaller R, small s)
+const sinusParams=[
+ //pA  rA   sA   tA   tP
+  [8,  50,  6,   16,  1],  // I
+  [11, 68,  12,  22,  1],  // II (reference)
+  [6,  30,  4,   12,  1],  // III
+  [-8,-48, -5,  -16, -1],  // aVR (inverted: use negative P and negative T flip via tP=-1 but note sign)
+  [4,  20,  3,   8,   1],  // aVL (small)
+  [8,  45,  8,   18,  1],  // aVF
+  [-4, -8,  30,  -6, -1],  // V1: small r, deep S, inverted T (rS pattern, biphasic P → neg component)
+  [3,  12,  35,  4,   1],  // V2: small r, still deep S, upright T
+  [5,  32,  28,  12,  1],  // V3: transition (RS ≈ equal)
+  [6,  58,  18,  18,  1],  // V4: R>S
+  [5,  65,  10,  20,  1],  // V5: tallest R, small S
+  [5,  52,  6,   18,  1],  // V6: tall R, tiny S, small septal q
+];
+
+// aVR special: whole thing inverted
+function buildSinusWithAVR(params){
+  const t = buildSinus(params);
+  // aVR: negative of I+III/2 ≈ inverted, rebuild explicitly
+  const [pA,rA,sA,tA] = params[3]; // already stored as negatives
+  t['aVR']=(ph)=>{
+    let y=gauss(ph,.13,.050,pA); // pA is negative => inverted P
+    y-=gauss(ph,.268,.016,Math.abs(rA)*.12*Math.sign(rA));
+    y+=gauss(ph,.300,.022,rA); // rA negative => downward R (= deep Q/S in aVR = correct)
+    y-=gauss(ph,.332,.016,sA); // sA negative => upward terminal deflection
+    y+=gauss(ph,.52,.090,tA);  // tA negative => inverted T
+    return y;
+  };
+  return t;
+}
+MORPH.nsr   = buildSinusWithAVR(sinusParams);
+MORPH.stach = MORPH.nsr;
+MORPH.sbrad = MORPH.nsr;
+
+// ---- SVT: narrow QRS, no visible P, retrograde P pseudo-S, rate compressed T ----
+function buildSVT(){
+  const t={};
+  // All leads: narrow QRS. Polarity follows normal ventricular depolarisation (same as sinus QRS direction).
+  // Limb leads
+  t['I'] =(ph)=>-gauss(ph,.22,.013,5)+gauss(ph,.248,.018,52)-gauss(ph,.278,.016,8)+gauss(ph,.38,.055,13);
+  t['II']=(ph)=>narrowII(ph); // reference
+  t['III']=(ph)=>-gauss(ph,.22,.013,3)+gauss(ph,.248,.018,28)-gauss(ph,.278,.016,5)+gauss(ph,.38,.055,9);
+  t['aVR']=(ph)=>gauss(ph,.22,.013,4)-gauss(ph,.248,.018,55)+gauss(ph,.278,.016,10)-gauss(ph,.38,.055,11);
+  t['aVL']=(ph)=>-gauss(ph,.22,.013,3)+gauss(ph,.248,.018,22)-gauss(ph,.278,.016,4)+gauss(ph,.38,.055,7);
+  t['aVF']=(ph)=>-gauss(ph,.22,.013,5)+gauss(ph,.248,.018,48)-gauss(ph,.278,.016,7)+gauss(ph,.38,.055,12);
+  // Precordial: normal progression but compressed
+  t['V1']=(ph)=>-gauss(ph,.22,.013,4)+gauss(ph,.248,.018,-12)+gauss(ph,.248,.018,8)-gauss(ph,.278,.016,18)+gauss(ph,.38,.055,-5);
+  t['V2']=(ph)=>-gauss(ph,.22,.013,3)+gauss(ph,.248,.018,15)-gauss(ph,.278,.016,30)+gauss(ph,.38,.055,3);
+  t['V3']=(ph)=>-gauss(ph,.22,.013,4)+gauss(ph,.248,.018,34)-gauss(ph,.278,.016,22)+gauss(ph,.38,.055,10);
+  t['V4']=(ph)=>-gauss(ph,.22,.013,5)+gauss(ph,.248,.018,55)-gauss(ph,.278,.016,14)+gauss(ph,.38,.055,14);
+  t['V5']=(ph)=>-gauss(ph,.22,.013,5)+gauss(ph,.248,.018,62)-gauss(ph,.278,.016,9)+gauss(ph,.38,.055,16);
+  t['V6']=(ph)=>-gauss(ph,.22,.013,4)+gauss(ph,.248,.018,48)-gauss(ph,.278,.016,5)+gauss(ph,.38,.055,14);
+  return t;
+}
+MORPH.svt = buildSVT();
+
+// ---- VT: wide bizarre, positive concordance V1-V6 (RBBB-like from LV origin), AV dissociation P ----
+// aVR: tall monophasic R (VT hallmark), V1 tall R > S, V6 rS (small r deep S)
+function buildVT(){
+  const t={};
+  // P wave for AV dissociation (independent ~72bpm, handled in rhythm engine)
+  // Wide QRS morphology per lead:
+  // I: broad QS (negative)   II: broad slurred upright  III: upright  
+  // aVR: tall monophasic R (positive, diagnostic of VT)  aVL: QS  aVF: upright wide
+  // V1: tall R (RBBB-like)   V2-V4: positive concordance (all upright)
+  // V5: upright  V6: rS (small r, deep S — key VT sign)
+  function wideUp(rA,sA,tA){
+    return (ph)=>gauss(ph,.16,.048,rA*.28)+gauss(ph,.28,.062,rA)-gauss(ph,.40,.032,rA*.20)-gauss(ph,.48,.048,sA)-gauss(ph,.68,.095,tA);
+  }
+  function wideDown(rA,sA,tA){
+    return (ph)=>-(gauss(ph,.16,.048,rA*.28)+gauss(ph,.28,.062,rA)-gauss(ph,.40,.032,rA*.20)-gauss(ph,.48,.048,sA)-gauss(ph,.68,.095,tA));
+  }
+  t['I']  = (ph)=>-gauss(ph,.20,.055,18)-gauss(ph,.32,.048,28)+gauss(ph,.50,.055,10); // QS pattern
+  t['II'] = wideUp(58,22,30);
+  t['III']= wideUp(38,14,18);
+  t['aVR']= (ph)=>gauss(ph,.24,.060,65)+gauss(ph,.38,.040,15)-gauss(ph,.62,.080,20); // tall monophasic R — VT hallmark
+  t['aVL']= (ph)=>-gauss(ph,.20,.055,15)-gauss(ph,.32,.048,22)+gauss(ph,.50,.055,8); // QS
+  t['aVF']= wideUp(44,16,22);
+  t['V1'] = (ph)=>gauss(ph,.22,.055,52)+gauss(ph,.34,.040,12)-gauss(ph,.60,.080,22); // tall R (RBBB morphology)
+  t['V2'] = wideUp(55,18,25);
+  t['V3'] = wideUp(50,16,22);
+  t['V4'] = wideUp(45,14,20);
+  t['V5'] = wideUp(40,12,18);
+  t['V6'] = (ph)=>gauss(ph,.22,.030,8)-gauss(ph,.36,.060,38)+gauss(ph,.62,.080,18); // rS pattern (small r, deep S)
+  return t;
+}
+MORPH.vt = buildVT();
+// AIVR same morphology as VT (both ventricular)
+MORPH.aivr = MORPH.vt;
+
+// ---- CHB: independent P waves + wide ventricular escape (same VT morph but slower) ----
+MORPH.chb = MORPH.vt; // morphology same, rate different — handled in engine
+
+// ---- AF: QRS morphology normal (same direction as sinus), no P, fibrillatory baseline ----
+// We reuse sinus QRS shape scaled per lead
+MORPH.af = (()=>{
+  const t={};
+  // Same QRS polarity/amplitude as sinus but no P wave, add noise externally
+  const afQRS=(rA,sA,tA,tP)=>(ph)=>{
+    let y=-gauss(ph,.19,.015,rA*.10)+gauss(ph,.22,.021,rA)-gauss(ph,.25,.015,sA)+tP*gauss(ph,.42,.082,tA);
+    return y;
+  };
+  t['I']  =afQRS(50, 6,16, 1);
+  t['II'] =afQRS(56, 9,16, 1);
+  t['III']=afQRS(30, 4,10, 1);
+  t['aVR']=afQRS(-48,-5,-14,-1);
+  t['aVL']=afQRS(20, 3, 7, 1);
+  t['aVF']=afQRS(44, 7,14, 1);
+  t['V1'] =afQRS(-8,28,-5,-1);
+  t['V2'] =afQRS(12,32, 4, 1);
+  t['V3'] =afQRS(32,25,10, 1);
+  t['V4'] =afQRS(55,16,16, 1);
+  t['V5'] =afQRS(62, 9,18, 1);
+  t['V6'] =afQRS(50, 5,16, 1);
+  return t;
+})();
+
+// ---- Atrial flutter: F-waves most prominent in inferior leads (II,III,aVF) ----
+// In V1: positive flutter waves (opposite to inferior leads for typical AFL)
+// QRS morphology: narrow, normal axis
+MORPH.aflut = (()=>{
+  const t={};
+  // fScale: how prominent flutter waves are in each lead
+  // Negative in inferior (II,III,aVF), positive in V1
+  const fScales={I:0.2,II:1.0,III:0.8,aVR:-0.3,aVL:-0.1,aVF:0.9,V1:-0.4,V2:0.1,V3:0.1,V4:0.1,V5:0.1,V6:0.1};
+  const qrsScales={I:0.7,II:1.0,III:0.4,aVR:-0.7,aVL:0.3,aVF:0.6,V1:-0.2,V2:0.2,V3:0.5,V4:0.85,V5:0.9,V6:0.75};
+  const leads=['I','II','III','aVR','aVL','aVF','V1','V2','V3','V4','V5','V6'];
+  leads.forEach(name=>{
+    const fs=fScales[name]||0;
+    const qs=qrsScales[name]||0;
+    t[name]=(ph,flutPh)=>{
+      const fp=flutPh;
+      // Typical AFL: negative sawtooth in inferior (II) => descending ramp, sharp upstroke
+      const fWave=fs*(fp<0.70 ? 8-fp*22 : -7.4+(fp-0.70)*38);
+      // QRS at 4:1 (ventricular phase 0..1 at 800ms cycle passed in as ph)
+      const qrs=qs*(-gauss(ph,.14,.013,6)+gauss(ph,.165,.019,60)-gauss(ph,.193,.013,9)+gauss(ph,.34,.070,9));
+      return fWave+qrs;
+    };
+  });
+  return t;
+})();
+
+// ---- Mobitz I & II: normal QRS morphology, P waves with progressive/fixed PR ----
+// Morphology same as sinus, handled externally for P/QRS relationship
+MORPH.mob1 = MORPH.nsr;
+MORPH.mob2 = MORPH.nsr;
+
+// ---- VF & Asystole: rhythm-level, no per-lead morphology needed (all leads get same chaotic/flat signal) ----
+MORPH.vf   = null; // handled at engine level
+MORPH.asys = null;
+
+// =====================================================================
+// STEMI MORPHOLOGY
+// All STEMIs run on NSR baseline (72bpm) with territory-specific ST changes.
+// ST elevation modelled as a raised J-point + sloped ST segment blending into T.
+// ST depression (reciprocal) modelled as J-point depression.
+//
+// steOffset(ph, jPoint, mag, slope, tAmp, tPol):
+//   jPoint = phase at end of QRS (~0.36)
+//   mag    = J-point elevation (+) or depression (-) in px
+//   slope  = ST slope (0=flat, +ve=upsloping, -ve=downsloping)
+//   tAmp   = T wave amplitude
+//   tPol   = T wave polarity (+1 upright, -1 inverted)
+// =====================================================================
+function stBase(rA,sA){
+  return (ph)=>{
+    let y=gauss(ph,.13,.050,rA*.16); // P
+    y-=gauss(ph,.268,.016,rA*.12);   // Q
+    y+=gauss(ph,.300,.022,rA);       // R
+    y-=gauss(ph,.332,.016,sA);       // S
+    return y;
+  };
+}
+// ST+T segment overlay: elevation or depression on top of QRS baseline
+function stSeg(mag, tAmp, tPol){
+  // Returns a function(ph) adding ST/T to an existing QRS
+  // J-point at ~ph=0.36, T peak at ~ph=0.55
+  return (ph)=>{
+    if(ph<0.34) return 0;
+    // Raised/depressed plateau from J-point, blends into T wave
+    const st = mag * Math.exp(-Math.pow((ph-0.42)/0.06,2)*2); // ST hump
+    const t  = tPol * tAmp * gauss(ph, 0.55, 0.085, 1);
+    // Blend: flat elevated ST into T
+    const plateau = ph>=0.34 && ph<=0.60 ? mag*(1-Math.pow((ph-0.36)/0.26,2))*0.8 : 0;
+    return st + t + plateau;
+  };
+}
+
+// Build a full STEMI morph table given per-lead [rAmp, sAmp, steMag, tAmp, tPol]
+// steSign: +1=elevation, -1=depression (reciprocal)
+function buildSTEMI(perLead){
+  const t={};
+  const leads=['I','II','III','aVR','aVL','aVF','V1','V2','V3','V4','V5','V6'];
+  leads.forEach(n=>{
+    const [rA,sA,stMag,tA,tPol]=perLead[n]||[40,8,0,18,1];
+    const base=stBase(rA,sA);
+    const st=stSeg(stMag,tA,tPol);
+    t[n]=(ph)=>base(ph)+st(ph);
+  });
+  return t;
+}
+
+// ── INFERIOR STEMI (RCA) ──────────────────────────────────────────────
+// STE in II, III, aVF. Reciprocal STD in I, aVL.
+// Often ST changes in V1 (RV involvement). V leads relatively normal.
+MORPH['stemi-inf'] = buildSTEMI({
+  'I':   [50,  6, -8,  10, -1],  // reciprocal depression
+  'II':  [68, 12, 14,  28,  1],  // STE — tombstone T
+  'III': [38,  8, 16,  24,  1],  // STE — often largest here
+  'aVR': [-48,-5,  4, -14, -1],  // slight reciprocal
+  'aVL': [20,  3,-10,   8, -1],  // reciprocal depression
+  'aVF': [52,  9, 13,  26,  1],  // STE
+  'V1':  [-8, 28,  5,  -4, -1],  // may show STE if RV involved
+  'V2':  [12, 32,  0,   5,  1],  // normal
+  'V3':  [32, 25,  0,  12,  1],  // normal
+  'V4':  [58, 16,  0,  18,  1],  // normal
+  'V5':  [65, 10,  0,  20,  1],  // normal
+  'V6':  [52,  6,  0,  18,  1],  // normal
+});
+
+// ── ANTERIOR STEMI (LAD) ─────────────────────────────────────────────
+// STE in V1-V4 (sometimes V5). Reciprocal STD in inferior leads II, III, aVF.
+// aVR often shows STE (proximal LAD occlusion sign).
+MORPH['stemi-ant'] = buildSTEMI({
+  'I':   [50,  6,  4,  18,  1],  // slight STE (septal involvement)
+  'II':  [68, 12, -6,  10, -1],  // reciprocal depression
+  'III': [38,  8, -8,   8, -1],  // reciprocal depression
+  'aVR': [-48,-5,  8, -18, -1],  // STE in aVR = proximal LAD sign
+  'aVL': [20,  3,  5,  10,  1],  // STE (lateral extension)
+  'aVF': [52,  9, -5,  10, -1],  // reciprocal depression
+  'V1':  [-8, 28, 12,  -8, -1],  // STE + Q wave forming (loss of r)
+  'V2':  [10, 35, 18,  22,  1],  // STE — hyperacute T
+  'V3':  [28, 28, 20,  26,  1],  // STE — often tallest
+  'V4':  [52, 18, 16,  24,  1],  // STE
+  'V5':  [62, 10,  6,  18,  1],  // lesser STE
+  'V6':  [50,  6,  2,  16,  1],  // normal/minimal
+});
+
+// ── LATERAL STEMI (Circumflex) ────────────────────────────────────────
+// STE in I, aVL, V5, V6. Reciprocal STD in inferior leads (II, III, aVF).
+MORPH['stemi-lat'] = buildSTEMI({
+  'I':   [50,  6, 14,  22,  1],  // STE
+  'II':  [68, 12, -6,  10, -1],  // reciprocal depression
+  'III': [38,  8,-10,   7, -1],  // reciprocal depression
+  'aVR': [-48,-5, -6, -10, -1],  // reciprocal (inverted lead)
+  'aVL': [20,  3, 14,  18,  1],  // STE — often most prominent
+  'aVF': [52,  9, -5,   9, -1],  // reciprocal depression
+  'V1':  [-8, 28,  0,  -4, -1],  // normal/slightly depressed
+  'V2':  [12, 32, -2,   4,  1],  // normal
+  'V3':  [32, 25,  0,  12,  1],  // normal
+  'V4':  [58, 16,  2,  16,  1],  // minimal
+  'V5':  [65, 10, 12,  20,  1],  // STE
+  'V6':  [52,  6, 14,  18,  1],  // STE
+});
+
+// ── POSTERIOR STEMI (RCA/Cx posterior branch) ─────────────────────────
+// No direct STE visible. Mirror-image changes in V1-V3:
+//   - ST DEPRESSION (not elevation)
+//   - Tall broad R wave (= posterior Q wave mirrored)
+//   - Tall upright T wave (= posterior inverted T mirrored)
+// V7-V9 would show STE but we don't have those leads.
+// Inferior leads may show co-existing inferior STE (posterior often with inferior).
+MORPH['stemi-post'] = buildSTEMI({
+  'I':   [50,  6,  0,  16,  1],  // normal
+  'II':  [68, 12,  6,  22,  1],  // subtle inferior STE (common co-pattern)
+  'III': [38,  8,  8,  18,  1],  // subtle inferior STE
+  'aVR': [-48,-5,  2, -14, -1],  // normal
+  'aVL': [20,  3, -4,   8, -1],  // slight reciprocal
+  'aVF': [52,  9,  6,  20,  1],  // subtle inferior STE
+  'V1':  [28, 10,-14,  28,  1],  // tall R + STD + tall upright T (mirror image)
+  'V2':  [38,  8,-16,  30,  1],  // tallest reciprocal changes
+  'V3':  [42, 10,-12,  26,  1],  // STD + tall T
+  'V4':  [58, 16,  0,  18,  1],  // normal
+  'V5':  [65, 10,  0,  20,  1],  // normal
+  'V6':  [52,  6,  0,  18,  1],  // normal
+});
+
+// =====================================================================
+// RHYTHM STATE & ENGINES
+// One global state shared (all leads advance in lockstep)
+// =====================================================================
+function makeState(){
+  return {ms:0,beat:0,pMs:0,vfT:0,flutMs:0,afRR:550,noiseY:0,noiseV:0,
+          // per-lead independent noise for AF/asystole
+          noise:{},
+  };
+}
+let state=makeState();
+
+const RHYTHMS={
+  nsr:  {label:'SINUS RHYTHM',        defaultBpm:72,  sliderMin:60,  sliderMax:100, sliderNote:''},
+  stach:{label:'SINUS TACHYCARDIA',   defaultBpm:130, sliderMin:101, sliderMax:220, sliderNote:''},
+  sbrad:{label:'SINUS BRADYCARDIA',   defaultBpm:48,  sliderMin:40,  sliderMax:59,  sliderNote:''},
+  svt:  {label:'SVT',                 defaultBpm:190, sliderMin:150, sliderMax:220, sliderNote:''},
+  vt:   {label:'VENTRICULAR TACHYCARDIA',defaultBpm:160,sliderMin:100,sliderMax:220,sliderNote:''},
+  aivr: {label:'IDIOVENTRICULAR',     defaultBpm:35,  sliderMin:20,  sliderMax:50,  sliderNote:'ESCAPE RANGE'},
+  chb:  {label:'3° HEART BLOCK',      defaultBpm:38,  sliderMin:25,  sliderMax:55,  sliderNote:'VENTRICULAR RATE'},
+  af:   {label:'ATRIAL FIBRILLATION', defaultBpm:0,   sliderMin:null,sliderMax:null,sliderNote:'RATE: IRREGULAR'},
+  aflut:{label:'ATRIAL FLUTTER',      defaultBpm:0,   sliderMin:null,sliderMax:null,sliderNote:'4:1 — 75 VPM'},
+  mob1: {label:'MOBITZ I — WENCKEBACH',defaultBpm:0,  sliderMin:null,sliderMax:null,sliderNote:'3:2 WENCKEBACH'},
+  mob2: {label:'MOBITZ II',           defaultBpm:0,   sliderMin:null,sliderMax:null,sliderNote:'3:2 CONDUCTION'},
+  vf:   {label:'VENTRICULAR FIBRILLATION',defaultBpm:0,sliderMin:null,sliderMax:null,sliderNote:'NO ORGANISED RHYTHM'},
+  asys: {label:'ASYSTOLE',            defaultBpm:0,   sliderMin:null,sliderMax:null,sliderNote:'NO CARDIAC ACTIVITY'},
+  'stemi-inf': {label:'INFERIOR STEMI',     defaultBpm:72, sliderMin:50, sliderMax:100, sliderNote:'RCA — II · III · aVF'},
+  'stemi-ant': {label:'ANTERIOR STEMI',     defaultBpm:72, sliderMin:50, sliderMax:100, sliderNote:'LAD — V1–V4'},
+  'stemi-lat': {label:'LATERAL STEMI',      defaultBpm:72, sliderMin:50, sliderMax:100, sliderNote:'Cx — I · aVL · V5–V6'},
+  'stemi-post':{label:'POSTERIOR STEMI',    defaultBpm:72, sliderMin:50, sliderMax:100, sliderNote:'STD V1–V3 (mirror image)'},
+};
+
+let currentKey='nsr';
+let currentBpm=72;
+
+// =====================================================================
+// SAMPLE COMPUTATION
+// Returns an object {leadName: sampleValue} for one time step
+// =====================================================================
+function computeSamples(s, dtMs, bpm, key){
+  const out={};
+  const leads=['I','II','III','aVR','aVL','aVF','V1','V2','V3','V4','V5','V6'];
+
+  if(key==='vf'){
+    s.vfT+=dtMs;
+    const t=s.vfT/1000;
+    const base=Math.sin(2*Math.PI*4.2*t)*30+Math.sin(2*Math.PI*5.8*t+.7)*19+Math.sin(2*Math.PI*3.1*t+1.4)*14+Math.sin(2*Math.PI*7.3*t+2.1)*8;
+    const noise=(Math.random()-.5)*18;
+    const amp=.82+Math.sin(2*Math.PI*.9*t)*.18;
+    const base_v=(base+noise)*amp;
+    // Vary amplitude slightly per lead (VF is chaotic, not uniform)
+    const vfScales={I:.9,II:1.0,III:.85,aVR:.7,aVL:.6,aVF:.8,V1:.75,V2:.8,V3:.9,V4:1.0,V5:.95,V6:.85};
+    leads.forEach(n=>out[n]=base_v*(vfScales[n]||1));
+    return out;
+  }
+
+  if(key==='asys'){
+    leads.forEach(n=>{
+      if(!s.noise[n]) s.noise[n]={y:0,v:0};
+      const ln=s.noise[n];
+      ln.v+=(Math.random()-.5)*.025; ln.v*=.97;
+      ln.y+=ln.v; ln.y*=.995;
+      out[n]=ln.y*1.8;
+    });
+    return out;
+  }
+
+  if(key==='af'){
+    s.ms+=dtMs;
+    if(s.ms>=s.afRR){s.ms-=s.afRR;s.afRR=340+Math.random()*440;}
+    const ph=s.ms/s.afRR;
+    // Fibrillatory noise (shared baseline wander)
+    s.noiseV+=(Math.random()-.5)*.9; s.noiseV*=.87;
+    s.noiseY+=s.noiseV; s.noiseY*=.96;
+    const fib=s.noiseY*3.5+Math.sin(s.ms*.028)*1.5;
+    leads.forEach(n=>{
+      const fn=MORPH.af[n];
+      const qrs=fn?fn(ph):0;
+      // Fibrillatory baseline varies per lead (most visible in V1)
+      const fibScale={I:.6,II:1,III:.7,aVR:.5,aVL:.4,aVF:.8,V1:1.2,V2:.9,V3:.7,V4:.5,V5:.4,V6:.3};
+      out[n]=qrs+(fib*(fibScale[n]||.5));
+    });
+    return out;
+  }
+
+  if(key==='aflut'){
+    s.flutMs=((s.flutMs||0)+dtMs)%200;
+    const flutPh=s.flutMs/200;
+    s.ms=(s.ms+dtMs)%800;
+    const ph=s.ms/800;
+    leads.forEach(n=>{
+      const fn=MORPH.aflut[n];
+      out[n]=fn?fn(ph,flutPh):0;
+    });
+    return out;
+  }
+
+  if(key==='mob1'){
+    const baseRR=1000,grpSize=4;
+    const pCentre=0.07;
+    const prMs=[120,180,240];
+    s.ms+=dtMs;
+    if(s.ms>=baseRR){s.ms-=baseRR;s.beat=(s.beat+1)%grpSize;}
+    const ph=s.ms/baseRR;
+    // P wave scaling per lead (same direction as sinus P)
+    const pScales={I:.7,II:1,III:.5,aVR:-.7,aVL:.3,aVF:.8,V1:-.4,V2:.3,V3:.5,V4:.6,V5:.6,V6:.5};
+    // QRS scaling per lead
+    const qScales={I:.7,II:1,III:.45,aVR:-.7,aVL:.3,aVF:.65,V1:-.12,V2:.18,V3:.48,V4:.86,V5:.97,V6:.77};
+    leads.forEach(n=>{
+      const pWave=gauss(ph,pCentre+.04,.042,10)*(pScales[n]||.5);
+      let qrs=0;
+      if(s.beat<grpSize-1){
+        const qo=pCentre+(prMs[s.beat]/1000);
+        const base=-gauss(ph,qo+.000,.015,7)+gauss(ph,qo+.028,.021,65)-gauss(ph,qo+.054,.015,11)+gauss(ph,qo+.20,.080,20);
+        qrs=base*(qScales[n]||.5);
+      }
+      out[n]=pWave+qrs;
+    });
+    return out;
+  }
+
+  if(key==='mob2'){
+    const baseRR=1000,grpSize=3,prMs=160;
+    const pCentre=0.07;
+    s.ms+=dtMs;
+    if(s.ms>=baseRR){s.ms-=baseRR;s.beat=(s.beat+1)%grpSize;}
+    const ph=s.ms/baseRR;
+    const pScales={I:.7,II:1,III:.5,aVR:-.7,aVL:.3,aVF:.8,V1:-.4,V2:.3,V3:.5,V4:.6,V5:.6,V6:.5};
+    const qScales={I:.7,II:1,III:.45,aVR:-.7,aVL:.3,aVF:.65,V1:-.12,V2:.18,V3:.48,V4:.86,V5:.97,V6:.77};
+    leads.forEach(n=>{
+      const pWave=gauss(ph,pCentre+.04,.042,10)*(pScales[n]||.5);
+      let qrs=0;
+      if(s.beat<grpSize-1){
+        const qo=pCentre+(prMs/1000);
+        const base=-gauss(ph,qo+.000,.015,7)+gauss(ph,qo+.028,.021,65)-gauss(ph,qo+.054,.015,11)+gauss(ph,qo+.20,.080,20);
+        qrs=base*(qScales[n]||.5);
+      }
+      out[n]=pWave+qrs;
+    });
+    return out;
+  }
+
+  if(key==='chb'){
+    // Independent P waves ~75bpm
+    const pRR=60000/75;
+    s.pMs=((s.pMs||0)+dtMs)%pRR;
+    const pPh=s.pMs/pRR;
+    // Ventricular escape: wide at slider rate
+    const vRR=60000/bpm;
+    s.ms=(s.ms+dtMs)%vRR;
+    const ph=s.ms/vRR;
+    const pScales={I:.7,II:1,III:.5,aVR:-.7,aVL:.3,aVF:.8,V1:-.4,V2:.3,V3:.5,V4:.6,V5:.6,V6:.5};
+    leads.forEach(n=>{
+      const pWave=gauss(pPh,.12,.048,10)*(pScales[n]||.5);
+      const fn=MORPH.vt[n]; // ventricular escape = wide QRS
+      const vBeat=fn?fn(ph)*0.85:0;
+      out[n]=pWave+vBeat;
+    });
+    return out;
+  }
+
+  if(key==='vt'){
+    const rr=60000/bpm;
+    s.ms=(s.ms+dtMs)%rr;
+    const ph=s.ms/rr;
+    // AV dissociation P at ~72bpm
+    const pRR=60000/72;
+    s.pMs=((s.pMs||0)+dtMs)%pRR;
+    const pPh=s.pMs/pRR;
+    const pScales={I:.7,II:1,III:.5,aVR:-.7,aVL:.3,aVF:.8,V1:-.3,V2:.2,V3:.4,V4:.5,V5:.5,V6:.4};
+    leads.forEach(n=>{
+      const pWave=gauss(pPh,.12,.042,7)*(pScales[n]||.4);
+      const fn=MORPH.vt[n];
+      out[n]=(fn?fn(ph):0)+pWave;
+    });
+    return out;
+  }
+
+  if(key==='aivr'){
+    const rr=60000/bpm;
+    s.ms=(s.ms+dtMs)%rr;
+    const ph=s.ms/rr;
+    leads.forEach(n=>{
+      const fn=MORPH.aivr[n];
+      out[n]=fn?fn(ph)*0.85:0;
+    });
+    return out;
+  }
+
+  // STEMI family — NSR morphology with ST/T overlay per territory
+  if(key.startsWith('stemi')){
+    const rr=60000/bpm;
+    s.ms=(s.ms+dtMs)%rr;
+    const ph=s.ms/rr;
+    const morph=MORPH[key];
+    leads.forEach(n=>{
+      const fn=morph?morph[n]:null;
+      out[n]=fn?fn(ph):0;
+    });
+    return out;
+  }
+
+  // Default: sinus-family (nsr, stach, sbrad, svt)
+  {
+    const rr=60000/bpm;
+    s.ms=(s.ms+dtMs)%rr;
+    const ph=s.ms/rr;
+    const morph=MORPH[key]||MORPH.nsr;
+    leads.forEach(n=>{
+      const fn=morph[n];
+      out[n]=fn?fn(ph):0;
+    });
+    return out;
+  }
+}
+
+// =====================================================================
+// TRACE DATA BUFFERS
+// One Float32Array per lead + strip
+// =====================================================================
+const traceData={};
+const MID_LEAD = LEAD_H*0.52;
+const MID_STRIP = STRIP_H*0.52;
+
+LEAD_LAYOUT.forEach(n=>{
+  traceData[n]=new Float32Array(LEAD_W);
+  traceData[n].fill(MID_LEAD);
+});
+traceData['strip']=new Float32Array(STRIP_W);
+traceData['strip'].fill(MID_STRIP);
+
+let headX=0;       // lead head (0..LEAD_W)
+let stripHead=0;   // strip head (0..STRIP_W)
+let lastMs=0;
+const ERASE_PX=2;
+
+// =====================================================================
+// RENDER LOOP
+// =====================================================================
+function draw(ts){
+  if(!lastMs) lastMs=ts;
+  const dtMs=Math.min(ts-lastMs,50);
+  lastMs=ts;
+
+  // Lead steps
+  const leadSteps=Math.floor(dtMs*PX_PER_MS);
+  const msPerLeadPx=1/PX_PER_MS;
+
+  // Strip steps
+  const stripSteps=Math.floor(dtMs*STRIP_PX_PER_MS);
+  const msPerStripPx=1/STRIP_PX_PER_MS;
+
+  // Generate lead samples
+  for(let i=0;i<leadSteps;i++){
+    const samples=computeSamples(state,msPerLeadPx,currentBpm,currentKey);
+    const x=headX%LEAD_W;
+    LEAD_LAYOUT.forEach(n=>{
+      traceData[n][x]=MID_LEAD-samples[n];
+    });
+    headX=(headX+1)%LEAD_W;
+  }
+
+  // Generate strip samples (Lead II only, separate timing)
+  // We need a separate mini-state for the strip since it runs at different px/ms
+  // Simplest approach: strip mirrors Lead II traceData but at a different sampling rate
+  // We'll use a separate strip state
+  for(let i=0;i<stripSteps;i++){
+    const samples=computeSamplesStrip(msPerStripPx);
+    const x=stripHead%STRIP_W;
+    traceData['strip'][x]=MID_STRIP-samples['II'];
+    stripHead=(stripHead+1)%STRIP_W;
+  }
+
+  // Render all lead canvases
+  LEAD_LAYOUT.forEach(n=>{
+    const tc=leadCanvases[n].trace;
+    const ctx=tc.getContext('2d');
+    ctx.clearRect(0,0,LEAD_W,LEAD_H);
+    const hX=headX%LEAD_W;
+    ctx.fillStyle='rgba(0,255,136,0.10)';
+    ctx.fillRect(hX,0,2,LEAD_H);
+    renderTraceOn(ctx,traceData[n],LEAD_W,hX,ERASE_PX);
+  });
+
+  // Render strip
+  {
+    const ctx=stripTraceC.getContext('2d');
+    ctx.clearRect(0,0,STRIP_W,STRIP_H);
+    const hX=stripHead%STRIP_W;
+    ctx.fillStyle='rgba(0,255,136,0.10)';
+    ctx.fillRect(hX,0,2,STRIP_H);
+    renderTraceOn(ctx,traceData['strip'],STRIP_W,hX,ERASE_PX);
+  }
+
+  requestAnimationFrame(draw);
+}
+
+function renderTraceOn(ctx,data,W,hX,erasePx){
+  const startX=(hX+erasePx)%W;
+  // Glow
+  ctx.strokeStyle='rgba(0,255,136,0.18)';
+  ctx.lineWidth=3;
+  ctx.lineJoin='round';ctx.lineCap='round';
+  _drawPath(ctx,data,W,startX,erasePx);
+  // Line
+  ctx.strokeStyle='#00ff88';
+  ctx.lineWidth=1.5;
+  _drawPath(ctx,data,W,startX,erasePx);
+}
+
+function _drawPath(ctx,data,W,startX,erasePx){
+  ctx.beginPath();
+  let first=true,prevX=-1;
+  for(let i=0;i<W-erasePx;i++){
+    const x=(startX+i)%W;
+    if(prevX!==-1&&x<prevX){ctx.stroke();ctx.beginPath();first=true;}
+    first?ctx.moveTo(x,data[x]):ctx.lineTo(x,data[x]);
+    first=false;prevX=x;
+  }
+  ctx.stroke();
+}
+
+// =====================================================================
+// STRIP STATE (separate state so strip runs at its own rate without
+// interfering with per-lead state)
+// =====================================================================
+let stripState=makeState();
+function computeSamplesStrip(dtMs){
+  return computeSamples(stripState,dtMs,currentBpm,currentKey);
+}
+
+// =====================================================================
+// HR DISPLAY
+// =====================================================================
+let hrAnimId=null,afHRInterval=null;
+function animHR(target){
+  const el=document.getElementById('hrValue');
+  if(target===0){el.textContent='---';return;}
+  cancelAnimationFrame(hrAnimId);
+  const start=parseInt(el.textContent)||72;
+  const t0=performance.now();
+  function tick(now){
+    const p=Math.min((now-t0)/500,1);
+    el.textContent=Math.round(start+(target-start)*p);
+    if(p<1)hrAnimId=requestAnimationFrame(tick);
+  }
+  hrAnimId=requestAnimationFrame(tick);
+}
+
+// =====================================================================
+// RHYTHM SWITCHING
+// =====================================================================
+function setRhythm(key){
+  currentKey=key;
+  state=makeState();
+  stripState=makeState();
+  // Reset all trace buffers
+  LEAD_LAYOUT.forEach(n=>{traceData[n].fill(MID_LEAD);});
+  traceData['strip'].fill(MID_STRIP);
+  headX=0; stripHead=0;
+
+  const r=RHYTHMS[key];
+  clearInterval(afHRInterval);
+
+  const slider=document.getElementById('hrSlider');
+  const bpmLabel=document.getElementById('sliderBpm');
+  const noteEl=document.getElementById('sliderNote');
+
+  if(r.sliderMin!==null){
+    slider.disabled=false;
+    slider.min=r.sliderMin; slider.max=r.sliderMax;
+    let v=parseInt(slider.value);
+    if(v<r.sliderMin||v>r.sliderMax)v=r.defaultBpm;
+    v=Math.max(r.sliderMin,Math.min(r.sliderMax,v));
+    slider.value=v; currentBpm=v;
+    bpmLabel.textContent=v+' BPM';
+  } else {
+    slider.disabled=true;
+    slider.min=40;slider.max=220;
+    currentBpm=r.defaultBpm;
+    bpmLabel.textContent='— BPM';
+  }
+
+  noteEl.textContent=r.sliderNote||'';
+  document.getElementById('rhythmName').textContent=r.label;
+
+  if(key==='vf'||key==='asys') animHR(0);
+  else if(key==='af'){animHR(110);afHRInterval=setInterval(()=>animHR(85+Math.floor(Math.random()*50)),1800);}
+  else if(key==='aflut') animHR(75);
+  else if(key==='mob1'||key==='mob2') animHR(50);
+  else animHR(currentBpm);
+
+  document.querySelectorAll('.btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('btn-'+key).classList.add('active');
+}
+
+function onSlider(val){
+  currentBpm=parseInt(val);
+  document.getElementById('sliderBpm').textContent=val+' BPM';
+  animHR(currentBpm);
+}
+
+// =====================================================================
+// INIT
+// =====================================================================
+requestAnimationFrame(draw);
+</script>
+</body>
+</html>
