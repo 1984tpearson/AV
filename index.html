@@ -165,7 +165,11 @@ body.snav-active #content { padding-left: 60px; }
 .dc-text { font-size: 13px; line-height: 1.5; }
 .vitals-grid { display: grid; grid-template-columns: repeat(2,1fr); gap: 4px; margin-top: 12px; }
 @media (min-width: 700px) { .vitals-grid { min-width: 210px; margin-top: 0; } }
-.vital-item { background: rgba(255,255,255,0.08); border-radius: 5px; padding: 5px 8px; font-size: 12px; }
+.vital-item { background: rgba(255,255,255,0.08); border-radius: 5px; padding: 5px 8px; font-size: 12px; position: relative; }
+.reveal-btn { display: inline-flex; align-items: center; gap: 3px; margin-top: 4px; padding: 2px 6px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.2); background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.7); font-size: 9px; font-weight: 700; cursor: pointer; letter-spacing: 0.3px; white-space: nowrap; transition: all 0.15s; }
+.reveal-btn:hover { background: rgba(39,131,58,0.4); border-color: rgba(39,131,58,0.6); }
+.reveal-btn.revealed { background: rgba(39,131,58,0.35); border-color: rgba(39,131,58,0.7); color: #7dda8a; }
+.reveal-btn.revealed:hover { background: rgba(192,57,43,0.35); border-color: rgba(192,57,43,0.6); color: #f19a9a; }
 .vital-item .vl { opacity: 0.6; font-size: 10px; }
 .vital-item .vv { font-weight: 700; }
 .vital-item.abnormal { background: rgba(192,57,43,0.4); }
@@ -384,6 +388,7 @@ body.snav-active #content { padding-left: 60px; }
 /* ============================================================ MODAL BASE */
 .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 200; align-items: center; justify-content: center; padding: 16px; }
 .modal-overlay.open { display: flex; }
+#scenario-view.monitor-blur { filter: blur(6px); pointer-events: none; user-select: none; }
 .modal-inner { background: white; border-radius: 14px; width: 100%; max-width: 580px; max-height: 90vh; overflow-y: auto; box-shadow: 0 20px 60px rgba(0,0,0,0.3); }
 .modal-header { background: var(--navy); color: white; padding: 16px 20px; display: flex; justify-content: space-between; align-items: center; border-radius: 14px 14px 0 0; position: sticky; top: 0; z-index: 1; }
 .modal-header h2 { font-size: 15px; font-weight: 700; }
@@ -2386,7 +2391,7 @@ function renderScenario(s) {
   const catBg = { 'Adult':'#1C3A6E', 'Paediatric':'#2E86C1', 'Maternity':'#7D3C98', 'Newborn':'#1E8449', 'Treat and Refer':'#4E342E' };
   const isTrauma = (s.subcategory === 'Trauma' || s.category === 'Paediatric' && s.subcategory === 'Trauma');
 
-  const vitalsHtml = Object.entries(s.vitals||{}).filter(([k]) => !['Weight','Ketones','EtCO2'].includes(k)).map(([k,v]) => {
+  const vitalsHtml = Object.entries(s.vitals||{}).map(([k,v]) => {
     let display;
     if (k === 'GCS') {
       if (v && typeof v === 'object' && 'total' in v) {
@@ -2397,9 +2402,14 @@ function renderScenario(s) {
     } else {
       display = String(v||'');
     }
+    if (!display) return '';
     const abn = isAbnormal(k, display);
-    return `<div class="vital-item${abn?' abnormal':''} "><div class="vl">${k}</div><div class="vv">${display}</div></div>`;
+    return `<div class="vital-item${abn?' abnormal':''}" id="vi-${k}"><div class="vl">${k}</div><div class="vv">${display}</div><button class="reveal-btn" id="rb-${k}" onclick="handleRevealBtn('${k}',event)">\u{1F4E1} Send</button></div>`;
   }).join('');
+
+  // ECG reveal button (separate from Rhythm label)
+  const hasECG = !!(s.vitals && s.vitals.Rhythm && getECGImage(s.vitals.Rhythm));
+  const ecgRevealBtn = hasECG ? `<div class="vital-item" id="vi-ECG"><div class="vl">12-Lead ECG</div><div class="vv">${s.vitals.Rhythm}</div><button class="reveal-btn" id="rb-ECG" onclick="handleRevealBtn('ECG',event)">\u{1F4E1} Send</button></div>` : '';
 
   const flagsHtml = (s.flags||[]).map(f=>`<li class="flag-item"><div class="flag-dot"></div>${f}</li>`).join('');
 
@@ -2469,7 +2479,7 @@ function renderScenario(s) {
   </div>
   <div style="display:flex;flex-direction:column;align-items:flex-end;gap:8px;flex-shrink:0">
     <button onclick="openEditModal()" style="background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.3);color:white;padding:7px 14px;border-radius:7px;cursor:pointer;font-size:12px;font-weight:700;white-space:nowrap">✏️ Edit Scenario</button>
-    <button onclick="openPatientSessionModal()" style="background:rgba(39,131,58,0.7);border:1px solid rgba(255,255,255,0.3);color:white;padding:7px 14px;border-radius:7px;cursor:pointer;font-size:12px;font-weight:700;white-space:nowrap">📱 Patient View</button>
+    <button onclick="openPatientSessionModal()" style="background:rgba(39,131,58,0.7);border:1px solid rgba(255,255,255,0.3);color:white;padding:7px 14px;border-radius:7px;cursor:pointer;font-size:12px;font-weight:700;white-space:nowrap">📡 Monitor View</button>
   </div>
 </div>
 <div class="scenario-body">
@@ -2503,7 +2513,7 @@ function renderScenario(s) {
           <div class="dc-text">${s.dispatch||'No dispatch information provided.'}</div>
           ${s.key_hx?`<div class="dc-label" style="margin-top:10px">Key History</div><div class="dc-text" style="opacity:0.85">${s.key_hx}</div>`:''}
         </div>
-        <div class="vitals-grid">${vitalsHtml}</div>
+        <div class="vitals-grid">${vitalsHtml}${ecgRevealBtn}</div>
       </div>
     </div>
   </div>
@@ -5184,37 +5194,48 @@ document.getElementById('edit-modal').addEventListener('click', e => { if(e.targ
 // PATIENT SESSION
 // ============================================================
 let _patientSessionCode = null;
-
-const PATIENT_VITALS = [
-  { key: 'HR',      label: 'Heart Rate' },
-  { key: 'BP',      label: 'Blood Pressure' },
-  { key: 'SpO2',    label: 'SpO₂' },
-  { key: 'RR',      label: 'Resp Rate' },
-  { key: 'GCS',     label: 'GCS' },
-  { key: 'Temp',    label: 'Temperature' },
-  { key: 'BGL',     label: 'BGL' },
-  { key: 'Rhythm',  label: 'Rhythm' },
-  { key: 'Weight',  label: 'Weight' },
-  { key: 'EtCO2',   label: 'EtCO₂' },
-  { key: 'Ketones', label: 'Ketones' },
-];
+let _pendingRevealKey = null;   // vital to auto-reveal once session starts
+let _sessionRevealed = {};      // local cache of revealed state
 
 function generateSessionCode() {
   return Math.floor(1000 + Math.random() * 9000).toString();
 }
 
+// Called by inline reveal buttons throughout the scenario
+async function handleRevealBtn(key, event) {
+  event.stopPropagation();
+  if (!_patientSessionCode) {
+    // No session yet — open QR modal and queue this vital for auto-reveal
+    _pendingRevealKey = key;
+    await openPatientSessionModal();
+    return;
+  }
+  // Session active — toggle reveal
+  const isCurrentlyRevealed = !!_sessionRevealed[key];
+  await toggleReveal(key, !isCurrentlyRevealed);
+}
+
 async function openPatientSessionModal() {
   if (!currentScenario) return;
+
+  // If session already active, just show the modal again (QR still valid)
+  if (_patientSessionCode) {
+    document.getElementById('patient-session-modal').classList.add('open');
+    document.getElementById('scenario-view').classList.add('monitor-blur');
+    return;
+  }
+
   const modal = document.getElementById('patient-session-modal');
   modal.classList.add('open');
+  document.getElementById('scenario-view').classList.add('monitor-blur');
   document.getElementById('psm-setup').style.display = 'none';
   document.getElementById('psm-loading').style.display = 'block';
   document.getElementById('psm-error').style.display = 'none';
 
   try {
-    // Generate a unique session code
     const code = generateSessionCode();
     _patientSessionCode = code;
+    _sessionRevealed = {};
 
     const { uuid } = getIdentity();
     await sbFetch('active_sessions', {
@@ -5228,19 +5249,19 @@ async function openPatientSessionModal() {
       })
     });
 
-    // Build QR code and reveal grid
     document.getElementById('psm-code').textContent = code;
     const patientUrl = `https://1984tpearson.github.io/AV/patient.html?session=${code}`;
-
-    // Generate QR using free QR API
     const qrDiv = document.getElementById('psm-qr');
     qrDiv.innerHTML = `<img src="https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(patientUrl)}" width="180" height="180" alt="QR Code">`;
 
-    // Build reveal toggles
-    buildRevealGrid({});
-
     document.getElementById('psm-loading').style.display = 'none';
     document.getElementById('psm-setup').style.display = 'block';
+
+    // Auto-reveal pending vital if triggered from inline button
+    if (_pendingRevealKey) {
+      await toggleReveal(_pendingRevealKey, true);
+      _pendingRevealKey = null;
+    }
 
   } catch(e) {
     document.getElementById('psm-loading').style.display = 'none';
@@ -5248,59 +5269,48 @@ async function openPatientSessionModal() {
     const errEl = document.getElementById('psm-error');
     errEl.textContent = 'Failed to start session: ' + e.message;
     errEl.style.display = 'block';
+    _patientSessionCode = null;
   }
-}
-
-function buildRevealGrid(revealed) {
-  const s = currentScenario;
-  const grid = document.getElementById('psm-reveal-grid');
-  grid.innerHTML = '';
-  PATIENT_VITALS.forEach(({ key, label }) => {
-    const val = s.vitals && s.vitals[key];
-    // Skip vitals with no value
-    let displayVal = '';
-    if (!val) return;
-    if (key === 'GCS' && typeof val === 'object') {
-      displayVal = `${val.total} (E${val.E}V${val.V}M${val.M})`;
-    } else {
-      displayVal = String(val);
-    }
-    const isRevealed = !!revealed[key];
-    const btn = document.createElement('button');
-    btn.id = `reveal-btn-${key}`;
-    btn.style.cssText = `padding:10px 12px;border-radius:8px;border:2px solid ${isRevealed ? 'var(--green)' : 'var(--border)'};background:${isRevealed ? '#EAF7EE' : 'white'};cursor:pointer;text-align:left;font-size:12px;transition:all 0.15s`;
-    btn.innerHTML = `<div style="font-weight:700;color:${isRevealed ? 'var(--green)' : 'var(--grey)'}">${isRevealed ? '👁 ' : '🚫 '}${label}</div><div style="font-size:11px;color:#666;margin-top:2px">${displayVal}</div>`;
-    btn.onclick = () => toggleReveal(key, !isRevealed);
-    grid.appendChild(btn);
-  });
 }
 
 async function toggleReveal(key, reveal) {
   if (!_patientSessionCode) return;
   try {
-    // Fetch current revealed state
-    const rows = await sbFetch(`active_sessions?session_code=eq.${_patientSessionCode}&select=revealed`);
-    const current = (rows && rows[0] && rows[0].revealed) || {};
-    if (reveal) current[key] = true;
-    else delete current[key];
+    if (reveal) _sessionRevealed[key] = true;
+    else delete _sessionRevealed[key];
 
     await sbFetch(`active_sessions?session_code=eq.${_patientSessionCode}`, {
       method: 'PATCH',
       prefer: 'return=minimal',
-      body: JSON.stringify({ revealed: current })
+      body: JSON.stringify({ revealed: _sessionRevealed })
     });
 
-    // Update button UI
-    buildRevealGrid(current);
+    // Update inline button state
+    updateRevealBtnState(key, reveal);
   } catch(e) {
+    // Rollback local state on failure
+    if (reveal) delete _sessionRevealed[key];
+    else _sessionRevealed[key] = true;
     showToast('⚠️ Failed to update: ' + e.message);
+  }
+}
+
+function updateRevealBtnState(key, revealed) {
+  const btn = document.getElementById(`rb-${key}`);
+  if (!btn) return;
+  if (revealed) {
+    btn.classList.add('revealed');
+    btn.textContent = '📡 Sent';
+  } else {
+    btn.classList.remove('revealed');
+    btn.textContent = '📡 Send';
   }
 }
 
 function closePatientSessionModal() {
   document.getElementById('patient-session-modal').classList.remove('open');
-  // Don't delete the session — student may still be viewing
-  _patientSessionCode = null;
+  document.getElementById('scenario-view').classList.remove('monitor-blur');
+  // Session stays alive — don't clear _patientSessionCode
 }
 
 document.getElementById('patient-session-modal').addEventListener('click', e => {
@@ -5806,24 +5816,22 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape') closeECGLigh
 
 <!-- PATIENT SESSION MODAL -->
 <div class="modal-overlay" id="patient-session-modal">
-  <div class="modal-box" style="max-width:480px;width:100%">
+  <div class="modal-box" style="max-width:380px;width:100%">
     <div class="modal-header" style="background:#1C6B3A">
-      <h2>📱 Patient View</h2>
+      <h2>📡 Monitor View</h2>
       <button class="modal-close" onclick="closePatientSessionModal()">✕</button>
     </div>
     <div style="padding:20px">
-      <div id="psm-setup">
-        <p style="font-size:13px;color:var(--grey);margin-bottom:16px">Student opens the Patient View on their iPad and scans this QR code to sync to this scenario.</p>
-        <div style="text-align:center;margin-bottom:16px">
+      <div id="psm-setup" style="display:none">
+        <p style="font-size:13px;color:var(--grey);margin-bottom:16px;text-align:center">Student scans this code on their iPad to sync to this scenario.</p>
+        <div style="text-align:center;margin-bottom:12px">
           <div id="psm-qr" style="display:inline-block;padding:12px;background:white;border-radius:8px;border:1px solid var(--border)"></div>
-          <div style="margin-top:8px;font-size:12px;color:var(--grey)">Session code: <strong id="psm-code" style="font-size:16px;letter-spacing:2px;color:var(--navy)"></strong></div>
+          <div style="margin-top:10px;font-size:12px;color:var(--grey)">Session code</div>
+          <div id="psm-code" style="font-size:32px;font-weight:900;letter-spacing:6px;color:var(--navy);margin-top:2px"></div>
         </div>
-        <hr style="border:none;border-top:1px solid var(--border);margin:16px 0">
-        <div style="font-size:12px;font-weight:700;color:var(--grey);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px">Reveal Vitals</div>
-        <div id="psm-reveal-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:8px"></div>
-        <div style="margin-top:16px;font-size:11px;color:var(--grey);font-style:italic">Tap each vital to reveal it on the student's screen. Tap again to hide.</div>
+        <p style="font-size:11px;color:var(--grey);text-align:center;font-style:italic">Use the reveal buttons throughout the scenario to push vitals to the student's screen.</p>
       </div>
-      <div id="psm-loading" style="text-align:center;padding:40px 0;display:none">
+      <div id="psm-loading" style="text-align:center;padding:40px 0">
         <div style="font-size:24px;margin-bottom:8px">⏳</div>
         <div style="font-size:13px;color:var(--grey)">Starting session…</div>
       </div>
