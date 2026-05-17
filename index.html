@@ -2477,7 +2477,13 @@ function renderScenario(s) {
   </div>
   <div style="display:flex;flex-direction:column;align-items:flex-end;gap:8px;flex-shrink:0">
     <button onclick="openEditModal()" style="background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.3);color:white;padding:7px 14px;border-radius:7px;cursor:pointer;font-size:12px;font-weight:700;white-space:nowrap">✏️ Edit Scenario</button>
-    <button onclick="openPatientSessionModal()" style="background:rgba(39,131,58,0.7);border:1px solid rgba(255,255,255,0.3);color:white;padding:7px 14px;border-radius:7px;cursor:pointer;font-size:12px;font-weight:700;white-space:nowrap">📡 Monitor View</button>
+    <button onclick="openPatientSessionModal()" style="background:linear-gradient(135deg,rgba(20,90,50,0.85),rgba(39,131,58,0.75));border:1px solid rgba(100,220,130,0.35);color:white;padding:8px 14px 8px 10px;border-radius:8px;cursor:pointer;display:flex;align-items:center;gap:10px;text-align:left;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,0.25)">
+      <span style="font-size:26px;line-height:1;filter:drop-shadow(0 1px 3px rgba(0,0,0,0.4))">📺</span>
+      <span style="display:flex;flex-direction:column;gap:1px">
+        <span style="font-size:11px;font-weight:900;letter-spacing:0.5px;text-transform:uppercase;color:rgba(255,255,255,0.95)">Student Monitor</span>
+        <span style="font-size:10px;font-weight:500;color:rgba(180,240,195,0.85)">Launch second screen →</span>
+      </span>
+    </button>
   </div>
 </div>
 <div class="scenario-body">
@@ -3267,7 +3273,10 @@ function _cascadeCompleteToChildren(parentId) {
     if (cBtn) { cBtn.className = 'sub-tick-btn complete'; cBtn.textContent = '✓'; }
     const iBtn = document.getElementById(`sub-${subId}-incomplete`);
     if (iBtn) { iBtn.className = 'sub-tick-btn'; iBtn.textContent = '—'; }
+    _monitorRevealOnComplete(subId, 'complete', true);
   });
+  // Also reveal if the parent itself is a mapped vital
+  _monitorRevealOnComplete(parentId, 'complete', true);
   // Reset the incompleteByChild flag on the parent since all children are now complete
   if (rowStates[parentId]) rowStates[parentId]._incompleteByChild = false;
 }
@@ -3362,7 +3371,13 @@ function markGroupComplete(groupId) {
     const iBtn = document.getElementById(`tick-${id}-incomplete`);
     if (iBtn) { iBtn.className = 'tick-btn'; iBtn.textContent = '—'; }
     // Cascade complete down to sub-rows (preserving their prompted state)
+    // _cascadeCompleteToChildren now also handles monitor reveals for sub-rows
     _cascadeCompleteToChildren(id);
+  });
+  // Also catch any sub-rows not under a mapped parent
+  table.querySelectorAll('.sub-tick-btn[id$="-complete"]').forEach(btn => {
+    const subId = btn.id.replace('sub-','').replace('-complete','');
+    _monitorRevealOnComplete(subId, 'complete', true);
   });
   // Auto-score only the section this group belongs to
   const sec = table.dataset.section;
