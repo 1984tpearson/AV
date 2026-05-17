@@ -2152,6 +2152,7 @@ function loadScenario(id) {
   applyLevel(currentLevel);
 
   window.scrollTo(0, 0);
+  refreshAllRevealBtns();
 }
 
 
@@ -2404,12 +2405,10 @@ function renderScenario(s) {
     }
     if (!display) return '';
     const abn = isAbnormal(k, display);
-    return `<div class="vital-item${abn?' abnormal':''}" id="vi-${k}"><div class="vl">${k}</div><div class="vv">${display}</div><button class="reveal-btn" id="rb-${k}" onclick="handleRevealBtn('${k}',event)">\u{1F4E1} Send</button></div>`;
+    return `<div class="vital-item${abn?' abnormal':''}" ><div class="vl">${k}</div><div class="vv">${display}</div></div>`;
   }).join('');
 
-  // ECG reveal button (separate from Rhythm label)
-  const hasECG = !!(s.vitals && s.vitals.Rhythm && getECGImage(s.vitals.Rhythm));
-  const ecgRevealBtn = hasECG ? `<div class="vital-item" id="vi-ECG"><div class="vl">12-Lead ECG</div><div class="vv">${s.vitals.Rhythm}</div><button class="reveal-btn" id="rb-ECG" onclick="handleRevealBtn('ECG',event)">\u{1F4E1} Send</button></div>` : '';
+
 
   const flagsHtml = (s.flags||[]).map(f=>`<li class="flag-item"><div class="flag-dot"></div>${f}</li>`).join('');
 
@@ -2513,7 +2512,7 @@ function renderScenario(s) {
           <div class="dc-text">${s.dispatch||'No dispatch information provided.'}</div>
           ${s.key_hx?`<div class="dc-label" style="margin-top:10px">Key History</div><div class="dc-text" style="opacity:0.85">${s.key_hx}</div>`:''}
         </div>
-        <div class="vitals-grid">${vitalsHtml}${ecgRevealBtn}</div>
+        <div class="vitals-grid">${vitalsHtml}</div>
       </div>
     </div>
   </div>
@@ -2673,6 +2672,8 @@ function renderSection1(s, isTrauma) {
     return `<span class="vital-hint" style="background:${bg}">${val}</span>`;
   };
   const infoHint = (val) => val ? `<span class="vital-hint" style="background:#2E4057;max-width:220px;white-space:normal;line-height:1.3;vertical-align:top">${val}</span>` : '';
+  // Monitor send button — appended inline next to value hints
+  const monBtn = (key) => `<button class="reveal-btn" id="rb-${key}" onclick="handleRevealBtn('${key}',event)" title="Send to monitor">📡</button>`;
 
   const mkTick = (id, type, label) => `<button class="tick-btn" id="tick-${id}-${type}" onclick="toggleTick('${id}','${type}')" title="${label}">—</button>`;
   const mkRow = (id, label, indent=false) => `
@@ -2917,7 +2918,7 @@ function renderSection1(s, isTrauma) {
         <thead><tr><th class="left">Element</th><th>Prompting</th><th>Incomplete</th><th>Complete</th></tr></thead>
         <tbody>
           ${mkRow('rsa','RSA — Respiratory')}
-          ${mkSubRow('appearance','Appearance','','','','rsa')}${mkSubRow('speech','Speech','','','','rsa')}${mkSubRow('breathsounds','Breath/Chest sounds','','','','rsa')}${mkSubRow('rr','Respiratory Rate', v.RR||'', 'RR','','rsa')}${mkSubRow('rrhythm','Respiratory Rhythm','','','','rsa')}${mkSubRow('wob2','Work of Breathing','','','','rsa')}${mkSubRow('spo2','SpO₂', v.SpO2||'', 'SpO2','','rsa')}
+          ${mkSubRow('appearance','Appearance','','','','rsa')}${mkSubRow('speech','Speech','','','','rsa')}${mkSubRow('breathsounds','Breath/Chest sounds','','','','rsa')}${mkSubRow('rr',`Respiratory Rate${hint(v.RR||'','RR')}${v.RR ? monBtn('RR') : ''}`, '','','','rsa')}${mkSubRow('rrhythm','Respiratory Rhythm','','','','rsa')}${mkSubRow('wob2','Work of Breathing','','','','rsa')}${mkSubRow('spo2',`SpO₂${hint(v.SpO2||'','SpO2')}${v.SpO2 ? monBtn('SpO2') : ''}`, '','','','rsa')}
           ${mkRow('psa','PSA — Circulatory')}
           ${(()=>{
             // SKIN — context-derived
@@ -2966,23 +2967,23 @@ function renderSection1(s, isTrauma) {
             const etco2Abn = v.EtCO2 ? (parseFloat(v.EtCO2) < 30 || parseFloat(v.EtCO2) > 50) : !!etco2Relevant;
 
             return `
-          ${mkSubRow('bp','BP', v.BP||'', 'BP','','psa')}
-          ${mkSubRow('hr','HR', v.HR||'', 'HR','','psa')}
+          ${mkSubRow('bp',`BP${hint(v.BP||'','BP')}${v.BP ? monBtn('BP') : ''}`, '','','','psa')}
+          ${mkSubRow('hr',`HR${hint(v.HR||'','HR')}${v.HR ? monBtn('HR') : ''}`, '','','','psa')}
           ${mkSubRow('skin2',`Skin${skinHint ? `<span class="vital-hint" style="background:${skinAbn ? 'var(--red)' : 'var(--navy)'}">${skinHint}</span>` : ''}`, '','','','psa')}
           ${mkSubRow('conscstate',`Conscious State${`<span class="vital-hint" style="background:${avpu !== 'A' ? 'var(--red)' : 'var(--navy)'}">${conscHint}</span>`}`, '','','','psa')}
-          ${mkRow('gcstotal', v.GCS ? `GCS — ${gcs.components}${hint(String(gcs.total), 'GCS')}${gcs.description ? infoHint(gcs.description) : ''}` : 'GCS')}
+          ${mkRow('gcstotal', v.GCS ? `GCS — ${gcs.components}${hint(String(gcs.total), 'GCS')}${monBtn('GCS')}${gcs.description ? infoHint(gcs.description) : ''}` : 'GCS')}
           ${mkSubRow('eyes',`Eyes${eyesHint ? `<span class="vital-hint" style="background:var(--navy)">${eyesHint}</span>` : ''}`, '','','','gcstotal')}
           ${mkSubRow('verbal',`Verbal${verbalHint ? `<span class="vital-hint" style="background:var(--navy)">${verbalHint}</span>` : ''}`, '','','','gcstotal')}
           ${mkSubRow('motor',`Motor${motorHint ? `<span class="vital-hint" style="background:var(--navy)">${motorHint}</span>` : ''}`, '','','','gcstotal')}
           ${mkRow('adjuncts','Assessment Adjuncts')}
-          ${mkSubRow('weight',`Weight<span class="vital-hint" style="background:var(--navy)">${weightHint}</span>`, '','','','adjuncts')}
-          ${mkSubRow('temp','Temperature', v.Temp||'', 'Temp','','adjuncts')}
-          ${mkSubRow('bgl','Blood Glucose Level', v.BGL||'', 'BGL','','adjuncts')}
-          ${mkSubRow('ketones',`Blood Ketone Level<span class="vital-hint" style="background:${ketoneAbn ? 'var(--amber)' : 'var(--grey)'}">${ketoneHint}</span>`, '','','','adjuncts')}
-          ${mkSubRow('etco2',`EtCO₂<span class="vital-hint" style="background:${etco2Abn ? 'var(--amber)' : 'var(--grey)'}">${etco2Hint}</span>`, '','','','adjuncts')}`;
+          ${mkSubRow('weight',`Weight<span class="vital-hint" style="background:var(--navy)">${weightHint}</span>${v.Weight ? monBtn('Weight') : ''}`, '','','','adjuncts')}
+          ${mkSubRow('temp',`Temperature${hint(v.Temp||'','Temp')}${v.Temp ? monBtn('Temp') : ''}`, '','','','adjuncts')}
+          ${mkSubRow('bgl',`Blood Glucose Level${hint(v.BGL||'','BGL')}${v.BGL ? monBtn('BGL') : ''}`, '','','','adjuncts')}
+          ${mkSubRow('ketones',`Blood Ketone Level<span class="vital-hint" style="background:${ketoneAbn ? 'var(--amber)' : 'var(--grey)'}">${ketoneHint}</span>${v.Ketones ? monBtn('Ketones') : ''}`, '','','','adjuncts')}
+          ${mkSubRow('etco2',`EtCO₂<span class="vital-hint" style="background:${etco2Abn ? 'var(--amber)' : 'var(--grey)'}">${etco2Hint}</span>${v.EtCO2 ? monBtn('EtCO2') : ''}`, '','','','adjuncts')}`;
           })()}
           ${mkRow('monitor','Monitor / ECG')}
-          ${mkSubRow('vrhythm','Ventricular Rhythm', v.Rhythm||'', 'Rhythm','','monitor')}${mkSubRow('vrate','Ventricular Rate (±10bpm)', v.HR||'','','','monitor')}${mkSubRow('pwave','P Wave','','','','monitor')}${mkSubRow('pr','PR Interval','','','','monitor')}${mkSubRow('qrs','QRS Duration','','','','monitor')}${mkSubRow('interp','Correct Rhythm Interpretation','','','','monitor')}${mkSubRow('lead12','12 Lead (as appropriate)','','','','monitor')}
+          ${mkSubRow('vrhythm',`Ventricular Rhythm${hint(v.Rhythm||'','Rhythm')}${v.Rhythm ? monBtn('Rhythm') : ''}`, '','','','monitor')}${mkSubRow('vrate','Ventricular Rate (±10bpm)', v.HR||'','','','monitor')}${mkSubRow('pwave','P Wave','','','','monitor')}${mkSubRow('pr','PR Interval','','','','monitor')}${mkSubRow('qrs','QRS Duration','','','','monitor')}${mkSubRow('interp','Correct Rhythm Interpretation','','','','monitor')}${mkSubRow('lead12',`12 Lead (as appropriate)${v.Rhythm && getECGImage(v.Rhythm) ? monBtn('ECG') : ''}`, '','','','monitor')}
         </tbody>
       </table>
 
@@ -5300,11 +5301,19 @@ function updateRevealBtnState(key, revealed) {
   if (!btn) return;
   if (revealed) {
     btn.classList.add('revealed');
-    btn.textContent = '📡 Sent';
+    btn.title = 'Sent — tap to hide';
   } else {
     btn.classList.remove('revealed');
-    btn.textContent = '📡 Send';
+    btn.title = 'Send to monitor';
   }
+}
+
+function refreshAllRevealBtns() {
+  // Re-apply button states after scenario re-render (e.g. loadScenario)
+  if (!_patientSessionCode) return;
+  Object.keys(_sessionRevealed).forEach(key => {
+    if (_sessionRevealed[key]) updateRevealBtnState(key, true);
+  });
 }
 
 function closePatientSessionModal() {
