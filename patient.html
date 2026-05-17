@@ -90,7 +90,8 @@ const VITAL_META = {
   EtCO2:   { label: 'EtCO\u2082',     unit: 'mmHg' },
   Ketones: { label: 'Ketones',        unit: 'mmol/L' },
 };
-const VITAL_ORDER = ['HR','BP','SpO2','RR','GCS','Temp','BGL','EtCO2','Ketones','Weight','Rhythm'];
+const VITAL_ORDER = ['HR','BP','SpO2','RR','GCS','Temp','BGL','EtCO2','Ketones','Weight','Rhythm','ECG'];
+VITAL_META['ECG'] = { label: '12-Lead ECG', unit: '', wide: true, isECG: true };
 
 let sessionCode = null;
 let scenario = null;
@@ -114,6 +115,45 @@ window.addEventListener('DOMContentLoaded', () => {
     connectSession();
   }
 });
+
+
+const ECG_BASE = 'https://1984tpearson.github.io/AV/ecg/';
+const ECG_MAP = {
+  'sinus tachycardia': 'Sinus_Tachycardia.jpg',
+  'sinus bradycardia': 'Sinus_Bradycardia.jpg',
+  'normal sinus rhythm': 'Normal_Sinus_Rhythm.jpg',
+  'atrial fibrillation': 'Atrial_Fibrillation.jpg',
+  'atrial flutter': 'Atrial_Flutter.jpg',
+  'svt': 'SVT.jpg',
+  'supraventricular tachycardia': 'SVT.jpg',
+  'ventricular tachycardia': 'Ventricular_Tachycardia.jpg',
+  'ventricular fibrillation': 'Ventricular_Fibrillation.jpg',
+  'asystole': 'Asystole.jpg',
+  '1st degree': '1st_Degree_AV_Block.jpg',
+  'first degree': '1st_Degree_AV_Block.jpg',
+  '2nd degree': '2nd_Degree_AV_Block_Mobitz_I.jpg',
+  'second degree': '2nd_Degree_AV_Block_Mobitz_I.jpg',
+  '3rd degree': '3rd_Degree_AV_Block.jpg',
+  'third degree': '3rd_Degree_AV_Block.jpg',
+  'complete heart block': '3rd_Degree_AV_Block.jpg',
+  'stemi': 'STEMI.jpg',
+  'left bundle': 'LBBB.jpg',
+  'right bundle': 'RBBB.jpg',
+  'wolff': 'WPW.jpg',
+  'wpw': 'WPW.jpg',
+  'torsades': 'Torsades_de_Pointes.jpg',
+  'idioventricular': 'Idioventricular_Rhythm.jpg',
+  'junctional': 'Junctional_Rhythm.jpg',
+};
+
+function getECGUrl(rhythmStr) {
+  if (!rhythmStr) return null;
+  const r = rhythmStr.toLowerCase();
+  for (const [key, file] of Object.entries(ECG_MAP)) {
+    if (r.includes(key)) return ECG_BASE + file;
+  }
+  return null;
+}
 
 async function connectSession() {
   const code = document.getElementById('code-input').value.trim();
@@ -187,9 +227,10 @@ function renderVitals(revealed) {
   noMsg.style.display = anyRevealed ? 'none' : 'block';
   grid.innerHTML = '';
   VITAL_ORDER.forEach(key => {
-    const val = vitals[key];
-    if (val === undefined || val === null || val === '') return;
     const meta = VITAL_META[key] || { label: key, unit: '' };
+    // ECG uses Rhythm value for image lookup but is a separate reveal
+    const val = key === 'ECG' ? vitals['Rhythm'] : vitals[key];
+    if (val === undefined || val === null || val === '') return;
     const isRevealed = !!revealed[key];
     const isNew = isRevealed && !prevRevealed[key];
     const card = document.createElement('div');
@@ -198,6 +239,14 @@ function renderVitals(revealed) {
     if (!isRevealed) {
       card.classList.add('hidden-vital');
       card.innerHTML = '<div class="vc-dash">\u2014 \u2014 \u2014</div>';
+    } else if (key === 'ECG') {
+      // Show ECG image
+      const ecgUrl = getECGUrl(String(val));
+      if (ecgUrl) {
+        card.innerHTML = `<div class="vc-label">12-Lead ECG</div><img src="${ecgUrl}" style="width:100%;border-radius:6px;margin-top:6px" alt="ECG">`;
+      } else {
+        card.innerHTML = `<div class="vc-label">12-Lead ECG</div><div class="vc-value" style="font-size:14px">${val}</div><div class="vc-unit">No image available</div>`;
+      }
     } else if (key === 'GCS' && typeof val === 'object') {
       card.innerHTML = `<div class="vc-label">${meta.label}</div><div class="vc-value">${val.total}<span style="font-size:14px;color:#888"> /15</span></div><div class="vc-unit">E${val.E} V${val.V} M${val.M}</div>`;
     } else {
