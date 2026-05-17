@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>AV Patient Monitor</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: #0a0a0a; color: #e0e0e0; font-family: 'Courier New', monospace; min-height: 100vh; display: flex; flex-direction: column; }
+#topbar { background: #111; border-bottom: 1px solid #1a3a1a; padding: 10px 16px; display: flex; align-items: center; justify-content: space-between; }
+#topbar .logo { display: flex; align-items: center; gap: 8px; }
+#topbar .logo-icon { width: 32px; height: 32px; background: #1C6B3A; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 16px; }
+#topbar h1 { font-size: 13px; font-weight: 700; color: #4CAF50; letter-spacing: 1px; }
+.status-dot { width: 8px; height: 8px; border-radius: 50%; background: #4CAF50; animation: pulse 2s infinite; }
+.status-dot.offline { background: #888; animation: none; }
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+#connect-screen { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 32px 24px; gap: 16px; }
+#connect-screen h2 { font-size: 18px; color: #4CAF50; text-align: center; }
+#connect-screen p { font-size: 13px; color: #888; text-align: center; }
+#code-input { background: #1a1a1a; border: 2px solid #333; color: #e0e0e0; font-family: 'Courier New', monospace; font-size: 28px; font-weight: 700; letter-spacing: 8px; text-align: center; padding: 12px 20px; border-radius: 10px; width: 180px; outline: none; }
+#code-input:focus { border-color: #4CAF50; }
+#connect-btn { background: #1C6B3A; border: none; color: white; font-size: 15px; font-weight: 700; padding: 14px 32px; border-radius: 10px; cursor: pointer; letter-spacing: 0.5px; }
+#connect-btn:active { background: #145228; }
+#connect-error { color: #e74c3c; font-size: 13px; text-align: center; display: none; }
+#monitor-screen { flex: 1; display: none; flex-direction: column; padding: 12px; gap: 10px; }
+.patient-info { background: #111; border: 1px solid #1e3a1e; border-radius: 10px; padding: 12px 16px; }
+.patient-name { font-size: 15px; font-weight: 700; color: #4CAF50; }
+.patient-sub { font-size: 12px; color: #888; margin-top: 2px; }
+.vitals-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.vital-card { background: #111; border: 1px solid #1e3a1e; border-radius: 10px; padding: 14px 16px; }
+.vital-card.hidden-vital { background: #0d0d0d; border-color: #1a1a1a; display: flex; align-items: center; justify-content: center; min-height: 80px; }
+.vc-dash { color: #2a2a2a; font-size: 28px; font-weight: 900; letter-spacing: 4px; }
+.vc-label { font-size: 10px; font-weight: 700; color: #4CAF50; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 4px; }
+.vc-value { font-size: 30px; font-weight: 700; color: #ffffff; line-height: 1; }
+.vc-unit { font-size: 11px; color: #888; margin-top: 3px; }
+.vital-card.wide { grid-column: span 2; }
+.vital-card[data-key="HR"] .vc-value { color: #FF6B6B; }
+.vital-card[data-key="SpO2"] .vc-value { color: #4FC3F7; }
+.vital-card[data-key="BP"] .vc-value { color: #FFD54F; }
+.vital-card[data-key="RR"] .vc-value { color: #81C784; }
+.vital-card[data-key="GCS"] .vc-value { color: #CE93D8; }
+.vital-card[data-key="Rhythm"] .vc-value { color: #FF8A65; font-size: 16px; }
+#no-vitals-msg { text-align: center; padding: 40px 20px; color: #444; font-size: 13px; display: none; }
+#session-code-display { text-align: center; font-size: 11px; color: #333; padding: 8px; }
+.new-reveal-flash { animation: flashGreen 1.5s ease; }
+@keyframes flashGreen { 0% { border-color: #4CAF50; box-shadow: 0 0 12px rgba(76,175,80,0.6); } 100% { border-color: #1e3a1e; box-shadow: none; } }
+</style>
+</head>
+<body>
+<div id="topbar">
+  <div class="logo">
+    <div class="logo-icon">🏥</div>
+    <h1>PATIENT MONITOR</h1>
+  </div>
+  <div style="display:flex;align-items:center;gap:8px">
+    <div id="status-dot" class="status-dot offline"></div>
+    <span id="status-text" style="font-size:11px;color:#888">Disconnected</span>
+  </div>
+</div>
+<div id="connect-screen">
+  <h2>Enter Session Code</h2>
+  <p>Ask your assessor for the 4-digit session code</p>
+  <input type="text" id="code-input" maxlength="4" inputmode="numeric" pattern="[0-9]*" placeholder="····" oninput="this.value=this.value.replace(/[^0-9]/g,'')">
+  <button id="connect-btn" onclick="connectSession()">Connect</button>
+  <div id="connect-error">Session not found. Check the code and try again.</div>
+</div>
+<div id="monitor-screen">
+  <div class="patient-info">
+    <div class="patient-name" id="pt-name">—</div>
+    <div class="patient-sub" id="pt-sub">—</div>
+  </div>
+  <div class="vitals-grid" id="vitals-grid"></div>
+  <div id="no-vitals-msg">Waiting for assessor to reveal vitals…</div>
+  <div id="session-code-display"></div>
+</div>
+<script>
+const SUPABASE_URL = 'https://befsjenbaruxqrntuhpn.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJlZnNqZW5iYXJ1eHFybnR1aHBuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI2MjA5MjAsImV4cCI6MjA4ODE5NjkyMH0.hOFFbIvd1wAgu-QyghupQ-7ttSpg7sxz_UsJbXyXztA';
+
+const VITAL_META = {
+  HR:      { label: 'Heart Rate',     unit: 'bpm' },
+  BP:      { label: 'Blood Pressure', unit: 'mmHg' },
+  SpO2:    { label: 'SpO\u2082',      unit: '%' },
+  RR:      { label: 'Resp Rate',      unit: '/min' },
+  GCS:     { label: 'GCS',            unit: '/15' },
+  Temp:    { label: 'Temperature',    unit: '\u00b0C' },
+  BGL:     { label: 'BGL',            unit: 'mmol/L' },
+  Rhythm:  { label: 'Rhythm',         unit: '', wide: true },
+  Weight:  { label: 'Weight',         unit: 'kg' },
+  EtCO2:   { label: 'EtCO\u2082',     unit: 'mmHg' },
+  Ketones: { label: 'Ketones',        unit: 'mmol/L' },
+};
+const VITAL_ORDER = ['HR','BP','SpO2','RR','GCS','Temp','BGL','EtCO2','Ketones','Weight','Rhythm'];
+
+let sessionCode = null;
+let scenario = null;
+let pollTimer = null;
+let lastRevealedStr = null;
+let prevRevealed = {};
+
+async function sbGet(path) {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
+    headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json' }
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.json();
+}
+
+window.addEventListener('DOMContentLoaded', () => {
+  const params = new URLSearchParams(window.location.search);
+  const code = params.get('session');
+  if (code && /^\d{4}$/.test(code)) {
+    document.getElementById('code-input').value = code;
+    connectSession();
+  }
+});
+
+async function connectSession() {
+  const code = document.getElementById('code-input').value.trim();
+  if (code.length !== 4) return;
+  const errEl = document.getElementById('connect-error');
+  errEl.style.display = 'none';
+  document.getElementById('connect-btn').textContent = 'Connecting\u2026';
+  try {
+    const rows = await sbGet(`active_sessions?session_code=eq.${code}&select=*`);
+    if (!rows || rows.length === 0) {
+      errEl.style.display = 'block';
+      document.getElementById('connect-btn').textContent = 'Connect';
+      return;
+    }
+    const session = rows[0];
+    sessionCode = code;
+    // Load scenario
+    const scenRows = await sbGet(`scenarios?id=eq.${encodeURIComponent(session.scenario_id)}&select=*`);
+    if (scenRows && scenRows.length > 0) {
+      scenario = scenRows[0];
+    }
+    document.getElementById('connect-screen').style.display = 'none';
+    document.getElementById('monitor-screen').style.display = 'flex';
+    document.getElementById('session-code-display').textContent = `Session ${code}`;
+    if (scenario) {
+      document.getElementById('pt-name').textContent = scenario.title || 'Patient';
+      document.getElementById('pt-sub').textContent = scenario.subtitle || '';
+    }
+    prevRevealed = {};
+    renderVitals(session.revealed || {});
+    prevRevealed = session.revealed || {};
+    startPolling();
+  } catch(e) {
+    errEl.textContent = 'Connection failed: ' + e.message;
+    errEl.style.display = 'block';
+    document.getElementById('connect-btn').textContent = 'Connect';
+  }
+}
+
+function startPolling() {
+  setDotStatus(true);
+  pollTimer = setInterval(async () => {
+    try {
+      const rows = await sbGet(`active_sessions?session_code=eq.${sessionCode}&select=revealed`);
+      if (!rows || rows.length === 0) return;
+      const revealed = rows[0].revealed || {};
+      const revStr = JSON.stringify(revealed);
+      if (revStr !== lastRevealedStr) {
+        renderVitals(revealed);
+        prevRevealed = revealed;
+        lastRevealedStr = revStr;
+      }
+      setDotStatus(true);
+    } catch(e) { setDotStatus(false); }
+  }, 2000);
+}
+
+function setDotStatus(online) {
+  const dot = document.getElementById('status-dot');
+  const txt = document.getElementById('status-text');
+  dot.className = online ? 'status-dot' : 'status-dot offline';
+  txt.textContent = online ? 'Live' : 'Reconnecting\u2026';
+}
+
+function renderVitals(revealed) {
+  if (!scenario || !scenario.vitals) return;
+  const vitals = scenario.vitals;
+  const grid = document.getElementById('vitals-grid');
+  const noMsg = document.getElementById('no-vitals-msg');
+  const anyRevealed = Object.values(revealed).some(Boolean);
+  noMsg.style.display = anyRevealed ? 'none' : 'block';
+  grid.innerHTML = '';
+  VITAL_ORDER.forEach(key => {
+    const val = vitals[key];
+    if (val === undefined || val === null || val === '') return;
+    const meta = VITAL_META[key] || { label: key, unit: '' };
+    const isRevealed = !!revealed[key];
+    const isNew = isRevealed && !prevRevealed[key];
+    const card = document.createElement('div');
+    card.className = 'vital-card' + (meta.wide ? ' wide' : '') + (isNew ? ' new-reveal-flash' : '');
+    card.dataset.key = key;
+    if (!isRevealed) {
+      card.classList.add('hidden-vital');
+      card.innerHTML = '<div class="vc-dash">\u2014 \u2014 \u2014</div>';
+    } else if (key === 'GCS' && typeof val === 'object') {
+      card.innerHTML = `<div class="vc-label">${meta.label}</div><div class="vc-value">${val.total}<span style="font-size:14px;color:#888"> /15</span></div><div class="vc-unit">E${val.E} V${val.V} M${val.M}</div>`;
+    } else {
+      card.innerHTML = `<div class="vc-label">${meta.label}</div><div class="vc-value">${val}</div>${meta.unit ? `<div class="vc-unit">${meta.unit}</div>` : ''}`;
+    }
+    grid.appendChild(card);
+  });
+}
+</script>
+</body>
+</html>
