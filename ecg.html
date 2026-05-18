@@ -7,28 +7,31 @@
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700&display=swap');
   *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
-  body{background:#060606;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;min-height:100vh;font-family:'Share Tech Mono',monospace;color:#00ff88;padding:16px;}
-  .monitor{width:1100px;background:#050f08;border:1px solid #003318;border-radius:6px;padding:14px 18px 14px;box-shadow:0 0 0 1px #001a0c,0 0 60px rgba(0,255,100,0.04),inset 0 1px 0 rgba(0,255,100,0.04);position:relative;}
+  body{background:var(--bg-outer,#060606);display:flex;flex-direction:column;align-items:center;justify-content:flex-start;min-height:100vh;font-family:'Share Tech Mono',monospace;color:var(--text-bright,#00ff88);padding:16px;}
+  .monitor{width:1100px;background:var(--bg-monitor,#050f08);border:1px solid var(--monitor-border,#003318);border-radius:6px;padding:14px 18px 14px;box-shadow:0 0 0 1px #001a0c,0 0 60px rgba(0,255,100,0.04),inset 0 1px 0 rgba(0,255,100,0.04);position:relative;}
   .monitor::before{content:'';position:absolute;inset:0;background:repeating-linear-gradient(to bottom,transparent,transparent 3px,rgba(0,0,0,0.06) 3px,rgba(0,0,0,0.06) 4px);pointer-events:none;z-index:10;border-radius:6px;}
   .header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;}
   .header-left{display:flex;flex-direction:column;gap:3px;}
-  .title-label{font-family:'Orbitron',monospace;font-size:11px;letter-spacing:3px;color:#00cc66;opacity:0.7;}
+  .title-label{font-family:'Orbitron',monospace;font-size:11px;letter-spacing:3px;color:var(--text-mid,#00cc66);opacity:0.7;}
   .hr-block{text-align:right;}
   .hr-label{font-size:9px;letter-spacing:2px;color:#00aa55;opacity:0.6;display:block;}
-  .hr-value{font-family:'Orbitron',monospace;font-size:32px;font-weight:700;color:#00ff88;line-height:1;text-shadow:0 0 14px rgba(0,255,136,0.45);}
+  .hr-value{font-family:'Orbitron',monospace;font-size:32px;font-weight:700;color:var(--text-bright,#00ff88);line-height:1;text-shadow:none;}
   .hr-unit{font-size:9px;color:#00aa55;opacity:0.6;letter-spacing:1px;}
-  .rhythm-name{font-family:'Orbitron',monospace;font-size:9px;letter-spacing:3px;color:#00ff88;opacity:0.75;text-align:right;margin-top:2px;text-shadow:0 0 8px rgba(0,255,136,0.3);min-height:13px;}
+  .rhythm-name{font-family:'Orbitron',monospace;font-size:9px;letter-spacing:3px;color:var(--text-bright,#00ff88);opacity:0.75;text-align:right;margin-top:2px;min-height:13px;}
 
   /* Grid of 12 lead canvases: 4 col x 3 row */
-  .leads-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:3px;background:#000;border:2px solid #000;margin-bottom:0;}
+  /* Single continuous grid area */
+  .ecg-area{position:relative;}
+  .ecg-bg-canvas{position:absolute;top:0;left:0;z-index:1;pointer-events:none;}
+  .leads-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:0;position:relative;z-index:2;}
   .lead-cell{position:relative;}
-  .lead-label-tag{position:absolute;top:3px;left:5px;font-size:9px;letter-spacing:1px;color:#00cc66;opacity:0.55;z-index:5;pointer-events:none;}
-  canvas.grid-c{position:absolute;top:0;left:0;z-index:1;background:#020a04;}
-  canvas.trace-c{position:absolute;top:0;left:0;z-index:2;background:transparent;}
+  .lead-cell:nth-child(4n){border-right:none;}
+  .lead-label-tag{position:absolute;top:3px;left:5px;font-size:12px;font-weight:bold;letter-spacing:1px;color:var(--trace,#00cc66);opacity:0.9;z-index:5;pointer-events:none;}
+  canvas.trace-c{position:absolute;top:0;left:0;z-index:2;background:transparent;width:100%;height:100%;}
 
   /* Rhythm strip at bottom — full width */
-  .strip-wrapper{position:relative;border:2px solid #000;border-top:2px solid #000;margin-bottom:0;}
-  .strip-label{position:absolute;top:3px;left:5px;font-size:9px;letter-spacing:1px;color:#00cc66;opacity:0.55;z-index:5;pointer-events:none;}
+  .strip-wrapper{position:relative;z-index:2;}
+  .strip-label{position:absolute;top:3px;left:5px;font-size:9px;letter-spacing:1px;color:var(--text-dim,#00cc66);opacity:0.7;z-index:5;pointer-events:none;}
   canvas.strip-grid{position:absolute;top:0;left:0;z-index:1;background:#020a04;}
   canvas.strip-trace{position:absolute;top:0;left:0;z-index:2;background:transparent;}
 
@@ -36,13 +39,13 @@
   .rhythm-grid{display:flex;flex-wrap:wrap;gap:4px;}
   .rhythm-grid .btn{flex:1 1 calc(14.28% - 4px);min-width:75px;max-width:150px;}
   .btn{font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:1px;padding:5px 4px;background:transparent;border:1px solid #003a1a;color:#008844;cursor:pointer;border-radius:2px;transition:all .12s;text-align:center;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-  .btn:hover{background:rgba(0,255,100,0.06);border-color:#006633;color:#00cc66;}
-  .btn.active{background:rgba(0,255,100,0.10);border-color:#00cc66;color:#00ff88;box-shadow:0 0 10px rgba(0,255,100,0.18);}
+  .btn:hover{background:var(--btn-active-bg,rgba(0,255,100,0.06));border-color:var(--text-dim,#006633);color:var(--text-mid,#00cc66);}
+  .btn.active{background:var(--btn-active-bg,rgba(0,255,100,0.10));border-color:var(--btn-active-border,#00cc66);color:var(--btn-active-text,#00ff88);box-shadow:none;}
   .slider-row{display:flex;align-items:center;gap:12px;height:26px;}
   .slider-label{font-size:9px;letter-spacing:2px;color:#00aa55;opacity:.7;white-space:nowrap;width:50px;}
-  .slider-bpm{font-family:'Orbitron',monospace;font-size:12px;color:#00ff88;width:58px;text-align:right;white-space:nowrap;}
+  .slider-bpm{font-family:'Orbitron',monospace;font-size:12px;color:var(--text-bright,#00ff88);width:58px;text-align:right;white-space:nowrap;}
   input[type=range]{-webkit-appearance:none;flex:1;height:3px;background:#003318;border-radius:2px;outline:none;cursor:pointer;}
-  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;height:13px;border-radius:50%;background:#00ff88;cursor:pointer;box-shadow:0 0 6px rgba(0,255,136,0.5);}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;height:13px;border-radius:50%;background:var(--text-bright,#00ff88);cursor:pointer;box-shadow:none;}
   input[type=range]:disabled{opacity:.2;cursor:default;}
   input[type=range]:disabled::-webkit-slider-thumb{cursor:default;}
   .slider-note{font-size:9px;color:#005522;letter-spacing:1px;white-space:nowrap;width:180px;text-align:right;}
@@ -107,13 +110,15 @@
   </div>
 
   <!-- 12 lead grid: I aVR V1 V4 / II aVL V2 V5 / III aVF V3 V6 -->
-  <div class="leads-grid" id="leadsGrid">
-    <!-- Cells injected by JS -->
-  </div>
-
-  <!-- Full-width rhythm strip: Lead II -->
-  <div class="strip-wrapper" id="stripWrapper">
-    <span class="strip-label">LEAD II — RHYTHM STRIP</span>
+  <!-- Single ECG area: one background grid canvas, all leads on top -->
+  <div class="ecg-area" id="ecgArea">
+    <canvas id="ecgBgGrid"></canvas>
+    <div class="leads-grid" id="leadsGrid">
+      <!-- Cells injected by JS -->
+    </div>
+    <div class="strip-wrapper" id="stripWrapper">
+      <span class="strip-label">LEAD II — RHYTHM STRIP</span>
+    </div>
   </div>
 
   <div class="controls">
@@ -160,7 +165,7 @@
     </div>
   </div>
   <div style="margin-top:10px;display:flex;gap:8px;align-items:center;">
-    <span style="font-size:9px;letter-spacing:2px;color:#00aa55;opacity:.7">BBB:</span>
+    <span style="font-size:9px;letter-spacing:2px;color:var(--text-dim,#00aa55);opacity:.7">BBB:</span>
     <button class="btn" id="bbb-none" onclick="setBBB('none')">NONE</button>
     <button class="btn" id="bbb-lbbb" onclick="setBBB('lbbb')">LBBB</button>
     <button class="btn" id="bbb-rbbb" onclick="setBBB('rbbb')">RBBB</button>
@@ -170,8 +175,18 @@
     <span style="font-size:9px;letter-spacing:2px;color:var(--text-dim);opacity:.7;white-space:nowrap;">THEME:</span>
     <button class="btn theme-btn active" id="theme-monitor" onclick="setTheme('monitor')" style="flex:1">⬛ MONITOR</button>
     <button class="btn theme-btn" id="theme-paper" onclick="setTheme('paper')" style="flex:1">📄 PAPER</button>
-    <button class="btn theme-btn" id="theme-random" onclick="setTheme('random')" style="flex:1;font-size:10px;">🎲</button>
+    <button class="btn theme-btn" id="theme-random"       onclick="setTheme('random')"       style="flex:1;font-size:9px;">RANDOM DARK</button>
+    <button class="btn theme-btn" id="theme-random-paper" onclick="setTheme('random-paper')" style="flex:1;font-size:9px;">RANDOM PAPER</button>
   </div>
+  <div style="margin-top:8px;display:flex;gap:8px;align-items:center;">
+    <button id="captureBtn" class="btn" onclick="toggleCapture()"
+      style="flex:1;letter-spacing:2px;text-transform:uppercase;font-size:10px;">
+      ⏸ CAPTURE
+    </button>
+  </div>
+  <!-- Capture flash overlay -->
+  <div id="captureFlash" style="position:fixed;inset:0;background:white;opacity:0;
+       pointer-events:none;z-index:9999;transition:opacity 0.15s;"></div>
   <div class="footer">
     <span>25 MM/SEC</span><span>10 MM/MV</span><span>0.05–150 HZ</span>
   </div>
@@ -185,7 +200,7 @@
 // =====================================================================
 const LEAD_LAYOUT = ['I','aVR','V1','V4','II','aVL','V2','V5','III','aVF','V3','V6'];
 const LEAD_H = 110;   // px height per lead cell
-const STRIP_H = 80;   // px height rhythm strip
+const STRIP_H = 140;  // px height rhythm strip
 
 // Canvas width = monitor inner width minus padding
 // Monitor is 1100px, padding 18px each side => 1100-36=1064px
@@ -209,6 +224,12 @@ const STRIP_BIG_PX   = BIG_SQ_PX;
 // =====================================================================
 const leadsGrid = document.getElementById('leadsGrid');
 const stripWrapper = document.getElementById('stripWrapper');
+const ecgArea = document.getElementById('ecgArea');
+// Size ecg-area to hold both leads grid and strip
+const ecgAreaH = LEAD_H * 3 + STRIP_H;
+ecgArea.style.height = ecgAreaH + 'px';
+ecgArea.style.width = MONITOR_W + 'px';
+ecgArea.style.position = 'relative';
 stripWrapper.style.height = STRIP_H + 'px';
 stripWrapper.style.width = MONITOR_W + 'px';
 
@@ -224,53 +245,66 @@ LEAD_LAYOUT.forEach(name => {
   tag.className = 'lead-label-tag';
   tag.textContent = name;
 
-  const gc = document.createElement('canvas');
-  gc.className = 'grid-c';
-  gc.width = LEAD_W; gc.height = LEAD_H;
-
   const tc = document.createElement('canvas');
   tc.className = 'trace-c';
   tc.width = LEAD_W; tc.height = LEAD_H;
+  tc.style.position = 'absolute';
+  tc.style.top = '0'; tc.style.left = '0';
+  tc.style.zIndex = '3';
+  tc.style.background = 'transparent';
 
-  cell.appendChild(gc); cell.appendChild(tc); cell.appendChild(tag);
+  cell.appendChild(tc); cell.appendChild(tag);
   leadsGrid.appendChild(cell);
-  leadCanvases[name] = { grid: gc, trace: tc };
+  leadCanvases[name] = { trace: tc };
 });
 
-// Strip canvases
-const stripGridC  = document.createElement('canvas');
-stripGridC.className  = 'strip-grid';
-stripGridC.width  = STRIP_W; stripGridC.height = STRIP_H;
+// Single background grid canvas spanning full ECG area
+const TOTAL_H = LEAD_H * 3 + STRIP_H;
+const bgGridCanvas = document.getElementById('ecgBgGrid');
+bgGridCanvas.className = 'ecg-bg-canvas';
+bgGridCanvas.width  = MONITOR_W;
+bgGridCanvas.height = TOTAL_H;
+bgGridCanvas.style.width  = MONITOR_W + 'px';
+bgGridCanvas.style.height = TOTAL_H + 'px';
+const bgCtx = bgGridCanvas.getContext('2d');
+
+// Strip trace canvas only (no grid canvas needed)
 const stripTraceC = document.createElement('canvas');
 stripTraceC.className = 'strip-trace';
+stripTraceC.style.position = 'absolute';
+stripTraceC.style.top = '0'; stripTraceC.style.left = '0';
+stripTraceC.style.zIndex = '3';
+stripTraceC.style.background = 'transparent';
 stripTraceC.width = STRIP_W; stripTraceC.height = STRIP_H;
-stripWrapper.appendChild(stripGridC);
 stripWrapper.appendChild(stripTraceC);
 
 // =====================================================================
-// DRAW GRIDS (static, once)
+// DRAW SINGLE CONTINUOUS BACKGROUND GRID
+// One canvas spans the full ECG area — perfect alignment guaranteed
 // =====================================================================
-function drawGrid(ctx, w, h, smallPx, bigPx, bg) {
-  ctx.fillStyle = bg || '#020a04';
-  ctx.fillRect(0,0,w,h);
-  ctx.strokeStyle = 'rgba(0,110,50,0.30)';
-  ctx.lineWidth = 0.5;
-  ctx.beginPath();
-  for(let x=0;x<=w;x+=smallPx){ctx.moveTo(x,0);ctx.lineTo(x,h);}
-  for(let y=0;y<=h;y+=smallPx){ctx.moveTo(0,y);ctx.lineTo(w,y);}
-  ctx.stroke();
-  ctx.strokeStyle = 'rgba(0,160,70,0.55)';
-  ctx.lineWidth = 1.0;
-  ctx.beginPath();
-  for(let x=0;x<=w;x+=bigPx){ctx.moveTo(x,0);ctx.lineTo(x,h);}
-  for(let y=0;y<=h;y+=bigPx){ctx.moveTo(0,y);ctx.lineTo(w,y);}
-  ctx.stroke();
+function drawBgGrid(bg, smallCol, largeCol) {
+  const bgCol   = bg        || window._themeBg    || '#020a04';
+  const sCol    = smallCol  || window._themeGridS || 'rgba(0,110,50,0.30)';
+  const lCol    = largeCol  || window._themeGridL || 'rgba(0,160,70,0.55)';
+  bgCtx.fillStyle = bgCol;
+  bgCtx.fillRect(0, 0, MONITOR_W, TOTAL_H);
+  // Small squares — continuous across full width and height
+  bgCtx.strokeStyle = sCol;
+  bgCtx.lineWidth = 0.5;
+  bgCtx.beginPath();
+  for(let x=0; x<=MONITOR_W; x+=SMALL_SQ_PX){ bgCtx.moveTo(x,0); bgCtx.lineTo(x,TOTAL_H); }
+  for(let y=0; y<=TOTAL_H;   y+=SMALL_SQ_PX){ bgCtx.moveTo(0,y); bgCtx.lineTo(MONITOR_W,y); }
+  bgCtx.stroke();
+  // Large squares
+  bgCtx.strokeStyle = lCol;
+  bgCtx.lineWidth = 1.0;
+  bgCtx.beginPath();
+  for(let x=0; x<=MONITOR_W; x+=BIG_SQ_PX){ bgCtx.moveTo(x,0); bgCtx.lineTo(x,TOTAL_H); }
+  for(let y=0; y<=TOTAL_H;   y+=BIG_SQ_PX){ bgCtx.moveTo(0,y); bgCtx.lineTo(MONITOR_W,y); }
+  bgCtx.stroke();
+  // No extra separator lines — large grid squares provide visual separation
 }
-
-LEAD_LAYOUT.forEach(name => {
-  drawGrid(leadCanvases[name].grid.getContext('2d'), LEAD_W, LEAD_H, SMALL_SQ_PX, BIG_SQ_PX);
-});
-drawGrid(stripGridC.getContext('2d'), STRIP_W, STRIP_H, STRIP_SMALL_PX, STRIP_BIG_PX);
+drawBgGrid();
 
 // =====================================================================
 // WAVEFORM MATH
@@ -1174,7 +1208,7 @@ function computeSamples(s, dtMs, bpm, key){
 const traceData={};
 const spikeData={};  // per-lead spike position buffers
 const MID_LEAD = LEAD_H*0.52;
-const MID_STRIP = STRIP_H*0.52;
+const MID_STRIP = STRIP_H*0.58; // lower baseline for strip
 
 LEAD_LAYOUT.forEach(n=>{
   traceData[n]=new Float32Array(LEAD_W);
@@ -1233,32 +1267,63 @@ function draw(ts){
   const msPerStripPx=1/STRIP_PX_PER_MS;
 
   // Generate lead samples
-  for(let i=0;i<leadSteps;i++){
-    const samples=computeSamples(state,msPerLeadPx,currentBpm,currentKey);
-    const x=headX%LEAD_W;
-    const noiseVal=sampleNoise();
-    LEAD_LAYOUT.forEach(n=>{
-      const bbb=applyBBB(samples[n],state.ms,n);
-      traceData[n][x]=MID_LEAD-(bbb*patient.ampScale+noiseVal);
-      spikeData[n][x]=0;
-      if(state.spikeA){ spikeData[n][x]=1; }
-      if(state.spikeV){ spikeData[n][x]=(spikeData[n][x]===1)?3:2; }
-    });
-    if(state.spikeA) state.spikeA=false;
-    if(state.spikeV) state.spikeV=false;
-    headX=(headX+1)%LEAD_W;
+  // Lead cells — freeze when captureMode detects wrap
+  if(!leadsFrozen) {
+    for(let i=0;i<leadSteps;i++){
+      if(captureMode && headX > 0 && (headX+1) % LEAD_W === 0) {
+        // Finish this last pixel then freeze leads only
+        const samples=computeSamples(state,msPerLeadPx,currentBpm,currentKey);
+        const x=headX%LEAD_W;
+        const noiseVal=sampleNoise();
+        LEAD_LAYOUT.forEach(n=>{
+          const bbb=applyBBB(samples[n],state.ms,n);
+          traceData[n][x]=MID_LEAD-(bbb*patient.ampScale+noiseVal);
+          spikeData[n][x]=0;
+          if(state.spikeA){spikeData[n][x]=1;}
+          if(state.spikeV){spikeData[n][x]=(spikeData[n][x]===1)?3:2;}
+        });
+        if(state.spikeA) state.spikeA=false;
+        if(state.spikeV) state.spikeV=false;
+        headX=(headX+1)%LEAD_W;
+        leadsFrozen = true; // freeze leads, strip keeps running
+        break;
+      }
+      const samples=computeSamples(state,msPerLeadPx,currentBpm,currentKey);
+      const x=headX%LEAD_W;
+      const noiseVal=sampleNoise();
+      LEAD_LAYOUT.forEach(n=>{
+        const bbb=applyBBB(samples[n],state.ms,n);
+        traceData[n][x]=MID_LEAD-(bbb*patient.ampScale+noiseVal);
+        spikeData[n][x]=0;
+        if(state.spikeA){ spikeData[n][x]=1; }
+        if(state.spikeV){ spikeData[n][x]=(spikeData[n][x]===1)?3:2; }
+      });
+      if(state.spikeA) state.spikeA=false;
+      if(state.spikeV) state.spikeV=false;
+      headX=(headX+1)%LEAD_W;
+    }
   }
 
-  // Generate strip samples (Lead II only, separate timing)
-  // We need a separate mini-state for the strip since it runs at different px/ms
-  // Simplest approach: strip mirrors Lead II traceData but at a different sampling rate
-  // We'll use a separate strip state
-  for(let i=0;i<stripSteps;i++){
-    const samples=computeSamplesStrip(msPerStripPx);
-    const x=stripHead%STRIP_W;
-    const stripBBB=applyBBB(samples['II'],stripState.ms,'II');
-    traceData['strip'][x]=MID_STRIP-(stripBBB*patient.ampScale+sampleNoise()*0.5);
-    stripHead=(stripHead+1)%STRIP_W;
+  // Strip — keeps running after leads freeze, triggers final capture on wrap
+  if(!frozen) {
+    for(let i=0;i<stripSteps;i++){
+      // If leads already frozen and strip is about to wrap — do final capture
+      if(leadsFrozen && stripHead > 0 && (stripHead+1) % STRIP_W === 0) {
+        // Process last strip pixel
+        const samples=computeSamplesStrip(msPerStripPx);
+        const x=stripHead%STRIP_W;
+        const stripBBB=applyBBB(samples['II'],stripState.ms,'II');
+        traceData['strip'][x]=MID_STRIP-(stripBBB*patient.ampScale+sampleNoise()*0.5);
+        stripHead=(stripHead+1)%STRIP_W;
+        doCapture(); // now freeze everything and flash
+        break;
+      }
+      const samples=computeSamplesStrip(msPerStripPx);
+      const x=stripHead%STRIP_W;
+      const stripBBB=applyBBB(samples['II'],stripState.ms,'II');
+      traceData['strip'][x]=MID_STRIP-(stripBBB*patient.ampScale+sampleNoise()*0.5);
+      stripHead=(stripHead+1)%STRIP_W;
+    }
   }
 
   // Render all lead canvases
@@ -1267,7 +1332,7 @@ function draw(ts){
     const ctx=tc.getContext('2d');
     ctx.clearRect(0,0,LEAD_W,LEAD_H);
     const hX=headX%LEAD_W;
-    ctx.fillStyle='rgba(0,255,136,0.10)';
+    ctx.fillStyle=window._traceGlow||'rgba(0,255,136,0.10)';
     ctx.fillRect(hX,0,2,LEAD_H);
     renderTraceOn(ctx,traceData[n],LEAD_W,hX,ERASE_PX);
     drawSpikesOn(ctx,spikeData[n],LEAD_W,hX,ERASE_PX,MID_LEAD);
@@ -1278,13 +1343,35 @@ function draw(ts){
     const ctx=stripTraceC.getContext('2d');
     ctx.clearRect(0,0,STRIP_W,STRIP_H);
     const hX=stripHead%STRIP_W;
-    ctx.fillStyle='rgba(0,255,136,0.10)';
+    ctx.fillStyle=window._traceGlow||'rgba(0,255,136,0.10)';
     ctx.fillRect(hX,0,2,STRIP_H);
     renderTraceOn(ctx,traceData['strip'],STRIP_W,hX,ERASE_PX);
     drawSpikesOn(ctx,spikeData['strip'],STRIP_W,hX,ERASE_PX,MID_STRIP);
   }
 
-  requestAnimationFrame(draw);
+  // Keep animating if strip still running after leads frozen
+  if(!frozen) requestAnimationFrame(draw);
+}
+
+function redrawAllTraces() {
+  // Called when theme changes while frozen — redraws everything with new colours
+  LEAD_LAYOUT.forEach(n=>{
+    const tc=leadCanvases[n].trace;
+    const ctx=tc.getContext('2d');
+    ctx.clearRect(0,0,LEAD_W,LEAD_H);
+    const hX=headX%LEAD_W;
+    ctx.fillStyle=window._traceGlow||'rgba(0,255,136,0.10)';
+    ctx.fillRect(hX,0,2,LEAD_H);
+    renderTraceOn(ctx,traceData[n],LEAD_W,hX,ERASE_PX);
+    drawSpikesOn(ctx,spikeData[n],LEAD_W,hX,ERASE_PX,MID_LEAD);
+  });
+  const ctx=stripTraceC.getContext('2d');
+  ctx.clearRect(0,0,STRIP_W,STRIP_H);
+  const hX=stripHead%STRIP_W;
+  ctx.fillStyle=window._traceGlow||'rgba(0,255,136,0.10)';
+  ctx.fillRect(hX,0,2,STRIP_H);
+  renderTraceOn(ctx,traceData['strip'],STRIP_W,hX,ERASE_PX);
+  drawSpikesOn(ctx,spikeData['strip'],STRIP_W,hX,ERASE_PX,MID_STRIP);
 }
 
 function renderTraceOn(ctx,data,W,hX,erasePx){
@@ -1296,7 +1383,7 @@ function renderTraceOn(ctx,data,W,hX,erasePx){
   _drawPath(ctx,data,W,startX,erasePx);
   // Line
   ctx.strokeStyle=window._traceColour||'#00ff88';
-  ctx.lineWidth=1.5;
+  ctx.lineWidth=window._traceWidth||1.5;
   _drawPath(ctx,data,W,startX,erasePx);
 }
 
@@ -1420,8 +1507,9 @@ let currentTheme = 'monitor';
 const THEMES = {
   monitor: {
     bgOuter:'#060606', bgMonitor:'#050f08', bgCanvas:'#020a04',
-    trace:'#00ff88', traceGlow:'rgba(0,255,136,0.20)',
+    trace:'#00ff88', traceGlow:'rgba(0,255,136,0.20)', traceWidth:1.5,
     gridSmall:'rgba(0,110,50,0.30)', gridLarge:'rgba(0,160,70,0.55)',
+    separator:'#000000',
     textBright:'#00ff88', textMid:'#00cc66', textDim:'#00aa55', textDimmer:'#005522',
     btnBorder:'#003a1a', btnText:'#008844',
     btnActiveBg:'rgba(0,255,100,0.10)', btnActiveBorder:'#00cc66', btnActiveText:'#00ff88',
@@ -1429,8 +1517,9 @@ const THEMES = {
   },
   paper: {
     bgOuter:'#ddd8cc', bgMonitor:'#f5f0e8', bgCanvas:'#faf7f2',
-    trace:'#111111', traceGlow:'rgba(0,0,0,0.10)',
-    gridSmall:'rgba(210,50,50,0.22)', gridLarge:'rgba(185,25,25,0.58)',
+    trace:'#1a1a1a', traceGlow:'rgba(0,0,0,0.08)', traceWidth:1.1,
+    gridSmall:'rgba(210,45,45,0.22)', gridLarge:'rgba(180,20,20,0.60)',
+    separator:'#e8ddd0',
     textBright:'#1a1a1a', textMid:'#333333', textDim:'#666666', textDimmer:'#aaaaaa',
     btnBorder:'#c8a888', btnText:'#664422',
     btnActiveBg:'rgba(0,0,0,0.08)', btnActiveBorder:'#442200', btnActiveText:'#221100',
@@ -1438,26 +1527,43 @@ const THEMES = {
   },
 };
 
-function randomTheme() {
-  const hue = Math.floor(Math.random() * 360);
-  const bgH = (hue + 150 + Math.floor(Math.random()*60)) % 360;
+function randomTheme(paper) {
+  const hue   = Math.floor(Math.random() * 360);
   const gridH = (hue + 20 + Math.floor(Math.random()*40)) % 360;
-  const sat = 80 + Math.floor(Math.random()*20);
-  const lit = 55 + Math.floor(Math.random()*20);
-  const trace = `hsl(${hue},${sat}%,${lit}%)`;
+  const sat   = 80 + Math.floor(Math.random()*20);
+  const lit   = paper ? 25 + Math.floor(Math.random()*20)
+                      : 55 + Math.floor(Math.random()*20);
+  const trace     = `hsl(${hue},${sat}%,${lit}%)`;
   const traceGlow = `hsla(${hue},${sat}%,${lit}%,0.20)`;
-  const gridS = `hsla(${gridH},55%,50%,0.28)`;
-  const gridL = `hsla(${gridH},65%,55%,0.58)`;
-  return {
-    bgOuter:`hsl(${bgH},18%,4%)`, bgMonitor:`hsl(${bgH},22%,6%)`, bgCanvas:`hsl(${bgH},28%,3%)`,
-    trace, traceGlow, gridSmall:gridS, gridLarge:gridL,
-    textBright:trace, textMid:`hsla(${hue},${sat}%,${lit-10}%,1)`,
-    textDim:`hsla(${hue},${sat-20}%,${lit-20}%,1)`, textDimmer:`hsla(${hue},30%,25%,1)`,
-    btnBorder:`hsla(${hue},40%,20%,1)`, btnText:trace,
-    btnActiveBg:`hsla(${hue},${sat}%,${lit}%,0.12)`,
-    btnActiveBorder:trace, btnActiveText:trace,
-    monitorBorder:`hsla(${hue},40%,18%,1)`,
-  };
+  if (paper) {
+    const gridS = `hsla(${gridH},55%,45%,0.22)`;
+    const gridL = `hsla(${gridH},65%,40%,0.60)`;
+    return {
+      bgOuter:'#ddd8cc', bgMonitor:'#f5f0e8', bgCanvas:'#faf7f2',
+      trace, traceGlow, traceWidth:1.1,
+      gridSmall:gridS, gridLarge:gridL, separator:'#e8ddd0',
+      textBright:trace, textMid:`hsl(${hue},${sat-10}%,${lit+10}%)`,
+      textDim:`hsl(${hue},30%,40%)`, textDimmer:'#aaaaaa',
+      btnBorder:`hsla(${hue},30%,60%,1)`, btnText:trace,
+      btnActiveBg:`hsla(${hue},${sat}%,${lit}%,0.12)`,
+      btnActiveBorder:trace, btnActiveText:trace,
+      monitorBorder:'#b8a080',
+    };
+  } else {
+    const gridS = `hsla(${gridH},55%,50%,0.28)`;
+    const gridL = `hsla(${gridH},65%,55%,0.58)`;
+    return {
+      bgOuter:'#060606', bgMonitor:'#050f08', bgCanvas:'#020a04',
+      trace, traceGlow, traceWidth:1.5,
+      gridSmall:gridS, gridLarge:gridL, separator:'#000000',
+      textBright:trace, textMid:`hsla(${hue},${sat}%,${lit-10}%,1)`,
+      textDim:`hsla(${hue},${sat-20}%,${lit-20}%,1)`, textDimmer:`hsla(${hue},30%,25%,1)`,
+      btnBorder:`hsla(${hue},40%,20%,1)`, btnText:trace,
+      btnActiveBg:`hsla(${hue},${sat}%,${lit}%,0.12)`,
+      btnActiveBorder:trace, btnActiveText:trace,
+      monitorBorder:`hsla(${hue},40%,18%,1)`,
+    };
+  }
 }
 
 function applyTheme(t) {
@@ -1484,26 +1590,26 @@ function applyTheme(t) {
   window._themeBg     = t.bgCanvas;
   window._themeGridS  = t.gridSmall;
   window._themeGridL  = t.gridLarge;
+  window._traceWidth  = t.traceWidth || 1.5;
+  document.documentElement.style.setProperty('--separator', t.separator || '#000');
   // Redraw grid with explicit colours (not CSS var lookup)
   // Redraw all lead grids
-  LEAD_LAYOUT.forEach(n=>{
-    const gc=leadCanvases[n].grid;
-    if(gc) drawGrid(gc.getContext('2d'),LEAD_W,LEAD_H,SMALL_SQ_PX,BIG_SQ_PX,t.bgCanvas);
-  });
-  drawGrid(stripGridC.getContext('2d'),STRIP_W,STRIP_H,STRIP_SMALL_PX,STRIP_BIG_PX,t.bgCanvas);
+  drawBgGrid(t.bgCanvas, t.gridSmall, t.gridLarge);
+  // If frozen, redraw all trace canvases with new colour so update is instant
+  if(frozen || leadsFrozen) redrawAllTraces();
   // Update canvas element backgrounds directly
-  document.querySelectorAll('canvas.grid-c').forEach(el => {
-    el.style.cssText += ';background:' + t.bgCanvas + ' !important';
-  });
   // Update monitor and body
   const mon = document.querySelector('.monitor');
-  if (mon) mon.style.background = t.bgMonitor;
-  document.body.style.background = t.bgOuter;
+  if (mon) mon.style.cssText += ';background:' + t.bgMonitor + ' !important';
+  document.body.style.cssText += ';background:' + t.bgOuter + ' !important';
+  document.documentElement.style.cssText += ';background:' + t.bgOuter + ' !important';
 }
 
 function setTheme(name) {
   currentTheme = name;
-  const t = name === 'random' ? randomTheme() : (THEMES[name] || THEMES.monitor);
+  const t = name === 'random'       ? randomTheme(false)
+             : name === 'random-paper' ? randomTheme(true)
+             : (THEMES[name] || THEMES.monitor);
   applyTheme(t);
   document.querySelectorAll('.theme-btn').forEach(b => b.classList.remove('active'));
   const btn = document.getElementById('theme-' + name);
@@ -1511,6 +1617,57 @@ function setTheme(name) {
 }
 
 requestAnimationFrame(draw);
+
+// =============================================================
+// CAPTURE
+// =============================================================
+let captureMode  = false;  // waiting to freeze at end of sweep
+let leadsFrozen  = false;  // leads frozen, strip still running
+let frozen       = false;  // everything frozen (final state)
+
+function toggleCapture() {
+  const btn = document.getElementById('captureBtn');
+  if (frozen) {
+    // Resume — reset all freeze states
+    frozen = false;
+    leadsFrozen = false;
+    captureMode = false;
+    lastMs = 0;
+    requestAnimationFrame(draw);
+    btn.textContent = '⏸ CAPTURE';
+    btn.style.borderColor = '';
+    btn.style.color = '';
+  } else if (captureMode || leadsFrozen) {
+    // Cancel pending capture
+    captureMode = false;
+    leadsFrozen = false;
+    btn.textContent = '⏸ CAPTURE';
+    btn.style.borderColor = '';
+  } else {
+    // Arm capture — will freeze when head next reaches right edge
+    captureMode = true;
+    btn.textContent = '⌛ CAPTURING...';
+    btn.style.borderColor = 'var(--text-bright, #00ff88)';
+  }
+}
+
+function doCapture() {
+  // Called when strip completes its run — freeze everything and flash
+  frozen = true;
+  leadsFrozen = false;
+  captureMode = false;
+  const btn = document.getElementById('captureBtn');
+  btn.textContent = '▶ RESUME';
+  btn.style.borderColor = 'var(--text-bright, #00ff88)';
+  btn.style.color = 'var(--text-bright, #00ff88)';
+  // Flash
+  const flash = document.getElementById('captureFlash');
+  // Use dark flash on light themes, light flash on dark themes
+  const isDark = window._themeBg && window._themeBg.includes('02');
+  flash.style.background = isDark ? 'white' : 'black';
+  flash.style.opacity = '0.12';
+  setTimeout(() => { flash.style.opacity = '0'; }, 200);
+}
 </script>
 </body>
 </html>
