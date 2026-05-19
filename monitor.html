@@ -94,16 +94,10 @@ body { background: #0a0d14; color: #e0e0e0; font-family: 'Courier New', monospac
   position: relative;
 }
 #ecg-section.visible { display: flex; }
-#ecg-strip-container {
-  width: 100%;
-  position: relative;
-}
 #ecg-12lead-container {
-  display: none;
   width: 100%;
   position: relative;
 }
-#ecg-12lead-container.visible { display: block; }
 .ecg-section-bar {
   display: flex;
   align-items: center;
@@ -465,17 +459,11 @@ function setStatus(online) {
 }
 </script>
 
-<!-- ── ECG Section (injected by engine when rhythm/ECG revealed) ── -->
+<!-- ── ECG Section ── -->
 <div id="ecg-section">
-  <div class="ecg-section-bar" id="ecg-strip-bar">
-    <span>LEAD II — RHYTHM STRIP</span>
-    <button class="ecg-snapshot-btn" onclick="ecgStripSnapshot()" id="stripSnapBtn">⏸ SNAPSHOT</button>
-  </div>
-  <div id="ecg-strip-container"></div>
-
-  <div class="ecg-section-bar" id="ecg-12lead-bar" style="display:none;">
-    <span>12-LEAD ECG</span>
-    <button class="ecg-snapshot-btn" onclick="ecg12Snapshot()" id="leadSnapBtn">⏸ SNAPSHOT</button>
+  <div class="ecg-section-bar">
+    <span id="ecg-bar-label">LEAD II — RHYTHM STRIP</span>
+    <button class="ecg-snapshot-btn" onclick="ecgSnapshot()" id="snapBtn">⏸ SNAPSHOT</button>
   </div>
   <div id="ecg-12lead-container"></div>
 </div>
@@ -486,12 +474,9 @@ function setStatus(online) {
 
 <script>
 // ── ECG Engine Integration ─────────────────────────────────────────────
-let _stripECG   = null;  // Lead II strip instance
-let _leadECG    = null;  // 12-lead instance
+let _ecgInst       = null;   // single 12-lead ECGEngine instance
 let _currentRhythm = null;
-let _currentBpm    = 72;
-let _stripFrozen   = false;
-let _leadFrozen    = false;
+let _ecgFrozen     = false;
 
 function ecgFlash() {
   const el = document.getElementById('ecgCaptureFlash');
@@ -500,71 +485,52 @@ function ecgFlash() {
   setTimeout(() => { el.style.opacity = '0'; }, 200);
 }
 
-function initStripECG(rhythmKey, bpm, bbbMode) {
-  const container = document.getElementById('ecg-strip-container');
-  container.style.height = '130px';
-
-  if (_stripECG) _stripECG.destroy();
-  _stripFrozen = false;
-  document.getElementById('stripSnapBtn').textContent = '⏸ SNAPSHOT';
-
-  _stripECG = new ECGEngine(container, {
-    mode: 'strip',
-    theme: 'monitor',
-    onCapture: () => {
-      ecgFlash();
-      _stripFrozen = true;
-      document.getElementById('stripSnapBtn').textContent = '▶ RESUME';
-    }
-  });
-  _stripECG.setRhythm(rhythmKey, bpm, bbbMode);
-}
-
-function init12LeadECG(rhythmKey, bpm, bbbMode) {
+function initECG(rhythmKey, bpm, bbbMode, showGrid) {
   const container = document.getElementById('ecg-12lead-container');
   container.style.width = '100%';
 
-  if (_leadECG) _leadECG.destroy();
-  _leadFrozen = false;
-  document.getElementById('leadSnapBtn').textContent = '⏸ SNAPSHOT';
+  if (_ecgInst) _ecgInst.destroy();
+  _ecgFrozen = false;
+  document.getElementById('snapBtn').textContent = '⏸ SNAPSHOT';
 
-  _leadECG = new ECGEngine(container, {
+  _ecgInst = new ECGEngine(container, {
     mode: '12lead',
     theme: 'monitor',
     onCapture: () => {
       ecgFlash();
-      _leadFrozen = true;
-      document.getElementById('leadSnapBtn').textContent = '▶ RESUME';
+      _ecgFrozen = true;
+      document.getElementById('snapBtn').textContent = '▶ RESUME';
     }
   });
-  _leadECG.setRhythm(rhythmKey, bpm, bbbMode);
-  document.getElementById('ecg-12lead-bar').style.display = 'flex';
-  document.getElementById('ecg-12lead-container').classList.add('visible');
+  _ecgInst.setRhythm(rhythmKey, bpm, bbbMode);
+
+  // Hide or show the leads grid depending on mode
+  setGridVisible(showGrid);
+  document.getElementById('ecg-section').classList.add('visible');
 }
 
-function ecgStripSnapshot() {
-  if (!_stripECG) return;
-  const btn = document.getElementById('stripSnapBtn');
-  if (_stripFrozen) {
-    _stripECG.resume();
-    _stripFrozen = false;
-    btn.textContent = '⏸ SNAPSHOT';
-  } else {
-    _stripECG.capture();
-    // _stripFrozen set true via onCapture callback
-  }
+function setGridVisible(visible) {
+  if (!_ecgInst) return;
+  const container = document.getElementById('ecg-12lead-container');
+  const grid = container.querySelector('#_ecg_leadsGrid');
+  const bg   = container.querySelector('#_ecg_bgGrid');
+  if (grid) grid.style.display = visible ? 'grid' : 'none';
+  if (bg)   bg.style.display   = visible ? 'block' : 'none';
+  // Update bar label
+  document.getElementById('ecg-bar-label').textContent =
+    visible ? '12-LEAD ECG' : 'LEAD II — RHYTHM STRIP';
 }
 
-function ecg12Snapshot() {
-  if (!_leadECG) return;
-  const btn = document.getElementById('leadSnapBtn');
-  if (_leadFrozen) {
-    _leadECG.resume();
-    _leadFrozen = false;
+function ecgSnapshot() {
+  if (!_ecgInst) return;
+  const btn = document.getElementById('snapBtn');
+  if (_ecgFrozen) {
+    _ecgInst.resume();
+    _ecgFrozen = false;
     btn.textContent = '⏸ SNAPSHOT';
   } else {
-    _leadECG.capture();
-    // _leadFrozen set true via onCapture callback
+    _ecgInst.capture();
+    // _ecgFrozen set true via onCapture callback
   }
 }
 
@@ -577,47 +543,35 @@ renderRevealed = function(revealed) {
   const vitals = scenario.vitals || {};
   const rhythmStr = vitals.Rhythm || '';
   const hr = parseInt(vitals.HR) || 72;
+  if (!rhythmStr) return;
   const mapped = ECGEngine.mapRhythm(rhythmStr, hr);
 
-  // LeadII revealed → show Lead II strip only
-  if (revealed.LeadII && rhythmStr) {
-    if (_currentRhythm !== rhythmStr || !_stripECG) {
-      _currentRhythm = rhythmStr;
-      _currentBpm = hr;
-      document.getElementById('ecg-section').classList.add('visible');
-      initStripECG(mapped.key, mapped.bpm, mapped.bbbMode);
-    }
-  }
+  const wantLeadII = !!revealed.LeadII;
+  const want12Lead = !!revealed.ECG;
 
-  // ECG revealed → show 12-lead (strip is already running or start it too)
-  if (revealed.ECG && rhythmStr) {
-    // Ensure strip is running
-    if (!_stripECG) {
-      _currentRhythm = rhythmStr;
-      _currentBpm = hr;
-      document.getElementById('ecg-section').classList.add('visible');
-      initStripECG(mapped.key, mapped.bpm, mapped.bbbMode);
-    }
-    // Start 12-lead if not already running
-    if (!_leadECG) {
-      init12LeadECG(mapped.key, mapped.bpm, mapped.bbbMode);
-    }
-  }
-
-  // ECG un-revealed → hide 12-lead only, keep strip
-  if (!revealed.ECG && _leadECG) {
-    _leadECG.destroy();
-    _leadECG = null;
-    document.getElementById('ecg-12lead-container').classList.remove('visible');
-    document.getElementById('ecg-12lead-bar').style.display = 'none';
-  }
-
-  // LeadII un-revealed → hide everything
-  if (!revealed.LeadII && !revealed.ECG) {
-    if (_stripECG) { _stripECG.destroy(); _stripECG = null; }
-    if (_leadECG)  { _leadECG.destroy();  _leadECG  = null; }
+  if (!wantLeadII && !want12Lead) {
+    // Nothing — tear down
+    if (_ecgInst) { _ecgInst.destroy(); _ecgInst = null; }
     document.getElementById('ecg-section').classList.remove('visible');
     _currentRhythm = null;
+    return;
+  }
+
+  if (want12Lead) {
+    // Full 12-lead
+    if (_currentRhythm !== rhythmStr || !_ecgInst) {
+      _currentRhythm = rhythmStr;
+      initECG(mapped.key, mapped.bpm, mapped.bbbMode, true);
+    } else {
+      setGridVisible(true); // already running, just show grid
+    }
+  } else if (wantLeadII) {
+    // Lead II strip only
+    if (_currentRhythm !== rhythmStr || !_ecgInst) {
+      _currentRhythm = rhythmStr;
+      initECG(mapped.key, mapped.bpm, mapped.bbbMode, false);
+    }
+    // If already running as LeadII, leave it; grid already hidden
   }
 };
 </script>
