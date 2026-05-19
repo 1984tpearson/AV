@@ -1680,16 +1680,21 @@ function doCapture() {
   leadsFrozen = false;
   captureMode = false;
   const btn = getElementById('captureBtn');
-  btn.textContent = '▶ RESUME';
-  btn.style.borderColor = 'var(--text-bright, #00ff88)';
-  btn.style.color = 'var(--text-bright, #00ff88)';
+  if (btn) {
+    btn.textContent = '▶ RESUME';
+    btn.style.borderColor = 'var(--text-bright, #00ff88)';
+    btn.style.color = 'var(--text-bright, #00ff88)';
+  }
   // Flash
   const flash = getElementById('captureFlash');
-  // Use dark flash on light themes, light flash on dark themes
-  const isDark = window._themeBg && window._themeBg.includes('02');
-  flash.style.background = isDark ? 'white' : 'black';
-  flash.style.opacity = '0.12';
-  setTimeout(() => { flash.style.opacity = '0'; }, 200);
+  if (flash) {
+    const isDark = window._themeBg && window._themeBg.includes('02');
+    flash.style.background = isDark ? 'white' : 'black';
+    flash.style.opacity = '0.12';
+    setTimeout(() => { flash.style.opacity = '0'; }, 200);
+  }
+  // Fire external callback if provided
+  if (_self._onCapture) _self._onCapture();
 }
 
     // Expose internals to ECGEngine instance
