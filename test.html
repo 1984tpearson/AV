@@ -2195,7 +2195,6 @@ function loadScenario(id) {
 
       const mapped = ECGEngine.mapRhythm(rhythm, hr);
 
-      const le = document.getElementById('assessor-12lead-'+id);
       try {
         const _ecgInst = new ECGEngine(le, {mode:'12lead', theme:'paper'});
         _ecgInst.setRhythm(mapped.key, mapped.bpm, mapped.bbbMode);
