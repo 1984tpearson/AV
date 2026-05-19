@@ -149,6 +149,20 @@ class ECGEngine {
     container.innerHTML = '';
     container.style.position = 'relative';
 
+    // Inject scoped CSS if not already present
+    if (!document.getElementById('_ecg_engine_styles')) {
+      const s = document.createElement('style');
+      s.id = '_ecg_engine_styles';
+      s.textContent = `
+        .lead-cell { position:relative; overflow:hidden; box-sizing:border-box; }
+        .lead-label-tag { position:absolute; top:2px; left:3px; font-size:9px; font-weight:bold;
+          letter-spacing:0.5px; z-index:5; pointer-events:none;
+          color:#555; font-family:sans-serif; }
+        .ecg-strip-label { color:#555 !important; }
+      `;
+      document.head.appendChild(s);
+    }
+
     const mode = self._mode;
 
     if (mode === 'strip') {
