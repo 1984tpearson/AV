@@ -494,9 +494,17 @@ function initECG(rhythmKey, bpm, bbbMode, showGrid) {
   _ecgFrozen = false;
   document.getElementById('snapBtn').textContent = '⏸ SNAPSHOT';
 
+  // Measure available height: panel minus the section bar
+  const panel = document.getElementById('ecg-panel');
+  const bar = document.querySelector('.ecg-section-bar');
+  const barH = bar ? bar.offsetHeight : 32;
+  const availH = (panel.clientHeight || panel.offsetHeight) - barH;
+  const targetH = availH > 200 ? availH : 0; // 0 = use engine default
+
   _ecgInst = new ECGEngine(container, {
     mode: '12lead',
     theme: 'monitor',
+    height: targetH,
     onCapture: () => {
       ecgFlash();
       _ecgFrozen = true;
@@ -579,6 +587,21 @@ renderRevealed = function(revealed) {
     // If already running as LeadII, leave it; grid already hidden
   }
 };
+
+// Reinit ECG on resize (e.g. iPad orientation change)
+let _resizeTimer = null;
+window.addEventListener('resize', () => {
+  if (!_ecgInst || !_currentRhythm || !scenario) return;
+  clearTimeout(_resizeTimer);
+  _resizeTimer = setTimeout(() => {
+    const vitals = scenario.vitals || {};
+    const rhythmStr = vitals.Rhythm || '';
+    const hr = parseInt(vitals.HR) || 72;
+    const mapped = ECGEngine.mapRhythm(rhythmStr, hr);
+    const showGrid = document.getElementById('ecg-bar-label').textContent.includes('12');
+    initECG(mapped.key, mapped.bpm, mapped.bbbMode, showGrid);
+  }, 300);
+});
 </script>
 
 </body>
