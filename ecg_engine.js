@@ -107,12 +107,15 @@ class ECGEngine {
 
   setRhythm(key, bpm, bbbOverride) {
     // Accept engine key or natural string
-    if (!this._pub.rhythms || !this._pub.rhythms[key]) {
-      const m = mapRhythm(key, bpm);
-      key = m.key; bpm = bpm || m.bpm; bbbOverride = bbbOverride || m.bbbMode;
+    let _key = key, _bpm = bpm, _bbb = bbbOverride || 'none';
+    if (!this._pub.rhythms || !this._pub.rhythms[_key]) {
+      const m = mapRhythm(_key, _bpm);
+      _key = m.key;
+      _bpm = _bpm || m.bpm;
+      _bbb = bbbOverride || m.bbbMode || 'none';
     }
-    bpm = bpm || (this._pub.rhythms && this._pub.rhythms[key] ? this._pub.rhythms[key].defaultBpm : 72);
-    if (this._pub.setRhythm) this._pub.setRhythm(key, bpm, bbbOverride || 'none');
+    _bpm = _bpm || (this._pub.rhythms && this._pub.rhythms[_key] ? this._pub.rhythms[_key].defaultBpm : 72);
+    if (this._pub.setRhythm) this._pub.setRhythm(_key, _bpm, _bbb);
   }
 
   setTheme(name)  { if (this._pub.setTheme)  this._pub.setTheme(name);  }
@@ -245,16 +248,18 @@ LEAD_LAYOUT.forEach(name => {
   tc.style.background = 'transparent';
 
   cell.appendChild(tc); cell.appendChild(tag);
-  leadsGrid.appendChild(cell);
+  if(leadsGrid) leadsGrid.appendChild(cell);
   leadCanvases[name] = { trace: tc };
 });
 
 // Single background grid canvas spanning full ECG area
 const TOTAL_H = LEAD_H * 3 + STRIP_H;
 const bgGridCanvas = getElementById('ecgBgGrid') || getElementById('_ecg_bgGrid');
-bgGridCanvas.className = 'ecg-bg-canvas';
-bgGridCanvas.width  = MONITOR_W;
-bgGridCanvas.height = TOTAL_H;
+if(bgGridCanvas) {
+  bgGridCanvas.className = 'ecg-bg-canvas';
+  bgGridCanvas.width  = MONITOR_W;
+  bgGridCanvas.height = TOTAL_H;
+}
 bgGridCanvas.style.width  = MONITOR_W + 'px';
 bgGridCanvas.style.height = TOTAL_H + 'px';
 const bgCtx = bgGridCanvas.getContext('2d');
