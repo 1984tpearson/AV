@@ -1,15 +1,12 @@
 /**
  * ECG Engine — ecg_engine.js
  * Realistic animated ECG for Ambulance Victoria scenario tool
- * Provides ECGEngine class for embedding 12-lead or Lead II strips
- * 
+ * Version: built from ecg_12lead_v3.html
+ *
  * Usage:
- *   const ecg = new ECGEngine(containerElement, { mode: '12lead' | 'strip', theme: 'monitor' | 'paper' });
- *   ecg.setRhythm('af', 110, 'none');   // or use mapRhythm()
- *   ecg.setTheme('paper');
- *   ecg.capture();
- *   ecg.resume();
- *   const { key, bpm, bbbMode } = ECGEngine.mapRhythm('Atrial Fibrillation', 126);
+ *   const ecg = new ECGEngine(containerEl, { mode:'12lead'|'strip', theme:'monitor'|'paper' });
+ *   ecg.setRhythm('af', 110, 'none');
+ *   ECGEngine.mapRhythm('Atrial Fibrillation', 126) // => {key:'af', bpm:126, bbbMode:'none'}
  */
 
 
@@ -17,67 +14,66 @@
 // RHYTHM MAP — converts scenario text strings to engine keys
 // =============================================================
 const RHYTHM_MAP = [
-  // [matchSubstring, engineKey, defaultBpm, bbbMode]
-  ['sinus tachycardia',          'stach',   130, 'none'],
-  ['sinus bradycardia',          'sbrad',    48, 'none'],
-  ['normal sinus',               'nsr',      72, 'none'],
-  ['sinus rhythm',               'nsr',      72, 'none'],
-  ['sinus arrhythmia',           'nsr',      72, 'none'],
-  ['atrial fibrillation',        'af',      110, 'none'],
-  ['atrial flutter',             'aflut',    75, 'none'],
-  ['supraventricular',           'svt',     190, 'none'],
-  ['avnrt',                      'svt',     190, 'none'],
-  ['\bsvt\b',                  'svt',     190, 'none'],
-  ['ventricular tachycardia',    'vt',      175, 'none'],
-  ['ventricular fibrillation',   'vf',        0, 'none'],
-  ['\bvf\b',                   'vf',        0, 'none'],
-  ['torsades',                   'vt',      175, 'none'],
-  ['polymorphic',                'vt',      175, 'none'],
-  ['asystole',                   'asys',      0, 'none'],
-  ['complete heart block',       'chb',      38, 'none'],
-  ['3rd degree',                 'chb',      38, 'none'],
-  ['third degree',               'chb',      38, 'none'],
-  ['\bchb\b',                  'chb',      38, 'none'],
-  ['wenckebach',                 'mob1',     60, 'none'],
-  ['mobitz i',                   'mob1',     60, 'none'],
-  ['mobitz ii',                  'mob2',     50, 'none'],
-  ['2nd degree',                 'mob1',     60, 'none'],
-  ['first degree',               'deg1',     70, 'none'],
-  ['1st degree',                 'deg1',     70, 'none'],
-  ['junctional',                 'junct',    50, 'none'],
-  ['\bwpw\b',                  'wpw',      72, 'none'],
-  ['wolff',                      'wpw',      72, 'none'],
-  ['pvc',                        'pvc',      70, 'none'],
-  ['premature ventricular',      'pvc',      70, 'none'],
-  ['bigeminy',                   'pvc',      70, 'none'],
-  ['idioventricular',            'aivr',     35, 'none'],
-  ['hyperkalaemia',              'hyperK',   65, 'none'],
-  ['hyperkalemia',               'hyperK',   65, 'none'],
-  ['hypokalaemia',               'hypoK',    72, 'none'],
-  ['hypokalemia',                'hypoK',    72, 'none'],
-  ['prolonged qt',               'longQT',   65, 'none'],
-  ['long qt',                    'longQT',   65, 'none'],
-  ['pericarditis',               'peri',     90, 'none'],
-  ['\bnstemi\b',               'nstemi',   85, 'none'],
-  ['pulmonary embolism',         'pe',      110, 'none'],
-  ['brugada',                    'brugada',  72, 'none'],
-  ['inferior stemi',             'stemi-inf',72, 'none'],
-  ['anterior stemi',             'stemi-ant',72, 'none'],
-  ['lateral stemi',              'stemi-lat',72, 'none'],
-  ['posterior stemi',            'stemi-post',72,'none'],
-  ['\bstemi\b',                'stemi-ant',72, 'none'],
-  ['st elevation',               'stemi-ant',72, 'none'],
-  ['left bundle',                'nsr',      72, 'lbbb'],
-  ['\blbbb\b',                 'nsr',      72, 'lbbb'],
-  ['right bundle',               'nsr',      72, 'rbbb'],
-  ['\brbbb\b',                 'nsr',      72, 'rbbb'],
-  ['pulseless electrical',       'sbrad',    50, 'none'],
-  ['\bpea\b',                  'sbrad',    50, 'none'],
-  ['hypothermia',                'sbrad',    40, 'none'],
-  ['vvi',                        'vvipace',  72, 'none'],
-  ['aai',                        'aaipace',  72, 'none'],
-  ['ddd',                        'dddpace',  72, 'none'],
-  ['paced',                      'vvipace',  72, 'none'],
+  ['sinus tachycardia',         'stach',    130, 'none'],
+  ['sinus bradycardia',         'sbrad',     48, 'none'],
+  ['normal sinus',              'nsr',       72, 'none'],
+  ['sinus rhythm',              'nsr',       72, 'none'],
+  ['sinus arrhythmia',          'nsr',       72, 'none'],
+  ['atrial fibrillation',       'af',       110, 'none'],
+  ['atrial flutter',            'aflut',     75, 'none'],
+  ['supraventricular',          'svt',      190, 'none'],
+  ['avnrt',                     'svt',      190, 'none'],
+  ['\\bsvt\\b',             'svt',      190, 'none'],
+  ['ventricular tachycardia',   'vt',       175, 'none'],
+  ['ventricular fibrillation',  'vf',         0, 'none'],
+  ['\\bvf\\b',              'vf',         0, 'none'],
+  ['torsades',                  'vt',       175, 'none'],
+  ['polymorphic',               'vt',       175, 'none'],
+  ['asystole',                  'asys',       0, 'none'],
+  ['complete heart block',      'chb',       38, 'none'],
+  ['3rd degree',                'chb',       38, 'none'],
+  ['third degree',              'chb',       38, 'none'],
+  ['\\bchb\\b',             'chb',       38, 'none'],
+  ['wenckebach',                'mob1',      60, 'none'],
+  ['mobitz i',                  'mob1',      60, 'none'],
+  ['mobitz ii',                 'mob2',      50, 'none'],
+  ['2nd degree',                'mob1',      60, 'none'],
+  ['first degree',              'deg1',      70, 'none'],
+  ['1st degree',                'deg1',      70, 'none'],
+  ['junctional',                'junct',     50, 'none'],
+  ['\\bwpw\\b',             'wpw',       72, 'none'],
+  ['wolff',                     'wpw',       72, 'none'],
+  ['\\bpvc\\b',             'pvc',       70, 'none'],
+  ['premature ventricular',     'pvc',       70, 'none'],
+  ['bigeminy',                  'pvc',       70, 'none'],
+  ['idioventricular',           'aivr',      35, 'none'],
+  ['hyperkalaemia',             'hyperK',    65, 'none'],
+  ['hyperkalemia',              'hyperK',    65, 'none'],
+  ['hypokalaemia',              'hypoK',     72, 'none'],
+  ['hypokalemia',               'hypoK',     72, 'none'],
+  ['prolonged qt',              'longQT',    65, 'none'],
+  ['long qt',                   'longQT',    65, 'none'],
+  ['pericarditis',              'peri',      90, 'none'],
+  ['\\bnstemi\\b',          'nstemi',    85, 'none'],
+  ['pulmonary embolism',        'pe',       110, 'none'],
+  ['brugada',                   'brugada',   72, 'none'],
+  ['inferior stemi',            'stemi-inf', 72, 'none'],
+  ['anterior stemi',            'stemi-ant', 72, 'none'],
+  ['lateral stemi',             'stemi-lat', 72, 'none'],
+  ['posterior stemi',           'stemi-post',72, 'none'],
+  ['\\bstemi\\b',           'stemi-ant', 72, 'none'],
+  ['st elevation',              'stemi-ant', 72, 'none'],
+  ['left bundle',               'nsr',       72, 'lbbb'],
+  ['\\blbbb\\b',            'nsr',       72, 'lbbb'],
+  ['right bundle',              'nsr',       72, 'rbbb'],
+  ['\\brbbb\\b',            'nsr',       72, 'rbbb'],
+  ['pulseless electrical',      'sbrad',     50, 'none'],
+  ['\\bpea\\b',             'sbrad',     50, 'none'],
+  ['hypothermia',               'sbrad',     40, 'none'],
+  ['vvi',                       'vvipace',   72, 'none'],
+  ['aai',                       'aaipace',   72, 'none'],
+  ['ddd',                       'dddpace',   72, 'none'],
+  ['paced',                     'vvipace',   72, 'none'],
 ];
 
 function mapRhythm(rhythmStr, hrOverride) {
@@ -92,129 +88,214 @@ function mapRhythm(rhythmStr, hrOverride) {
 }
 
 
-
 class ECGEngine {
-  constructor(container, options = {}) {
-    this.container = typeof container === 'string'
-      ? document.getElementById(container) : container;
-    this.options = Object.assign({ mode:'12lead', theme:'monitor', showCapture:true, showControls:false }, options);
-    this._frozen = false;
+  constructor(container, options) {
+    this.container = typeof container === 'string' ? document.getElementById(container) : container;
+    options = options || {};
+    this._mode     = options.mode  || '12lead';
+    this._theme    = options.theme || 'monitor';
+    this._frozen   = false;
     this._leadsFrozen = false;
     this._captureMode = false;
     this._onCapture = options.onCapture || null;
-    this._lastMs = 0;
-    this._running = false;
+    this._running  = false;
+    this._pub      = {};  // public refs set by _initCore
     this._initCore();
   }
-
-  // ── Public API ───────────────────────────────────────────────────────
 
   static mapRhythm(rhythmStr, hrOverride) { return mapRhythm(rhythmStr, hrOverride); }
 
   setRhythm(key, bpm, bbbOverride) {
-    // Accept natural string or engine key
-    if (!this._rhythms || !this._rhythms[key]) {
-      const mapped = mapRhythm(key, bpm);
-      key = mapped.key;
-      bpm = bpm || mapped.bpm;
-      bbbOverride = bbbOverride || mapped.bbbMode;
+    // Accept engine key or natural string
+    if (!this._pub.rhythms || !this._pub.rhythms[key]) {
+      const m = mapRhythm(key, bpm);
+      key = m.key; bpm = bpm || m.bpm; bbbOverride = bbbOverride || m.bbbMode;
     }
-    bpm = bpm || (this._rhythms && this._rhythms[key] ? this._rhythms[key].defaultBpm : 72);
-    this._setRhythm(key, bpm, bbbOverride || 'none');
+    bpm = bpm || (this._pub.rhythms && this._pub.rhythms[key] ? this._pub.rhythms[key].defaultBpm : 72);
+    if (this._pub.setRhythm) this._pub.setRhythm(key, bpm, bbbOverride || 'none');
   }
 
-  setTheme(name) { if (this._applyTheme) this._applyTheme(name); }
-  capture()      { this._captureMode = true; }
-  resume()       { this._frozen = false; this._leadsFrozen = false; this._captureMode = false; this._lastMs = 0; if (!this._running) { this._running = true; requestAnimationFrame(ts => this._drawFrame(ts)); } }
-  destroy()      { this._frozen = true; this._running = false; if (this.container) this.container.innerHTML = ''; }
+  setTheme(name)  { if (this._pub.setTheme)  this._pub.setTheme(name);  }
+  setBBB(mode)    { if (this._pub.setBBB)    this._pub.setBBB(mode);    }
+  capture()       { this._captureMode = true; }
+  resume()        { this._frozen = false; this._leadsFrozen = false; this._captureMode = false; if (this._pub.resume) this._pub.resume(); }
+  toggleCapture() { if (this._pub.toggleCapture) this._pub.toggleCapture(); }
+  onSlider(val)   { if (this._pub.onSlider)  this._pub.onSlider(val);  }
+  destroy()       { this._frozen = true; this._running = false; if (this.container) this.container.innerHTML = ''; }
 
   _initCore() {
     const self = this;
     const container = this.container;
-    const mode = this.options.mode;
 
-    // ── Timing constants ─────────────────────────────────────────────
-    const LEAD_LAYOUT = ['I','aVR','V1','V4','II','aVL','V2','V5','III','aVF','V3','V6'];
-    const LEAD_H = mode === 'strip' ? 0 : 110;
-    const STRIP_H = mode === 'strip' ? 140 : 140;
-    // Robustly get container width — clientWidth may be 0 if not yet laid out
-    const MONITOR_W = (() => {
+    // ── Get container width robustly ──────────────────────────────────
+    // The original v3 code uses fixed IDs — we redirect those to our container
+    const _getW = () => {
       let w = container.clientWidth || container.offsetWidth;
-      if (!w) { const r = container.getBoundingClientRect(); w = Math.floor(r.width); }
-      if (!w && container.style.width) w = parseInt(container.style.width);
-      if (!w && container.parentElement) w = container.parentElement.clientWidth || container.parentElement.offsetWidth;
+      if (!w) w = Math.floor(container.getBoundingClientRect().width);
+      if (!w && container.parentElement) w = container.parentElement.clientWidth;
       return w || 856;
-    })();
-    const LEAD_W = Math.floor(MONITOR_W / 4);
-    const STRIP_W = MONITOR_W;
-    const PX_PER_MS = STRIP_W / 6000;
-    const STRIP_PX_PER_MS = PX_PER_MS; // strip runs at same speed
-    const SMALL_SQ_MS = 40;
-    const SMALL_SQ_PX = SMALL_SQ_MS * PX_PER_MS;
-    const BIG_SQ_PX = SMALL_SQ_PX * 5;
+    };
 
-    // ── Build DOM ────────────────────────────────────────────────────
-    container.style.position = 'relative';
-    container.style.display = 'block';
+    // ── Inject required DOM structure ─────────────────────────────────
     container.innerHTML = '';
+    container.style.position = 'relative';
 
-    const bgCanvas = document.createElement('canvas');
-    bgCanvas.style.cssText = 'position:absolute;top:0;left:0;z-index:1;pointer-events:none;';
-    container.appendChild(bgCanvas);
-    const bgCtx = bgCanvas.getContext('2d');
+    const mode = self._mode;
 
-    let leadsGrid = null;
-    const leadCanvases = {};
-    const LEAD_COL = {I:0,aVR:1,V1:2,V4:3,II:0,aVL:1,V2:2,V5:3,III:0,aVF:1,V3:2,V6:3};
-
-    if (mode !== 'strip') {
-      leadsGrid = document.createElement('div');
-      leadsGrid.style.cssText = `display:grid;grid-template-columns:repeat(4,1fr);gap:0;background:transparent;position:relative;z-index:2;`;
-      container.appendChild(leadsGrid);
-
-      LEAD_LAYOUT.forEach(name => {
-        const cell = document.createElement('div');
-        cell.style.cssText = `position:relative;width:${LEAD_W}px;height:${LEAD_H}px;background:transparent;`;
-        const tag = document.createElement('span');
-        tag.style.cssText = 'position:absolute;top:3px;left:5px;font-size:12px;font-weight:bold;letter-spacing:1px;z-index:5;pointer-events:none;';
-        tag.className = 'ecg-lead-label';
-        tag.textContent = name;
-        const tc = document.createElement('canvas');
-        tc.style.cssText = 'position:absolute;top:0;left:0;z-index:3;background:transparent;width:100%;height:100%;';
-        tc.width = LEAD_W; tc.height = LEAD_H;
-        cell.appendChild(tc); cell.appendChild(tag);
-        leadsGrid.appendChild(cell);
-        leadCanvases[name] = { trace: tc };
-      });
+    if (mode === 'strip') {
+      // Single strip mode — just a strip wrapper
+      container.innerHTML = `
+        <div id="_ecg_stripWrapper" style="position:relative;z-index:2;background:transparent;">
+          <span style="position:absolute;top:3px;left:5px;font-size:10px;font-weight:bold;letter-spacing:1px;z-index:5;pointer-events:none;color:#00ff88;" class="ecg-strip-label">LEAD II</span>
+        </div>`;
+    } else {
+      container.innerHTML = `
+        <canvas id="_ecg_bgGrid" style="position:absolute;top:0;left:0;z-index:1;pointer-events:none;"></canvas>
+        <div id="_ecg_leadsGrid" style="display:grid;grid-template-columns:repeat(4,1fr);gap:0;background:transparent;position:relative;z-index:2;"></div>
+        <div id="_ecg_stripWrapper" style="position:relative;z-index:2;background:transparent;">
+          <span style="position:absolute;top:3px;left:5px;font-size:9px;letter-spacing:1px;z-index:5;pointer-events:none;color:#00ff88;" class="ecg-strip-label">LEAD II — RHYTHM STRIP</span>
+        </div>`;
     }
 
-    const stripWrapper = document.createElement('div');
-    stripWrapper.style.cssText = `position:relative;z-index:2;background:transparent;width:${STRIP_W}px;height:${STRIP_H}px;`;
-    const stripLabel = document.createElement('span');
-    stripLabel.style.cssText = 'position:absolute;top:3px;left:5px;font-size:9px;letter-spacing:1px;z-index:5;pointer-events:none;';
-    stripLabel.className = 'ecg-strip-label';
-    stripLabel.textContent = mode === 'strip' ? 'LEAD II' : 'LEAD II — RHYTHM STRIP';
-    stripWrapper.appendChild(stripLabel);
+    // Patch document.getElementById to intercept the IDs the v3 code uses
+    // by pre-creating elements with those IDs inside our container
+    const _ids = {
+      'leadsGrid':    container.querySelector('#_ecg_leadsGrid'),
+      'stripWrapper': container.querySelector('#_ecg_stripWrapper'),
+      'ecgBgGrid':    container.querySelector('#_ecg_bgGrid'),
+      'ecgArea':      container,
+    };
+    const _origGetById = document.getElementById.bind(document);
+    const _patchedGetById = (id) => _ids[id] || _origGetById(id);
+    // We pass this as a local override into the closure below
 
-    const stripTraceC = document.createElement('canvas');
-    stripTraceC.style.cssText = 'position:absolute;top:0;left:0;z-index:3;background:transparent;';
-    stripTraceC.width = STRIP_W; stripTraceC.height = STRIP_H;
-    stripWrapper.appendChild(stripTraceC);
-    container.appendChild(stripWrapper);
+    // ── Run the v3 engine in a closure ────────────────────────────────
+    // All v3 code runs here with access to container dimensions
+    (function(_container, _doc_getElementById, _self) {
 
-    // Size background canvas
-    const TOTAL_H = mode === 'strip' ? STRIP_H : (LEAD_H * 3 + STRIP_H);
-    bgCanvas.width = MONITOR_W; bgCanvas.height = TOTAL_H;
-    bgCanvas.style.width = MONITOR_W + 'px'; bgCanvas.style.height = TOTAL_H + 'px';
-    container.style.height = TOTAL_H + 'px';
+    // Shim getElementById for v3 code
+    const getElementById = _doc_getElementById;
 
-    // ── Theme state ──────────────────────────────────────────────────
-    let _traceColour = '#00ff88';
-    let _traceGlow   = 'rgba(0,255,136,0.20)';
-    let _traceWidth  = 1.5;
-    let _themeBg     = '#020a04';
-    let _themeGridS  = 'rgba(0,110,50,0.30)';
-    let _themeGridL  = 'rgba(0,160,70,0.55)';
+    // Override MONITOR_W to use actual container width
+    const _containerW = _getW();
+
+// =====================================================================
+// LAYOUT
+// Lead order: row1=[I,aVR,V1,V4], row2=[II,aVL,V2,V5], row3=[III,aVF,V3,V6]
+// rhythm strip = Lead II full width
+// =====================================================================
+const LEAD_LAYOUT = ['I','aVR','V1','V4','II','aVL','V2','V5','III','aVF','V3','V6'];
+const LEAD_H = 110;   // px height per lead cell
+const STRIP_H = 140;  // px height rhythm strip
+
+// Canvas width = monitor inner width minus padding
+// Monitor is 1100px, padding 18px each side => 1100-36=1064px
+// Grid: 4 cols, so each col = 1064/4 = 266px
+const MONITOR_W = _containerW || 1064;
+const LEAD_W = Math.floor(MONITOR_W / 4);   // 266px
+const STRIP_W = MONITOR_W;
+
+// Timing
+// All canvases use the same real-time speed: 25mm/sec = STRIP_W/6000 px/ms
+const PX_PER_MS       = STRIP_W / 6000; // unified speed for all canvases
+const STRIP_PX_PER_MS = PX_PER_MS;      // strip same speed
+const SMALL_SQ_MS  = 40;
+const SMALL_SQ_PX  = SMALL_SQ_MS * PX_PER_MS;
+const BIG_SQ_PX    = SMALL_SQ_PX * 5;
+const STRIP_SMALL_PX = SMALL_SQ_PX;
+const STRIP_BIG_PX   = BIG_SQ_PX;
+
+// =====================================================================
+// BUILD DOM
+// =====================================================================
+const leadsGrid = getElementById('leadsGrid') || getElementById('_ecg_leadsGrid');
+const stripWrapper = getElementById('stripWrapper') || getElementById('_ecg_stripWrapper');
+const ecgArea = document.getElementById('ecgArea');
+// Size ecg-area to hold both leads grid and strip
+const ecgAreaH = LEAD_H * 3 + STRIP_H;
+ecgArea.style.height = ecgAreaH + 'px';
+ecgArea.style.width = MONITOR_W + 'px';
+ecgArea.style.position = 'relative';
+stripWrapper.style.height = STRIP_H + 'px';
+stripWrapper.style.width = MONITOR_W + 'px';
+
+// Lead cells
+const leadCanvases = {}; // key: leadName -> {grid, trace}
+LEAD_LAYOUT.forEach(name => {
+  const cell = document.createElement('div');
+  cell.className = 'lead-cell';
+  cell.style.width  = LEAD_W + 'px';
+  cell.style.height = LEAD_H + 'px';
+
+  const tag = document.createElement('span');
+  tag.className = 'lead-label-tag';
+  tag.textContent = name;
+
+  const tc = document.createElement('canvas');
+  tc.className = 'trace-c';
+  tc.width = LEAD_W; tc.height = LEAD_H;
+  tc.style.position = 'absolute';
+  tc.style.top = '0'; tc.style.left = '0';
+  tc.style.zIndex = '3';
+  tc.style.background = 'transparent';
+
+  cell.appendChild(tc); cell.appendChild(tag);
+  leadsGrid.appendChild(cell);
+  leadCanvases[name] = { trace: tc };
+});
+
+// Single background grid canvas spanning full ECG area
+const TOTAL_H = LEAD_H * 3 + STRIP_H;
+const bgGridCanvas = getElementById('ecgBgGrid') || getElementById('_ecg_bgGrid');
+bgGridCanvas.className = 'ecg-bg-canvas';
+bgGridCanvas.width  = MONITOR_W;
+bgGridCanvas.height = TOTAL_H;
+bgGridCanvas.style.width  = MONITOR_W + 'px';
+bgGridCanvas.style.height = TOTAL_H + 'px';
+const bgCtx = bgGridCanvas.getContext('2d');
+
+// Strip trace canvas only (no grid canvas needed)
+const stripTraceC = document.createElement('canvas');
+stripTraceC.className = 'strip-trace';
+stripTraceC.style.position = 'absolute';
+stripTraceC.style.top = '0'; stripTraceC.style.left = '0';
+stripTraceC.style.zIndex = '3';
+stripTraceC.style.background = 'transparent';
+stripTraceC.width = STRIP_W; stripTraceC.height = STRIP_H;
+stripWrapper.appendChild(stripTraceC);
+
+// =====================================================================
+// DRAW SINGLE CONTINUOUS BACKGROUND GRID
+// One canvas spans the full ECG area — perfect alignment guaranteed
+// =====================================================================
+function drawBgGrid(bg, smallCol, largeCol) {
+  const bgCol   = bg        || window._themeBg    || '#020a04';
+  const sCol    = smallCol  || window._themeGridS || 'rgba(0,110,50,0.30)';
+  const lCol    = largeCol  || window._themeGridL || 'rgba(0,160,70,0.55)';
+  bgCtx.fillStyle = bgCol;
+  bgCtx.fillRect(0, 0, MONITOR_W, TOTAL_H);
+  // Small squares — continuous across full width and height
+  bgCtx.strokeStyle = sCol;
+  bgCtx.lineWidth = 0.5;
+  bgCtx.beginPath();
+  for(let x=0; x<=MONITOR_W; x+=SMALL_SQ_PX){ bgCtx.moveTo(x,0); bgCtx.lineTo(x,TOTAL_H); }
+  for(let y=0; y<=TOTAL_H;   y+=SMALL_SQ_PX){ bgCtx.moveTo(0,y); bgCtx.lineTo(MONITOR_W,y); }
+  bgCtx.stroke();
+  // Large squares
+  bgCtx.strokeStyle = lCol;
+  bgCtx.lineWidth = 1.0;
+  bgCtx.beginPath();
+  for(let x=0; x<=MONITOR_W; x+=BIG_SQ_PX){ bgCtx.moveTo(x,0); bgCtx.lineTo(x,TOTAL_H); }
+  for(let y=0; y<=TOTAL_H;   y+=BIG_SQ_PX){ bgCtx.moveTo(0,y); bgCtx.lineTo(MONITOR_W,y); }
+  bgCtx.stroke();
+  // No extra separator lines — large grid squares provide visual separation
+}
+drawBgGrid();
+
+// =====================================================================
+// WAVEFORM MATH
+// =====================================================================
+function gauss(t,c,w,a){const d=(t-c)/w;return a*Math.exp(-d*d*4);}
 
 // Patient profile + noise + BBB
 let patient=generatePatient();
@@ -1135,7 +1216,7 @@ const ERASE_PX=2;
 function drawSpikesOn(ctx, spikes, W, hX, erasePx, mid){
   const startX=(hX+erasePx)%W;
   ctx.save();
-  ctx.strokeStyle=_traceColour||'#00ff88';
+  ctx.strokeStyle=window._traceColour||'#00ff88';
   ctx.lineWidth=1.5;
   ctx.setLineDash([3,3]);
   for(let i=0;i<W-erasePx;i++){
@@ -1158,7 +1239,7 @@ function drawSpikesOn(ctx, spikes, W, hX, erasePx, mid){
   ctx.restore();
 }
 
-self._drawFrame = function(ts){
+function draw(ts){
   if(!lastMs) lastMs=ts;
   const dtMs=Math.min(ts-lastMs,50);
   lastMs=ts;
@@ -1172,10 +1253,10 @@ self._drawFrame = function(ts){
   const msPerStripPx=1/STRIP_PX_PER_MS;
 
   // Generate lead samples
-  // Lead cells — freeze when self._captureMode detects wrap
-  if(!self._leadsFrozen) {
+  // Lead cells — freeze when captureMode detects wrap
+  if(!leadsFrozen) {
     for(let i=0;i<leadSteps;i++){
-      if(self._captureMode && headX > 0 && (headX+1) % LEAD_W === 0) {
+      if(captureMode && headX > 0 && (headX+1) % LEAD_W === 0) {
         // Finish this last pixel then freeze leads only
         const samples=computeSamples(state,msPerLeadPx,currentBpm,currentKey);
         const x=headX%LEAD_W;
@@ -1190,7 +1271,7 @@ self._drawFrame = function(ts){
         if(state.spikeA) state.spikeA=false;
         if(state.spikeV) state.spikeV=false;
         headX=(headX+1)%LEAD_W;
-        self._leadsFrozen = true; // freeze leads, strip keeps running
+        leadsFrozen = true; // freeze leads, strip keeps running
         break;
       }
       const samples=computeSamples(state,msPerLeadPx,currentBpm,currentKey);
@@ -1210,17 +1291,17 @@ self._drawFrame = function(ts){
   }
 
   // Strip — keeps running after leads freeze, triggers final capture on wrap
-  if(!self._frozen) {
+  if(!frozen) {
     for(let i=0;i<stripSteps;i++){
-      // If leads already self._frozen and strip is about to wrap — do final capture
-      if(self._leadsFrozen && stripHead > 0 && (stripHead+1) % STRIP_W === 0) {
+      // If leads already frozen and strip is about to wrap — do final capture
+      if(leadsFrozen && stripHead > 0 && (stripHead+1) % STRIP_W === 0) {
         // Process last strip pixel
         const samples=computeSamplesStrip(msPerStripPx);
         const x=stripHead%STRIP_W;
         const stripBBB=applyBBB(samples['II'],stripState.ms,'II');
         traceData['strip'][x]=MID_STRIP-(stripBBB*patient.ampScale+sampleNoise()*0.5);
         stripHead=(stripHead+1)%STRIP_W;
-        self._doCapture(); // now freeze everything and flash
+        doCapture(); // now freeze everything and flash
         break;
       }
       const samples=computeSamplesStrip(msPerStripPx);
@@ -1237,7 +1318,7 @@ self._drawFrame = function(ts){
     const ctx=tc.getContext('2d');
     ctx.clearRect(0,0,LEAD_W,LEAD_H);
     const hX=headX%LEAD_W;
-    ctx.fillStyle=_traceGlow||'rgba(0,255,136,0.10)';
+    ctx.fillStyle=window._traceGlow||'rgba(0,255,136,0.10)';
     ctx.fillRect(hX,0,2,LEAD_H);
     renderTraceOn(ctx,traceData[n],LEAD_W,hX,ERASE_PX);
     drawSpikesOn(ctx,spikeData[n],LEAD_W,hX,ERASE_PX,MID_LEAD);
@@ -1248,24 +1329,24 @@ self._drawFrame = function(ts){
     const ctx=stripTraceC.getContext('2d');
     ctx.clearRect(0,0,STRIP_W,STRIP_H);
     const hX=stripHead%STRIP_W;
-    ctx.fillStyle=_traceGlow||'rgba(0,255,136,0.10)';
+    ctx.fillStyle=window._traceGlow||'rgba(0,255,136,0.10)';
     ctx.fillRect(hX,0,2,STRIP_H);
     renderTraceOn(ctx,traceData['strip'],STRIP_W,hX,ERASE_PX);
     drawSpikesOn(ctx,spikeData['strip'],STRIP_W,hX,ERASE_PX,MID_STRIP);
   }
 
-  // Keep animating while not fully frozen
-  if(!self._frozen) requestAnimationFrame(ts => self._drawFrame(ts));
+  // Keep animating if strip still running after leads frozen
+  if(!frozen) requestAnimationFrame(draw);
 }
 
 function redrawAllTraces() {
-  // Called when theme changes while self._frozen — redraws everything with new colours
+  // Called when theme changes while frozen — redraws everything with new colours
   LEAD_LAYOUT.forEach(n=>{
     const tc=leadCanvases[n].trace;
     const ctx=tc.getContext('2d');
     ctx.clearRect(0,0,LEAD_W,LEAD_H);
     const hX=headX%LEAD_W;
-    ctx.fillStyle=_traceGlow||'rgba(0,255,136,0.10)';
+    ctx.fillStyle=window._traceGlow||'rgba(0,255,136,0.10)';
     ctx.fillRect(hX,0,2,LEAD_H);
     renderTraceOn(ctx,traceData[n],LEAD_W,hX,ERASE_PX);
     drawSpikesOn(ctx,spikeData[n],LEAD_W,hX,ERASE_PX,MID_LEAD);
@@ -1273,7 +1354,7 @@ function redrawAllTraces() {
   const ctx=stripTraceC.getContext('2d');
   ctx.clearRect(0,0,STRIP_W,STRIP_H);
   const hX=stripHead%STRIP_W;
-  ctx.fillStyle=_traceGlow||'rgba(0,255,136,0.10)';
+  ctx.fillStyle=window._traceGlow||'rgba(0,255,136,0.10)';
   ctx.fillRect(hX,0,2,STRIP_H);
   renderTraceOn(ctx,traceData['strip'],STRIP_W,hX,ERASE_PX);
   drawSpikesOn(ctx,spikeData['strip'],STRIP_W,hX,ERASE_PX,MID_STRIP);
@@ -1282,13 +1363,13 @@ function redrawAllTraces() {
 function renderTraceOn(ctx,data,W,hX,erasePx){
   const startX=(hX+erasePx)%W;
   // Glow
-  ctx.strokeStyle=_traceGlow||'rgba(0,255,136,0.18)';
+  ctx.strokeStyle=window._traceGlow||'rgba(0,255,136,0.18)';
   ctx.lineWidth=3;
   ctx.lineJoin='round';ctx.lineCap='round';
   _drawPath(ctx,data,W,startX,erasePx);
   // Line
-  ctx.strokeStyle=_traceColour||'#00ff88';
-  ctx.lineWidth=_traceWidth||1.5;
+  ctx.strokeStyle=window._traceColour||'#00ff88';
+  ctx.lineWidth=window._traceWidth||1.5;
   _drawPath(ctx,data,W,startX,erasePx);
 }
 
@@ -1318,7 +1399,7 @@ function computeSamplesStrip(dtMs){
 // =====================================================================
 let hrAnimId=null,afHRInterval=null;
 function animHR(target){
-  const el=self._hrEl;
+  const el=document.getElementById('hrValue');
   if(target===0){el.textContent='---';return;}
   cancelAnimationFrame(hrAnimId);
   const start=parseInt(el.textContent)||72;
@@ -1334,7 +1415,7 @@ function animHR(target){
 // =====================================================================
 // RHYTHM SWITCHING
 // =====================================================================
-self._setRhythm = function(key){
+function setRhythm(key){
   currentKey=key;
   state=makeState();
   stripState=makeState();
@@ -1348,9 +1429,9 @@ self._setRhythm = function(key){
   const r=RHYTHMS[key];
   clearInterval(afHRInterval);
 
-  const slider=self._sliderEl;
-  const bpmLabel=self._bpmEl;
-  const noteEl=self._noteEl;
+  const slider=document.getElementById('hrSlider');
+  const bpmLabel=document.getElementById('sliderBpm');
+  const noteEl=document.getElementById('sliderNote');
 
   if(r.sliderMin!==null){
     slider.disabled=false;
@@ -1366,7 +1447,7 @@ self._setRhythm = function(key){
   }
 
   noteEl.textContent=r.sliderNote||'';
-  self._rhythmNameEl.textContent=r.label;
+  document.getElementById('rhythmName').textContent=r.label;
 
   if(key==='vf'||key==='asys') animHR(0);
   else if(key==='af'){
@@ -1380,23 +1461,23 @@ self._setRhythm = function(key){
   else if(key==='mob1'||key==='mob2') animHR(50);
   else animHR(currentBpm);
 
-  self.container.querySelectorAll('.ecg-btn').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.btn').forEach(b=>b.classList.remove('active'));
   const btnEl=document.getElementById('btn-'+key);
   if(btnEl) btnEl.classList.add('active');
 }
 
-self.setBBB = function(mode){
+function setBBB(mode){
   if((currentKey==='vf'||currentKey==='asys')&&mode!=='none') return;
   bbbMode=mode;
   // trace continues — no wipe on BBB change
-  self.container.querySelectorAll('[id^="bbb-"]').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('[id^="bbb-"]').forEach(b=>b.classList.remove('active'));
   const el=document.getElementById('bbb-'+mode);
   if(el) el.classList.add('active');
 }
 
-self.onSlider = function(val){
+function onSlider(val){
   currentBpm=parseInt(val);
-  self._bpmEl.textContent=val+' BPM';
+  document.getElementById('sliderBpm').textContent=val+' BPM';
   animHR(currentBpm);
 }
 
@@ -1471,8 +1552,8 @@ function randomTheme(paper) {
   }
 }
 
-self._applyTheme = function(t) {
-  const r = self.container.style;
+function applyTheme(t) {
+  const r = document.documentElement.style;
   r.setProperty('--bg-outer',           t.bgOuter);
   r.setProperty('--bg-monitor',         t.bgMonitor);
   r.setProperty('--bg-canvas',          t.bgCanvas);
@@ -1490,120 +1571,109 @@ self._applyTheme = function(t) {
   r.setProperty('--btn-active-border',  t.btnActiveBorder);
   r.setProperty('--btn-active-text',    t.btnActiveText);
   r.setProperty('--monitor-border',     t.monitorBorder);
-  _traceColour = t.trace;
-  _traceGlow   = t.traceGlow;
-  _themeBg     = t.bgCanvas;
-  _themeGridS  = t.gridSmall;
-  _themeGridL  = t.gridLarge;
-  _traceWidth  = t.traceWidth || 1.5;
-  self.container.style.setProperty('--separator', t.separator || '#000');
+  window._traceColour = t.trace;
+  window._traceGlow   = t.traceGlow;
+  window._themeBg     = t.bgCanvas;
+  window._themeGridS  = t.gridSmall;
+  window._themeGridL  = t.gridLarge;
+  window._traceWidth  = t.traceWidth || 1.5;
+  document.documentElement.style.setProperty('--separator', t.separator || '#000');
   // Redraw grid with explicit colours (not CSS var lookup)
   // Redraw all lead grids
-  _drawBgGrid(t.bgCanvas, t.gridSmall, t.gridLarge);
-  // If self._frozen, redraw all trace canvases with new colour so update is instant
-  if(self._frozen || self._leadsFrozen) redrawAllTraces();
+  drawBgGrid(t.bgCanvas, t.gridSmall, t.gridLarge);
+  // If frozen, redraw all trace canvases with new colour so update is instant
+  if(frozen || leadsFrozen) redrawAllTraces();
   // Update canvas element backgrounds directly
   // Update monitor and body
-  const mon = self.container.closest('.monitor') || self.container;
+  const mon = document.querySelector('.monitor');
   if (mon) mon.style.cssText += ';background:' + t.bgMonitor + ' !important';
-  self.container.style.cssText += ';background:' + t.bgOuter + ' !important';
-  self.container.style.cssText += ';background:' + t.bgOuter + ' !important';
+  document.body.style.cssText += ';background:' + t.bgOuter + ' !important';
+  document.documentElement.style.cssText += ';background:' + t.bgOuter + ' !important';
   // Explicitly set canvas element backgrounds so no bleed-through on light themes
   const bgGrid = document.getElementById('ecgBgGrid') || document.getElementById('ecgGrid');
   if (bgGrid) bgGrid.style.cssText += ';background:' + t.bgCanvas + ' !important';
 }
 
-self._applyThemeByName = function(name) {
+function setTheme(name) {
   currentTheme = name;
   const t = name === 'random'       ? randomTheme(false)
              : name === 'random-paper' ? randomTheme(true)
              : (THEMES[name] || THEMES.monitor);
-  self._applyTheme(t);
-  self.container.querySelectorAll('.theme-btn').forEach(b => b.classList.remove('active'));
+  applyTheme(t);
+  document.querySelectorAll('.theme-btn').forEach(b => b.classList.remove('active'));
   const btn = document.getElementById('theme-' + name);
   if (btn) btn.classList.add('active');
 }
 
-// started externally
+requestAnimationFrame(draw);
 
 // =============================================================
 // CAPTURE
 // =============================================================
-// self._captureMode managed by ECGEngine  // waiting to freeze at end of sweep
-// self._leadsFrozen managed by ECGEngine  // leads self._frozen, strip still running
-// self._frozen managed by ECGEngine  // everything self._frozen (final state)
+let captureMode  = false;  // waiting to freeze at end of sweep
+let leadsFrozen  = false;  // leads frozen, strip still running
+let frozen       = false;  // everything frozen (final state)
 
-self.toggleCapture = function() {
-  const btn = self._capBtn;
-  if (self._frozen) {
+function toggleCapture() {
+  const btn = document.getElementById('captureBtn');
+  if (frozen) {
     // Resume — reset all freeze states
-    self._frozen = false;
-    self._leadsFrozen = false;
-    self._captureMode = false;
+    frozen = false;
+    leadsFrozen = false;
+    captureMode = false;
     lastMs = 0;
-    // started externally
+    requestAnimationFrame(draw);
     btn.textContent = '⏸ CAPTURE';
     btn.style.borderColor = '';
     btn.style.color = '';
-  } else if (self._captureMode || self._leadsFrozen) {
+  } else if (captureMode || leadsFrozen) {
     // Cancel pending capture
-    self._captureMode = false;
-    self._leadsFrozen = false;
+    captureMode = false;
+    leadsFrozen = false;
     btn.textContent = '⏸ CAPTURE';
     btn.style.borderColor = '';
   } else {
     // Arm capture — will freeze when head next reaches right edge
-    self._captureMode = true;
+    captureMode = true;
     btn.textContent = '⌛ CAPTURING...';
     btn.style.borderColor = 'var(--text-bright, #00ff88)';
   }
 }
 
-self._doCapture = function() {
+function doCapture() {
   // Called when strip completes its run — freeze everything and flash
-  self._frozen = true;
-  self._leadsFrozen = false;
-  self._captureMode = false;
-  const btn = self._capBtn;
+  frozen = true;
+  leadsFrozen = false;
+  captureMode = false;
+  const btn = document.getElementById('captureBtn');
   btn.textContent = '▶ RESUME';
   btn.style.borderColor = 'var(--text-bright, #00ff88)';
   btn.style.color = 'var(--text-bright, #00ff88)';
   // Flash
-  const flash = self._flashEl;
+  const flash = document.getElementById('captureFlash');
   // Use dark flash on light themes, light flash on dark themes
-  const isDark = _themeBg && _themeBg.includes('02');
+  const isDark = window._themeBg && window._themeBg.includes('02');
   flash.style.background = isDark ? 'white' : 'black';
   flash.style.opacity = '0.12';
   setTimeout(() => { flash.style.opacity = '0'; }, 200);
 }
-    // Store public refs
-    self._rhythms = RHYTHMS;
 
-    // Apply initial theme
-    self._applyTheme = function(nameOrObj) {
-      if (typeof nameOrObj === 'string') {
-        const t = THEMES[nameOrObj] || (nameOrObj === 'random' ? randomTheme(false) : nameOrObj === 'random-paper' ? randomTheme(true) : THEMES.monitor);
-        self._applyTheme(t);
-      } else {
-        // nameOrObj is a theme object
-        const t = nameOrObj;
-        _traceColour = t.trace;
-        _traceGlow   = t.traceGlow;
-        _themeBg     = t.bgCanvas;
-        _themeGridS  = t.gridSmall;
-        _themeGridL  = t.gridLarge;
-        _traceWidth  = t.traceWidth || 1.5;
-        _drawBgGrid(t.bgCanvas, t.gridSmall, t.gridLarge);
-        bgCanvas.style.cssText += ';background:' + t.bgCanvas + ' !important';
-        container.style.background = t.bgMonitor;
-        // Update lead labels colour
-        container.querySelectorAll('.ecg-lead-label,.ecg-strip-label').forEach(el => el.style.color = t.trace);
-      }
+    // Expose internals to ECGEngine instance
+    _self._pub.rhythms      = RHYTHMS;
+    _self._pub.setRhythm    = setRhythm;
+    _self._pub.setTheme     = setTheme;
+    _self._pub.setBBB       = setBBB;
+    _self._pub.onSlider     = onSlider;
+    _self._pub.toggleCapture = (typeof toggleCapture !== 'undefined') ? toggleCapture : null;
+    _self._pub.resume       = function() {
+      frozen = false; leadsFrozen = false; captureMode = false; lastMs = 0;
+      requestAnimationFrame(draw);
     };
 
-    // Start draw loop
-    self._running = true;
-    requestAnimationFrame(ts => self._drawFrame(ts));
+    // Start the draw loop
+    _self._running = true;
+    requestAnimationFrame(draw);
 
-  } // end _initCore
-} // end class ECGEngine
+    }).call(this, container, _patchedGetById, self);
+  }
+}
