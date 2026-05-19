@@ -220,11 +220,11 @@ window.addEventListener('DOMContentLoaded', () => {
 // ── UI event handlers (buttons call these) ────────────────────────────
 function setRhythm(key) {
   if (!_ecg) return;
-  const r = RHYTHMS[key]; // RHYTHMS exposed on engine
-  if (!r) return;
-  _ecg.setRhythm(key, r.defaultBpm, 'none');
-  // Update slider
-  if (r.sliderMin !== null) {
+  // Get rhythm info from engine's internal catalogue
+  const r = _ecg._rhythms && _ecg._rhythms[key];
+  _ecg.setRhythm(key, r ? r.defaultBpm : 72, 'none');
+  // Update slider UI
+  if (r && r.sliderMin !== null && r.sliderMin !== undefined) {
     document.getElementById('hrSlider').disabled = false;
     document.getElementById('hrSlider').min = r.sliderMin;
     document.getElementById('hrSlider').max = r.sliderMax;
@@ -234,8 +234,10 @@ function setRhythm(key) {
     document.getElementById('hrSlider').disabled = true;
     document.getElementById('sliderBpm').textContent = '— BPM';
   }
-  document.getElementById('sliderNote').textContent = r.sliderNote || '';
-  document.getElementById('rhythmName').textContent = r.label;
+  if (r) {
+    document.getElementById('sliderNote').textContent = r.sliderNote || '';
+    document.getElementById('rhythmName').textContent = r.label;
+  }
   document.querySelectorAll('.btn').forEach(b => b.classList.remove('active'));
   const btn = document.getElementById('btn-' + key);
   if (btn) btn.classList.add('active');
