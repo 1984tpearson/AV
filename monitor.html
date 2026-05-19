@@ -129,7 +129,7 @@ body { background: #0a0d14; color: #e0e0e0; font-family: 'Courier New', monospac
 
 <div id="topbar">
   <div class="topbar-left">
-    <div class="topbar-logo">ZOLL X Series</div>
+    <div class="topbar-logo">AV Monitor</div>
     <div id="pt-demographics"></div>
   </div>
   <div class="topbar-right">
@@ -183,7 +183,6 @@ const CLINICAL_PARAMS = [
   { key: 'BGL',     label: 'BGL',      unit: 'mmol/L' },
   { key: 'Weight',  label: 'Weight',   unit: 'kg' },
   { key: 'Ketones', label: 'Ketones',  unit: 'mmol/L' },
-  { key: 'Rhythm',  label: 'Rhythm',   unit: '', wide: true },
   { key: 'ECG',     label: '12-Lead ECG', unit: '', wide: true, isECG: true },
 ];
 
@@ -513,10 +512,8 @@ function setGridVisible(visible) {
   if (!_ecgInst) return;
   const container = document.getElementById('ecg-12lead-container');
   const grid = container.querySelector('#_ecg_leadsGrid');
-  const bg   = container.querySelector('#_ecg_bgGrid');
   if (grid) grid.style.display = visible ? 'grid' : 'none';
-  if (bg)   bg.style.display   = visible ? 'block' : 'none';
-  // Update bar label
+  // bg canvas stays visible always — it draws the grid behind the strip too
   document.getElementById('ecg-bar-label').textContent =
     visible ? '12-LEAD ECG' : 'LEAD II — RHYTHM STRIP';
 }
