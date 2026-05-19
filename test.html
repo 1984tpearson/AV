@@ -2187,15 +2187,14 @@ function loadScenario(id) {
       if (!rhythm) return;
       const id = el.id.replace('assessor-strip-','');
 
-      // Get width from parent — container may not have own width yet
-      const parentW = el.closest('.section-content, .scenario-body, main, #scenario-view')
-                      || el.parentElement;
-      const w = (parentW ? parentW.clientWidth : 0) || 680;
+      // Use the container's actual rendered width
+      // el has explicit width set in HTML template, read it back
+      const w = el.clientWidth || parseInt(el.style.width) || 700;
 
-      // Size containers explicitly before init
-      el.style.width = w + 'px';
+      // Ensure explicit dimensions
       el.style.height = '110px';
       el.style.display = 'block';
+      el.style.overflow = 'hidden';
 
       const mapped = ECGEngine.mapRhythm(rhythm, hr);
       try {
@@ -2205,8 +2204,8 @@ function loadScenario(id) {
 
       const le = document.getElementById('assessor-12lead-'+id);
       if (le) {
-        le.style.width = w + 'px';
         le.style.display = 'block';
+        le.style.overflow = 'hidden';
         try {
           const le2 = new ECGEngine(le, {mode:'12lead', theme:'paper'});
           le2.setRhythm(mapped.key, mapped.bpm, mapped.bbbMode);
@@ -3087,8 +3086,8 @@ function renderSection1(s, isTrauma) {
             <span style="font-size:11px;font-weight:700;color:var(--grey);text-transform:uppercase;letter-spacing:0.6px;">📈 Live ECG — ${rhythmStr} @ ${hr} BPM</span>
             ${realBtn}
           </div>
-          <div id="assessor-strip-${s.id}" style="width:100%;height:110px;background:#faf7f2;border-radius:4px;overflow:hidden;" data-rhythm="${rhythmStr.replace(/"/g,'&quot;')}" data-hr="${hr}"></div>
-          <div id="assessor-12lead-${s.id}" style="width:100%;background:#faf7f2;border-radius:4px;overflow:hidden;margin-top:3px;" data-rhythm="${rhythmStr.replace(/"/g,'&quot;')}" data-hr="${hr}"></div>
+          <div id="assessor-strip-${s.id}" style="width:100%;max-width:100%;height:110px;background:#faf7f2;border-radius:4px;overflow:hidden;display:block;" data-rhythm="${rhythmStr.replace(/"/g,'&quot;')}" data-hr="${hr}"></div>
+          <div id="assessor-12lead-${s.id}" style="width:100%;max-width:100%;background:#faf7f2;border-radius:4px;overflow:hidden;margin-top:3px;display:block;" data-rhythm="${rhythmStr.replace(/"/g,'&quot;')}" data-hr="${hr}"></div>
           <div style="font-size:10px;color:var(--grey);font-style:italic;margin-top:4px;">⚠ Animated ECG is a simulation. Use Real ECG for teaching pattern recognition.</div>
         </div>`;
       })()}}
