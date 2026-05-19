@@ -705,6 +705,39 @@ body.snav-active #content { padding-left: 60px; }
 .home-random-btn:active { opacity: 0.85; }
 </style>
 <script src="cpg_packages_combined.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700&display=swap" rel="stylesheet">
+<script src="https://1984tpearson.github.io/AV/ecg_engine.js"></script>
+<style>
+/* ── Live ECG strip on assessor side ── */
+.live-ecg-strip {
+  margin: 8px 0 4px;
+  border-radius: 4px;
+  overflow: hidden;
+  position: relative;
+}
+.live-ecg-label {
+  font-size: 10px;
+  font-weight: 700;
+  color: #666;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.live-ecg-label a {
+  font-size: 9px;
+  color: #0066bb;
+  text-decoration: none;
+  font-weight: 400;
+}
+.live-ecg-label a:hover { text-decoration: underline; }
+.live-12lead-area {
+  margin: 8px 0;
+  position: relative;
+}
+</style>
 </head>
 <body>
 
@@ -2143,6 +2176,31 @@ function loadScenario(id) {
   const view = document.getElementById('scenario-view');
   view.innerHTML = renderScenario(s);
   showScreen('scenario-view');
+  // Init live ECG engines after render
+  setTimeout(() => {
+    if (typeof ECGEngine === 'undefined') { console.warn('ECGEngine not loaded'); return; }
+    document.querySelectorAll('[id^="assessor-12lead-"]').forEach(le => {
+      if (le._ecgInit) return;
+      le._ecgInit = true;
+      const rhythm = le.dataset.rhythm;
+      const hr = parseInt(le.dataset.hr)||72;
+      if (!rhythm) return;
+      const id = le.id.replace('assessor-12lead-','');
+
+      // Force layout then read actual pixel width
+      le.style.display = 'block';
+      le.style.overflow = 'hidden';
+      const w = le.getBoundingClientRect().width || le.clientWidth || 700;
+      le.style.width = Math.floor(w) + 'px';
+
+      const mapped = ECGEngine.mapRhythm(rhythm, hr);
+
+      try {
+        const _ecgInst = new ECGEngine(le, {mode:'12lead', theme:'paper'});
+        _ecgInst.setRhythm(mapped.key, mapped.bpm, mapped.bbbMode);
+      } catch(e) { console.warn('12-lead ECG:', e); }
+    });
+  }, 300);
 
   // Embed ECG image if available
   const ecgImg = document.getElementById('ecg-img-' + s.id);
@@ -3005,7 +3063,22 @@ function renderSection1(s, isTrauma) {
         </tbody>
       </table>
 
-      ${(()=>{ const ecg = getECGImage(s.vitals&&s.vitals.Rhythm); if(!ecg) return ''; return `<div class="ecg-strip-section" style="margin:12px 0 4px"><div class="ecg-strip-label">📈 Reference ECG Strip — ${ecg.label} <span style="font-size:10px;opacity:0.6;font-weight:400;text-transform:none">(tap to expand)</span></div><img class="ecg-strip-img" id="ecg-img-${s.id}" alt="${ecg.label}" onerror="this.style.opacity=0.3" onclick="if(this.src)openECGLightbox(this.src,'${ecg.label.replace(/'/g,"\\'")}')"><div style="font-size:10px;color:var(--grey);font-style:italic;margin-top:5px">⚠ ECG shown is a rhythm reference only — rate depicted may not match the scenario heart rate.</div></div>`; })()}
+      ${(()=>{
+        const rhythmStr = (s.vitals&&s.vitals.Rhythm)||'';
+        const hr = parseInt((s.vitals&&s.vitals.HR)||72)||72;
+        if (!rhythmStr) return '';
+        const ecg = getECGImage(s.vitals&&s.vitals.Rhythm);
+        const realBtn = ecg ? `<button onclick="openECGLightbox('${ecg.url.replace(/'/g,"\\'")}','${(ecg.label||'').replace(/'/g,"\\'")}');event.stopPropagation();" style="font-size:10px;padding:3px 8px;border:1px solid #ccc;background:white;border-radius:4px;cursor:pointer;color:#003366;">📷 Real ECG</button>` : '';
+        return `<div style="margin:10px 0 4px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+            <span style="font-size:11px;font-weight:700;color:var(--grey);text-transform:uppercase;letter-spacing:0.6px;">📈 Live ECG — ${rhythmStr} @ ${hr} BPM</span>
+            ${realBtn}
+          </div>
+
+          <div id="assessor-12lead-${s.id}" style="width:100%;max-width:100%;background:#faf7f2;border-radius:4px;overflow:hidden;margin-top:3px;display:block;" data-rhythm="${rhythmStr.replace(/"/g,'&quot;')}" data-hr="${hr}"></div>
+          <div style="font-size:10px;color:var(--grey);font-style:italic;margin-top:4px;">⚠ Animated ECG is a simulation. Use Real ECG for teaching pattern recognition.</div>
+        </div>`;
+      })()}}
 
       ${secondarySurvey}<div class="asmt-section-header"><div class="asmt-section-title">Focussed Assessments</div><button class="all-complete-btn" onclick="markGroupComplete('fa')">✓ All Complete</button></div>
       <table class="asmt-table" data-group="fa" data-section="sec1">
@@ -3977,7 +4050,39 @@ function downloadPDF() {
   .sum-result-badge.pass { background: #EAFAF1; color: #27833A; border: 2px solid #27833A; }
   .sum-result-badge.fail { background: #FDEDEC; color: #C0392B; border: 2px solid #C0392B; }
   @media print { body { padding: 0; } }
-</style></head><body>${content}</body></html>`);
+</style><link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700&display=swap" rel="stylesheet">
+<style>
+/* ── Live ECG strip on assessor side ── */
+.live-ecg-strip {
+  margin: 8px 0 4px;
+  border-radius: 4px;
+  overflow: hidden;
+  position: relative;
+}
+.live-ecg-label {
+  font-size: 10px;
+  font-weight: 700;
+  color: #666;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.live-ecg-label a {
+  font-size: 9px;
+  color: #0066bb;
+  text-decoration: none;
+  font-weight: 400;
+}
+.live-ecg-label a:hover { text-decoration: underline; }
+.live-12lead-area {
+  margin: 8px 0;
+  position: relative;
+}
+</style>
+</head><body>${content}</body></html>`);
   doc.close();
 
   // Wait for render then trigger print (which gives Save as PDF option)
@@ -5307,7 +5412,7 @@ async function openPatientSessionModal() {
     });
 
     document.getElementById('psm-code').textContent = code;
-    const patientUrl = `https://1984tpearson.github.io/AV/patient.html?session=${code}`;
+    const patientUrl = `https://1984tpearson.github.io/AV/monitor.html?session=${code}`;
     const qrDiv = document.getElementById('psm-qr');
     qrDiv.innerHTML = `<img src="https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(patientUrl)}" width="180" height="180" alt="QR Code">`;
 
@@ -5378,7 +5483,8 @@ function closePatientSessionModal() {
   // Session stays alive — don't clear _patientSessionCode
 }
 
-document.getElementById('patient-session-modal').addEventListener('click', e => {
+const _psm = document.getElementById('patient-session-modal');
+if (_psm) _psm.addEventListener('click', e => {
   if (e.target === document.getElementById('patient-session-modal')) closePatientSessionModal();
 });
 
@@ -5859,6 +5965,83 @@ function openStickyECG() {
   if (btn && btn._ecgSrc) openECGLightbox(btn._ecgSrc, btn._ecgLabel);
 }
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closeECGLightbox(); });
+
+// ── Live ECG Engine (assessor side) ──────────────────────────────────
+let _assessorStrip = null;
+let _assessorLead  = null;
+let _assessorRhythmKey = null;
+
+function initAssessorECG(rhythmStr, hr) {
+  if (!rhythmStr) return;
+  const mapped = ECGEngine.mapRhythm(rhythmStr, parseInt(hr) || 72);
+
+  // Don't reinit if same rhythm
+  if (_assessorRhythmKey === (mapped.key + mapped.bpm + mapped.bbbMode)) return;
+  _assessorRhythmKey = mapped.key + mapped.bpm + mapped.bbbMode;
+
+  // Lead II strip — paper theme, compact
+  const stripEl = document.getElementById('assessor-strip-container');
+  if (stripEl) {
+    if (_assessorStrip) _assessorStrip.destroy();
+    stripEl.style.height = '110px';
+    _assessorStrip = new ECGEngine(stripEl, { mode: 'strip', theme: 'paper' });
+    _assessorStrip.setRhythm(mapped.key, mapped.bpm, mapped.bbbMode);
+  }
+
+  // 12-lead — paper theme
+  const leadEl = document.getElementById('assessor-12lead-container');
+  if (leadEl) {
+    if (_assessorLead) _assessorLead.destroy();
+    _assessorLead = new ECGEngine(leadEl, { mode: '12lead', theme: 'paper' });
+    _assessorLead.setRhythm(mapped.key, mapped.bpm, mapped.bbbMode);
+  }
+
+  // Show real ECG link
+  const ecgImg = getECGImage(rhythmStr);
+  const linkEl = document.getElementById('ecg-real-link');
+  if (linkEl && ecgImg) {
+    linkEl.style.display = 'inline';
+    linkEl.dataset.url = ecgImg.url;
+    linkEl.dataset.label = ecgImg.label;
+  }
+}
+
+function openRealECG(e) {
+  e.preventDefault();
+  const link = document.getElementById('ecg-real-link');
+  if (!link) return;
+  // Use the existing lightbox
+  const lb = document.getElementById('ecg-lightbox');
+  const lbImg = document.getElementById('ecg-lightbox-img');
+  const lbLabel = document.getElementById('ecg-lightbox-label');
+  if (lb && lbImg) {
+    lbImg.src = link.dataset.url;
+    if (lbLabel) lbLabel.textContent = link.dataset.label || '';
+    lb.classList.add('open');
+  }
+}
+
+// Hook into scenario rendering — call initAssessorECG when scenario loads
+// Patch the existing renderScenario or watch for vitals changes
+const _origLoadScenario = typeof loadScenario === 'function' ? loadScenario : null;
+
+// Watch for rhythm changes via a MutationObserver on the rhythm display
+// OR hook into the existing scenario load flow
+function _tryInitECGFromScenario() {
+  // Try to get rhythm from current scenario
+  const rhythmEl = document.querySelector('[data-vital="Rhythm"] .vv, .vital-item[data-key="Rhythm"] .vv');
+  const hrEl = document.querySelector('[data-vital="HR"] .vv, .vital-item[data-key="HR"] .vv');
+  if (rhythmEl && rhythmEl.textContent.trim()) {
+    const rhythm = rhythmEl.textContent.trim();
+    const hr = hrEl ? parseInt(hrEl.textContent) || 72 : 72;
+    initAssessorECG(rhythm, hr);
+  }
+}
+
+// Also expose so it can be called directly when a scenario opens
+window.initAssessorECG = initAssessorECG;
+
+
 </script>
 <!-- Sticky scenario bar: timer + vitals — placed last in body for reliable fixed positioning across all browsers -->
 <div id="sticky-bar">
