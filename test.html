@@ -2178,6 +2178,7 @@ function loadScenario(id) {
   showScreen('scenario-view');
   // Init live ECG engines after render
   setTimeout(() => {
+    if (typeof ECGEngine === 'undefined') { console.warn('ECGEngine not loaded'); return; }
     document.querySelectorAll('[id^="assessor-strip-"]').forEach(el => {
       if (el._ecgInit) return;
       el._ecgInit = true;
@@ -2185,12 +2186,34 @@ function loadScenario(id) {
       const hr = parseInt(el.dataset.hr)||72;
       if (!rhythm) return;
       const id = el.id.replace('assessor-strip-','');
-      const mapped = typeof ECGEngine !== 'undefined' ? ECGEngine.mapRhythm(rhythm, hr) : {key:'nsr',bpm:hr,bbbMode:'none'};
-      try { const se = new ECGEngine(el, {mode:'strip',theme:'paper'}); se.setRhythm(mapped.key, mapped.bpm, mapped.bbbMode); } catch(e) { console.warn('Strip ECG:', e); }
+
+      // Get width from parent — container may not have own width yet
+      const parentW = el.closest('.section-content, .scenario-body, main, #scenario-view')
+                      || el.parentElement;
+      const w = (parentW ? parentW.clientWidth : 0) || 680;
+
+      // Size containers explicitly before init
+      el.style.width = w + 'px';
+      el.style.height = '110px';
+      el.style.display = 'block';
+
+      const mapped = ECGEngine.mapRhythm(rhythm, hr);
+      try {
+        const se = new ECGEngine(el, {mode:'strip', theme:'paper'});
+        se.setRhythm(mapped.key, mapped.bpm, mapped.bbbMode);
+      } catch(e) { console.warn('Strip ECG:', e); }
+
       const le = document.getElementById('assessor-12lead-'+id);
-      if (le) try { const le2 = new ECGEngine(le, {mode:'12lead',theme:'paper'}); le2.setRhythm(mapped.key, mapped.bpm, mapped.bbbMode); } catch(e) { console.warn('12-lead ECG:', e); }
+      if (le) {
+        le.style.width = w + 'px';
+        le.style.display = 'block';
+        try {
+          const le2 = new ECGEngine(le, {mode:'12lead', theme:'paper'});
+          le2.setRhythm(mapped.key, mapped.bpm, mapped.bbbMode);
+        } catch(e) { console.warn('12-lead ECG:', e); }
+      }
     });
-  }, 150);
+  }, 300);
 
   // Embed ECG image if available
   const ecgImg = document.getElementById('ecg-img-' + s.id);
