@@ -121,7 +121,7 @@ class ECGEngine {
 
   setTheme(name)  { if (this._pub.setTheme)  this._pub.setTheme(name);  }
   setBBB(mode)    { if (this._pub.setBBB)    this._pub.setBBB(mode);    }
-  capture()       { this._captureMode = true; }
+  capture()       { if (this._pub.toggleCapture) this._pub.toggleCapture(); }
   resume()        { this._frozen = false; this._leadsFrozen = false; this._captureMode = false; if (this._pub.resume) this._pub.resume(); }
   toggleCapture() { if (this._pub.toggleCapture) this._pub.toggleCapture(); }
   onSlider(val)   { if (this._pub.onSlider)  this._pub.onSlider(val);  }
