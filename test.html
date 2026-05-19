@@ -165,7 +165,11 @@ body.snav-active #content { padding-left: 60px; }
 .dc-text { font-size: 13px; line-height: 1.5; }
 .vitals-grid { display: grid; grid-template-columns: repeat(2,1fr); gap: 4px; margin-top: 12px; }
 @media (min-width: 700px) { .vitals-grid { min-width: 210px; margin-top: 0; } }
-.vital-item { background: rgba(255,255,255,0.08); border-radius: 5px; padding: 5px 8px; font-size: 12px; }
+.vital-item { background: rgba(255,255,255,0.08); border-radius: 5px; padding: 5px 8px; font-size: 12px; position: relative; }
+.reveal-btn { display: inline-flex; align-items: center; gap: 3px; margin-top: 4px; padding: 2px 6px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.2); background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.7); font-size: 9px; font-weight: 700; cursor: pointer; letter-spacing: 0.3px; white-space: nowrap; transition: all 0.15s; }
+.reveal-btn:hover { background: rgba(39,131,58,0.4); border-color: rgba(39,131,58,0.6); }
+.reveal-btn.revealed { background: rgba(39,131,58,0.35); border-color: rgba(39,131,58,0.7); color: #7dda8a; }
+.reveal-btn.revealed:hover { background: rgba(192,57,43,0.35); border-color: rgba(192,57,43,0.6); color: #f19a9a; }
 .vital-item .vl { opacity: 0.6; font-size: 10px; }
 .vital-item .vv { font-weight: 700; }
 .vital-item.abnormal { background: rgba(192,57,43,0.4); }
@@ -384,6 +388,7 @@ body.snav-active #content { padding-left: 60px; }
 /* ============================================================ MODAL BASE */
 .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 200; align-items: center; justify-content: center; padding: 16px; }
 .modal-overlay.open { display: flex; }
+#scenario-view.monitor-blur { filter: blur(6px); pointer-events: none; user-select: none; }
 .modal-inner { background: white; border-radius: 14px; width: 100%; max-width: 580px; max-height: 90vh; overflow-y: auto; box-shadow: 0 20px 60px rgba(0,0,0,0.3); }
 .modal-header { background: var(--navy); color: white; padding: 16px 20px; display: flex; justify-content: space-between; align-items: center; border-radius: 14px 14px 0 0; position: sticky; top: 0; z-index: 1; }
 .modal-header h2 { font-size: 15px; font-weight: 700; }
@@ -408,11 +413,15 @@ body.snav-active #content { padding-left: 60px; }
 .modal-submit-btn:disabled { background: #ccc; cursor: not-allowed; }
 .modal-submit-btn:active:not(:disabled) { opacity: 0.88; }
 #ai-status { margin-top: 12px; padding: 12px 14px; border-radius: 8px; font-size: 13px; display: none; align-items: center; gap: 10px; }
-#ai-status.loading { background: var(--blue-light); color: var(--blue); display: flex; }
+#ai-status.loading { background: var(--blue-light); color: var(--blue); display: flex; border: 1px solid var(--blue); font-weight: 600; font-size: 14px; padding: 14px 16px; }
 #ai-status.error { background: var(--red-light); color: var(--red); display: block; }
 #ai-status.success { background: var(--green-light); color: var(--green); display: block; }
-.ai-spinner { width: 18px; height: 18px; border: 3px solid rgba(46,134,193,0.25); border-top-color: var(--blue); border-radius: 50%; animation: spin 0.8s linear infinite; flex-shrink: 0; }
+.ai-spinner { width: 22px; height: 22px; border: 3px solid rgba(46,134,193,0.25); border-top-color: var(--blue); border-radius: 50%; animation: spin 0.8s linear infinite; flex-shrink: 0; }
 @keyframes spin { to { transform: rotate(360deg); } }
+@keyframes dotPulse { 0%,80%,100%{opacity:0} 40%{opacity:1} }
+.dot-pulse span { animation: dotPulse 1.4s infinite ease-in-out both; }
+.dot-pulse span:nth-child(2) { animation-delay: 0.2s; }
+.dot-pulse span:nth-child(3) { animation-delay: 0.4s; }
 .save-scenario-bar { background: var(--green-light); border: 1px solid #A9DFBF; border-radius: 8px; padding: 12px 14px; margin-top: 14px; display: none; flex-direction: column; gap: 8px; }
 .save-scenario-bar.visible { display: flex; }
 .save-scenario-bar p { font-size: 12px; color: var(--green); font-weight: 600; }
@@ -696,6 +705,39 @@ body.snav-active #content { padding-left: 60px; }
 .home-random-btn:active { opacity: 0.85; }
 </style>
 <script src="cpg_packages_combined.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700&display=swap" rel="stylesheet">
+<script src="https://1984tpearson.github.io/AV/ecg_engine.js"></script>
+<style>
+/* ── Live ECG strip on assessor side ── */
+.live-ecg-strip {
+  margin: 8px 0 4px;
+  border-radius: 4px;
+  overflow: hidden;
+  position: relative;
+}
+.live-ecg-label {
+  font-size: 10px;
+  font-weight: 700;
+  color: #666;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.live-ecg-label a {
+  font-size: 9px;
+  color: #0066bb;
+  text-decoration: none;
+  font-weight: 400;
+}
+.live-ecg-label a:hover { text-decoration: underline; }
+.live-12lead-area {
+  margin: 8px 0;
+  position: relative;
+}
+</style>
 </head>
 <body>
 
@@ -823,25 +865,10 @@ body.snav-active #content { padding-left: 60px; }
     </div>
     <div class="modal-body">
       <div class="api-key-section">
-        <h3>🔑 AI Provider</h3>
-        <div style="display:flex;gap:8px;margin-bottom:10px">
-          <button id="api-tab-groq" class="api-tab-btn active">Groq (Free)</button>
-          <button id="api-tab-anthropic" class="api-tab-btn" onclick="switchAPITab('anthropic')">Anthropic (Paid)</button>
-        </div>
-        <div id="api-panel-anthropic" style="display:none">
-          <p style="font-size:12px;color:#7D6608;margin-bottom:8px">Your key is used for this session only and never stored. <a href="https://console.anthropic.com" target="_blank" style="color:var(--amber)">Get a key ↗</a></p>
-          <div class="form-group" style="margin-bottom:8px"><input type="password" id="api-key-input" placeholder="sk-ant-api03-…" style="font-family:monospace"></div>
-          <div style="display:flex;align-items:center;gap:8px">
-            <input type="password" id="unlock-password" placeholder="Or enter access code…" style="flex:1;padding:8px 10px;border:1px solid var(--border);border-radius:7px;font-size:13px;font-family:monospace" oninput="checkUnlockCode(this.value)">
-            <span id="unlock-status" style="font-size:12px;white-space:nowrap"></span>
-          </div>
-        </div>
-        <div id="api-panel-groq">
-          <div id="groq-status-box" style="background:#E8F8F5;border:1px solid #A2D9CE;border-radius:7px;padding:9px 12px;font-size:12px;color:#1E8449;line-height:1.6">
-            ✅ Groq is ready — no key needed, just generate.
-          </div>
-          <!-- hidden input retained for any legacy references -->
-          <input type="hidden" id="groq-key-input">
+        <h3>🤖 AI Generation</h3>
+        <div id="ai-usage-status-box" style="background:#E8F8F5;border:1px solid #A2D9CE;border-radius:7px;padding:9px 12px;font-size:12px;color:#1E8449;line-height:1.6">
+          ✅ AI generation ready — <strong>5 uses per day</strong>.<br>
+          <span id="ai-uses-remaining" style="color:#1E8449"></span>
         </div>
       </div>
       <div class="form-group">
@@ -871,7 +898,7 @@ body.snav-active #content { padding-left: 60px; }
       <div style="background:var(--blue-light);border:1px solid #AED6F1;border-radius:8px;padding:10px 14px;font-size:12px;color:#1a5276;margin-bottom:14px">
         📋 Scenarios are generated with reference to <strong>AV Clinical Practice Guidelines Version 3.13.1 (December 2025)</strong>. AI-generated content should be independently verified against the current published edition before use in any formal assessment.
       </div>
-      <button class="modal-submit-btn navy" id="generate-scenario-btn" onclick="generateAIScenario()">✦ Generate with Groq (Free)</button>
+      <button class="modal-submit-btn navy" id="generate-scenario-btn" onclick="generateAIScenario()">✦ Generate Scenario</button>
       <div id="ai-status"></div>
     </div>
   </div>
@@ -1610,6 +1637,14 @@ async function initApp() {
       hb.addEventListener('animationend', () => hb.classList.remove('pulse'), { once: true });
     }
   }, 800);
+
+  // Restore last open scenario if refreshed mid-session
+  const lastId = localStorage.getItem('av_last_scenario');
+  if (lastId) {
+    const all = getAllScenarios();
+    const s = all.find(x => String(x.id) === lastId);
+    if (s) loadScenario(lastId);
+  }
 }
 
 // Get all scenarios — cloud cache if available, otherwise local builtin + custom merge
@@ -1811,6 +1846,12 @@ function showScreen(name) {
   if (name !== 'scenario-view') { hideStickyBar(); hideScenarioNav(); }
   else { setTimeout(buildScenarioNav, 100); }
   window.scrollTo(0, 0);
+  // Persist current screen
+  if (name === 'scenario-view' && currentScenario) {
+    localStorage.setItem('av_last_scenario', String(currentScenario.id));
+  } else if (name === 'home-screen') {
+    localStorage.removeItem('av_last_scenario');
+  }
 }
 
 function goHome() {
@@ -2135,6 +2176,21 @@ function loadScenario(id) {
   const view = document.getElementById('scenario-view');
   view.innerHTML = renderScenario(s);
   showScreen('scenario-view');
+  // Init live ECG engines after render
+  setTimeout(() => {
+    document.querySelectorAll('[id^="assessor-strip-"]').forEach(el => {
+      if (el._ecgInit) return;
+      el._ecgInit = true;
+      const rhythm = el.dataset.rhythm;
+      const hr = parseInt(el.dataset.hr)||72;
+      if (!rhythm) return;
+      const id = el.id.replace('assessor-strip-','');
+      const mapped = typeof ECGEngine !== 'undefined' ? ECGEngine.mapRhythm(rhythm, hr) : {key:'nsr',bpm:hr,bbbMode:'none'};
+      try { const se = new ECGEngine(el, {mode:'strip',theme:'paper'}); se.setRhythm(mapped.key, mapped.bpm, mapped.bbbMode); } catch(e) { console.warn('Strip ECG:', e); }
+      const le = document.getElementById('assessor-12lead-'+id);
+      if (le) try { const le2 = new ECGEngine(le, {mode:'12lead',theme:'paper'}); le2.setRhythm(mapped.key, mapped.bpm, mapped.bbbMode); } catch(e) { console.warn('12-lead ECG:', e); }
+    });
+  }, 150);
 
   // Embed ECG image if available
   const ecgImg = document.getElementById('ecg-img-' + s.id);
@@ -2397,7 +2453,7 @@ function renderScenario(s) {
   const catBg = { 'Adult':'#1C3A6E', 'Paediatric':'#2E86C1', 'Maternity':'#7D3C98', 'Newborn':'#1E8449', 'Treat and Refer':'#4E342E' };
   const isTrauma = (s.subcategory === 'Trauma' || s.category === 'Paediatric' && s.subcategory === 'Trauma');
 
-  const vitalsHtml = Object.entries(s.vitals||{}).filter(([k]) => !['Weight','Ketones','EtCO2'].includes(k)).map(([k,v]) => {
+  const vitalsHtml = Object.entries(s.vitals||{}).map(([k,v]) => {
     let display;
     if (k === 'GCS') {
       if (v && typeof v === 'object' && 'total' in v) {
@@ -2408,9 +2464,12 @@ function renderScenario(s) {
     } else {
       display = String(v||'');
     }
+    if (!display) return '';
     const abn = isAbnormal(k, display);
-    return `<div class="vital-item${abn?' abnormal':''} "><div class="vl">${k}</div><div class="vv">${display}</div></div>`;
+    return `<div class="vital-item${abn?' abnormal':''}" ><div class="vl">${k}</div><div class="vv">${display}</div></div>`;
   }).join('');
+
+
 
   const flagsHtml = (s.flags||[]).map(f=>`<li class="flag-item"><div class="flag-dot"></div>${f}</li>`).join('');
 
@@ -2480,6 +2539,13 @@ function renderScenario(s) {
   </div>
   <div style="display:flex;flex-direction:column;align-items:flex-end;gap:8px;flex-shrink:0">
     <button onclick="openEditModal()" style="background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.3);color:white;padding:7px 14px;border-radius:7px;cursor:pointer;font-size:12px;font-weight:700;white-space:nowrap">✏️ Edit Scenario</button>
+    <button onclick="openPatientSessionModal()" style="background:linear-gradient(135deg,rgba(20,90,50,0.85),rgba(39,131,58,0.75));border:1px solid rgba(100,220,130,0.35);color:white;padding:8px 14px 8px 10px;border-radius:8px;cursor:pointer;display:flex;align-items:center;gap:10px;text-align:left;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,0.25)">
+      <span style="font-size:26px;line-height:1;filter:drop-shadow(0 1px 3px rgba(0,0,0,0.4))">📺</span>
+      <span style="display:flex;flex-direction:column;gap:1px">
+        <span style="font-size:11px;font-weight:900;letter-spacing:0.5px;text-transform:uppercase;color:rgba(255,255,255,0.95)">Student Monitor</span>
+        <span style="font-size:10px;font-weight:500;color:rgba(180,240,195,0.85)">Launch second screen →</span>
+      </span>
+    </button>
   </div>
 </div>
 <div class="scenario-body">
@@ -2673,6 +2739,7 @@ function renderSection1(s, isTrauma) {
     return `<span class="vital-hint" style="background:${bg}">${val}</span>`;
   };
   const infoHint = (val) => val ? `<span class="vital-hint" style="background:#2E4057;max-width:220px;white-space:normal;line-height:1.3;vertical-align:top">${val}</span>` : '';
+
 
   const mkTick = (id, type, label) => `<button class="tick-btn" id="tick-${id}-${type}" onclick="toggleTick('${id}','${type}')" title="${label}">—</button>`;
   const mkRow = (id, label, indent=false) => `
@@ -2917,7 +2984,7 @@ function renderSection1(s, isTrauma) {
         <thead><tr><th class="left">Element</th><th>Prompting</th><th>Incomplete</th><th>Complete</th></tr></thead>
         <tbody>
           ${mkRow('rsa','RSA — Respiratory')}
-          ${mkSubRow('appearance','Appearance','','','','rsa')}${mkSubRow('speech','Speech','','','','rsa')}${mkSubRow('breathsounds','Breath/Chest sounds','','','','rsa')}${mkSubRow('rr','Respiratory Rate', v.RR||'', 'RR','','rsa')}${mkSubRow('rrhythm','Respiratory Rhythm','','','','rsa')}${mkSubRow('wob2','Work of Breathing','','','','rsa')}${mkSubRow('spo2','SpO₂', v.SpO2||'', 'SpO2','','rsa')}
+          ${mkSubRow('appearance','Appearance','','','','rsa')}${mkSubRow('speech','Speech','','','','rsa')}${mkSubRow('breathsounds','Breath/Chest sounds','','','','rsa')}${mkSubRow('rr',`Respiratory Rate${hint(v.RR||'','RR')}`, '','','','rsa')}${mkSubRow('rrhythm','Respiratory Rhythm','','','','rsa')}${mkSubRow('wob2','Work of Breathing','','','','rsa')}${mkSubRow('spo2',`SpO₂${hint(v.SpO2||'','SpO2')}`, '','','','rsa')}
           ${mkRow('psa','PSA — Circulatory')}
           ${(()=>{
             // SKIN — context-derived
@@ -2966,8 +3033,8 @@ function renderSection1(s, isTrauma) {
             const etco2Abn = v.EtCO2 ? (parseFloat(v.EtCO2) < 30 || parseFloat(v.EtCO2) > 50) : !!etco2Relevant;
 
             return `
-          ${mkSubRow('bp','BP', v.BP||'', 'BP','','psa')}
-          ${mkSubRow('hr','HR', v.HR||'', 'HR','','psa')}
+          ${mkSubRow('bp',`BP${hint(v.BP||'','BP')}`, '','','','psa')}
+          ${mkSubRow('hr',`HR${hint(v.HR||'','HR')}`, '','','','psa')}
           ${mkSubRow('skin2',`Skin${skinHint ? `<span class="vital-hint" style="background:${skinAbn ? 'var(--red)' : 'var(--navy)'}">${skinHint}</span>` : ''}`, '','','','psa')}
           ${mkSubRow('conscstate',`Conscious State${`<span class="vital-hint" style="background:${avpu !== 'A' ? 'var(--red)' : 'var(--navy)'}">${conscHint}</span>`}`, '','','','psa')}
           ${mkRow('gcstotal', v.GCS ? `GCS — ${gcs.components}${hint(String(gcs.total), 'GCS')}${gcs.description ? infoHint(gcs.description) : ''}` : 'GCS')}
@@ -2976,17 +3043,32 @@ function renderSection1(s, isTrauma) {
           ${mkSubRow('motor',`Motor${motorHint ? `<span class="vital-hint" style="background:var(--navy)">${motorHint}</span>` : ''}`, '','','','gcstotal')}
           ${mkRow('adjuncts','Assessment Adjuncts')}
           ${mkSubRow('weight',`Weight<span class="vital-hint" style="background:var(--navy)">${weightHint}</span>`, '','','','adjuncts')}
-          ${mkSubRow('temp','Temperature', v.Temp||'', 'Temp','','adjuncts')}
-          ${mkSubRow('bgl','Blood Glucose Level', v.BGL||'', 'BGL','','adjuncts')}
+          ${mkSubRow('temp',`Temperature${hint(v.Temp||'','Temp')}`, '','','','adjuncts')}
+          ${mkSubRow('bgl',`Blood Glucose Level${hint(v.BGL||'','BGL')}`, '','','','adjuncts')}
           ${mkSubRow('ketones',`Blood Ketone Level<span class="vital-hint" style="background:${ketoneAbn ? 'var(--amber)' : 'var(--grey)'}">${ketoneHint}</span>`, '','','','adjuncts')}
           ${mkSubRow('etco2',`EtCO₂<span class="vital-hint" style="background:${etco2Abn ? 'var(--amber)' : 'var(--grey)'}">${etco2Hint}</span>`, '','','','adjuncts')}`;
           })()}
           ${mkRow('monitor','Monitor / ECG')}
-          ${mkSubRow('vrhythm','Ventricular Rhythm', v.Rhythm||'', 'Rhythm','','monitor')}${mkSubRow('vrate','Ventricular Rate (±10bpm)', v.HR||'','','','monitor')}${mkSubRow('pwave','P Wave','','','','monitor')}${mkSubRow('pr','PR Interval','','','','monitor')}${mkSubRow('qrs','QRS Duration','','','','monitor')}${mkSubRow('interp','Correct Rhythm Interpretation','','','','monitor')}${mkSubRow('lead12','12 Lead (as appropriate)','','','','monitor')}
+          ${mkSubRow('vrhythm',`Ventricular Rhythm${hint(v.Rhythm||'','Rhythm')}`, '','','','monitor')}${mkSubRow('vrate','Ventricular Rate (±10bpm)', v.HR||'','','','monitor')}${mkSubRow('pwave','P Wave','','','','monitor')}${mkSubRow('pr','PR Interval','','','','monitor')}${mkSubRow('qrs','QRS Duration','','','','monitor')}${mkSubRow('interp','Correct Rhythm Interpretation','','','','monitor')}${mkSubRow('lead12','12 Lead (as appropriate)','','','','monitor')}
         </tbody>
       </table>
 
-      ${(()=>{ const ecg = getECGImage(s.vitals&&s.vitals.Rhythm); if(!ecg) return ''; return `<div class="ecg-strip-section" style="margin:12px 0 4px"><div class="ecg-strip-label">📈 Reference ECG Strip — ${ecg.label} <span style="font-size:10px;opacity:0.6;font-weight:400;text-transform:none">(tap to expand)</span></div><img class="ecg-strip-img" id="ecg-img-${s.id}" alt="${ecg.label}" onerror="this.style.opacity=0.3" onclick="if(this.src)openECGLightbox(this.src,'${ecg.label.replace(/'/g,"\\'")}')"><div style="font-size:10px;color:var(--grey);font-style:italic;margin-top:5px">⚠ ECG shown is a rhythm reference only — rate depicted may not match the scenario heart rate.</div></div>`; })()}
+      ${(()=>{
+        const rhythmStr = (s.vitals&&s.vitals.Rhythm)||'';
+        const hr = parseInt((s.vitals&&s.vitals.HR)||72)||72;
+        if (!rhythmStr) return '';
+        const ecg = getECGImage(s.vitals&&s.vitals.Rhythm);
+        const realBtn = ecg ? `<button onclick="openECGLightbox('${ecg.url.replace(/'/g,"\\'")}','${(ecg.label||'').replace(/'/g,"\\'")}');event.stopPropagation();" style="font-size:10px;padding:3px 8px;border:1px solid #ccc;background:white;border-radius:4px;cursor:pointer;color:#003366;">📷 Real ECG</button>` : '';
+        return `<div style="margin:10px 0 4px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+            <span style="font-size:11px;font-weight:700;color:var(--grey);text-transform:uppercase;letter-spacing:0.6px;">📈 Live ECG — ${rhythmStr} @ ${hr} BPM</span>
+            ${realBtn}
+          </div>
+          <div id="assessor-strip-${s.id}" style="width:100%;height:110px;background:#faf7f2;border-radius:4px;overflow:hidden;" data-rhythm="${rhythmStr.replace(/"/g,'&quot;')}" data-hr="${hr}"></div>
+          <div id="assessor-12lead-${s.id}" style="width:100%;background:#faf7f2;border-radius:4px;overflow:hidden;margin-top:3px;" data-rhythm="${rhythmStr.replace(/"/g,'&quot;')}" data-hr="${hr}"></div>
+          <div style="font-size:10px;color:var(--grey);font-style:italic;margin-top:4px;">⚠ Animated ECG is a simulation. Use Real ECG for teaching pattern recognition.</div>
+        </div>`;
+      })()}}
 
       ${secondarySurvey}<div class="asmt-section-header"><div class="asmt-section-title">Focussed Assessments</div><button class="all-complete-btn" onclick="markGroupComplete('fa')">✓ All Complete</button></div>
       <table class="asmt-table" data-group="fa" data-section="sec1">
@@ -3162,6 +3244,31 @@ function renderSection2(s) {
 // ============================================================
 let scoreOverridden = { sec1: false, sec2: false };
 
+// Map assessment row IDs to monitor vital keys
+const ROW_TO_VITAL = {
+  'rr':       'RR',
+  'spo2':     'SpO2',
+  'bp':       'BP',
+  'hr':       'HR',
+  'temp':     'Temp',
+  'bgl':      'BGL',
+  'ketones':  'Ketones',
+  'etco2':    'EtCO2',
+  'weight':   'Weight',
+  'vrhythm':  'Rhythm',
+  'gcstotal': 'GCS',
+  'lead12':   'ECG',
+};
+
+function _monitorRevealOnComplete(rowId, type, isActive) {
+  if (!_patientSessionCode) return;
+  const vitalKey = ROW_TO_VITAL[rowId];
+  if (!vitalKey) return;
+  if (type === 'complete' && isActive) {
+    toggleReveal(vitalKey, true);
+  }
+}
+
 function toggleTick(rowId, type) {
   const current = (rowStates[rowId] || {})[type];
   if (!rowStates[rowId]) rowStates[rowId] = {};
@@ -3189,6 +3296,8 @@ function toggleTick(rowId, type) {
   const sec = parentTable ? parentTable.dataset.section : null;
   if (sec && !scoreOverridden[sec]) autoScore(sec);
   updateScoreSheet();
+
+  _monitorRevealOnComplete(rowId, type, !!rowStates[rowId][type]);
 }
 
 // Sub-row tick toggle (grey smaller buttons)
@@ -3225,6 +3334,8 @@ function toggleSubTick(subId, type, parentId) {
   const sec = parentTable ? parentTable.dataset.section : null;
   if (sec && !scoreOverridden[sec]) autoScore(sec);
   updateScoreSheet();
+
+  _monitorRevealOnComplete(subId, type, !!subRowStates[subId][type]);
 }
 
 // Cascade parent complete tick down to all its sub-rows
@@ -3234,9 +3345,17 @@ function _cascadeCompleteToChildren(parentId) {
     if (!subId) return;
     if (!subRowStates[subId]) subRowStates[subId] = {};
     subRowStates[subId].complete = 'complete';
+    subRowStates[subId].incomplete = null;
     const cBtn = document.getElementById(`sub-${subId}-complete`);
     if (cBtn) { cBtn.className = 'sub-tick-btn complete'; cBtn.textContent = '✓'; }
+    const iBtn = document.getElementById(`sub-${subId}-incomplete`);
+    if (iBtn) { iBtn.className = 'sub-tick-btn'; iBtn.textContent = '—'; }
+    _monitorRevealOnComplete(subId, 'complete', true);
   });
+  // Also reveal if the parent itself is a mapped vital
+  _monitorRevealOnComplete(parentId, 'complete', true);
+  // Reset the incompleteByChild flag on the parent since all children are now complete
+  if (rowStates[parentId]) rowStates[parentId]._incompleteByChild = false;
 }
 
 // Check all sub-rows under a parent; if all are complete, auto-tick parent complete
@@ -3329,7 +3448,13 @@ function markGroupComplete(groupId) {
     const iBtn = document.getElementById(`tick-${id}-incomplete`);
     if (iBtn) { iBtn.className = 'tick-btn'; iBtn.textContent = '—'; }
     // Cascade complete down to sub-rows (preserving their prompted state)
+    // _cascadeCompleteToChildren now also handles monitor reveals for sub-rows
     _cascadeCompleteToChildren(id);
+  });
+  // Also catch any sub-rows not under a mapped parent
+  table.querySelectorAll('.sub-tick-btn[id$="-complete"]').forEach(btn => {
+    const subId = btn.id.replace('sub-','').replace('-complete','');
+    _monitorRevealOnComplete(subId, 'complete', true);
   });
   // Auto-score only the section this group belongs to
   const sec = table.dataset.section;
@@ -3915,7 +4040,39 @@ function downloadPDF() {
   .sum-result-badge.pass { background: #EAFAF1; color: #27833A; border: 2px solid #27833A; }
   .sum-result-badge.fail { background: #FDEDEC; color: #C0392B; border: 2px solid #C0392B; }
   @media print { body { padding: 0; } }
-</style></head><body>${content}</body></html>`);
+</style><link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700&display=swap" rel="stylesheet">
+<style>
+/* ── Live ECG strip on assessor side ── */
+.live-ecg-strip {
+  margin: 8px 0 4px;
+  border-radius: 4px;
+  overflow: hidden;
+  position: relative;
+}
+.live-ecg-label {
+  font-size: 10px;
+  font-weight: 700;
+  color: #666;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.live-ecg-label a {
+  font-size: 9px;
+  color: #0066bb;
+  text-decoration: none;
+  font-weight: 400;
+}
+.live-ecg-label a:hover { text-decoration: underline; }
+.live-12lead-area {
+  margin: 8px 0;
+  position: relative;
+}
+</style>
+</head><body>${content}</body></html>`);
   doc.close();
 
   // Wait for render then trigger print (which gives Save as PDF option)
@@ -3945,23 +4102,13 @@ function emailSummary() {
 // ============================================================
 // AI MODAL
 // ============================================================
-let currentAPITab = 'groq';
-
-function switchAPITab(tab) {
-  currentAPITab = tab;
-  document.getElementById('api-panel-anthropic').style.display = tab === 'anthropic' ? '' : 'none';
-  document.getElementById('api-panel-groq').style.display      = tab === 'groq'      ? '' : 'none';
-  document.getElementById('api-tab-anthropic').classList.toggle('active', tab === 'anthropic');
-  document.getElementById('api-tab-groq').classList.toggle('active',      tab === 'groq');
-  const labels = { groq: '✦ Generate with Groq (Free)', anthropic: '✦ Generate Scenario' };
-  document.getElementById('generate-scenario-btn').textContent = labels[tab] || '✦ Generate Scenario';
-}
 
 function openAIModal() {
   document.getElementById('ai-modal').classList.add('open');
   const s = document.getElementById('ai-status');
   s.className = '';
   s.innerHTML = '';
+  updateAIUsageIndicator();
 }
 
 function openAIModalWithContext(category, subcategory) {
@@ -4478,10 +4625,9 @@ async function generateAIScenario() {
   const btn = document.getElementById('generate-scenario-btn');
   btn.disabled = true;
   const origLabel = btn.textContent;
-  btn.textContent = 'Generating…';
-  // (save bar removed — auto-save on generation)
+  btn.innerHTML = 'Generating<span class="dot-pulse"><span>.</span><span>.</span><span>.</span></span>';
   lastAIScenario = null;
-  showAIStatus('loading', '✦ Generating scenario… this may take 15–30 seconds.');
+  showAIStatus('loading', '✦ Generating scenario with Sonnet AI — this usually takes 15–20 seconds…');
 
   // Guard: check CPG package data is loaded
   if (typeof CPG_PACKAGES === 'undefined') {
@@ -4574,15 +4720,22 @@ For the "discussion" field: provide 2–4 brief bullet points about management o
 Return ONLY a valid JSON object:
 ${SCENARIO_JSON_TEMPLATE.replace('CAT', category).replace('SUB', subcategory)}`;
 
+  // Daily usage limit (skip for admin)
+  if (!isAdmin()) {
+    const today = new Date().toISOString().slice(0,10);
+    const storedDate = localStorage.getItem('av_ai_daily_date');
+    const storedCount = parseInt(localStorage.getItem('av_ai_daily_count') || '0');
+    const count = storedDate === today ? storedCount : 0;
+    if (count >= 5) {
+      showAIStatus('error', '⚠️ You have used all 5 AI generations for today. Limit resets at midnight.');
+      btn.innerHTML = origLabel; btn.disabled = false; return;
+    }
+  }
+
   try {
     let scenario;
-    if (currentAPITab === 'groq') {
-      scenario = await generateWithGroq(systemPrompt, userPrompt);
-    } else {
-      const apiKey = document.getElementById('api-key-input').value.trim();
-      if (!apiKey) { showAIStatus('error','⚠️ Please enter your Anthropic API key.'); btn.textContent = origLabel; btn.disabled = false; return; }
-      scenario = await generateWithAnthropic(apiKey, systemPrompt, userPrompt);
-    }
+    const apiKey = await getAnthropicKey();
+    scenario = await generateWithAnthropic(apiKey, systemPrompt, userPrompt);
     scenario.id = 'ai_' + Date.now();
     scenario.ai_generated = true;
     scenario.created_at = new Date().toISOString();
@@ -4609,7 +4762,17 @@ ${SCENARIO_JSON_TEMPLATE.replace('CAT', category).replace('SUB', subcategory)}`;
       }
     }
     lastAIScenario = scenario;
-    btn.textContent = origLabel;
+    // Increment daily usage count
+    if (!isAdmin()) {
+      const today = new Date().toISOString().slice(0,10);
+      const storedDate = localStorage.getItem('av_ai_daily_date');
+      const storedCount = parseInt(localStorage.getItem('av_ai_daily_count') || '0');
+      const count = storedDate === today ? storedCount : 0;
+      localStorage.setItem('av_ai_daily_date', today);
+      localStorage.setItem('av_ai_daily_count', String(count + 1));
+    }
+    updateAIUsageIndicator();
+    btn.innerHTML = origLabel;
     btn.disabled = false;
     // Rebuild sidebar so the scenario is findable, then auto-load and auto-save
     buildSidebar(getAllScenarios());
@@ -4618,7 +4781,7 @@ ${SCENARIO_JSON_TEMPLATE.replace('CAT', category).replace('SUB', subcategory)}`;
     showToast('✦ Scenario generated — saving to library…');
     // Auto-save in background
     autoSaveAIScenario(scenario);
-  } catch(e) { showAIStatus('error', `✕ Error: ${e.message}`); btn.textContent = origLabel; btn.disabled = false; }
+  } catch(e) { showAIStatus('error', `✕ Error: ${e.message}`); btn.innerHTML = origLabel; btn.disabled = false; }
 }
 
 async function generateWithAnthropic(apiKey, systemPrompt, userPrompt) {
@@ -4633,66 +4796,40 @@ async function generateWithAnthropic(apiKey, systemPrompt, userPrompt) {
   return parseFirstJSON(raw);
 }
 
-let _cachedGroqKey = null;
-async function getGroqKey() {
-  if (_cachedGroqKey) return _cachedGroqKey;
-  const local = localStorage.getItem('av_groq_key');
-  if (local) { _cachedGroqKey = local; return local; }
+let _cachedAnthropicKey = null;
+async function getAnthropicKey() {
+  if (_cachedAnthropicKey) return _cachedAnthropicKey;
   try {
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/app_config?key=eq.groq_api_key&select=value`, {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/app_config?key=eq.anthropic_api_key&select=value`, {
       headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
     });
     if (res.ok) {
       const data = await res.json();
       if (data && data[0] && data[0].value) {
-        _cachedGroqKey = data[0].value;
-        return _cachedGroqKey;
+        _cachedAnthropicKey = data[0].value;
+        return _cachedAnthropicKey;
       }
     }
   } catch(e) { /* fall through */ }
   throw new Error('AI generation is temporarily unavailable. Please contact the administrator.');
 }
 
-async function generateWithGroq(systemPrompt, userPrompt) {
-  const groqKey = await getGroqKey();
-  if (!groqKey) throw new Error('AI generation is temporarily unavailable. Please contact the administrator.');
-  const models = ['llama-3.3-70b-versatile'];
-  let lastError = null;
-  for (const model of models) {
-    try {
-      const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${groqKey}` },
-        body: JSON.stringify({
-          model,
-          messages: [
-            { role: 'system', content: systemPrompt },
-            { role: 'user',   content: userPrompt + '\n\nIMPORTANT: Respond with ONLY valid JSON, no markdown, no preamble.' }
-          ],
-          temperature: 0.7,
-          max_tokens: 4000
-        })
-      });
-      if (!response.ok) {
-        const e = await response.json().catch(()=>({}));
-        const msg = e.error?.message || `HTTP ${response.status}`;
-        if (msg.includes('quota') || msg.includes('limit') || msg.includes('not found') || response.status === 429 || response.status === 404) {
-          lastError = `${model}: ${msg.slice(0,80)}`; continue;
-        }
-        throw new Error(msg);
-      }
-      const data = await response.json();
-      const raw = data.choices?.[0]?.message?.content || '';
-      if (!raw) { lastError = `${model}: empty response`; continue; }
-      return parseFirstJSON(raw);
-    } catch(e) {
-      if (e.message && (e.message.includes('quota') || e.message.includes('rate') || e.message.includes('not found'))) {
-        lastError = e.message.slice(0,80); continue;
-      }
-      throw e;
-    }
+function updateAIUsageIndicator() {
+  const el = document.getElementById('ai-uses-remaining');
+  if (!el) return;
+  if (isAdmin()) {
+    el.textContent = '🔑 Admin — unlimited uses.';
+    return;
   }
-  throw new Error(`Groq unavailable. (${lastError})`);
+  const today = new Date().toISOString().slice(0,10);
+  const storedDate = localStorage.getItem('av_ai_daily_date');
+  const storedCount = parseInt(localStorage.getItem('av_ai_daily_count') || '0');
+  const used = storedDate === today ? storedCount : 0;
+  const remaining = Math.max(0, 5 - used);
+  el.textContent = remaining > 0
+    ? `${remaining} of 5 uses remaining today.`
+    : '0 of 5 uses remaining — limit resets at midnight.';
+  el.style.color = remaining <= 1 ? '#C0392B' : '#1E8449';
 }
 
 
@@ -5205,6 +5342,142 @@ function openEditModal() {
 function closeEditModal() { document.getElementById('edit-modal').classList.remove('open'); }
 document.getElementById('edit-modal').addEventListener('click', e => { if(e.target===document.getElementById('edit-modal')) closeEditModal(); });
 
+// ============================================================
+// PATIENT SESSION
+// ============================================================
+let _patientSessionCode = null;
+let _pendingRevealKey = null;   // vital to auto-reveal once session starts
+let _sessionRevealed = {};      // local cache of revealed state
+
+function generateSessionCode() {
+  return Math.floor(1000 + Math.random() * 9000).toString();
+}
+
+// Called by inline reveal buttons throughout the scenario
+async function handleRevealBtn(key, event) {
+  event.stopPropagation();
+  if (!_patientSessionCode) {
+    // No session yet — open QR modal and queue this vital for auto-reveal
+    _pendingRevealKey = key;
+    await openPatientSessionModal();
+    return;
+  }
+  // Session active — toggle reveal
+  const isCurrentlyRevealed = !!_sessionRevealed[key];
+  await toggleReveal(key, !isCurrentlyRevealed);
+}
+
+async function openPatientSessionModal() {
+  if (!currentScenario) return;
+
+  // If session already active, just show the modal again (QR still valid)
+  if (_patientSessionCode) {
+    document.getElementById('patient-session-modal').classList.add('open');
+    document.getElementById('scenario-view').classList.add('monitor-blur');
+    return;
+  }
+
+  const modal = document.getElementById('patient-session-modal');
+  modal.classList.add('open');
+  document.getElementById('scenario-view').classList.add('monitor-blur');
+  document.getElementById('psm-setup').style.display = 'none';
+  document.getElementById('psm-loading').style.display = 'block';
+  document.getElementById('psm-error').style.display = 'none';
+
+  try {
+    const code = generateSessionCode();
+    _patientSessionCode = code;
+    _sessionRevealed = {};
+
+    const { uuid } = getIdentity();
+    await sbFetch('active_sessions', {
+      method: 'POST',
+      prefer: 'return=minimal',
+      body: JSON.stringify({
+        session_code: code,
+        scenario_id: String(currentScenario.id),
+        assessor_uuid: uuid,
+        revealed: {}
+      })
+    });
+
+    document.getElementById('psm-code').textContent = code;
+    const patientUrl = `https://1984tpearson.github.io/AV/monitor.html?session=${code}`;
+    const qrDiv = document.getElementById('psm-qr');
+    qrDiv.innerHTML = `<img src="https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(patientUrl)}" width="180" height="180" alt="QR Code">`;
+
+    document.getElementById('psm-loading').style.display = 'none';
+    document.getElementById('psm-setup').style.display = 'block';
+
+    // Auto-reveal pending vital if triggered from inline button
+    if (_pendingRevealKey) {
+      await toggleReveal(_pendingRevealKey, true);
+      _pendingRevealKey = null;
+    }
+
+  } catch(e) {
+    document.getElementById('psm-loading').style.display = 'none';
+    document.getElementById('psm-setup').style.display = 'block';
+    const errEl = document.getElementById('psm-error');
+    errEl.textContent = 'Failed to start session: ' + e.message;
+    errEl.style.display = 'block';
+    _patientSessionCode = null;
+  }
+}
+
+async function toggleReveal(key, reveal) {
+  if (!_patientSessionCode) return;
+  try {
+    if (reveal) _sessionRevealed[key] = true;
+    else delete _sessionRevealed[key];
+
+    await sbFetch(`active_sessions?session_code=eq.${_patientSessionCode}`, {
+      method: 'PATCH',
+      prefer: 'return=minimal',
+      body: JSON.stringify({ revealed: _sessionRevealed })
+    });
+
+    // Update inline button state
+    updateRevealBtnState(key, reveal);
+  } catch(e) {
+    // Rollback local state on failure
+    if (reveal) delete _sessionRevealed[key];
+    else _sessionRevealed[key] = true;
+    showToast('⚠️ Failed to update: ' + e.message);
+  }
+}
+
+function updateRevealBtnState(key, revealed) {
+  const btn = document.getElementById(`rb-${key}`);
+  if (!btn) return;
+  if (revealed) {
+    btn.classList.add('revealed');
+    btn.title = 'Sent — tap to hide';
+  } else {
+    btn.classList.remove('revealed');
+    btn.title = 'Send to monitor';
+  }
+}
+
+function refreshAllRevealBtns() {
+  // Re-apply button states after scenario re-render (e.g. loadScenario)
+  if (!_patientSessionCode) return;
+  Object.keys(_sessionRevealed).forEach(key => {
+    if (_sessionRevealed[key]) updateRevealBtnState(key, true);
+  });
+}
+
+function closePatientSessionModal() {
+  document.getElementById('patient-session-modal').classList.remove('open');
+  document.getElementById('scenario-view').classList.remove('monitor-blur');
+  // Session stays alive — don't clear _patientSessionCode
+}
+
+document.getElementById('patient-session-modal').addEventListener('click', e => {
+  if (e.target === document.getElementById('patient-session-modal')) closePatientSessionModal();
+});
+
+
 function addRepItemTo(listId, type, value='') {
   const list = document.getElementById(listId);
   const item = document.createElement('div');
@@ -5388,14 +5661,6 @@ async function revertScenarioEdits() {
 // ============================================================
 // HIDDEN API UNLOCK
 // ============================================================
-let unlockedKey = null;
-
-function checkUnlockCode(val) {
-  // Access code feature removed — API key must be entered manually
-  const status = document.getElementById('unlock-status');
-  if (status) status.textContent = '';
-  unlockedKey = null;
-}
 
 // ============================================================
 // INLINE PAEDIATRIC AGE SELECTOR
@@ -5689,6 +5954,83 @@ function openStickyECG() {
   if (btn && btn._ecgSrc) openECGLightbox(btn._ecgSrc, btn._ecgLabel);
 }
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closeECGLightbox(); });
+
+// ── Live ECG Engine (assessor side) ──────────────────────────────────
+let _assessorStrip = null;
+let _assessorLead  = null;
+let _assessorRhythmKey = null;
+
+function initAssessorECG(rhythmStr, hr) {
+  if (!rhythmStr) return;
+  const mapped = ECGEngine.mapRhythm(rhythmStr, parseInt(hr) || 72);
+
+  // Don't reinit if same rhythm
+  if (_assessorRhythmKey === (mapped.key + mapped.bpm + mapped.bbbMode)) return;
+  _assessorRhythmKey = mapped.key + mapped.bpm + mapped.bbbMode;
+
+  // Lead II strip — paper theme, compact
+  const stripEl = document.getElementById('assessor-strip-container');
+  if (stripEl) {
+    if (_assessorStrip) _assessorStrip.destroy();
+    stripEl.style.height = '110px';
+    _assessorStrip = new ECGEngine(stripEl, { mode: 'strip', theme: 'paper' });
+    _assessorStrip.setRhythm(mapped.key, mapped.bpm, mapped.bbbMode);
+  }
+
+  // 12-lead — paper theme
+  const leadEl = document.getElementById('assessor-12lead-container');
+  if (leadEl) {
+    if (_assessorLead) _assessorLead.destroy();
+    _assessorLead = new ECGEngine(leadEl, { mode: '12lead', theme: 'paper' });
+    _assessorLead.setRhythm(mapped.key, mapped.bpm, mapped.bbbMode);
+  }
+
+  // Show real ECG link
+  const ecgImg = getECGImage(rhythmStr);
+  const linkEl = document.getElementById('ecg-real-link');
+  if (linkEl && ecgImg) {
+    linkEl.style.display = 'inline';
+    linkEl.dataset.url = ecgImg.url;
+    linkEl.dataset.label = ecgImg.label;
+  }
+}
+
+function openRealECG(e) {
+  e.preventDefault();
+  const link = document.getElementById('ecg-real-link');
+  if (!link) return;
+  // Use the existing lightbox
+  const lb = document.getElementById('ecg-lightbox');
+  const lbImg = document.getElementById('ecg-lightbox-img');
+  const lbLabel = document.getElementById('ecg-lightbox-label');
+  if (lb && lbImg) {
+    lbImg.src = link.dataset.url;
+    if (lbLabel) lbLabel.textContent = link.dataset.label || '';
+    lb.classList.add('open');
+  }
+}
+
+// Hook into scenario rendering — call initAssessorECG when scenario loads
+// Patch the existing renderScenario or watch for vitals changes
+const _origLoadScenario = typeof loadScenario === 'function' ? loadScenario : null;
+
+// Watch for rhythm changes via a MutationObserver on the rhythm display
+// OR hook into the existing scenario load flow
+function _tryInitECGFromScenario() {
+  // Try to get rhythm from current scenario
+  const rhythmEl = document.querySelector('[data-vital="Rhythm"] .vv, .vital-item[data-key="Rhythm"] .vv');
+  const hrEl = document.querySelector('[data-vital="HR"] .vv, .vital-item[data-key="HR"] .vv');
+  if (rhythmEl && rhythmEl.textContent.trim()) {
+    const rhythm = rhythmEl.textContent.trim();
+    const hr = hrEl ? parseInt(hrEl.textContent) || 72 : 72;
+    initAssessorECG(rhythm, hr);
+  }
+}
+
+// Also expose so it can be called directly when a scenario opens
+window.initAssessorECG = initAssessorECG;
+
+
 </script>
 <!-- Sticky scenario bar: timer + vitals — placed last in body for reliable fixed positioning across all browsers -->
 <div id="sticky-bar">
@@ -5708,5 +6050,32 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape') closeECGLigh
     <button id="sticky-ecg-btn" onclick="openStickyECG()">📈 ECG</button>
   </div>
 </div>
+
+<!-- PATIENT SESSION MODAL -->
+<div class="modal-overlay" id="patient-session-modal">
+  <div class="modal-box" style="max-width:380px;width:100%;background:#1a2d4a;border:1px solid rgba(255,255,255,0.12);border-radius:14px;box-shadow:0 24px 64px rgba(0,0,0,0.5);overflow:hidden">
+    <div class="modal-header" style="background:#1C6B3A">
+      <h2>📡 Monitor View</h2>
+      <button class="modal-close" onclick="closePatientSessionModal()">✕</button>
+    </div>
+    <div style="padding:20px">
+      <div id="psm-setup" style="display:none">
+        <p style="font-size:13px;color:rgba(255,255,255,0.6);margin-bottom:16px;text-align:center">Scan with a second device to open the patient monitor screen.</p>
+        <div style="text-align:center;margin-bottom:12px">
+          <div id="psm-qr" style="display:inline-block;padding:12px;background:white;border-radius:8px;border:1px solid rgba(255,255,255,0.15)"></div>
+          <div style="margin-top:10px;font-size:12px;color:rgba(255,255,255,0.5)">Session code</div>
+          <div id="psm-code" style="font-size:32px;font-weight:900;letter-spacing:6px;color:#7dd4a8;margin-top:2px"></div>
+        </div>
+        <p style="font-size:11px;color:rgba(255,255,255,0.4);text-align:center;font-style:italic">Vital signs appear on the monitor screen as assessment items are marked complete.</p>
+      </div>
+      <div id="psm-loading" style="text-align:center;padding:40px 0">
+        <div style="font-size:24px;margin-bottom:8px">⏳</div>
+        <div style="font-size:13px;color:rgba(255,255,255,0.5)">Starting session…</div>
+      </div>
+      <div id="psm-error" style="display:none;background:rgba(200,50,50,0.2);border:1px solid rgba(200,50,50,0.4);border-radius:8px;padding:12px;font-size:13px;color:#ff9999;margin-top:12px"></div>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>
