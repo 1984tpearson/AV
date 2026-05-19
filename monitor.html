@@ -380,12 +380,8 @@ function makeClinicalCard(param, val, revealed) {
   card.id = `cc-${param.key}`;
 
   if (param.isECG) {
-    card.className = 'clinical-card wide' + (!revealed ? ' hidden-card' : '');
-    if (!revealed) {
-      card.innerHTML = '<div class="cc-label">Rhythm</div><div class="hidden-dash">— — —</div>';
-    } else {
-      card.innerHTML = `<div class="cc-label">Rhythm</div><div class="cc-value" style="font-size:14px">${val}</div>`;
-    }
+    // ECG display is handled by the engine section, not a clinical card
+    card.style.display = 'none';
     return card;
   }
 
