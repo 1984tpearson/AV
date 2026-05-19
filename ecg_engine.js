@@ -100,6 +100,7 @@ class ECGEngine {
     this._onCapture = options.onCapture || null;
     this._running  = false;
     this._pub      = {};  // public refs set by _initCore
+    this._options_theme = options.theme || 'monitor';
     this._initCore();
   }
 
@@ -199,7 +200,9 @@ const STRIP_H = 140;  // px height rhythm strip
 // Canvas width = monitor inner width minus padding
 // Monitor is 1100px, padding 18px each side => 1100-36=1064px
 // Grid: 4 cols, so each col = 1064/4 = 266px
-const MONITOR_W = _containerW || 1064;
+// Prioritise explicit style.width (set by caller), then measured width
+const _styleW = container.style.width ? parseInt(container.style.width) : 0;
+const MONITOR_W = (_styleW > 50 ? _styleW : null) || _containerW || 1064;
 const LEAD_W = Math.floor(MONITOR_W / 4);   // 266px
 const STRIP_W = MONITOR_W;
 
@@ -259,10 +262,10 @@ if(bgGridCanvas) {
   bgGridCanvas.className = 'ecg-bg-canvas';
   bgGridCanvas.width  = MONITOR_W;
   bgGridCanvas.height = TOTAL_H;
+  bgGridCanvas.style.width  = MONITOR_W + 'px';
+  bgGridCanvas.style.height = TOTAL_H + 'px';
 }
-bgGridCanvas.style.width  = MONITOR_W + 'px';
-bgGridCanvas.style.height = TOTAL_H + 'px';
-const bgCtx = bgGridCanvas.getContext('2d');
+const bgCtx = bgGridCanvas ? bgGridCanvas.getContext('2d') : null;
 
 // Strip trace canvas only (no grid canvas needed)
 const stripTraceC = document.createElement('canvas');
@@ -279,6 +282,7 @@ stripWrapper.appendChild(stripTraceC);
 // One canvas spans the full ECG area — perfect alignment guaranteed
 // =====================================================================
 function drawBgGrid(bg, smallCol, largeCol) {
+  if(!bgCtx) return;
   const bgCol   = bg        || window._themeBg    || '#020a04';
   const sCol    = smallCol  || window._themeGridS || 'rgba(0,110,50,0.30)';
   const lCol    = largeCol  || window._themeGridL || 'rgba(0,160,70,0.55)';
@@ -1425,7 +1429,7 @@ function animHR(target){
 // =====================================================================
 // RHYTHM SWITCHING
 // =====================================================================
-function setRhythm(key){
+function setRhythm(key, _bpmOverride, _bbbOverride){
   currentKey=key;
   state=makeState();
   stripState=makeState();
@@ -1442,23 +1446,26 @@ function setRhythm(key){
   const slider=getElementById('hrSlider');
   const bpmLabel=getElementById('sliderBpm');
   const noteEl=getElementById('sliderNote');
-  if(!slider) { currentBpm=bpm; return; }
 
-  if(r.sliderMin!==null){
-    slider.disabled=false;
-    slider.min=r.sliderMin; slider.max=r.sliderMax;
-    const v=r.defaultBpm; // always use rhythm's own default on switch
-    slider.value=v; currentBpm=v;
-    bpmLabel.textContent=v+' BPM';
-  } else {
-    slider.disabled=true;
-    slider.min=40;slider.max=220;
-    currentBpm=r.defaultBpm;
-    bpmLabel.textContent='— BPM';
+  // Apply bpm/bbb overrides from ECGEngine.setRhythm public API
+  const _effectiveBpm = _bpmOverride || r.defaultBpm || 72;
+  currentBpm = _effectiveBpm;
+  if(_bbbOverride && _bbbOverride !== 'none') bbbMode = _bbbOverride;
+
+  // Update UI if controls exist (standalone mode)
+  if(slider) {
+    if(r.sliderMin!==null){
+      slider.disabled=false;
+      slider.min=r.sliderMin; slider.max=r.sliderMax;
+      slider.value=_effectiveBpm;
+    } else {
+      slider.disabled=true;
+      slider.min=40; slider.max=220;
+    }
   }
-
-  noteEl.textContent=r.sliderNote||'';
-  getElementById('rhythmName').textContent=r.label;
+  if(bpmLabel) bpmLabel.textContent = r.sliderMin!==null ? _effectiveBpm+' BPM' : '— BPM';
+  if(noteEl) noteEl.textContent=r.sliderNote||'';
+  const _rn=getElementById('rhythmName'); if(_rn) _rn.textContent=r.label;
 
   if(key==='vf'||key==='asys') animHR(0);
   else if(key==='af'){
@@ -1679,6 +1686,9 @@ function doCapture() {
       frozen = false; leadsFrozen = false; captureMode = false; lastMs = 0;
       requestAnimationFrame(draw);
     };
+
+    // Apply initial theme from constructor options
+    setTheme(_self._options_theme || 'monitor');
 
     // Start the draw loop
     _self._running = true;
