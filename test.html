@@ -5483,7 +5483,8 @@ function closePatientSessionModal() {
   // Session stays alive — don't clear _patientSessionCode
 }
 
-document.getElementById('patient-session-modal').addEventListener('click', e => {
+const _psm = document.getElementById('patient-session-modal');
+if (_psm) _psm.addEventListener('click', e => {
   if (e.target === document.getElementById('patient-session-modal')) closePatientSessionModal();
 });
 
