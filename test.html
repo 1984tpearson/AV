@@ -2187,14 +2187,14 @@ function loadScenario(id) {
       if (!rhythm) return;
       const id = el.id.replace('assessor-strip-','');
 
-      // Use the container's actual rendered width
-      // el has explicit width set in HTML template, read it back
-      const w = el.clientWidth || parseInt(el.style.width) || 700;
-
-      // Ensure explicit dimensions
-      el.style.height = '110px';
+      // Force layout then read actual pixel width
       el.style.display = 'block';
       el.style.overflow = 'hidden';
+      el.style.height = '110px';
+      // Read rendered width (clientWidth works now that display:block is set)
+      const w = el.getBoundingClientRect().width || el.clientWidth || 700;
+      // Set explicit px width so engine doesn't get confused by %
+      el.style.width = Math.floor(w) + 'px';
 
       const mapped = ECGEngine.mapRhythm(rhythm, hr);
       try {
