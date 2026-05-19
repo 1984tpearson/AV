@@ -137,7 +137,14 @@ class ECGEngine {
     const LEAD_LAYOUT = ['I','aVR','V1','V4','II','aVL','V2','V5','III','aVF','V3','V6'];
     const LEAD_H = mode === 'strip' ? 0 : 110;
     const STRIP_H = mode === 'strip' ? 140 : 140;
-    const MONITOR_W = container.clientWidth || 856;
+    // Robustly get container width — clientWidth may be 0 if not yet laid out
+    const MONITOR_W = (() => {
+      let w = container.clientWidth || container.offsetWidth;
+      if (!w) { const r = container.getBoundingClientRect(); w = Math.floor(r.width); }
+      if (!w && container.style.width) w = parseInt(container.style.width);
+      if (!w && container.parentElement) w = container.parentElement.clientWidth || container.parentElement.offsetWidth;
+      return w || 856;
+    })();
     const LEAD_W = Math.floor(MONITOR_W / 4);
     const STRIP_W = MONITOR_W;
     const PX_PER_MS = STRIP_W / 6000;
