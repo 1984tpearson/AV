@@ -1,0 +1,613 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>AV Patient Monitor</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: #0a0d14; color: #e0e0e0; font-family: 'Courier New', monospace; min-height: 100vh; display: flex; flex-direction: column; overflow-x: hidden; }
+
+/* ── TOPBAR ── */
+#topbar { background: #060910; border-bottom: 2px solid #1a2a3a; padding: 8px 14px; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
+.topbar-left { display: flex; align-items: center; gap: 10px; }
+.topbar-logo { background: #003a6e; border: 1px solid #0066bb; border-radius: 4px; padding: 4px 8px; font-size: 11px; font-weight: 900; color: #4fc3f7; letter-spacing: 1px; }
+#pt-demographics { font-size: 13px; font-weight: 700; color: #e0e0e0; }
+.topbar-right { display: flex; align-items: center; gap: 8px; }
+.status-dot { width: 8px; height: 8px; border-radius: 50%; background: #4CAF50; animation: blink 2s infinite; }
+.status-dot.offline { background: #555; animation: none; }
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+#status-text { font-size: 10px; color: #666; letter-spacing: 0.5px; text-transform: uppercase; }
+
+/* ── CONNECT SCREEN ── */
+#connect-screen { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; padding: 32px 24px; }
+#connect-screen h2 { font-size: 16px; color: #4fc3f7; letter-spacing: 1px; text-transform: uppercase; }
+#connect-screen p { font-size: 12px; color: #666; text-align: center; }
+#code-input { background: #0d1520; border: 2px solid #1a3a5a; color: #fff; font-family: 'Courier New', monospace; font-size: 36px; font-weight: 900; letter-spacing: 10px; text-align: center; padding: 14px 20px; width: 200px; outline: none; border-radius: 4px; }
+#code-input:focus { border-color: #4fc3f7; }
+#connect-btn { background: #003a6e; border: 1px solid #0066bb; color: #4fc3f7; font-size: 13px; font-weight: 700; padding: 12px 32px; cursor: pointer; letter-spacing: 1px; text-transform: uppercase; border-radius: 4px; }
+#connect-btn:active { background: #00264d; }
+#connect-error { color: #ff6b6b; font-size: 12px; text-align: center; display: none; }
+
+/* ── MONITOR SCREEN ── */
+#monitor-screen { flex: 1; display: none; flex-direction: column; }
+
+/* ── ZOLL-STYLE MONITOR SECTION ── */
+#zoll-section { background: #080c14; border-bottom: 3px solid #0d1f35; flex-shrink: 0; }
+.zoll-row { display: flex; height: 88px; }
+.zoll-cell { flex: 1; border-right: 2px solid #0d1f35; display: flex; flex-direction: column; position: relative; min-width: 0; }
+.zoll-cell:last-child { border-right: none; }
+.zoll-cell.hidden-cell { background: #060910; }
+.zoll-label { font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; padding: 5px 8px 3px; flex-shrink: 0; }
+.zoll-value { flex: 1; display: flex; align-items: center; padding: 0 8px 6px; font-size: 34px; font-weight: 900; line-height: 1; font-family: 'Courier New', monospace; }
+.zoll-unit { font-size: 10px; font-weight: 400; opacity: 0.7; margin-left: 3px; align-self: flex-end; padding-bottom: 8px; }
+.zoll-dash { color: #1a2a3a; font-size: 22px; letter-spacing: 3px; }
+
+/* Zoll colour scheme */
+.zoll-hr   .zoll-label { background: #1a1a1a; color: #ffffff; }
+.zoll-hr   .zoll-value { color: #ffffff; background: #0f0f0f; }
+.zoll-nibp .zoll-label { background: #1a3a00; color: #7fff00; }
+.zoll-nibp .zoll-value { color: #7fff00; background: #0a1f00; }
+.zoll-spo2 .zoll-label { background: #003a5a; color: #4fc3f7; }
+.zoll-spo2 .zoll-value { color: #4fc3f7; background: #001e30; }
+.zoll-rr   .zoll-label { background: #3a2a00; color: #ffd54f; }
+.zoll-rr   .zoll-value { color: #ffd54f; background: #1e1600; }
+.zoll-etco2 .zoll-label { background: #3a1a00; color: #ff8a65; }
+.zoll-etco2 .zoll-value { color: #ff8a65; background: #1e0e00; }
+.zoll-temp .zoll-label { background: #003a3a; color: #4dd0e1; }
+.zoll-temp .zoll-value { color: #4dd0e1; background: #001e1e; }
+
+/* ── CLINICAL SECTION ── */
+#clinical-section { flex: 1; background: #0a0d14; padding: 10px; display: flex; flex-direction: column; gap: 8px; overflow-y: auto; }
+.clinical-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.clinical-card { background: #0d1520; border: 1px solid #1a2a3a; border-radius: 6px; padding: 10px 12px; }
+.clinical-card.wide { grid-column: span 2; }
+.cc-label { font-size: 9px; font-weight: 700; color: #4a6a8a; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; }
+.cc-value { font-size: 22px; font-weight: 700; color: #c0d4e8; line-height: 1; }
+.cc-unit { font-size: 10px; color: #4a6a8a; margin-top: 3px; }
+.cc-sub { font-size: 11px; color: #7a9ab8; margin-top: 2px; }
+.clinical-card.hidden-card { display: flex; align-items: center; justify-content: center; min-height: 60px; opacity: 0.25; }
+.hidden-dash { font-size: 20px; color: #1a2a3a; letter-spacing: 4px; }
+
+/* ECG image card */
+.ecg-card { background: #0d1520; border: 1px solid #1a2a3a; border-radius: 6px; padding: 10px 12px; grid-column: span 2; }
+.ecg-card img { width: 100%; border-radius: 4px; margin-top: 6px; }
+.ecg-card.hidden-card { display: flex; align-items: center; justify-content: center; min-height: 60px; opacity: 0.25; }
+
+/* Flash animation for new reveals */
+.new-reveal { animation: revealFlash 1.5s ease forwards; }
+@keyframes revealFlash { 0%{box-shadow:0 0 0 2px #4fc3f7} 100%{box-shadow:none} }
+
+#session-footer { text-align: center; font-size: 10px; color: #1a2a3a; padding: 6px; flex-shrink: 0; }
+</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700&display=swap" rel="stylesheet">
+<script src="https://1984tpearson.github.io/AV/ecg_engine.js"></script>
+<style>
+/* ── ECG section on patient monitor ── */
+#ecg-section {
+  display: none;
+  flex-direction: column;
+  background: #060606;
+  border-top: 2px solid #0d1f35;
+  padding: 0;
+  position: relative;
+}
+#ecg-section.visible { display: flex; }
+#ecg-strip-container {
+  width: 100%;
+  position: relative;
+}
+#ecg-12lead-container {
+  display: none;
+  width: 100%;
+  position: relative;
+}
+#ecg-12lead-container.visible { display: block; }
+.ecg-section-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 12px;
+  background: #060910;
+  border-bottom: 1px solid #0d1f35;
+  font-size: 10px;
+  letter-spacing: 1.5px;
+  color: #00ff88;
+  text-transform: uppercase;
+}
+.ecg-snapshot-btn {
+  background: transparent;
+  border: 1px solid #003a1a;
+  color: #00ff88;
+  font-family: 'Courier New', monospace;
+  font-size: 9px;
+  letter-spacing: 1.5px;
+  padding: 3px 10px;
+  cursor: pointer;
+  text-transform: uppercase;
+  border-radius: 2px;
+}
+.ecg-snapshot-btn:active { background: rgba(0,255,136,0.1); }
+</style>
+</head>
+<body>
+
+<div id="topbar">
+  <div class="topbar-left">
+    <div class="topbar-logo">ZOLL X Series</div>
+    <div id="pt-demographics"></div>
+  </div>
+  <div class="topbar-right">
+    <div id="status-dot" class="status-dot offline"></div>
+    <span id="status-text">Offline</span>
+  </div>
+</div>
+
+<!-- Connect screen -->
+<div id="connect-screen">
+  <h2>Patient Monitor</h2>
+  <p>Enter the session code from your assessor</p>
+  <input type="text" id="code-input" maxlength="4" inputmode="numeric" pattern="[0-9]*" placeholder="····" oninput="this.value=this.value.replace(/[^0-9]/g,'')">
+  <button id="connect-btn" onclick="connectSession()">Connect</button>
+  <div id="connect-error">Session not found. Check the code and try again.</div>
+</div>
+
+<!-- Monitor screen -->
+<div id="monitor-screen">
+
+  <!-- Zoll-style parameter row -->
+  <div id="zoll-section">
+    <div class="zoll-row" id="zoll-row"></div>
+  </div>
+
+  <!-- Clinical parameters -->
+  <div id="clinical-section">
+    <div class="clinical-grid" id="clinical-grid"></div>
+  </div>
+
+  <div id="session-footer"></div>
+</div>
+
+<script>
+const SUPABASE_URL = 'https://befsjenbaruxqrntuhpn.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJlZnNqZW5iYXJ1eHFybnR1aHBuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI2MjA5MjAsImV4cCI6MjA4ODE5NjkyMH0.hOFFbIvd1wAgu-QyghupQ-7ttSpg7sxz_UsJbXyXztA';
+
+// Zoll monitor parameters (top section)
+const ZOLL_PARAMS = [
+  { key: 'HR',    label: 'HR',    unit: 'bpm',   cls: 'zoll-hr'   },
+  { key: 'BP',    label: 'NIBP',  unit: 'mmHg',  cls: 'zoll-nibp' },
+  { key: 'SpO2',  label: 'SpO\u2082', unit: '%', cls: 'zoll-spo2' },
+  { key: 'RR',    label: 'Resp',  unit: '/min',  cls: 'zoll-rr'   },
+  { key: 'EtCO2', label: 'EtCO\u2082', unit: 'mmHg', cls: 'zoll-etco2' },
+  { key: 'Temp',  label: 'Temp',  unit: '\u00b0C', cls: 'zoll-temp' },
+];
+
+// Clinical parameters (bottom section)
+const CLINICAL_PARAMS = [
+  { key: 'GCS',     label: 'GCS',      unit: '/15' },
+  { key: 'BGL',     label: 'BGL',      unit: 'mmol/L' },
+  { key: 'Weight',  label: 'Weight',   unit: 'kg' },
+  { key: 'Ketones', label: 'Ketones',  unit: 'mmol/L' },
+  { key: 'Rhythm',  label: 'Rhythm',   unit: '', wide: true },
+  { key: 'ECG',     label: '12-Lead ECG', unit: '', wide: true, isECG: true },
+];
+
+const ECG_BASE = 'https://1984tpearson.github.io/AV/ecg/';
+const ECG_MAP = {
+  'sinus tachycardia':            ECG_BASE+'ECG-Sinus-Tachycardia.jpg',
+  'sinus bradycardia':            ECG_BASE+'ECG-Sin-us-bradycardia.jpg',
+  'normal sinus':                 ECG_BASE+'normal-sinus-rhythm-2.jpg',
+  'sinus rhythm':                 ECG_BASE+'normal-sinus-rhythm-2.jpg',
+  'sinus arrhythmia':             ECG_BASE+'ECG-Sinus-arrhythmia-12-lead.jpg',
+  'atrial fibrillation':          ECG_BASE+'ECG-Atrial-Fibrillation-3.jpg',
+  'atrial flutter':               ECG_BASE+'ECG-Atrial-Flutter-with-2-1-Block-1-.jpg',
+  'svt':                          ECG_BASE+'ECG-SVT-with-ST-depression.jpg',
+  'supraventricular tachycardia': ECG_BASE+'ECG-SVT-with-ST-depression.jpg',
+  'avnrt':                        ECG_BASE+'Slow-Fast-Typical-AVNRT.jpg',
+  'ventricular tachycardia':      ECG_BASE+'Monomorphic-ventricular-tachycardia-VT-2.jpg',
+  'ventricular fibrillation':     ECG_BASE+'ECG-12-lead-VF-ventricular-fibrillation.jpg',
+  'vf':                           ECG_BASE+'ECG-12-lead-VF-ventricular-fibrillation.jpg',
+  'asystole':                     ECG_BASE+'ECG-12-lead-VF-ventricular-fibrillation.jpg',
+  'complete heart block':         ECG_BASE+'ECG-Complete-heart-block-CHB.jpg',
+  '3rd degree':                   ECG_BASE+'ECG-Complete-heart-block-CHB.jpg',
+  'third degree':                 ECG_BASE+'ECG-Complete-heart-block-CHB.jpg',
+  'chb':                          ECG_BASE+'ECG-Complete-heart-block-CHB.jpg',
+  '1st degree':                   ECG_BASE+'ECG-1st-degree-AV-block-2.jpg',
+  'first degree':                 ECG_BASE+'ECG-1st-degree-AV-block-2.jpg',
+  'wenckebach':                   ECG_BASE+'ECG-Wenckebach-AV-block-1.jpg',
+  'mobitz i':                     ECG_BASE+'ECG-Wenckebach-AV-block-1.jpg',
+  'mobitz ii':                    ECG_BASE+'Mobitz-II-Hay-block-e1761887989480.png',
+  '2nd degree':                   ECG_BASE+'ECG-Wenckebach-AV-block-1.jpg',
+  'torsades':                     ECG_BASE+'ECG-hypokalaemia-torsades-3.jpg',
+  'polymorphic vt':               ECG_BASE+'ECG-hypokalaemia-torsades-3.jpg',
+  'premature ventricular':        ECG_BASE+'ECG-Premature-Ventricular-Complex-PVC-Bigeminy.jpg',
+  'pvc':                          ECG_BASE+'ECG-Premature-Ventricular-Complex-PVC-Bigeminy.jpg',
+  'lbbb':                         ECG_BASE+'ECG-Left-Bundle-Branch-Block-LBBB-2-2-1024x428.jpg',
+  'left bundle branch block':     ECG_BASE+'ECG-Left-Bundle-Branch-Block-LBBB-2-2-1024x428.jpg',
+  'rbbb':                         ECG_BASE+'Isolated RBBB.png',
+  'right bundle branch block':    ECG_BASE+'Isolated RBBB.png',
+  'stemi':                        ECG_BASE+'ECG-Extensive-Anterior-STEMI-acute.jpg',
+  'st elevation':                 ECG_BASE+'ECG-Extensive-Anterior-STEMI-acute.jpg',
+  'inferior stemi':               ECG_BASE+'Inferior-STEMI-RV.jpeg',
+  'anterior stemi':               ECG_BASE+'ECG-Anterior-STEMI-evolving.jpg',
+  'nstemi':                       ECG_BASE+'nstemi1.jpg',
+  'hyperkalaemia':                ECG_BASE+'ECG-Hyperkalaemia-peaked-T-waves-serum-potassium-7.0.jpg',
+  'hyperkalemia':                 ECG_BASE+'ECG-Hyperkalaemia-peaked-T-waves-serum-potassium-7.0.jpg',
+  'hypokalaemia':                 ECG_BASE+'ECG-severe-hypokalemia-serum-potassium-1.9.jpg',
+  'hypokalemia':                  ECG_BASE+'ECG-severe-hypokalemia-serum-potassium-1.9.jpg',
+  'pulmonary embolism':           ECG_BASE+'ECG-bilateral-PE.jpeg',
+  'junctional':                   ECG_BASE+'ECG-Junctional-bradycardia.jpg',
+  'idioventricular':              ECG_BASE+'Accelerated-Idioventricular-Rhythm-AIVR-ECG-1.jpg',
+  'wpw':                          ECG_BASE+'Type-A-WPW-ECG-1.jpg',
+  'wolff':                        ECG_BASE+'Type-A-WPW-ECG-1.jpg',
+  'brugada':                      ECG_BASE+'ECG-Brugada-Syndrome-Type-1-2.jpg',
+  'pericarditis':                 ECG_BASE+'ECG-Pericarditis.jpg',
+  'hypothermia':                  ECG_BASE+'ECG-Hypothermia-sinus-bradycardia-1.jpg',
+  'prolonged qt':                 ECG_BASE+'ECG-Hypocalcaemia-QTc-500.jpg',
+  'long qt':                      ECG_BASE+'ECG-Hypocalcaemia-QTc-500.jpg',
+  'pulseless electrical activity':ECG_BASE+'normal-sinus-rhythm-2.jpg',
+  ' pea':                         ECG_BASE+'normal-sinus-rhythm-2.jpg',
+};
+
+function getECGUrl(rhythmStr) {
+  if (!rhythmStr) return null;
+  const r = rhythmStr.toLowerCase();
+  for (const [key, url] of Object.entries(ECG_MAP)) {
+    if (r.includes(key)) return url;
+  }
+  return null;
+}
+
+let sessionCode = null;
+let scenario = null;
+let pollTimer = null;
+let lastRevealedStr = null;
+let prevRevealed = {};
+
+async function sbGet(path) {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
+    headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.json();
+}
+
+window.addEventListener('DOMContentLoaded', () => {
+  const params = new URLSearchParams(window.location.search);
+  const code = params.get('session');
+  if (code && /^\d{4}$/.test(code)) {
+    document.getElementById('code-input').value = code;
+    connectSession();
+  }
+});
+
+async function connectSession() {
+  const code = document.getElementById('code-input').value.trim();
+  if (code.length !== 4) return;
+  const errEl = document.getElementById('connect-error');
+  errEl.style.display = 'none';
+  document.getElementById('connect-btn').textContent = 'Connecting\u2026';
+  try {
+    const rows = await sbGet(`active_sessions?session_code=eq.${code}&select=*`);
+    if (!rows || rows.length === 0) {
+      errEl.style.display = 'block';
+      document.getElementById('connect-btn').textContent = 'Connect';
+      return;
+    }
+    sessionCode = code;
+    const session = rows[0];
+    const scenRows = await sbGet(`scenarios?id=eq.${encodeURIComponent(session.scenario_id)}&select=*`);
+    if (scenRows && scenRows.length > 0) scenario = scenRows[0];
+
+    // Set demographics (name + age/sex only, no condition)
+    setDemographics(scenario);
+
+    document.getElementById('connect-screen').style.display = 'none';
+    document.getElementById('monitor-screen').style.display = 'flex';
+    document.getElementById('session-footer').textContent = `Session ${code}`;
+
+    buildMonitorScreens();
+    prevRevealed = {};
+    renderRevealed(session.revealed || {});
+    prevRevealed = session.revealed || {};
+    startPolling();
+  } catch(e) {
+    errEl.textContent = 'Connection failed: ' + e.message;
+    errEl.style.display = 'block';
+    document.getElementById('connect-btn').textContent = 'Connect';
+  }
+}
+
+function setDemographics(s) {
+  if (!s) return;
+  // subtitle is like "55yo Male with Respiratory Distress" — extract age+sex only
+  let demo = '';
+  const sub = s.subtitle || '';
+  // Match patterns like "55yo Male", "6 year old Female", "28yo F"
+  const m = sub.match(/^(\d+\s*(?:yo|year[s]?\s*old)?)\s*(male|female|m\b|f\b)/i);
+  if (m) {
+    demo = m[1].trim() + ' ' + m[2].trim();
+  }
+  // Try to get name from dispatch field
+  const dispatch = s.dispatch || '';
+  const nameMatch = dispatch.match(/(?:^|\n|,\s*)([A-Z][a-z]+(?:\s[A-Z][a-z]+)?)\s*(?:,|\s+is\s|\s+presents|\s+called|\s+a\s)/);
+  let name = '';
+  if (nameMatch) name = nameMatch[1];
+
+  const el = document.getElementById('pt-demographics');
+  el.textContent = [name, demo].filter(Boolean).join(' — ') || 'Patient';
+}
+
+function buildMonitorScreens() {
+  const vitals = (scenario && scenario.vitals) || {};
+
+  // Build Zoll row — only show cells for params that exist in this scenario
+  const zollRow = document.getElementById('zoll-row');
+  zollRow.innerHTML = '';
+  const zollParams = ZOLL_PARAMS.filter(p => vitals[p.key] !== undefined && vitals[p.key] !== null && vitals[p.key] !== '');
+  if (zollParams.length === 0) {
+    // Show all as dashes if no vitals yet
+    ZOLL_PARAMS.forEach(p => zollRow.appendChild(makeZollCell(p, null, false)));
+  } else {
+    zollParams.forEach(p => zollRow.appendChild(makeZollCell(p, vitals[p.key], false)));
+  }
+
+  // Build clinical grid
+  const clinicalGrid = document.getElementById('clinical-grid');
+  clinicalGrid.innerHTML = '';
+  CLINICAL_PARAMS.forEach(p => {
+    const val = p.isECG ? vitals['Rhythm'] : vitals[p.key];
+    if (!val && val !== 0) return;
+    clinicalGrid.appendChild(makeClinicalCard(p, val, false));
+  });
+}
+
+function makeZollCell(param, val, revealed) {
+  const cell = document.createElement('div');
+  cell.className = `zoll-cell ${param.cls}`;
+  cell.id = `zc-${param.key}`;
+  if (!revealed) {
+    cell.classList.add('hidden-cell');
+    cell.innerHTML = `<div class="zoll-label" style="background:#0d1520;color:#1a2a3a">${param.label}</div><div class="zoll-value"><span class="zoll-dash">- - -</span></div>`;
+  } else {
+    let display = formatZollValue(param.key, val);
+    cell.innerHTML = `<div class="zoll-label">${param.label}</div><div class="zoll-value">${display}<span class="zoll-unit">${param.unit}</span></div>`;
+  }
+  return cell;
+}
+
+function formatZollValue(key, val) {
+  if (key === 'GCS' && typeof val === 'object') return String(val.total);
+  return String(val || '');
+}
+
+function makeClinicalCard(param, val, revealed) {
+  const card = document.createElement('div');
+  card.id = `cc-${param.key}`;
+
+  if (param.isECG) {
+    card.className = 'ecg-card' + (param.wide ? '' : '') + (!revealed ? ' hidden-card' : '');
+    if (!revealed) {
+      card.innerHTML = '<div class="cc-label">12-Lead ECG</div><div class="hidden-dash">— — —</div>';
+    } else {
+      const url = getECGUrl(String(val));
+      card.innerHTML = `<div class="cc-label">12-Lead ECG</div>${url ? `<img src="${url}" alt="ECG">` : `<div class="cc-value" style="font-size:14px">${val}</div>`}`;
+    }
+    return card;
+  }
+
+  card.className = 'clinical-card' + (param.wide ? ' wide' : '') + (!revealed ? ' hidden-card' : '');
+
+  if (!revealed) {
+    card.innerHTML = `<div class="cc-label">${param.label}</div><div class="hidden-dash">— — —</div>`;
+  } else if (param.key === 'GCS' && typeof val === 'object') {
+    card.innerHTML = `<div class="cc-label">${param.label}</div><div class="cc-value">${val.total}<span style="font-size:12px;color:#4a6a8a"> /15</span></div><div class="cc-sub">E${val.E} V${val.V} M${val.M}</div>`;
+  } else {
+    card.innerHTML = `<div class="cc-label">${param.label}</div><div class="cc-value">${val}</div>${param.unit ? `<div class="cc-unit">${param.unit}</div>` : ''}`;
+  }
+  return card;
+}
+
+function renderRevealed(revealed) {
+  if (!scenario) return;
+  const vitals = scenario.vitals || {};
+
+  // Update Zoll cells
+  ZOLL_PARAMS.forEach(p => {
+    const cell = document.getElementById(`zc-${p.key}`);
+    if (!cell) return;
+    const isRevealed = !!revealed[p.key];
+    const wasRevealed = !!prevRevealed[p.key];
+    const val = vitals[p.key];
+    if (isRevealed !== wasRevealed || (!cell.classList.contains('hidden-cell') !== isRevealed)) {
+      const newCell = makeZollCell(p, val, isRevealed);
+      if (isRevealed && !wasRevealed) newCell.classList.add('new-reveal');
+      cell.replaceWith(newCell);
+    }
+  });
+
+  // Update clinical cards
+  CLINICAL_PARAMS.forEach(p => {
+    const card = document.getElementById(`cc-${p.key}`);
+    if (!card) return;
+    const isRevealed = !!revealed[p.key];
+    const wasRevealed = !!prevRevealed[p.key];
+    const val = p.isECG ? vitals['Rhythm'] : vitals[p.key];
+    if (isRevealed !== wasRevealed) {
+      const newCard = makeClinicalCard(p, val, isRevealed);
+      if (isRevealed && !wasRevealed) newCard.classList.add('new-reveal');
+      card.replaceWith(newCard);
+    }
+  });
+}
+
+function startPolling() {
+  setStatus(true);
+  pollTimer = setInterval(async () => {
+    try {
+      const rows = await sbGet(`active_sessions?session_code=eq.${sessionCode}&select=revealed`);
+      if (!rows || rows.length === 0) return;
+      const revealed = rows[0].revealed || {};
+      const str = JSON.stringify(revealed);
+      if (str !== lastRevealedStr) {
+        renderRevealed(revealed);
+        prevRevealed = revealed;
+        lastRevealedStr = str;
+      }
+      setStatus(true);
+    } catch { setStatus(false); }
+  }, 2000);
+}
+
+function setStatus(online) {
+  document.getElementById('status-dot').className = online ? 'status-dot' : 'status-dot offline';
+  document.getElementById('status-text').textContent = online ? 'Live' : 'Reconnecting\u2026';
+}
+</script>
+
+<!-- ── ECG Section (injected by engine when rhythm/ECG revealed) ── -->
+<div id="ecg-section">
+  <div class="ecg-section-bar" id="ecg-strip-bar">
+    <span>LEAD II — RHYTHM STRIP</span>
+    <button class="ecg-snapshot-btn" onclick="ecgStripSnapshot()" id="stripSnapBtn">⏸ SNAPSHOT</button>
+  </div>
+  <div id="ecg-strip-container"></div>
+
+  <div class="ecg-section-bar" id="ecg-12lead-bar" style="display:none;">
+    <span>12-LEAD ECG</span>
+    <button class="ecg-snapshot-btn" onclick="ecg12Snapshot()" id="leadSnapBtn">⏸ SNAPSHOT</button>
+  </div>
+  <div id="ecg-12lead-container"></div>
+</div>
+
+<!-- Capture flash overlay -->
+<div id="ecgCaptureFlash" style="position:fixed;inset:0;background:white;opacity:0;pointer-events:none;z-index:9999;transition:opacity 0.15s;"></div>
+
+
+<script>
+// ── ECG Engine Integration ─────────────────────────────────────────────
+let _stripECG   = null;  // Lead II strip instance
+let _leadECG    = null;  // 12-lead instance
+let _currentRhythm = null;
+let _currentBpm    = 72;
+let _stripFrozen   = false;
+let _leadFrozen    = false;
+
+function ecgFlash() {
+  const el = document.getElementById('ecgCaptureFlash');
+  el.style.background = 'white';
+  el.style.opacity = '0.12';
+  setTimeout(() => { el.style.opacity = '0'; }, 200);
+}
+
+function initStripECG(rhythmKey, bpm, bbbMode) {
+  const container = document.getElementById('ecg-strip-container');
+  const W = container.clientWidth || window.innerWidth;
+  container.style.height = '130px';
+
+  if (_stripECG) _stripECG.destroy();
+  _stripECG = new ECGEngine(container, { mode: 'strip', theme: 'monitor' });
+  _stripECG.setRhythm(rhythmKey, bpm, bbbMode);
+  _stripFrozen = false;
+  document.getElementById('stripSnapBtn').textContent = '⏸ SNAPSHOT';
+}
+
+function init12LeadECG(rhythmKey, bpm, bbbMode) {
+  const container = document.getElementById('ecg-12lead-container');
+  container.style.width = '100%';
+
+  if (_leadECG) _leadECG.destroy();
+  _leadECG = new ECGEngine(container, {
+    mode: '12lead',
+    theme: 'monitor',
+    onCapture: () => {
+      ecgFlash();
+      document.getElementById('leadSnapBtn').textContent = '▶ RESUME';
+    }
+  });
+  _leadECG.setRhythm(rhythmKey, bpm, bbbMode);
+  _leadFrozen = false;
+  document.getElementById('leadSnapBtn').textContent = '⏸ SNAPSHOT';
+  document.getElementById('ecg-12lead-bar').style.display = 'flex';
+  document.getElementById('ecg-12lead-container').classList.add('visible');
+}
+
+function ecgStripSnapshot() {
+  if (!_stripECG) return;
+  const btn = document.getElementById('stripSnapBtn');
+  if (_stripFrozen) {
+    _stripECG.resume();
+    _stripFrozen = false;
+    btn.textContent = '⏸ SNAPSHOT';
+  } else {
+    _stripECG.capture();
+    _stripFrozen = true;
+    btn.textContent = '▶ RESUME';
+    ecgFlash();
+  }
+}
+
+function ecg12Snapshot() {
+  if (!_leadECG) return;
+  const btn = document.getElementById('leadSnapBtn');
+  if (_leadFrozen) {
+    _leadECG.resume();
+    _leadFrozen = false;
+    btn.textContent = '⏸ SNAPSHOT';
+  } else {
+    _leadECG.capture();
+    _leadFrozen = true;
+    btn.textContent = '▶ RESUME';
+    ecgFlash();
+  }
+}
+
+// ── Override renderRevealed to handle ECG section ─────────────────────
+const _origRenderRevealed = renderRevealed;
+renderRevealed = function(revealed) {
+  _origRenderRevealed(revealed);
+
+  if (!scenario) return;
+  const vitals = scenario.vitals || {};
+  const rhythmStr = vitals.Rhythm || '';
+  const hr = parseInt(vitals.HR) || 72;
+  const mapped = ECGEngine.mapRhythm(rhythmStr, hr);
+
+  // Rhythm revealed → show Lead II strip
+  if (revealed.Rhythm && rhythmStr) {
+    if (_currentRhythm !== rhythmStr || !_stripECG) {
+      _currentRhythm = rhythmStr;
+      _currentBpm = hr;
+      document.getElementById('ecg-section').classList.add('visible');
+      initStripECG(mapped.key, mapped.bpm, mapped.bbbMode);
+    }
+  }
+
+  // ECG revealed → show 12-lead
+  if (revealed.ECG && rhythmStr) {
+    if (!_leadECG) {
+      init12LeadECG(mapped.key, mapped.bpm, mapped.bbbMode);
+    }
+  }
+
+  // If ECG un-revealed, hide 12-lead
+  if (!revealed.ECG && _leadECG) {
+    _leadECG.destroy();
+    _leadECG = null;
+    document.getElementById('ecg-12lead-container').classList.remove('visible');
+    document.getElementById('ecg-12lead-bar').style.display = 'none';
+  }
+
+  // If Rhythm un-revealed, hide everything
+  if (!revealed.Rhythm) {
+    if (_stripECG) { _stripECG.destroy(); _stripECG = null; }
+    if (_leadECG)  { _leadECG.destroy();  _leadECG  = null; }
+    document.getElementById('ecg-section').classList.remove('visible');
+    _currentRhythm = null;
+  }
+};
+</script>
+
+</body>
+</html>
