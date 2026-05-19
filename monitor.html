@@ -111,18 +111,26 @@ body { background: #0a0d14; color: #e0e0e0; font-family: 'Courier New', monospac
   text-transform: uppercase;
 }
 .ecg-snapshot-btn {
-  background: transparent;
-  border: 1px solid #003a1a;
+  background: rgba(0,255,136,0.08);
+  border: 2px solid #00ff88;
   color: #00ff88;
   font-family: 'Courier New', monospace;
-  font-size: 9px;
+  font-size: 12px;
+  font-weight: bold;
   letter-spacing: 1.5px;
-  padding: 3px 10px;
+  padding: 6px 18px;
   cursor: pointer;
   text-transform: uppercase;
-  border-radius: 2px;
+  border-radius: 4px;
+  transition: background 0.15s;
 }
-.ecg-snapshot-btn:active { background: rgba(0,255,136,0.1); }
+.ecg-snapshot-btn:hover { background: rgba(0,255,136,0.18); }
+.ecg-snapshot-btn:active { background: rgba(0,255,136,0.28); }
+.ecg-snapshot-btn.frozen {
+  border-color: #fff;
+  color: #fff;
+  background: rgba(255,255,255,0.08);
+}
 </style>
 </head>
 <body>
@@ -494,7 +502,11 @@ function initECG(rhythmKey, bpm, bbbMode, showGrid) {
     onCapture: () => {
       ecgFlash();
       _ecgFrozen = true;
-      document.getElementById('snapBtn').textContent = '▶ RESUME';
+      const btn = document.getElementById('snapBtn');
+      btn.textContent = '▶ RESUME';
+      btn.classList.add('frozen');
+      // Switch to paper theme so frozen ECG looks like a printout
+      setTimeout(() => _ecgInst && _ecgInst.setTheme('paper'), 150);
     }
   });
   _ecgInst.setRhythm(rhythmKey, bpm, bbbMode);
@@ -519,11 +531,13 @@ function ecgSnapshot() {
   const btn = document.getElementById('snapBtn');
   if (_ecgFrozen) {
     _ecgInst.resume();
+    _ecgInst.setTheme('monitor');
     _ecgFrozen = false;
     btn.textContent = '⏸ SNAPSHOT';
+    btn.classList.remove('frozen');
   } else {
     _ecgInst.capture();
-    // _ecgFrozen set true via onCapture callback
+    // Theme switch and frozen state set via onCapture callback
   }
 }
 
