@@ -101,6 +101,7 @@ class ECGEngine {
     this._running  = false;
     this._pub      = {};  // public refs set by _initCore
     this._options_theme = options.theme || 'monitor';
+    this._options = options;
     this._initCore();
   }
 
@@ -208,8 +209,13 @@ class ECGEngine {
 // rhythm strip = Lead II full width
 // =====================================================================
 const LEAD_LAYOUT = ['I','aVR','V1','V4','II','aVL','V2','V5','III','aVF','V3','V6'];
-const LEAD_H = 110;   // px height per lead cell
-const STRIP_H = 140;  // px height rhythm strip
+
+// Allow caller to pass a target total height; derive LEAD_H and STRIP_H proportionally
+// Default total: 110*3 + 140 = 470px  (leads 70%, strip 30%)
+const _targetH = (_self._options && _self._options.height) ? parseInt(_self._options.height) : 0;
+const _totalH  = _targetH > 200 ? _targetH : 470;
+const LEAD_H   = Math.floor(_totalH * 0.70 / 3);   // 3 rows of leads
+const STRIP_H  = _totalH - LEAD_H * 3;             // remainder to strip
 
 // Canvas width = monitor inner width minus padding
 // Monitor is 1100px, padding 18px each side => 1100-36=1064px
