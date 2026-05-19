@@ -215,7 +215,7 @@ const STRIP_BIG_PX   = BIG_SQ_PX;
 // =====================================================================
 const leadsGrid = getElementById('leadsGrid') || getElementById('_ecg_leadsGrid');
 const stripWrapper = getElementById('stripWrapper') || getElementById('_ecg_stripWrapper');
-const ecgArea = document.getElementById('ecgArea');
+const ecgArea = getElementById('ecgArea') || _container;
 // Size ecg-area to hold both leads grid and strip
 const ecgAreaH = LEAD_H * 3 + STRIP_H;
 ecgArea.style.height = ecgAreaH + 'px';
@@ -1404,7 +1404,7 @@ function computeSamplesStrip(dtMs){
 // =====================================================================
 let hrAnimId=null,afHRInterval=null;
 function animHR(target){
-  const el=document.getElementById('hrValue');
+  const el=getElementById('hrValue'); if(!el) return;
   if(target===0){el.textContent='---';return;}
   cancelAnimationFrame(hrAnimId);
   const start=parseInt(el.textContent)||72;
@@ -1434,9 +1434,10 @@ function setRhythm(key){
   const r=RHYTHMS[key];
   clearInterval(afHRInterval);
 
-  const slider=document.getElementById('hrSlider');
-  const bpmLabel=document.getElementById('sliderBpm');
-  const noteEl=document.getElementById('sliderNote');
+  const slider=getElementById('hrSlider');
+  const bpmLabel=getElementById('sliderBpm');
+  const noteEl=getElementById('sliderNote');
+  if(!slider) { currentBpm=bpm; return; }
 
   if(r.sliderMin!==null){
     slider.disabled=false;
@@ -1452,7 +1453,7 @@ function setRhythm(key){
   }
 
   noteEl.textContent=r.sliderNote||'';
-  document.getElementById('rhythmName').textContent=r.label;
+  getElementById('rhythmName').textContent=r.label;
 
   if(key==='vf'||key==='asys') animHR(0);
   else if(key==='af'){
@@ -1467,7 +1468,7 @@ function setRhythm(key){
   else animHR(currentBpm);
 
   document.querySelectorAll('.btn').forEach(b=>b.classList.remove('active'));
-  const btnEl=document.getElementById('btn-'+key);
+  const btnEl=getElementById('btn-'+key);
   if(btnEl) btnEl.classList.add('active');
 }
 
@@ -1476,13 +1477,12 @@ function setBBB(mode){
   bbbMode=mode;
   // trace continues — no wipe on BBB change
   document.querySelectorAll('[id^="bbb-"]').forEach(b=>b.classList.remove('active'));
-  const el=document.getElementById('bbb-'+mode);
-  if(el) el.classList.add('active');
+  const el=getElementById('bbb-'+mode); if(el) el.classList.add('active');
 }
 
 function onSlider(val){
   currentBpm=parseInt(val);
-  document.getElementById('sliderBpm').textContent=val+' BPM';
+  getElementById('sliderBpm').textContent=val+' BPM';
   animHR(currentBpm);
 }
 
@@ -1595,7 +1595,7 @@ function applyTheme(t) {
   document.body.style.cssText += ';background:' + t.bgOuter + ' !important';
   document.documentElement.style.cssText += ';background:' + t.bgOuter + ' !important';
   // Explicitly set canvas element backgrounds so no bleed-through on light themes
-  const bgGrid = document.getElementById('ecgBgGrid') || document.getElementById('ecgGrid');
+  const bgGrid = getElementById('ecgBgGrid') || getElementById('ecgGrid');
   if (bgGrid) bgGrid.style.cssText += ';background:' + t.bgCanvas + ' !important';
 }
 
@@ -1606,7 +1606,7 @@ function setTheme(name) {
              : (THEMES[name] || THEMES.monitor);
   applyTheme(t);
   document.querySelectorAll('.theme-btn').forEach(b => b.classList.remove('active'));
-  const btn = document.getElementById('theme-' + name);
+  const btn = getElementById('theme-' + name);
   if (btn) btn.classList.add('active');
 }
 
@@ -1620,7 +1620,7 @@ let leadsFrozen  = false;  // leads frozen, strip still running
 let frozen       = false;  // everything frozen (final state)
 
 function toggleCapture() {
-  const btn = document.getElementById('captureBtn');
+  const btn = getElementById('captureBtn');
   if (frozen) {
     // Resume — reset all freeze states
     frozen = false;
@@ -1650,12 +1650,12 @@ function doCapture() {
   frozen = true;
   leadsFrozen = false;
   captureMode = false;
-  const btn = document.getElementById('captureBtn');
+  const btn = getElementById('captureBtn');
   btn.textContent = '▶ RESUME';
   btn.style.borderColor = 'var(--text-bright, #00ff88)';
   btn.style.color = 'var(--text-bright, #00ff88)';
   // Flash
-  const flash = document.getElementById('captureFlash');
+  const flash = getElementById('captureFlash');
   // Use dark flash on light themes, light flash on dark themes
   const isDark = window._themeBg && window._themeBg.includes('02');
   flash.style.background = isDark ? 'white' : 'black';
