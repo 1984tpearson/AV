@@ -148,6 +148,7 @@ class ECGEngine {
     const LEAD_W = Math.floor(MONITOR_W / 4);
     const STRIP_W = MONITOR_W;
     const PX_PER_MS = STRIP_W / 6000;
+    const STRIP_PX_PER_MS = PX_PER_MS; // strip runs at same speed
     const SMALL_SQ_MS = 40;
     const SMALL_SQ_PX = SMALL_SQ_MS * PX_PER_MS;
     const BIG_SQ_PX = SMALL_SQ_PX * 5;
