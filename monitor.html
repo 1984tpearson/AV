@@ -387,12 +387,11 @@ function makeClinicalCard(param, val, revealed) {
   card.id = `cc-${param.key}`;
 
   if (param.isECG) {
-    card.className = 'ecg-card' + (param.wide ? '' : '') + (!revealed ? ' hidden-card' : '');
+    card.className = 'clinical-card wide' + (!revealed ? ' hidden-card' : '');
     if (!revealed) {
-      card.innerHTML = '<div class="cc-label">12-Lead ECG</div><div class="hidden-dash">— — —</div>';
+      card.innerHTML = '<div class="cc-label">Rhythm</div><div class="hidden-dash">— — —</div>';
     } else {
-      const url = getECGUrl(String(val));
-      card.innerHTML = `<div class="cc-label">12-Lead ECG</div>${url ? `<img src="${url}" alt="ECG">` : `<div class="cc-value" style="font-size:14px">${val}</div>`}`;
+      card.innerHTML = `<div class="cc-label">Rhythm</div><div class="cc-value" style="font-size:14px">${val}</div>`;
     }
     return card;
   }
@@ -503,14 +502,22 @@ function ecgFlash() {
 
 function initStripECG(rhythmKey, bpm, bbbMode) {
   const container = document.getElementById('ecg-strip-container');
-  const W = container.clientWidth || window.innerWidth;
   container.style.height = '130px';
 
   if (_stripECG) _stripECG.destroy();
-  _stripECG = new ECGEngine(container, { mode: 'strip', theme: 'monitor' });
-  _stripECG.setRhythm(rhythmKey, bpm, bbbMode);
   _stripFrozen = false;
   document.getElementById('stripSnapBtn').textContent = '⏸ SNAPSHOT';
+
+  _stripECG = new ECGEngine(container, {
+    mode: 'strip',
+    theme: 'monitor',
+    onCapture: () => {
+      ecgFlash();
+      _stripFrozen = true;
+      document.getElementById('stripSnapBtn').textContent = '▶ RESUME';
+    }
+  });
+  _stripECG.setRhythm(rhythmKey, bpm, bbbMode);
 }
 
 function init12LeadECG(rhythmKey, bpm, bbbMode) {
@@ -518,17 +525,19 @@ function init12LeadECG(rhythmKey, bpm, bbbMode) {
   container.style.width = '100%';
 
   if (_leadECG) _leadECG.destroy();
+  _leadFrozen = false;
+  document.getElementById('leadSnapBtn').textContent = '⏸ SNAPSHOT';
+
   _leadECG = new ECGEngine(container, {
     mode: '12lead',
     theme: 'monitor',
     onCapture: () => {
       ecgFlash();
+      _leadFrozen = true;
       document.getElementById('leadSnapBtn').textContent = '▶ RESUME';
     }
   });
   _leadECG.setRhythm(rhythmKey, bpm, bbbMode);
-  _leadFrozen = false;
-  document.getElementById('leadSnapBtn').textContent = '⏸ SNAPSHOT';
   document.getElementById('ecg-12lead-bar').style.display = 'flex';
   document.getElementById('ecg-12lead-container').classList.add('visible');
 }
@@ -542,9 +551,7 @@ function ecgStripSnapshot() {
     btn.textContent = '⏸ SNAPSHOT';
   } else {
     _stripECG.capture();
-    _stripFrozen = true;
-    btn.textContent = '▶ RESUME';
-    ecgFlash();
+    // _stripFrozen set true via onCapture callback
   }
 }
 
@@ -557,9 +564,7 @@ function ecg12Snapshot() {
     btn.textContent = '⏸ SNAPSHOT';
   } else {
     _leadECG.capture();
-    _leadFrozen = true;
-    btn.textContent = '▶ RESUME';
-    ecgFlash();
+    // _leadFrozen set true via onCapture callback
   }
 }
 
@@ -574,8 +579,8 @@ renderRevealed = function(revealed) {
   const hr = parseInt(vitals.HR) || 72;
   const mapped = ECGEngine.mapRhythm(rhythmStr, hr);
 
-  // Rhythm revealed → show Lead II strip
-  if (revealed.Rhythm && rhythmStr) {
+  // LeadII revealed → show Lead II strip only
+  if (revealed.LeadII && rhythmStr) {
     if (_currentRhythm !== rhythmStr || !_stripECG) {
       _currentRhythm = rhythmStr;
       _currentBpm = hr;
@@ -584,14 +589,22 @@ renderRevealed = function(revealed) {
     }
   }
 
-  // ECG revealed → show 12-lead
+  // ECG revealed → show 12-lead (strip is already running or start it too)
   if (revealed.ECG && rhythmStr) {
+    // Ensure strip is running
+    if (!_stripECG) {
+      _currentRhythm = rhythmStr;
+      _currentBpm = hr;
+      document.getElementById('ecg-section').classList.add('visible');
+      initStripECG(mapped.key, mapped.bpm, mapped.bbbMode);
+    }
+    // Start 12-lead if not already running
     if (!_leadECG) {
       init12LeadECG(mapped.key, mapped.bpm, mapped.bbbMode);
     }
   }
 
-  // If ECG un-revealed, hide 12-lead
+  // ECG un-revealed → hide 12-lead only, keep strip
   if (!revealed.ECG && _leadECG) {
     _leadECG.destroy();
     _leadECG = null;
@@ -599,8 +612,8 @@ renderRevealed = function(revealed) {
     document.getElementById('ecg-12lead-bar').style.display = 'none';
   }
 
-  // If Rhythm un-revealed, hide everything
-  if (!revealed.Rhythm) {
+  // LeadII un-revealed → hide everything
+  if (!revealed.LeadII && !revealed.ECG) {
     if (_stripECG) { _stripECG.destroy(); _stripECG = null; }
     if (_leadECG)  { _leadECG.destroy();  _leadECG  = null; }
     document.getElementById('ecg-section').classList.remove('visible');
