@@ -228,6 +228,8 @@ const ecgArea = getElementById('ecgArea') || _container;
 const ecgAreaH = LEAD_H * 3 + STRIP_H;
 ecgArea.style.height = ecgAreaH + 'px';
 ecgArea.style.width = MONITOR_W + 'px';
+// Explicit width on leadsGrid so grid-template-columns:repeat(4,1fr) can resolve
+if (leadsGrid) { leadsGrid.style.width = MONITOR_W + 'px'; }
 ecgArea.style.position = 'relative';
 stripWrapper.style.height = STRIP_H + 'px';
 stripWrapper.style.width = MONITOR_W + 'px';
