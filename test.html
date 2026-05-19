@@ -2186,26 +2186,20 @@ function loadScenario(id) {
       const hr = parseInt(le.dataset.hr)||72;
       if (!rhythm) return;
       const id = le.id.replace('assessor-12lead-','');
-      const el = le; // alias for rest of block
 
       // Force layout then read actual pixel width
-      el.style.display = 'block';
-      el.style.overflow = 'hidden';
-      // Read rendered width
-      const w = el.getBoundingClientRect().width || el.clientWidth || 700;
-      el.style.width = Math.floor(w) + 'px';
+      le.style.display = 'block';
+      le.style.overflow = 'hidden';
+      const w = le.getBoundingClientRect().width || le.clientWidth || 700;
+      le.style.width = Math.floor(w) + 'px';
 
       const mapped = ECGEngine.mapRhythm(rhythm, hr);
 
       const le = document.getElementById('assessor-12lead-'+id);
-      if (le) {
-        le.style.display = 'block';
-        le.style.overflow = 'hidden';
-        try {
-          const le2 = new ECGEngine(le, {mode:'12lead', theme:'paper'});
-          le2.setRhythm(mapped.key, mapped.bpm, mapped.bbbMode);
-        } catch(e) { console.warn('12-lead ECG:', e); }
-      }
+      try {
+        const _ecgInst = new ECGEngine(le, {mode:'12lead', theme:'paper'});
+        _ecgInst.setRhythm(mapped.key, mapped.bpm, mapped.bbbMode);
+      } catch(e) { console.warn('12-lead ECG:', e); }
     });
   }, 300);
 
