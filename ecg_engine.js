@@ -1253,8 +1253,8 @@ self._drawFrame = function(ts){
     drawSpikesOn(ctx,spikeData['strip'],STRIP_W,hX,ERASE_PX,MID_STRIP);
   }
 
-  // Keep animating if strip still running after leads self._frozen
-  if(!self._frozen) // started externally
+  // Keep animating while not fully frozen
+  if(!self._frozen) requestAnimationFrame(ts => self._drawFrame(ts));
 }
 
 function redrawAllTraces() {
