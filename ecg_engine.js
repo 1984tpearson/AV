@@ -128,11 +128,16 @@ class ECGEngine {
     const container = this.container;
 
     // ── Get container width robustly ──────────────────────────────────
-    // The original v3 code uses fixed IDs — we redirect those to our container
     const _getW = () => {
       let w = container.clientWidth || container.offsetWidth;
       if (!w) w = Math.floor(container.getBoundingClientRect().width);
-      if (!w && container.parentElement) w = container.parentElement.clientWidth;
+      // Walk up ancestors to find a container with real width
+      if (!w) {
+        let el = container.parentElement;
+        while (el && !w) { w = el.clientWidth || el.offsetWidth; el = el.parentElement; }
+      }
+      // Use explicit style width if set
+      if (!w && container.style.width) w = parseInt(container.style.width);
       return w || 856;
     };
 
