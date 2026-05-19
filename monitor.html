@@ -6,7 +6,8 @@
 <title>AV Patient Monitor</title>
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
-body { background: #0a0d14; color: #e0e0e0; font-family: 'Courier New', monospace; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+html { height: 100%; height: 100dvh; }
+body { background: #0a0d14; color: #e0e0e0; font-family: 'Courier New', monospace; height: 100vh; height: 100dvh; display: flex; flex-direction: column; overflow: hidden; position: fixed; width: 100%; top: 0; left: 0; }
 
 /* ── TOPBAR ── */
 #topbar { background: #060910; border-bottom: 2px solid #1a2a3a; padding: 5px 12px; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; height: 36px; }
@@ -37,17 +38,17 @@ body { background: #0a0d14; color: #e0e0e0; font-family: 'Courier New', monospac
 #ecg-panel { flex: 1; min-width: 0; display: flex; flex-direction: column; background: #060606; border-right: 2px solid #0d1f35; overflow: hidden; }
 
 /* Vitals panel — right column */
-#vitals-panel { width: 155px; flex-shrink: 0; display: flex; flex-direction: column; background: #080c14; }
+#vitals-panel { width: 155px; flex-shrink: 0; display: flex; flex-direction: column; background: #080c14; overflow: hidden; }
 
 /* Bottom strip */
-#bottom-strip { flex-shrink: 0; background: #0a0d14; border-top: 2px solid #0d1f35; display: flex; flex-direction: row; flex-wrap: wrap; }
+#bottom-strip { flex-shrink: 0; background: #0a0d14; border-top: 2px solid #0d1f35; display: flex; flex-direction: row; flex-wrap: nowrap; min-height: 52px; max-height: 68px; }
 
 /* ── RIGHT VITALS COLUMN ── */
-.vital-block { display: flex; flex-direction: column; border-bottom: 2px solid #0d1f35; flex: 1; min-height: 60px; }
+.vital-block { display: flex; flex-direction: column; border-bottom: 2px solid #0d1f35; flex: 1; min-height: 0; overflow: hidden; }
 .vital-block.hidden-cell { opacity: 0.25; }
-.vital-label { font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; padding: 4px 7px 2px; flex-shrink: 0; }
-.vital-value { flex: 1; display: flex; align-items: center; padding: 0 7px 4px; font-size: 26px; font-weight: 900; line-height: 1; font-family: 'Courier New', monospace; min-height: 0; }
-.vital-unit { font-size: 9px; font-weight: 400; opacity: 0.7; margin-left: 3px; align-self: flex-end; padding-bottom: 5px; }
+.vital-label { font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; padding: 3px 7px 1px; flex-shrink: 0; }
+.vital-value { flex: 1; display: flex; align-items: center; padding: 0 7px 3px; font-size: clamp(16px, 2.8vw, 28px); font-weight: 900; line-height: 1; font-family: 'Courier New', monospace; min-height: 0; overflow: hidden; }
+.vital-unit { font-size: 9px; font-weight: 400; opacity: 0.7; margin-left: 3px; align-self: flex-end; padding-bottom: 4px; flex-shrink: 0; }
 .vital-dash { color: #1a2a3a; font-size: 16px; letter-spacing: 3px; }
 .vital-hr   .vital-label { background: #1a1a1a; color: #ffffff; }
 .vital-hr   .vital-value { color: #ffffff; background: #0f0f0f; }
@@ -61,13 +62,13 @@ body { background: #0a0d14; color: #e0e0e0; font-family: 'Courier New', monospac
 .vital-etco2 .vital-value { color: #ff8a65; background: #1e0e00; }
 
 /* ── BOTTOM STRIP CARDS ── */
-.bottom-card { flex: 1; min-width: 90px; border-right: 1px solid #1a2a3a; padding: 5px 10px; display: flex; flex-direction: column; justify-content: center; }
+.bottom-card { flex: 1; min-width: 0; border-right: 1px solid #1a2a3a; padding: 4px 8px; display: flex; flex-direction: column; justify-content: center; overflow: hidden; }
 .bottom-card:last-child { border-right: none; }
 .bottom-card.hidden-card { opacity: 0.2; }
-.bc-label { font-size: 8px; font-weight: 700; color: #4a6a8a; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 2px; }
-.bc-value { font-size: 17px; font-weight: 700; color: #c0d4e8; line-height: 1; }
-.bc-unit { font-size: 9px; color: #4a6a8a; margin-top: 2px; }
-.bc-sub { font-size: 10px; color: #7a9ab8; margin-top: 1px; }
+.bc-label { font-size: 8px; font-weight: 700; color: #4a6a8a; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 1px; white-space: nowrap; }
+.bc-value { font-size: 16px; font-weight: 700; color: #c0d4e8; line-height: 1; }
+.bc-unit { font-size: 8px; color: #4a6a8a; margin-top: 1px; }
+.bc-sub { font-size: 9px; color: #7a9ab8; }
 .bc-dash { font-size: 14px; color: #1a2a3a; letter-spacing: 3px; }
 
 /* Flash animation */
