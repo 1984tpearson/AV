@@ -2169,6 +2169,11 @@ function loadScenario(id) {
   rowStates = {}; sectionScores = {}; kqScores = {};
   resetTimer();
 
+  // Reset monitor session — new scenario needs a fresh session
+  _patientSessionCode = null;
+  _sessionRevealed = {};
+  _pendingRevealKey = null;
+
   document.querySelectorAll('.scenario-item').forEach(el => el.classList.remove('active'));
   const si = document.getElementById('si-'+id);
   if (si) si.classList.add('active');
@@ -3070,11 +3075,14 @@ function renderSection1(s, isTrauma) {
         const ecg = getECGImage(s.vitals&&s.vitals.Rhythm);
         const realBtn = ecg ? `<button onclick="openECGLightbox('${ecg.url.replace(/'/g,"\\'")}','${(ecg.label||'').replace(/'/g,"\\'")}');event.stopPropagation();" style="font-size:10px;padding:3px 8px;border:1px solid #ccc;background:white;border-radius:4px;cursor:pointer;color:#003366;">📷 Real ECG</button>` : '';
         return `<div style="margin:10px 0 4px;">
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
-            <span style="font-size:11px;font-weight:700;color:var(--grey);text-transform:uppercase;letter-spacing:0.6px;">📈 Live ECG — ${rhythmStr} @ ${hr} BPM</span>
-            ${realBtn}
+          <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px;margin-bottom:6px;">
+            <span style="font-size:11px;font-weight:700;color:var(--grey);text-transform:uppercase;letter-spacing:0.6px;">📈 Monitor / ECG — ${rhythmStr} @ ${hr} BPM</span>
+            <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
+              <button onclick="sendLeadIIToMonitor(event)" id="rb-LeadII" style="font-size:11px;padding:4px 10px;border:1px solid var(--navy);background:white;border-radius:4px;cursor:pointer;color:var(--navy);font-weight:600;">📡 Send Lead II to Monitor</button>
+              <button onclick="send12LeadToMonitor(event)" id="rb-ECG" style="font-size:11px;padding:4px 10px;border:1px solid var(--navy);background:white;border-radius:4px;cursor:pointer;color:var(--navy);font-weight:600;">📡 Send 12-Lead to Monitor</button>
+              ${realBtn}
+            </div>
           </div>
-
           <div id="assessor-12lead-${s.id}" style="width:100%;max-width:100%;background:#faf7f2;border-radius:4px;overflow:hidden;margin-top:3px;display:block;" data-rhythm="${rhythmStr.replace(/"/g,'&quot;')}" data-hr="${hr}"></div>
           <div style="font-size:10px;color:var(--grey);font-style:italic;margin-top:4px;">⚠ Animated ECG is a simulation. Use Real ECG for teaching pattern recognition.</div>
         </div>`;
@@ -5466,6 +5474,47 @@ function updateRevealBtnState(key, revealed) {
   } else {
     btn.classList.remove('revealed');
     btn.title = 'Send to monitor';
+  }
+}
+
+async function sendLeadIIToMonitor(event) {
+  if (event) event.stopPropagation();
+  // Ensure session is active first
+  if (!_patientSessionCode) {
+    _pendingRevealKey = 'LeadII';
+    await openPatientSessionModal();
+    return;
+  }
+  const isRevealed = !!_sessionRevealed['LeadII'];
+  await toggleReveal('LeadII', !isRevealed);
+  // Visual feedback on button
+  const btn = document.getElementById('rb-LeadII');
+  if (btn) {
+    btn.style.background = _sessionRevealed['LeadII'] ? 'var(--navy)' : 'white';
+    btn.style.color = _sessionRevealed['LeadII'] ? 'white' : 'var(--navy)';
+  }
+}
+
+async function send12LeadToMonitor(event) {
+  if (event) event.stopPropagation();
+  // Ensure session is active first
+  if (!_patientSessionCode) {
+    _pendingRevealKey = 'ECG';
+    await openPatientSessionModal();
+    return;
+  }
+  const isRevealed = !!_sessionRevealed['ECG'];
+  await toggleReveal('ECG', !isRevealed);
+  // 12-lead also implies Lead II strip — send both
+  if (!isRevealed && !_sessionRevealed['LeadII']) {
+    await toggleReveal('LeadII', true);
+    const leadIIBtn = document.getElementById('rb-LeadII');
+    if (leadIIBtn) { leadIIBtn.style.background = 'var(--navy)'; leadIIBtn.style.color = 'white'; }
+  }
+  const btn = document.getElementById('rb-ECG');
+  if (btn) {
+    btn.style.background = _sessionRevealed['ECG'] ? 'var(--navy)' : 'white';
+    btn.style.color = _sessionRevealed['ECG'] ? 'white' : 'var(--navy)';
   }
 }
 
