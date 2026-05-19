@@ -201,8 +201,10 @@ const STRIP_H = 140;  // px height rhythm strip
 // Monitor is 1100px, padding 18px each side => 1100-36=1064px
 // Grid: 4 cols, so each col = 1064/4 = 266px
 // Prioritise explicit style.width (set by caller), then measured width
-const _styleW = container.style.width ? parseInt(container.style.width) : 0;
-const MONITOR_W = (_styleW > 50 ? _styleW : null) || _containerW || 1064;
+// Use measured clientWidth — ignore percentage style widths
+const _styleW = (container.style.width && !container.style.width.includes('%'))
+                ? parseInt(container.style.width) : 0;
+const MONITOR_W = _containerW || (_styleW > 100 ? _styleW : 0) || 856;
 const LEAD_W = Math.floor(MONITOR_W / 4);   // 266px
 const STRIP_W = MONITOR_W;
 
@@ -1602,10 +1604,9 @@ function applyTheme(t) {
   if(frozen || leadsFrozen) redrawAllTraces();
   // Update canvas element backgrounds directly
   // Update monitor and body
-  const mon = document.querySelector('.monitor');
-  if (mon) mon.style.cssText += ';background:' + t.bgMonitor + ' !important';
-  document.body.style.cssText += ';background:' + t.bgOuter + ' !important';
-  document.documentElement.style.cssText += ';background:' + t.bgOuter + ' !important';
+  // Scope background to engine container only
+  container.style.background = t.bgMonitor;
+  // Don't touch document.body/documentElement — engine is embedded, scope to container only
   // Explicitly set canvas element backgrounds so no bleed-through on light themes
   const bgGrid = getElementById('ecgBgGrid') || getElementById('ecgGrid');
   if (bgGrid) bgGrid.style.cssText += ';background:' + t.bgCanvas + ' !important';
