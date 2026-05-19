@@ -201,13 +201,20 @@
 let _ecg = null;
 
 window.addEventListener('DOMContentLoaded', () => {
-  // Engine initialises from the existing DOM structure
-  // (ecgArea, leadsGrid, stripWrapper, ecgBgGrid all exist in HTML)
-  _ecg = new ECGEngine(document.getElementById('ecgArea'), {
+  const ecgArea = document.getElementById('ecgArea');
+  // Ensure container has explicit width before engine reads it
+  const monitor = document.querySelector('.monitor');
+  if (monitor && !ecgArea.clientWidth) {
+    const w = monitor.clientWidth - 36; // subtract padding
+    ecgArea.style.width = w + 'px';
+  }
+  _ecg = new ECGEngine(ecgArea, {
     mode: '12lead',
     theme: 'monitor',
-    showControls: false,   // controls are in HTML, not built by engine
+    showControls: false,
   });
+  // Sync initial rhythm button
+  setRhythm('nsr');
 });
 
 // ── UI event handlers (buttons call these) ────────────────────────────
