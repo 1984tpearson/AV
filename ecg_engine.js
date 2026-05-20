@@ -1298,24 +1298,25 @@ function computeSamples(s, dtMs, bpm, key){
       }
 
       if(key==='wpw'){
-        // WPW: short PR (~120ms), delta wave merging into widened QRS, discordant T
-        // Delta wave is a gentle slurred upstroke blending into the R — NOT a separate hump
-        // It starts early (~65ms) and merges smoothly into the R peak at ~150ms
-        // Type A (dominant R in V1) — most common/recognisable for training
-        const deltaAmp = ['V1','V2','aVR'].includes(n) ? 12*Math.abs(sc) : 8*Math.abs(sc);
-        const rAmp     = R_AMP * patient.rAmp * Math.abs(sc);
-        const sAmp     = S_AMP * patient.rAmp * Math.abs(sc);
-        // T is discordant: opposite to net QRS deflection
-        const tPol = sc < 0 ? 1 : -1;
-        // P wave: normal but short PR so sits close to QRS
-        base = gauss(ms, P_PEAK, P_WIDTH, P_AMP*patient.pAmp*Math.abs(sc))*(sc<0?-1:1)
-              // Delta: broad shallow ramp starting at ~65ms, peak at ~110ms — merges into R base
-              +gauss(ms, 110, 42, deltaAmp)*(sc<0?-1:1)
-              // QRS: widened — R at 150ms (vs normal 130ms), S at 185ms
-              +gauss(ms, 150, 12, rAmp)*(sc<0?-1:1)
-              -gauss(ms, 185, 9,  sAmp)*(sc<0?-1:1)
-              // Discordant T
-              +gauss(ms, 340, 60, T_AMP*0.85*patient.tAmp*Math.abs(sc))*tPol;
+        // WPW: short PR, delta wave IS the slurred upstroke of the QRS — not a separate wave
+        // Achieved by replacing the sharp R gaussian with a two-part ramp:
+        //   1) a broad low-amplitude gaussian (the delta slur) from ~80-120ms
+        //   2) the sharp R peak on top, slightly widened and shifted right
+        // Net result: a single widened complex with a noticeably slurred initial upstroke
+        const pol    = sc < 0 ? -1 : 1;
+        const rAmp   = R_AMP * patient.rAmp * Math.abs(sc);
+        const sAmp   = S_AMP * patient.rAmp * Math.abs(sc);
+        // Delta slur: same polarity as R, broad, low — forms the foot of the QRS
+        const deltaSlur = gauss(ms, 105, 28, rAmp * 0.28) * pol;
+        // R peak: shifted slightly right (140ms), narrower so it sits on top of the slur
+        const rPeak  = gauss(ms, 140, 9, rAmp * 0.85) * pol;
+        // S wave: slightly widened QRS so S at 172ms
+        const sWave  = -gauss(ms, 172, 8, sAmp) * pol;
+        // P wave: normal position, short PR means it sits just before the delta slur
+        const pWave  = gauss(ms, P_PEAK, P_WIDTH, P_AMP*patient.pAmp*Math.abs(sc)) * pol;
+        // Discordant T: opposite polarity to QRS
+        const tWave  = gauss(ms, 340, 60, T_AMP*0.85*patient.tAmp*Math.abs(sc)) * -pol;
+        base = pWave + deltaSlur + rPeak + sWave + tWave;
         out[n] = base; return;
       }
 
