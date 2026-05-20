@@ -1272,19 +1272,19 @@ function computeSamples(s, dtMs, bpm, key){
 
       // Per-rhythm modifications
       if(key==='deg1'){
-        // 1st degree AV block: normal sinus morphology, PR prolonged (210–320ms)
-        // prDelay stored on state at rhythm init; randomised per patient
-        const pr = s.deg1PR || 240;
-        // P wave polarity per lead — same as normal sinus
-        // aVR: inverted; V1: biphasic (small positive); others follow sc sign
-        const pPol = (n==='aVR') ? -1 : 1;
-        // P amplitude: boosted slightly vs normal so it's clearly visible
-        const pAmp = P_AMP * 1.3 * patient.pAmp * Math.abs(sc);
-        base = pPol * gauss(ms, P_PEAK, P_WIDTH, pAmp)
-              -gauss(ms+pr, Q_ONSET, Q_WIDTH, Q_AMP*patient.rAmp*Math.abs(sc))*(sc<0?-1:1)
-              +gauss(ms+pr, R_PEAK,  R_WIDTH, R_AMP*patient.rAmp*Math.abs(sc))*(sc<0?-1:1)
-              -gauss(ms+pr, S_TROUGH,S_WIDTH, S_AMP*patient.rAmp*Math.abs(sc))*(sc<0?-1:1)
-              +gauss(ms+pr, T_PEAK,  T_WIDTH, T_AMP*patient.tAmp*Math.abs(sc))*(sc<0?-1:1);
+        // 1st degree AV block: identical to normal sinus, PR just prolonged
+        // Strategy: render P wave at normal position, then render QRS+T using
+        // a time offset (ms - prExtra) so those peaks appear prExtra ms later
+        const prExtra = (s.deg1PR || 240) - 160; // extra delay beyond normal PR (~160ms)
+        const sinFn = MORPH.nsr[n];
+        // P wave at normal position using normal sinus function at ms
+        const pOnly  = gauss(ms, P_PEAK, P_WIDTH, P_AMP * patient.pAmp * Math.abs(sc)) * (sc < 0 ? -1 : 1);
+        // QRS+T: evaluate nsr at (ms - prExtra) — shifts those peaks rightward by prExtra ms
+        const shiftMs = ms - prExtra;
+        const fullSinus = sinFn ? sinFn(shiftMs) : 0;
+        // Remove P from the shifted evaluation (P would be at wrong position)
+        const pAtShift = gauss(shiftMs, P_PEAK, P_WIDTH, P_AMP * patient.pAmp * Math.abs(sc)) * (sc < 0 ? -1 : 1);
+        base = pOnly + (fullSinus - pAtShift);
         out[n] = base; return;
       }
 
