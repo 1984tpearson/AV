@@ -8,8 +8,6 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 html { height: 100%; height: 100dvh; }
 body { background: #0a0d14; color: #e0e0e0; font-family: 'Courier New', monospace; height: 100vh; height: 100dvh; display: flex; flex-direction: column; overflow: hidden; position: fixed; width: 100%; top: 0; left: 0; }
-
-/* ── TOPBAR ── */
 #topbar { background: #060910; border-bottom: 2px solid #1a2a3a; padding: 5px 12px; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; height: 36px; }
 .topbar-left { display: flex; align-items: center; gap: 10px; }
 .topbar-logo { background: #003a6e; border: 1px solid #0066bb; border-radius: 4px; padding: 3px 7px; font-size: 10px; font-weight: 900; color: #4fc3f7; letter-spacing: 1px; }
@@ -19,8 +17,6 @@ body { background: #0a0d14; color: #e0e0e0; font-family: 'Courier New', monospac
 .status-dot.offline { background: #555; animation: none; }
 @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
 #status-text { font-size: 10px; color: #666; letter-spacing: 0.5px; text-transform: uppercase; }
-
-/* ── CONNECT SCREEN ── */
 #connect-screen { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; padding: 32px 24px; }
 #connect-screen h2 { font-size: 16px; color: #4fc3f7; letter-spacing: 1px; text-transform: uppercase; }
 #connect-screen p { font-size: 12px; color: #666; text-align: center; }
@@ -29,21 +25,11 @@ body { background: #0a0d14; color: #e0e0e0; font-family: 'Courier New', monospac
 #connect-btn { background: #003a6e; border: 1px solid #0066bb; color: #4fc3f7; font-size: 13px; font-weight: 700; padding: 12px 32px; cursor: pointer; letter-spacing: 1px; text-transform: uppercase; border-radius: 4px; }
 #connect-btn:active { background: #00264d; }
 #connect-error { color: #ff6b6b; font-size: 12px; text-align: center; display: none; }
-
-/* ── MONITOR SCREEN ── */
 #monitor-screen { flex: 1; display: none; flex-direction: column; min-height: 0; }
 #monitor-main { flex: 1; display: flex; flex-direction: row; min-height: 0; overflow: hidden; }
-
-/* ECG panel — left */
 #ecg-panel { flex: 1; min-width: 0; display: flex; flex-direction: column; background: #060606; border-right: 2px solid #0d1f35; overflow: hidden; }
-
-/* Vitals panel — right column */
 #vitals-panel { width: 155px; flex-shrink: 0; display: flex; flex-direction: column; background: #080c14; overflow: hidden; }
-
-/* Bottom strip */
 #bottom-strip { flex-shrink: 0; background: #0a0d14; border-top: 2px solid #0d1f35; display: flex; flex-direction: row; flex-wrap: nowrap; min-height: 52px; max-height: 68px; }
-
-/* ── RIGHT VITALS COLUMN ── */
 .vital-block { display: flex; flex-direction: column; border-bottom: 2px solid #0d1f35; flex: 1; min-height: 0; overflow: hidden; }
 .vital-block.hidden-cell { opacity: 0.25; }
 .vital-label { font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; padding: 3px 7px 1px; flex-shrink: 0; }
@@ -60,8 +46,6 @@ body { background: #0a0d14; color: #e0e0e0; font-family: 'Courier New', monospac
 .vital-rr   .vital-value { color: #ffd54f; background: #1e1600; }
 .vital-etco2 .vital-label { background: #3a1a00; color: #ff8a65; }
 .vital-etco2 .vital-value { color: #ff8a65; background: #1e0e00; }
-
-/* ── BOTTOM STRIP CARDS ── */
 .bottom-card { flex: 1; min-width: 0; border-right: 1px solid #1a2a3a; padding: 4px 8px; display: flex; flex-direction: column; justify-content: center; overflow: hidden; }
 .bottom-card:last-child { border-right: none; }
 .bottom-card.hidden-card { opacity: 0.2; }
@@ -70,18 +54,14 @@ body { background: #0a0d14; color: #e0e0e0; font-family: 'Courier New', monospac
 .bc-unit { font-size: 8px; color: #4a6a8a; margin-top: 1px; }
 .bc-sub { font-size: 9px; color: #7a9ab8; }
 .bc-dash { font-size: 14px; color: #1a2a3a; letter-spacing: 3px; }
-
-/* Flash animation */
 .new-reveal { animation: revealFlash 1.5s ease forwards; }
 @keyframes revealFlash { 0%{box-shadow:0 0 0 2px #4fc3f7} 100%{box-shadow:none} }
-
 #session-footer { display: none; }
 </style>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700&display=swap" rel="stylesheet">
 <script src="https://1984tpearson.github.io/AV/ecg_engine.js"></script>
 <style>
-/* ── ECG section on patient monitor ── */
 #ecg-section {
   display: flex;
   flex-direction: column;
@@ -92,47 +72,23 @@ body { background: #0a0d14; color: #e0e0e0; font-family: 'Courier New', monospac
   min-height: 0;
 }
 #ecg-section:not(.visible) .ecg-section-bar,
-#ecg-section:not(.visible) #ecg-12lead-container {
-  visibility: hidden;
-}
+#ecg-section:not(.visible) #ecg-12lead-container { visibility: hidden; }
 #ecg-section.visible { display: flex; }
-#ecg-12lead-container {
-  width: 100%;
-  position: relative;
-}
+#ecg-12lead-container { width: 100%; position: relative; }
 .ecg-section-bar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 6px 12px;
-  background: #060910;
-  border-bottom: 1px solid #0d1f35;
-  font-size: 10px;
-  letter-spacing: 1.5px;
-  color: #00ff88;
-  text-transform: uppercase;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 6px 12px; background: #060910; border-bottom: 1px solid #0d1f35;
+  font-size: 10px; letter-spacing: 1.5px; color: #00ff88; text-transform: uppercase;
 }
 .ecg-snapshot-btn {
-  background: rgba(0,255,136,0.08);
-  border: 2px solid #00ff88;
-  color: #00ff88;
-  font-family: 'Courier New', monospace;
-  font-size: 12px;
-  font-weight: bold;
-  letter-spacing: 1.5px;
-  padding: 6px 18px;
-  cursor: pointer;
-  text-transform: uppercase;
-  border-radius: 4px;
-  transition: background 0.15s;
+  background: rgba(0,255,136,0.08); border: 2px solid #00ff88; color: #00ff88;
+  font-family: 'Courier New', monospace; font-size: 12px; font-weight: bold;
+  letter-spacing: 1.5px; padding: 6px 18px; cursor: pointer;
+  text-transform: uppercase; border-radius: 4px; transition: background 0.15s;
 }
 .ecg-snapshot-btn:hover { background: rgba(0,255,136,0.18); }
 .ecg-snapshot-btn:active { background: rgba(0,255,136,0.28); }
-.ecg-snapshot-btn.frozen {
-  border-color: #fff;
-  color: #fff;
-  background: rgba(255,255,255,0.08);
-}
+.ecg-snapshot-btn.frozen { border-color: #fff; color: #fff; background: rgba(255,255,255,0.08); }
 </style>
 </head>
 <body>
@@ -148,7 +104,6 @@ body { background: #0a0d14; color: #e0e0e0; font-family: 'Courier New', monospac
   </div>
 </div>
 
-<!-- Connect screen -->
 <div id="connect-screen">
   <h2>Patient Monitor</h2>
   <p>Enter the session code from your assessor</p>
@@ -157,12 +112,9 @@ body { background: #0a0d14; color: #e0e0e0; font-family: 'Courier New', monospac
   <div id="connect-error">Session not found. Check the code and try again.</div>
 </div>
 
-<!-- Monitor screen -->
 <div id="monitor-screen">
   <div id="monitor-main">
-    <!-- Left: ECG -->
     <div id="ecg-panel">
-      <!-- ECG section -->
       <div id="ecg-section">
         <div class="ecg-section-bar">
           <span id="ecg-bar-label">LEAD II — RHYTHM STRIP</span>
@@ -171,10 +123,8 @@ body { background: #0a0d14; color: #e0e0e0; font-family: 'Courier New', monospac
         <div id="ecg-12lead-container"></div>
       </div>
     </div>
-    <!-- Right: Vitals column -->
     <div id="vitals-panel"></div>
   </div>
-  <!-- Bottom: Temp, GCS, Weight, Ketones -->
   <div id="bottom-strip"></div>
   <div id="session-footer"></div>
 </div>
@@ -183,16 +133,14 @@ body { background: #0a0d14; color: #e0e0e0; font-family: 'Courier New', monospac
 const SUPABASE_URL = 'https://befsjenbaruxqrntuhpn.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJlZnNqZW5iYXJ1eHFybnR1aHBuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI2MjA5MjAsImV4cCI6MjA4ODE5NjkyMH0.hOFFbIvd1wAgu-QyghupQ-7ttSpg7sxz_UsJbXyXztA';
 
-// Right column vitals: HR, BP, SpO2, Resp, EtCO2
 const VITAL_PARAMS = [
-  { key: 'HR',    label: 'HR',        unit: 'bpm',   cls: 'vital-hr'   },
-  { key: 'BP',    label: 'NIBP',      unit: 'mmHg',  cls: 'vital-nibp' },
-  { key: 'SpO2',  label: 'SpO\u2082', unit: '%',     cls: 'vital-spo2' },
-  { key: 'RR',    label: 'Resp',      unit: '/min',  cls: 'vital-rr'   },
-  { key: 'EtCO2', label: 'EtCO\u2082',unit: 'mmHg', cls: 'vital-etco2'},
+  { key: 'HR',    label: 'HR',         unit: 'bpm',    cls: 'vital-hr'   },
+  { key: 'BP',    label: 'NIBP',       unit: 'mmHg',   cls: 'vital-nibp' },
+  { key: 'SpO2',  label: 'SpO\u2082',  unit: '%',      cls: 'vital-spo2' },
+  { key: 'RR',    label: 'Resp',       unit: '/min',   cls: 'vital-rr'   },
+  { key: 'EtCO2', label: 'EtCO\u2082', unit: 'mmHg',  cls: 'vital-etco2'},
 ];
 
-// Bottom strip: Temp, GCS, BGL, Weight, Ketones
 const BOTTOM_PARAMS = [
   { key: 'Temp',    label: 'Temp',    unit: '\u00b0C' },
   { key: 'GCS',     label: 'GCS',     unit: '/15',  isGCS: true },
@@ -201,7 +149,6 @@ const BOTTOM_PARAMS = [
   { key: 'Ketones', label: 'Ketones', unit: 'mmol/L' },
 ];
 
-// Keep for legacy compat (renderRevealed references ZOLL_PARAMS / CLINICAL_PARAMS)
 const ZOLL_PARAMS = VITAL_PARAMS;
 const CLINICAL_PARAMS = [
   ...BOTTOM_PARAMS,
@@ -314,14 +261,10 @@ async function connectSession() {
     const session = rows[0];
     const scenRows = await sbGet(`scenarios?id=eq.${encodeURIComponent(session.scenario_id)}&select=*`);
     if (scenRows && scenRows.length > 0) scenario = scenRows[0];
-
-    // Set demographics (name + age/sex only, no condition)
     setDemographics(scenario);
-
     document.getElementById('connect-screen').style.display = 'none';
     document.getElementById('monitor-screen').style.display = 'flex';
     document.getElementById('session-footer').textContent = `Session ${code}`;
-
     buildMonitorScreens();
     prevRevealed = {};
     renderRevealed(session.revealed || {});
@@ -336,36 +279,25 @@ async function connectSession() {
 
 function setDemographics(s) {
   if (!s) return;
-  // subtitle is like "55yo Male with Respiratory Distress" — extract age+sex only
   let demo = '';
   const sub = s.subtitle || '';
-  // Match patterns like "55yo Male", "6 year old Female", "28yo F"
   const m = sub.match(/^(\d+\s*(?:yo|year[s]?\s*old)?)\s*(male|female|m\b|f\b)/i);
-  if (m) {
-    demo = m[1].trim() + ' ' + m[2].trim();
-  }
-  // Try to get name from dispatch field
+  if (m) demo = m[1].trim() + ' ' + m[2].trim();
   const dispatch = s.dispatch || '';
   const nameMatch = dispatch.match(/(?:^|\n|,\s*)([A-Z][a-z]+(?:\s[A-Z][a-z]+)?)\s*(?:,|\s+is\s|\s+presents|\s+called|\s+a\s)/);
   let name = '';
   if (nameMatch) name = nameMatch[1];
-
   const el = document.getElementById('pt-demographics');
   el.textContent = [name, demo].filter(Boolean).join(' — ') || 'Patient';
 }
 
 function buildMonitorScreens() {
   const vitals = (scenario && scenario.vitals) || {};
-
-  // Build right vitals column
   const vitalsPanel = document.getElementById('vitals-panel');
   vitalsPanel.innerHTML = '';
   VITAL_PARAMS.forEach(p => {
-    const val = vitals[p.key];
-    vitalsPanel.appendChild(makeVitalBlock(p, val, false));
+    vitalsPanel.appendChild(makeVitalBlock(p, vitals[p.key], false));
   });
-
-  // Build bottom strip
   const bottomStrip = document.getElementById('bottom-strip');
   bottomStrip.innerHTML = '';
   BOTTOM_PARAMS.forEach(p => {
@@ -403,13 +335,11 @@ function makeBottomCard(param, val, revealed) {
   return card;
 }
 
-// Legacy stub — makeClinicalCard still called by renderRevealed for ECG key
 function makeClinicalCard(param, val, revealed) {
   if (param.isECG) { const d = document.createElement('div'); d.style.display='none'; return d; }
   return makeBottomCard(param, val, revealed);
 }
 
-// Legacy stub for makeZollCell
 function makeZollCell(param, val, revealed) {
   return makeVitalBlock(param, val, revealed);
 }
@@ -417,8 +347,6 @@ function makeZollCell(param, val, revealed) {
 function renderRevealed(revealed) {
   if (!scenario) return;
   const vitals = scenario.vitals || {};
-
-  // Update right vitals column
   VITAL_PARAMS.forEach(p => {
     const block = document.getElementById(`zc-${p.key}`);
     if (!block) return;
@@ -430,8 +358,6 @@ function renderRevealed(revealed) {
       block.replaceWith(newBlock);
     }
   });
-
-  // Update bottom strip cards
   BOTTOM_PARAMS.forEach(p => {
     const card = document.getElementById(`cc-${p.key}`);
     if (!card) return;
@@ -472,12 +398,12 @@ function setStatus(online) {
 <!-- Capture flash overlay -->
 <div id="ecgCaptureFlash" style="position:fixed;inset:0;background:white;opacity:0;pointer-events:none;z-index:9999;transition:opacity 0.15s;"></div>
 
-
 <script>
 // ── ECG Engine Integration ─────────────────────────────────────────────
-let _ecgInst       = null;   // single 12-lead ECGEngine instance
+let _ecgInst       = null;   // single ECGEngine instance
 let _currentRhythm = null;
 let _ecgFrozen     = false;
+let _ecgSeed       = null;   // morph seed from assessor view for sync
 
 function ecgFlash() {
   const el = document.getElementById('ecgCaptureFlash');
@@ -494,12 +420,11 @@ function initECG(rhythmKey, bpm, bbbMode, showGrid) {
   _ecgFrozen = false;
   document.getElementById('snapBtn').textContent = '⏸ SNAPSHOT';
 
-  // Measure available height: panel minus the section bar
   const panel = document.getElementById('ecg-panel');
   const bar = document.querySelector('.ecg-section-bar');
   const barH = bar ? bar.offsetHeight : 32;
   const availH = (panel.clientHeight || panel.offsetHeight) - barH;
-  const targetH = availH > 200 ? availH : 0; // 0 = use engine default
+  const targetH = availH > 200 ? availH : 0;
 
   _ecgInst = new ECGEngine(container, {
     mode: '12lead',
@@ -511,13 +436,12 @@ function initECG(rhythmKey, bpm, bbbMode, showGrid) {
       const btn = document.getElementById('snapBtn');
       btn.textContent = '▶ RESUME';
       btn.classList.add('frozen');
-      // Switch to paper theme so frozen ECG looks like a printout
       setTimeout(() => _ecgInst && _ecgInst.setTheme('paper'), 150);
     }
   });
   _ecgInst.setRhythm(rhythmKey, bpm, bbbMode);
+  if (_ecgSeed) _ecgInst.applySeed(_ecgSeed);
 
-  // Hide or show the leads grid depending on mode
   setGridVisible(showGrid);
   document.getElementById('ecg-section').classList.add('visible');
 }
@@ -527,7 +451,6 @@ function setGridVisible(visible) {
   const container = document.getElementById('ecg-12lead-container');
   const grid = container.querySelector('#_ecg_leadsGrid');
   if (grid) grid.style.display = visible ? 'grid' : 'none';
-  // bg canvas stays visible always — it draws the grid behind the strip too
   document.getElementById('ecg-bar-label').textContent =
     visible ? '12-LEAD ECG' : 'LEAD II — RHYTHM STRIP';
 }
@@ -543,7 +466,6 @@ function ecgSnapshot() {
     btn.classList.remove('frozen');
   } else {
     _ecgInst.capture();
-    // Theme switch and frozen state set via onCapture callback
   }
 }
 
@@ -553,6 +475,7 @@ renderRevealed = function(revealed) {
   _origRenderRevealed(revealed);
 
   if (!scenario) return;
+  if (revealed.ecgSeed) _ecgSeed = revealed.ecgSeed;
   const vitals = scenario.vitals || {};
   const rhythmStr = vitals.Rhythm || '';
   const hr = parseInt(vitals.HR) || 72;
@@ -563,7 +486,6 @@ renderRevealed = function(revealed) {
   const want12Lead = !!revealed.ECG;
 
   if (!wantLeadII && !want12Lead) {
-    // Nothing — tear down
     if (_ecgInst) { _ecgInst.destroy(); _ecgInst = null; }
     document.getElementById('ecg-section').classList.remove('visible');
     _currentRhythm = null;
@@ -571,24 +493,21 @@ renderRevealed = function(revealed) {
   }
 
   if (want12Lead) {
-    // Full 12-lead
     if (_currentRhythm !== rhythmStr || !_ecgInst) {
       _currentRhythm = rhythmStr;
       initECG(mapped.key, mapped.bpm, mapped.bbbMode, true);
     } else {
-      setGridVisible(true); // already running, just show grid
+      setGridVisible(true);
     }
   } else if (wantLeadII) {
-    // Lead II strip only
     if (_currentRhythm !== rhythmStr || !_ecgInst) {
       _currentRhythm = rhythmStr;
       initECG(mapped.key, mapped.bpm, mapped.bbbMode, false);
     }
-    // If already running as LeadII, leave it; grid already hidden
   }
 };
 
-// Reinit ECG on resize (e.g. iPad orientation change)
+// Reinit on resize
 let _resizeTimer = null;
 window.addEventListener('resize', () => {
   if (!_ecgInst || !_currentRhythm || !scenario) return;
