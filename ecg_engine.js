@@ -122,6 +122,8 @@ class ECGEngine {
 
   setTheme(name)  { if (this._pub.setTheme)  this._pub.setTheme(name);  }
   setBBB(mode)    { if (this._pub.setBBB)    this._pub.setBBB(mode);    }
+  getMorphSeed()  { return this._pub.getMorphSeed ? this._pub.getMorphSeed() : null; }
+  applySeed(seed) { if (this._pub.applySeed) this._pub.applySeed(seed); }
   capture()       { if (this._pub.toggleCapture) this._pub.toggleCapture(); }
   resume()        { this._frozen = false; this._leadsFrozen = false; this._captureMode = false; if (this._pub.resume) this._pub.resume(); }
   toggleCapture() { if (this._pub.toggleCapture) this._pub.toggleCapture(); }
@@ -1809,6 +1811,32 @@ function animHR(target){
 // =====================================================================
 // RHYTHM SWITCHING
 // =====================================================================
+// =============================================================
+// MORPH SEED — capture and replay randomised morphology
+// getMorphSeed(): returns snapshot of all current morph params
+// applySeed(seed): restores morph state without re-randomising
+// =============================================================
+function getMorphSeed(){
+  return {
+    sinus:  sinusMorph  ? JSON.parse(JSON.stringify(sinusMorph))  : null,
+    vt:     vtMorph     ? JSON.parse(JSON.stringify(vtMorph))     : null,
+    aivr:   aivrMorph   ? JSON.parse(JSON.stringify(aivrMorph))   : null,
+    svt:    svtMorph    ? JSON.parse(JSON.stringify(svtMorph))    : null,
+    af:     afMorph     ? JSON.parse(JSON.stringify(afMorph))     : null,
+    deg1PR: state       ? state.deg1PR                            : null,
+  };
+}
+
+function applySeed(seed){
+  if (!seed) return;
+  if (seed.sinus){ sinusMorph = seed.sinus; MORPH.nsr = buildSinusWithAVR(getSinusParams()); MORPH.stach = MORPH.nsr; MORPH.sbrad = MORPH.nsr; }
+  if (seed.vt)   { vtMorph   = seed.vt;    MORPH.vt  = buildVT();   MORPH.aivr = MORPH.vt; }
+  if (seed.aivr) { aivrMorph = seed.aivr;  MORPH.aivr = buildAIVR(); }
+  if (seed.svt)  { svtMorph  = seed.svt;   MORPH.svt  = buildSVT();  }
+  if (seed.af)   { afMorph   = seed.af;    MORPH.af   = buildAF();   }
+  if (seed.deg1PR != null){ state.deg1PR = seed.deg1PR; stripState.deg1PR = seed.deg1PR; }
+}
+
 function setRhythm(key, _bpmOverride, _bbbOverride){
   currentKey=key;
   state=makeState();
@@ -2072,6 +2100,8 @@ function doCapture() {
     // Expose internals to ECGEngine instance
     _self._pub.rhythms      = RHYTHMS;
     _self._pub.setRhythm    = setRhythm;
+    _self._pub.getMorphSeed = getMorphSeed;
+    _self._pub.applySeed    = applySeed;
     _self._pub.setTheme     = setTheme;
     _self._pub.setBBB       = setBBB;
     _self._pub.onSlider     = onSlider;
