@@ -388,12 +388,12 @@ function applyBBB(raw,t,lead){
     const lat  = ['I','aVL','V5','V6'].includes(l);
 
     if(v12){
-      // Replace V1/V2 entirely with RSR' morphology:
-      // Small initial r at 118ms, dip to near-baseline, then tall R' at 198ms, inverted T
-      const initR  =  gauss(t, 118, 9,  28);   // initial r — moderate height
-      const midDip = -gauss(t, 158, 10, 14);   // S dip between the two peaks
-      const rPrime =  gauss(t, 198, 12, 42);   // R' — taller than initial r (classic RBBB)
-      const invT   = -gauss(t, T_PEAK, T_WIDTH, 18); // discordant T inversion
+      // RSR' in V1/V2: small initial r, deep S to near-baseline, then dominant R'
+      // Initial r must be clearly smaller than R' for classic rabbit ears appearance
+      const initR  =  gauss(t, 115, 8,  14);   // small initial r
+      const midDip = -gauss(t, 155, 10, 22);   // deep S — pulls close to baseline between peaks
+      const rPrime =  gauss(t, 196, 11, 48);   // dominant R' — clearly taller than initial r
+      const invT   = -gauss(t, T_PEAK, T_WIDTH, 20); // discordant T inversion
       return initR + midDip + rPrime + invT;
     }
     if(v3v4){
