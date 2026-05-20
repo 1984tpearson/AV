@@ -2169,11 +2169,6 @@ function loadScenario(id) {
   rowStates = {}; sectionScores = {}; kqScores = {};
   resetTimer();
 
-  // Reset monitor session — new scenario needs a fresh session
-  _patientSessionCode = null;
-  _sessionRevealed = {};
-  _pendingRevealKey = null;
-
   document.querySelectorAll('.scenario-item').forEach(el => el.classList.remove('active'));
   const si = document.getElementById('si-'+id);
   if (si) si.classList.add('active');
@@ -2200,9 +2195,12 @@ function loadScenario(id) {
 
       const mapped = ECGEngine.mapRhythm(rhythm, hr);
 
+      const le = document.getElementById('assessor-12lead-'+id);
       try {
         const _ecgInst = new ECGEngine(le, {mode:'12lead', theme:'paper'});
         _ecgInst.setRhythm(mapped.key, mapped.bpm, mapped.bbbMode);
+        // Capture morph seed so assessor live view renders identically
+        if (!_ecgSeeds[id]) _ecgSeeds[id] = _ecgInst.getMorphSeed();
       } catch(e) { console.warn('12-lead ECG:', e); }
     });
   }, 300);
@@ -3064,18 +3062,10 @@ function renderSection1(s, isTrauma) {
           ${mkSubRow('etco2',`EtCO₂<span class="vital-hint" style="background:${etco2Abn ? 'var(--amber)' : 'var(--grey)'}">${etco2Hint}</span>`, '','','','adjuncts')}`;
           })()}
           ${(()=>{
-            const rhythmStr = (s.vitals&&s.vitals.Rhythm)||'';
-            const hr = parseInt((s.vitals&&s.vitals.HR)||72)||72;
-            if (!rhythmStr) return mkRow('monitor','Monitor / ECG');
-            const ecg = getECGImage(s.vitals&&s.vitals.Rhythm);
-            const realBtn = ecg ? `<button onclick="openECGLightbox('${ecg.url.replace(/'/g,"\\'")}','${(ecg.label||'').replace(/'/g,"\\'")}');event.stopPropagation();" style="font-size:10px;padding:3px 8px;border:1px solid #ccc;background:white;border-radius:4px;cursor:pointer;color:#003366;">📷 Real ECG</button>` : '';
-            const monitorBtns = `<span style="display:inline-flex;gap:5px;align-items:center;margin-left:8px;">
-              <button onclick="sendLeadIIToMonitor(event)" id="rb-LeadII" style="font-size:10px;padding:3px 9px;border:1px solid var(--navy);background:white;border-radius:4px;cursor:pointer;color:var(--navy);font-weight:600;">📡 Lead II</button>
-              <button onclick="send12LeadToMonitor(event)" id="rb-ECG" style="font-size:10px;padding:3px 9px;border:1px solid var(--navy);background:white;border-radius:4px;cursor:pointer;color:var(--navy);font-weight:600;">📡 12-Lead</button>
-              ${realBtn}
-            </span>`;
+            const ecgM = getECGImage(s.vitals&&s.vitals.Rhythm);
+            const realBtnM = ecgM ? `<button onclick="openECGLightbox('\${ecgM.url.replace(/'/g,"\\\\'")}','\${(ecgM.label||'').replace(/'/g,"\\\\'")}');event.stopPropagation();" style="font-size:10px;padding:3px 8px;border:1px solid #ccc;background:white;border-radius:4px;cursor:pointer;color:#003366;">📷 Real ECG</button>` : '';
             return `<tr data-row-id="monitor">
-              <td class="elem-label" style="display:flex;align-items:center;flex-wrap:wrap;gap:4px;">Monitor / ECG${monitorBtns}</td>
+              <td class="elem-label" style="display:flex;align-items:center;flex-wrap:wrap;gap:4px;">Monitor / ECG<span style="display:inline-flex;gap:5px;align-items:center;margin-left:8px;"><button onclick="sendLeadIIToMonitor(event)" id="rb-LeadII" style="font-size:10px;padding:3px 9px;border:1px solid var(--navy);background:white;border-radius:4px;cursor:pointer;color:var(--navy);font-weight:600;">📲 Send Lead II</button><button onclick="send12LeadToMonitor(event)" id="rb-ECG" style="font-size:10px;padding:3px 9px;border:1px solid var(--navy);background:white;border-radius:4px;cursor:pointer;color:var(--navy);font-weight:600;">📲 Send 12-Lead</button>${realBtnM}</span></td>
               <td class="tick-col">${mkTick('monitor','prompted','Prompting Required')}</td>
               <td class="tick-col">${mkTick('monitor','incomplete','Incomplete/Incorrect')}</td>
               <td class="tick-col">${mkTick('monitor','complete','All Complete')}</td>
@@ -3089,8 +3079,14 @@ function renderSection1(s, isTrauma) {
         const rhythmStr = (s.vitals&&s.vitals.Rhythm)||'';
         const hr = parseInt((s.vitals&&s.vitals.HR)||72)||72;
         if (!rhythmStr) return '';
+        const ecg = getECGImage(s.vitals&&s.vitals.Rhythm);
+        const realBtn = ecg ? `<button onclick="openECGLightbox('${ecg.url.replace(/'/g,"\\'")}','${(ecg.label||'').replace(/'/g,"\\'")}');event.stopPropagation();" style="font-size:10px;padding:3px 8px;border:1px solid #ccc;background:white;border-radius:4px;cursor:pointer;color:#003366;">📷 Real ECG</button>` : '';
         return `<div style="margin:10px 0 4px;">
-          <div style="font-size:11px;font-weight:700;color:var(--grey);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:4px;">📈 Live ECG — ${rhythmStr} @ ${hr} BPM</div>
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+            <span style="font-size:11px;font-weight:700;color:var(--grey);text-transform:uppercase;letter-spacing:0.6px;">📈 Live ECG — ${rhythmStr} @ ${hr} BPM</span>
+            ${realBtn}
+          </div>
+
           <div id="assessor-12lead-${s.id}" style="width:100%;max-width:100%;background:#faf7f2;border-radius:4px;overflow:hidden;margin-top:3px;display:block;" data-rhythm="${rhythmStr.replace(/"/g,'&quot;')}" data-hr="${hr}"></div>
           <div style="font-size:10px;color:var(--grey);font-style:italic;margin-top:4px;">⚠ Animated ECG is a simulation. Use Real ECG for teaching pattern recognition.</div>
         </div>`;
@@ -3291,7 +3287,11 @@ function _monitorRevealOnComplete(rowId, type, isActive) {
   const vitalKey = ROW_TO_VITAL[rowId];
   if (!vitalKey) return;
   if (type === 'complete' && isActive) {
+    // Complete ticked — reveal vital on monitor
     toggleReveal(vitalKey, true);
+  } else if ((type === 'incomplete' && isActive) || (type === 'complete' && !isActive)) {
+    // Incomplete ticked OR complete unticked — hide vital from monitor
+    toggleReveal(vitalKey, false);
   }
 }
 
@@ -5416,6 +5416,8 @@ async function openPatientSessionModal() {
     _sessionRevealed = {};
 
     const { uuid } = getIdentity();
+    // Include ECG morph seed so student monitor renders same presentation
+    const _startSeed = _ecgSeeds[String(currentScenario.id)] || null;
     await sbFetch('active_sessions', {
       method: 'POST',
       prefer: 'return=minimal',
@@ -5423,9 +5425,10 @@ async function openPatientSessionModal() {
         session_code: code,
         scenario_id: String(currentScenario.id),
         assessor_uuid: uuid,
-        revealed: {}
+        revealed: _startSeed ? { ecgSeed: _startSeed } : {}
       })
     });
+    if (_startSeed) _sessionRevealed['ecgSeed'] = _startSeed;
 
     document.getElementById('psm-code').textContent = code;
     const patientUrl = `https://1984tpearson.github.io/AV/monitor.html?session=${code}`;
@@ -5485,47 +5488,6 @@ function updateRevealBtnState(key, revealed) {
   }
 }
 
-async function sendLeadIIToMonitor(event) {
-  if (event) event.stopPropagation();
-  // Ensure session is active first
-  if (!_patientSessionCode) {
-    _pendingRevealKey = 'LeadII';
-    await openPatientSessionModal();
-    return;
-  }
-  const isRevealed = !!_sessionRevealed['LeadII'];
-  await toggleReveal('LeadII', !isRevealed);
-  // Visual feedback on button
-  const btn = document.getElementById('rb-LeadII');
-  if (btn) {
-    btn.style.background = _sessionRevealed['LeadII'] ? 'var(--navy)' : 'white';
-    btn.style.color = _sessionRevealed['LeadII'] ? 'white' : 'var(--navy)';
-  }
-}
-
-async function send12LeadToMonitor(event) {
-  if (event) event.stopPropagation();
-  // Ensure session is active first
-  if (!_patientSessionCode) {
-    _pendingRevealKey = 'ECG';
-    await openPatientSessionModal();
-    return;
-  }
-  const isRevealed = !!_sessionRevealed['ECG'];
-  await toggleReveal('ECG', !isRevealed);
-  // 12-lead also implies Lead II strip — send both
-  if (!isRevealed && !_sessionRevealed['LeadII']) {
-    await toggleReveal('LeadII', true);
-    const leadIIBtn = document.getElementById('rb-LeadII');
-    if (leadIIBtn) { leadIIBtn.style.background = 'var(--navy)'; leadIIBtn.style.color = 'white'; }
-  }
-  const btn = document.getElementById('rb-ECG');
-  if (btn) {
-    btn.style.background = _sessionRevealed['ECG'] ? 'var(--navy)' : 'white';
-    btn.style.color = _sessionRevealed['ECG'] ? 'white' : 'var(--navy)';
-  }
-}
-
 function refreshAllRevealBtns() {
   // Re-apply button states after scenario re-render (e.g. loadScenario)
   if (!_patientSessionCode) return;
@@ -5540,8 +5502,30 @@ function closePatientSessionModal() {
   // Session stays alive — don't clear _patientSessionCode
 }
 
-const _psm = document.getElementById('patient-session-modal');
-if (_psm) _psm.addEventListener('click', e => {
+async function sendLeadIIToMonitor(event) {
+  if (event) event.stopPropagation();
+  if (!_patientSessionCode) { _pendingRevealKey = 'LeadII'; await openPatientSessionModal(); return; }
+  const isRevealed = !!_sessionRevealed['LeadII'];
+  await toggleReveal('LeadII', !isRevealed);
+  const btn = document.getElementById('rb-LeadII');
+  if (btn) { btn.style.background = _sessionRevealed['LeadII'] ? 'var(--navy)' : 'white'; btn.style.color = _sessionRevealed['LeadII'] ? 'white' : 'var(--navy)'; }
+}
+
+async function send12LeadToMonitor(event) {
+  if (event) event.stopPropagation();
+  if (!_patientSessionCode) { _pendingRevealKey = 'ECG'; await openPatientSessionModal(); return; }
+  const isRevealed = !!_sessionRevealed['ECG'];
+  await toggleReveal('ECG', !isRevealed);
+  if (!isRevealed && !_sessionRevealed['LeadII']) {
+    await toggleReveal('LeadII', true);
+    const lb = document.getElementById('rb-LeadII');
+    if (lb) { lb.style.background = 'var(--navy)'; lb.style.color = 'white'; }
+  }
+  const btn = document.getElementById('rb-ECG');
+  if (btn) { btn.style.background = _sessionRevealed['ECG'] ? 'var(--navy)' : 'white'; btn.style.color = _sessionRevealed['ECG'] ? 'white' : 'var(--navy)'; }
+}
+
+document.getElementById('patient-session-modal').addEventListener('click', e => {
   if (e.target === document.getElementById('patient-session-modal')) closePatientSessionModal();
 });
 
@@ -6027,6 +6011,7 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape') closeECGLigh
 let _assessorStrip = null;
 let _assessorLead  = null;
 let _assessorRhythmKey = null;
+const _ecgSeeds = {};  // keyed by scenario id — morph seed captured after first render
 
 function initAssessorECG(rhythmStr, hr) {
   if (!rhythmStr) return;
@@ -6043,6 +6028,8 @@ function initAssessorECG(rhythmStr, hr) {
     stripEl.style.height = '110px';
     _assessorStrip = new ECGEngine(stripEl, { mode: 'strip', theme: 'paper' });
     _assessorStrip.setRhythm(mapped.key, mapped.bpm, mapped.bbbMode);
+    const _seed = currentScenario && _ecgSeeds[String(currentScenario.id)];
+    if (_seed) _assessorStrip.applySeed(_seed);
   }
 
   // 12-lead — paper theme
@@ -6051,6 +6038,7 @@ function initAssessorECG(rhythmStr, hr) {
     if (_assessorLead) _assessorLead.destroy();
     _assessorLead = new ECGEngine(leadEl, { mode: '12lead', theme: 'paper' });
     _assessorLead.setRhythm(mapped.key, mapped.bpm, mapped.bbbMode);
+    if (_seed) _assessorLead.applySeed(_seed);
   }
 
   // Show real ECG link
