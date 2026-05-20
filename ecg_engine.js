@@ -1298,25 +1298,32 @@ function computeSamples(s, dtMs, bpm, key){
       }
 
       if(key==='wpw'){
-        // WPW: short PR, delta wave IS the slurred upstroke of the QRS — not a separate wave
-        // Achieved by replacing the sharp R gaussian with a two-part ramp:
-        //   1) a broad low-amplitude gaussian (the delta slur) from ~80-120ms
-        //   2) the sharp R peak on top, slightly widened and shifted right
-        // Net result: a single widened complex with a noticeably slurred initial upstroke
-        const pol    = sc < 0 ? -1 : 1;
-        const rAmp   = R_AMP * patient.rAmp * Math.abs(sc);
-        const sAmp   = S_AMP * patient.rAmp * Math.abs(sc);
-        // Delta slur: same polarity as R, broad, low — forms the foot of the QRS
-        const deltaSlur = gauss(ms, 105, 28, rAmp * 0.28) * pol;
-        // R peak: shifted slightly right (140ms), narrower so it sits on top of the slur
-        const rPeak  = gauss(ms, 140, 9, rAmp * 0.85) * pol;
-        // S wave: slightly widened QRS so S at 172ms
-        const sWave  = -gauss(ms, 172, 8, sAmp) * pol;
-        // P wave: normal position, short PR means it sits just before the delta slur
-        const pWave  = gauss(ms, P_PEAK, P_WIDTH, P_AMP*patient.pAmp*Math.abs(sc)) * pol;
-        // Discordant T: opposite polarity to QRS
-        const tWave  = gauss(ms, 340, 60, T_AMP*0.85*patient.tAmp*Math.abs(sc)) * -pol;
-        base = pWave + deltaSlur + rPeak + sWave + tWave;
+        // WPW: piecewise QRS — slow delta ramp accelerating into sharp R peak
+        // Single continuous shape: no separate bumps
+        // Timeline: P@40ms, delta starts ~80ms, R peak ~148ms, S ~175ms, T @340ms
+        const pol  = sc < 0 ? -1 : 1;
+        const rAmp = R_AMP * patient.rAmp * Math.abs(sc);
+        const sAmp = S_AMP * patient.rAmp * Math.abs(sc) * 0.9;
+        // Piecewise QRS: 80-148ms rising (slow then fast), 148-175ms falling to S
+        const qrsStart = 80, rPeak = 148, sVal = 175;
+        let qrs = 0;
+        if (ms >= qrsStart && ms < rPeak) {
+          const frac = (ms - qrsStart) / (rPeak - qrsStart); // 0->1
+          // Power curve: slow start (delta), accelerates to peak — exponent < 1 = concave up
+          qrs = rAmp * Math.pow(frac, 0.45);
+        } else if (ms >= rPeak && ms < sVal) {
+          const frac = (ms - rPeak) / (sVal - rPeak);
+          // Fast fall from peak to S trough
+          qrs = rAmp * (1 - frac) - sAmp * frac;
+        } else if (ms >= sVal && ms < sVal + 25) {
+          const frac = (ms - sVal) / 25;
+          // Return from S trough to baseline
+          qrs = -sAmp * (1 - frac);
+        }
+        // P wave normal, discordant T
+        const pWave = gauss(ms, P_PEAK, P_WIDTH, P_AMP*patient.pAmp*Math.abs(sc)) * pol;
+        const tWave = gauss(ms, 340, 60, T_AMP*0.85*patient.tAmp*Math.abs(sc)) * -pol;
+        base = pWave + qrs * pol + tWave;
         out[n] = base; return;
       }
 
