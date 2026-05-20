@@ -352,24 +352,55 @@ let bbbMode='none';
 function applyBBB(raw,t,lead){
   if(bbbMode==='none') return raw;
   const l=lead||'II';
+
   if(bbbMode==='lbbb'){
-    const lat=['I','V5','V6','aVL'].includes(l);
-    const sep=['V1','V2'].includes(l);
-    if(t>105&&t<200){
-      if(lat) raw+=gauss(t,148,8,-18);
-      if(sep) raw=-gauss(t,145,35,35);
+    // LBBB: broad slurred R in lateral leads, deep QS in V1/V2, discordant T
+    const lateral = ['I','aVL','V5','V6'].includes(l);
+    const septal  = ['V1','V2'].includes(l);
+    const trans   = ['V3','V4'].includes(l);
+
+    if(septal){
+      // Replace V1/V2 with deep broad QS — no R wave
+      return -gauss(t,148,28,55) + gauss(t,320,55,-12);
     }
-    if(t>280&&t<420&&lat) raw*=-0.9;
-    return raw;
+    if(lateral){
+      // Broad notched R: widen the QRS, add notch, remove septal Q, invert T
+      // Remove sharp R, add broad slurred R with notch
+      const broadR = gauss(t,138,18,52) + gauss(t,162,14,32); // two-hump broad R
+      const noQ    = -gauss(t,110,6,0);   // suppress Q (no septal activation)
+      const invT   = -gauss(t,T_PEAK,T_WIDTH,18); // discordant T
+      // Replace original QRS+T with LBBB morphology
+      return broadR + noQ + invT;
+    }
+    if(trans){
+      // Transitional: slight broadening, reduced amplitude
+      return raw * 0.85 + gauss(t,155,20,12);
+    }
+    // aVF, II, III: slightly prolonged, otherwise similar
+    return raw * 0.92 + gauss(t,148,14,8);
   }
+
   if(bbbMode==='rbbb'){
-    if(['V1','V2'].includes(l)){
-      raw+=gauss(t,195,18,28);
-      if(t>280&&t<420) raw*=-.85;
+    // RBBB: RSR' in V1/V2, wide slurred S in I/V5/V6, T inversion in V1/V2
+    const v12  = ['V1','V2'].includes(l);
+    const lat  = ['I','aVL','V5','V6'].includes(l);
+
+    if(v12){
+      // RSR': add prominent R' (terminal R) after the QRS
+      const rPrime = gauss(t,195,14,35);   // R' at 195ms — clearly visible
+      const invT   = -gauss(t,T_PEAK,T_WIDTH,16); // discordant T inversion
+      // Reduce original R slightly (rS pattern) then add R'
+      return raw * 0.55 + rPrime + invT;
     }
-    if(['I','V5','V6','aVL'].includes(l)) raw+=gauss(t,185,22,-20);
-    return raw;
+    if(lat){
+      // Wide slurred terminal S wave — negative deflection after QRS
+      const termS = -gauss(t,190,16,22);   // terminal S at 190ms
+      return raw + termS;
+    }
+    // Other leads: minor widening
+    return raw * 0.95;
   }
+
   return raw;
 }
 
