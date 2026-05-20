@@ -381,24 +381,32 @@ function applyBBB(raw,t,lead){
   }
 
   if(bbbMode==='rbbb'){
-    // RBBB: RSR' in V1/V2, wide slurred S in I/V5/V6, T inversion in V1/V2
+    // RBBB: RSR' rabbit ears in V1/V2, wide slurred S in lateral leads
+    // Key: R and R' must be clearly separated with a visible dip between them
     const v12  = ['V1','V2'].includes(l);
+    const v3v4 = ['V3','V4'].includes(l);
     const lat  = ['I','aVL','V5','V6'].includes(l);
 
     if(v12){
-      // RSR': add prominent R' (terminal R) after the QRS
-      const rPrime = gauss(t,195,14,35);   // R' at 195ms — clearly visible
-      const invT   = -gauss(t,T_PEAK,T_WIDTH,16); // discordant T inversion
-      // Reduce original R slightly (rS pattern) then add R'
-      return raw * 0.55 + rPrime + invT;
+      // Replace V1/V2 entirely with RSR' morphology:
+      // Small initial r at 118ms, dip to near-baseline, then tall R' at 198ms, inverted T
+      const initR  =  gauss(t, 118, 9,  28);   // initial r — moderate height
+      const midDip = -gauss(t, 158, 10, 14);   // S dip between the two peaks
+      const rPrime =  gauss(t, 198, 12, 42);   // R' — taller than initial r (classic RBBB)
+      const invT   = -gauss(t, T_PEAK, T_WIDTH, 18); // discordant T inversion
+      return initR + midDip + rPrime + invT;
+    }
+    if(v3v4){
+      // Transitional: slightly widened with small terminal S
+      return raw * 0.9 - gauss(t, 188, 14, 12);
     }
     if(lat){
-      // Wide slurred terminal S wave — negative deflection after QRS
-      const termS = -gauss(t,190,16,22);   // terminal S at 190ms
+      // Wide slurred terminal S: deep and broad, clearly extending QRS rightward
+      const termS = -gauss(t, 192, 18, 30);   // deep S at 192ms — wide and prominent
       return raw + termS;
     }
-    // Other leads: minor widening
-    return raw * 0.95;
+    // II, III, aVF: slight widening only
+    return raw * 0.95 + gauss(t, 185, 14, 6);
   }
 
   return raw;
