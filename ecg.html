@@ -181,7 +181,8 @@ window.addEventListener('DOMContentLoaded', () => {
     theme: 'monitor',
     showControls: false,
   });
-  setRhythm('nsr');
+  // Short delay to ensure engine _pub is fully initialised before syncing UI
+  setTimeout(() => setRhythm('nsr'), 100);
 });
 
 function setRhythm(key) {
