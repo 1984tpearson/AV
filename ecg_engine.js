@@ -1755,14 +1755,15 @@ function redrawAllTraces() {
 
 function renderTraceOn(ctx,data,W,hX,erasePx){
   const startX=(hX+erasePx)%W;
-  // Glow
+  // Glow — use butt cap to avoid bright dots at canvas wrap seam
   ctx.strokeStyle=window._traceGlow||'rgba(0,255,136,0.18)';
   ctx.lineWidth=3;
-  ctx.lineJoin='round';ctx.lineCap='round';
+  ctx.lineJoin='round';ctx.lineCap='butt';
   _drawPath(ctx,data,W,startX,erasePx);
   // Line
   ctx.strokeStyle=window._traceColour||'#00ff88';
   ctx.lineWidth=window._traceWidth||1.5;
+  ctx.lineCap='butt';
   _drawPath(ctx,data,W,startX,erasePx);
 }
 
