@@ -448,7 +448,7 @@ function generateVTMorph() {
 function vtComplex(t, beatVar) {
   const v  = beatVar || 0;
   const m  = vtMorph;
-  const period = 290 * m.widthScale;
+  const period = 220 * m.widthScale;  // 220ms base — tighter than VT (290ms)
   if (t <= 0 || t >= period) return 0;
   const ph = t / period;
   const ampScale = 1.0 + v * 0.14;
@@ -711,8 +711,8 @@ function generateAIVRMorph() {
   const r = Math.random;
   // Axis type: LBBB-like (RV pacemaker, more common) vs RBBB-like (LV pacemaker)
   const isLBBB     = r() < 0.60;
-  // Width: slightly less bizarre than VT
-  const widthScale = 0.75 + r() * 0.30;        // 0.75–1.05× (VT is 0.82–1.20)
+  // Width: tighter than VT — AIVR is wide but not as extreme
+  const widthScale = 0.65 + r() * 0.25;        // 0.65–0.90× (narrower than VT's 0.82–1.20)
   // Peak amplitude
   const peakAmp    = 48 + r() * 22;            // 48–70px
   const negAmp     = 35 + r() * 25;            // 35–60px
@@ -755,7 +755,17 @@ function aivrComplex(t, beatVar, invert) {
   } else {
     const neg = 1.0 - zc;
     const frac = (ph - zc) / neg;
-    y = -nA * Math.pow(Math.sin(frac * Math.PI), 1.0 - negShape * 0.5);
+    // Sharp asymmetric descent: steep initial drop (power < 1), flatter return to baseline
+    // negShape: 0 = very sharp drop, 1 = slightly less sharp
+    const sharpness = 0.35 + negShape * 0.30;   // 0.35–0.65 — always sub-1 for sharp entry
+    if (frac < 0.45) {
+      // Steep descent phase
+      y = -nA * Math.pow(frac / 0.45, sharpness);
+    } else {
+      // Flatter return to baseline
+      const r2 = (frac - 0.45) / 0.55;
+      y = -nA * (1.0 - Math.pow(r2, 0.6));
+    }
   }
   return invert ? -y : y;
 }
