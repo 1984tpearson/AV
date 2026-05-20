@@ -1195,6 +1195,42 @@ function computeSamples(s, dtMs, bpm, key){
     return out;
   }
 
+  // ---- PVC Bigeminy: alternating sinus beat / PVC ----
+  // s.pvcBeat: 0=sinus, 1=PVC
+  // Coupling interval ~70-80% of RR; compensatory pause makes total 2×RR
+  if(key==='pvc'){
+    const rr = 60000/bpm;
+    const coupling  = rr * 0.72;   // PVC fires at ~72% of normal RR
+    const totalCycle = rr * 2;     // bigeminy pair = 2 normal RR lengths
+    if(s.pvcBeat === undefined){ s.pvcBeat=0; s.ms=0; }
+    const prev = s.ms;
+    s.ms = (s.ms + dtMs) % totalCycle;
+    // Detect cycle wrap — flip beat type
+    if(prev > s.ms){ s.pvcBeat = (s.pvcBeat + 1) % 2; }
+    const ms = s.ms;
+    leads.forEach(n=>{
+      let y = 0;
+      if(s.pvcBeat === 0){
+        // Normal sinus beat — full sinus morphology
+        const fn = MORPH.nsr[n];
+        y = fn ? fn(ms) * patient.rAmp : 0;
+      } else {
+        // PVC — wide bizarre ventricular complex using vtComplex
+        // Fires at coupling interval offset, compensatory pause fills rest
+        const pvcMs = ms - coupling;
+        if(pvcMs >= 0){
+          const fn = MORPH.vt[n];
+          y = fn ? fn(pvcMs, s.vtVar||0) * 0.90 : 0;
+        }
+        // No P wave during PVC (AV dissociation)
+      }
+      out[n] = y;
+    });
+    // Small beat-to-beat variation on PVC
+    if(prev > s.ms && s.pvcBeat === 1) s.vtVar = (Math.random()-0.5)*0.5;
+    return out;
+  }
+
   // STEMI family — NSR morphology with ST/T overlay per territory
   if(key.startsWith('stemi')){
     const rr=60000/bpm;
@@ -1241,7 +1277,7 @@ function computeSamples(s, dtMs, bpm, key){
   }
 
   // Extended rhythm family — morphology modifications on sinus base
-  if(['deg1','junct','wpw','pvc','hyperK','hypoK','longQT','peri','nstemi','pe','brugada'].includes(key)){
+  if(['deg1','junct','wpw','hyperK','hypoK','longQT','peri','nstemi','pe','brugada'].includes(key)){
     const rr=60000/bpm;
     s.ms=(s.ms+dtMs)%rr;
     const ms=s.ms;
@@ -1548,6 +1584,9 @@ function draw(ts){
         const x=stripHead%STRIP_W;
         const stripBBB=applyBBB(samples['II'],stripState.ms,'II');
         traceData['strip'][x]=MID_STRIP-(stripBBB*patient.ampScale+sampleNoise()*0.5);
+        spikeData['strip'][x]=0;
+        if(stripState.spikeA){ spikeData['strip'][x]=1; stripState.spikeA=false; }
+        if(stripState.spikeV){ spikeData['strip'][x]=(spikeData['strip'][x]===1)?3:2; stripState.spikeV=false; }
         stripHead=(stripHead+1)%STRIP_W;
         doCapture(); // now freeze everything and flash
         break;
@@ -1556,6 +1595,10 @@ function draw(ts){
       const x=stripHead%STRIP_W;
       const stripBBB=applyBBB(samples['II'],stripState.ms,'II');
       traceData['strip'][x]=MID_STRIP-(stripBBB*patient.ampScale+sampleNoise()*0.5);
+      // Mirror pacing spikes to strip
+      spikeData['strip'][x]=0;
+      if(stripState.spikeA){ spikeData['strip'][x]=1; stripState.spikeA=false; }
+      if(stripState.spikeV){ spikeData['strip'][x]=(spikeData['strip'][x]===1)?3:2; stripState.spikeV=false; }
       stripHead=(stripHead+1)%STRIP_W;
     }
   }
