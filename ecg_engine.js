@@ -1004,7 +1004,7 @@ MORPH['stemi-post'] = buildSTEMI({
 // One global state shared (all leads advance in lockstep)
 // =====================================================================
 function makeState(){
-  return {ms:0,beat:0,pMs:0,vfT:0,flutMs:0,afRR:550,noiseY:0,noiseV:0,
+  return {ms:0,beat:0,pMs:0,vfT:0,flutMs:0,afRR:550,noiseY:0,noiseV:0,pvcBeat:0,pvcMs:0,
           // per-lead independent noise for AF/asystole
           noise:{},
   };
@@ -1196,38 +1196,38 @@ function computeSamples(s, dtMs, bpm, key){
   }
 
   // ---- PVC Bigeminy: alternating sinus beat / PVC ----
-  // s.pvcBeat: 0=sinus, 1=PVC
-  // Coupling interval ~70-80% of RR; compensatory pause makes total 2×RR
+  // Uses two independent ms counters: pvcMs tracks position within current beat
+  // pvcBeat: 0=sinus interval (normal RR), 1=PVC interval (coupling + compensatory pause)
   if(key==='pvc'){
-    const rr = 60000/bpm;
-    const coupling  = rr * 0.72;   // PVC fires at ~72% of normal RR
-    const totalCycle = rr * 2;     // bigeminy pair = 2 normal RR lengths
-    if(s.pvcBeat === undefined){ s.pvcBeat=0; s.ms=0; }
-    const prev = s.ms;
-    s.ms = (s.ms + dtMs) % totalCycle;
-    // Detect cycle wrap — flip beat type
-    if(prev > s.ms){ s.pvcBeat = (s.pvcBeat + 1) % 2; }
-    const ms = s.ms;
+    const rr       = 60000/bpm;
+    const coupling = rr * 0.72;        // PVC fires early — 72% of normal RR
+    const compPause= rr * 1.28;        // compensatory pause — total sinus+PVC pair = 2×RR
+    const interval = s.pvcBeat===0 ? rr : compPause;
+    const prev = s.pvcMs;
+    s.pvcMs += dtMs;
+    if(s.pvcMs >= interval){
+      // Advance to next beat type
+      s.pvcMs -= interval;
+      s.pvcBeat = (s.pvcBeat + 1) % 2;
+      if(s.pvcBeat === 1) s.vtVar = (Math.random()-0.5)*0.5;
+    }
+    const ms = s.pvcMs;
     leads.forEach(n=>{
       let y = 0;
       if(s.pvcBeat === 0){
-        // Normal sinus beat — full sinus morphology
+        // Normal sinus beat
         const fn = MORPH.nsr[n];
-        y = fn ? fn(ms) * patient.rAmp : 0;
+        y = fn ? fn(ms) : 0;
       } else {
-        // PVC — wide bizarre ventricular complex using vtComplex
-        // Fires at coupling interval offset, compensatory pause fills rest
-        const pvcMs = ms - coupling;
+        // PVC fires at coupling interval within the compensatory pause period
+        const pvcMs = ms - (compPause - rr); // offset so PVC starts after coupling gap
         if(pvcMs >= 0){
           const fn = MORPH.vt[n];
           y = fn ? fn(pvcMs, s.vtVar||0) * 0.90 : 0;
         }
-        // No P wave during PVC (AV dissociation)
       }
       out[n] = y;
     });
-    // Small beat-to-beat variation on PVC
-    if(prev > s.ms && s.pvcBeat === 1) s.vtVar = (Math.random()-0.5)*0.5;
     return out;
   }
 
