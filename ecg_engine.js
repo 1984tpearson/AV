@@ -1309,8 +1309,16 @@ function computeSamples(s, dtMs, bpm, key){
         let qrs = 0;
         if (ms >= qrsStart && ms < rPeak) {
           const frac = (ms - qrsStart) / (rPeak - qrsStart); // 0->1
-          // Power curve: slow start (delta), accelerates to peak — exponent < 1 = concave up
-          qrs = rAmp * Math.pow(frac, 0.45);
+          // Piecewise: flat shallow ramp for first 55%, then sharp acceleration to peak
+          // This gives: gentle slope (delta) then sudden steep upstroke
+          if (frac < 0.55) {
+            // Delta phase: nearly flat, very low angle
+            qrs = rAmp * frac * 0.18;
+          } else {
+            // Steep phase: sharp rise from delta level to peak
+            const f2 = (frac - 0.55) / 0.45;
+            qrs = rAmp * (0.55 * 0.18 + (1 - 0.55 * 0.18) * Math.pow(f2, 1.8));
+          }
         } else if (ms >= rPeak && ms < sVal) {
           const frac = (ms - rPeak) / (sVal - rPeak);
           // Fast fall from peak to S trough
