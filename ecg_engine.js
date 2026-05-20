@@ -613,6 +613,33 @@ function buildSinus(params){
   return tbl;
 }
 
+// =============================================================
+// SINUS MORPHOLOGY GENERATOR — per-patient randomised variation
+// Applies to NSR, sinus tachy, sinus brady, PEA
+// Varies: QRS amplitude, T wave amplitude per region, P wave amp,
+//         T polarity in V1, precordial R wave progression
+// All within normal limits — no axis deviation, no ST changes
+// =============================================================
+let sinusMorph = generateSinusMorph();
+function generateSinusMorph() {
+  const r = Math.random;
+  // Overall QRS amplitude scale — body habitus, lead placement
+  const ampScale    = 0.80 + r() * 0.40;       // 0.80–1.20×
+  // P wave amplitude scale
+  const pScale      = 0.75 + r() * 0.50;       // 0.75–1.25×
+  // T wave amplitude per region
+  const tInferior   = 0.70 + r() * 0.60;       // II, III, aVF
+  const tLateral    = 0.70 + r() * 0.60;       // I, aVL, V5, V6
+  const tPrecordial = 0.60 + r() * 0.80;       // V2–V4 (most variable)
+  // T polarity in V1: inverted (~40%), upright (~60%) — both normal
+  const tV1pol      = r() < 0.40 ? -1 : 1;
+  // R wave progression in precordial leads — slight variation in transition zone
+  // rProgScale: 1.0 = normal, <1 = slower progression, >1 = faster
+  const rProg       = 0.85 + r() * 0.30;       // 0.85–1.15× on precordial R amps
+
+  return { ampScale, pScale, tInferior, tLateral, tPrecordial, tV1pol, rProg };
+}
+
 // Normal sinus rhythm / sinus tachy / sinus brady / PEA — same morphology, different rate
 // Lead morphology reference (normal axis ~60°):
 // I: upright P,R,T  II: tall upright (reference)  III: smaller upright
@@ -620,21 +647,28 @@ function buildSinus(params){
 // V1: rS pattern (small r, big S, biphasic/inverted P)
 // V2: rS (bigger r than V1)  V3: RS transition  V4: Rs (R>S)
 // V5: qRs (tallest R)  V6: qR (smaller R, small s)
-const sinusParams=[
- //pA  rA   sA   tA   tP
-  [8,  50,  6,   16,  1],  // I
-  [11, 68,  12,  22,  1],  // II (reference)
-  [6,  30,  4,   12,  1],  // III
-  [-8,-48, -5,  -16, -1],  // aVR (inverted: use negative P and negative T flip via tP=-1 but note sign)
-  [4,  20,  3,   8,   1],  // aVL (small)
-  [8,  45,  8,   18,  1],  // aVF
-  [-4, -8,  30,  -6, -1],  // V1: small r, deep S, inverted T (rS pattern, biphasic P → neg component)
-  [3,  12,  35,  4,   1],  // V2: small r, still deep S, upright T
-  [5,  32,  28,  12,  1],  // V3: transition (RS ≈ equal)
-  [6,  58,  18,  18,  1],  // V4: R>S
-  [5,  65,  10,  20,  1],  // V5: tallest R, small S
-  [5,  52,  6,   18,  1],  // V6: tall R, tiny S, small septal q
-];
+function getSinusParams() {
+  const m = sinusMorph;
+  const a = m.ampScale, p = m.pScale, rp = m.rProg;
+  // Base params scaled by morph — T amps use regional multipliers
+  // Format: [pAmp, rAmp, sAmp, tAmp, tPolarity]
+  return [
+   //pA          rA          sA        tA                    tP
+    [8*p,        50*a,       6*a,      16*m.tLateral,        1 ],  // I
+    [11*p,       68*a,       12*a,     22*m.tInferior,       1 ],  // II
+    [6*p,        30*a,       4*a,      12*m.tInferior,       1 ],  // III
+    [-8*p,      -48*a,      -5*a,     -16*m.tLateral,       -1 ],  // aVR
+    [4*p,        20*a,       3*a,      8*m.tLateral,         1 ],  // aVL
+    [8*p,        45*a,       8*a,      18*m.tInferior,       1 ],  // aVF
+    [-4*p,      -8*a,        30*a,    -6*m.tPrecordial,      m.tV1pol],  // V1
+    [3*p,        12*a*rp,    35*a,     4*m.tPrecordial,      1 ],  // V2
+    [5*p,        32*a*rp,    28*a,     12*m.tPrecordial,     1 ],  // V3
+    [6*p,        58*a*rp,    18*a,     18*m.tPrecordial,     1 ],  // V4
+    [5*p,        65*a,       10*a,     20*m.tLateral,        1 ],  // V5
+    [5*p,        52*a,       6*a,      18*m.tLateral,        1 ],  // V6
+  ];
+}
+const sinusParams = getSinusParams();
 
 // aVR special: whole thing inverted
 function buildSinusWithAVR(params){
@@ -650,7 +684,7 @@ function buildSinusWithAVR(params){
   };
   return t;
 }
-MORPH.nsr   = buildSinusWithAVR(sinusParams);
+MORPH.nsr   = buildSinusWithAVR(getSinusParams());
 MORPH.stach = MORPH.nsr;
 MORPH.sbrad = MORPH.nsr;
 
@@ -860,27 +894,52 @@ MORPH.chb = MORPH.vt; // morphology same, rate different — handled in engine
 
 // ---- AF: QRS morphology normal (same direction as sinus), no P, fibrillatory baseline ----
 // We reuse sinus QRS shape scaled per lead
-MORPH.af = (()=>{
-  const t={};
-  // Same QRS polarity/amplitude as sinus but no P wave, add noise externally
-  const afQRS=(rA,sA,tA,tP)=>(ms)=>{
-    let y=-gauss(ms,110,6,rA*.10)+gauss(ms,130,10,rA)-gauss(ms,155,6,sA)+tP*gauss(ms,290,50,tA);
+// =============================================================
+// AF MORPHOLOGY GENERATOR — per-patient randomised variation
+// QRS morphology same as sinus (narrow, no P), but:
+//   - QRS amplitude varies (body habitus)
+//   - T wave amplitude varies per region
+//   - Fibrillatory baseline amplitude is a per-patient parameter
+//     (coarse AF vs fine AF — most visible in V1)
+// =============================================================
+let afMorph = generateAFMorph();
+function generateAFMorph() {
+  const r = Math.random;
+  const ampScale  = 0.80 + r() * 0.40;    // 0.80–1.20× QRS amplitude
+  const tScale    = 0.60 + r() * 0.70;    // 0.60–1.30× T wave
+  // Fibrillatory baseline: coarse (prominent f-waves) vs fine (barely visible)
+  // Coarse ~30%, medium ~50%, fine ~20%
+  const fibClass  = r() < 0.30 ? 'coarse' : r() < 0.80 ? 'medium' : 'fine';
+  const fibAmp    = fibClass === 'coarse' ? 3.5 + r() * 1.5
+                  : fibClass === 'medium' ? 1.8 + r() * 1.2
+                  : 0.6 + r() * 0.6;
+  return { ampScale, tScale, fibAmp };
+}
+
+function buildAF() {
+  const t = {};
+  const m = afMorph;
+  const a = m.ampScale, ts = m.tScale;
+  const afQRS = (rA,sA,tA,tP) => (ms) => {
+    let y = -gauss(ms,110,6,rA*a*.10) + gauss(ms,130,10,rA*a)
+            - gauss(ms,155,6,sA*a) + tP*gauss(ms,290,50,tA*ts);
     return y;
   };
-  t['I']  =afQRS(50, 6,16, 1);
-  t['II'] =afQRS(56, 9,16, 1);
-  t['III']=afQRS(30, 4,10, 1);
-  t['aVR']=afQRS(-48,-5,-14,-1);
-  t['aVL']=afQRS(20, 3, 7, 1);
-  t['aVF']=afQRS(44, 7,14, 1);
-  t['V1'] =afQRS(-8,28,-5,-1);
-  t['V2'] =afQRS(12,32, 4, 1);
-  t['V3'] =afQRS(32,25,10, 1);
-  t['V4'] =afQRS(55,16,16, 1);
-  t['V5'] =afQRS(62, 9,18, 1);
-  t['V6'] =afQRS(50, 5,16, 1);
+  t['I']   = afQRS(50,  6,  16,  1);
+  t['II']  = afQRS(56,  9,  16,  1);
+  t['III'] = afQRS(30,  4,  10,  1);
+  t['aVR'] = afQRS(-48,-5, -14, -1);
+  t['aVL'] = afQRS(20,  3,   7,  1);
+  t['aVF'] = afQRS(44,  7,  14,  1);
+  t['V1']  = afQRS(-8, 28,  -5, -1);
+  t['V2']  = afQRS(12, 32,   4,  1);
+  t['V3']  = afQRS(32, 25,  10,  1);
+  t['V4']  = afQRS(55, 16,  16,  1);
+  t['V5']  = afQRS(62,  9,  18,  1);
+  t['V6']  = afQRS(50,  5,  16,  1);
   return t;
-})();
+}
+MORPH.af = buildAF();
 
 // ---- Atrial flutter: F-waves most prominent in inferior leads (II,III,aVF) ----
 // In V1: positive flutter waves (opposite to inferior leads for typical AFL)
@@ -1131,7 +1190,7 @@ function computeSamples(s, dtMs, bpm, key){
     // Tight mean-reverting noise — stays near isoelectric, no wandering baseline
     s.noiseV=(s.noiseV||0)+(Math.random()-.5)*.4; s.noiseV*=.75;
     s.noiseY=(s.noiseY||0)+s.noiseV; s.noiseY*=.82;
-    const fib=s.noiseY*2.5;
+    const fib=s.noiseY*(afMorph ? afMorph.fibAmp * 2.5 : 2.5);
     leads.forEach(n=>{
       const fn=MORPH.af[n];
       const qrs=fn?fn(s.ms):0;
@@ -1757,6 +1816,8 @@ function setRhythm(key, _bpmOverride, _bbbOverride){
   if(key==='vt') vtMorph=generateVTMorph();
   if(key==='aivr'){ aivrMorph=generateAIVRMorph(); MORPH.aivr=buildAIVR(); }
   if(key==='svt'){ svtMorph=generateSVTMorph(); MORPH.svt=buildSVT(); }
+  if(key==='af'){ afMorph=generateAFMorph(); MORPH.af=buildAF(); }
+  if(['nsr','stach','sbrad'].includes(key)){ sinusMorph=generateSinusMorph(); MORPH.nsr=buildSinusWithAVR(getSinusParams()); MORPH.stach=MORPH.nsr; MORPH.sbrad=MORPH.nsr; }
   if(key==='deg1'){
     // Randomise PR interval: 210-300ms standard, 20% chance of marked block 300-320ms
     const marked = Math.random() < 0.20;
