@@ -493,10 +493,53 @@ function escapeQRSMs(t){
 }
 // wideII: thin wrapper so lead morphology tables keep working
 function wideII(t,beatVar){ return vtComplex(t,beatVar||0); }
-// Narrow QRS (SVT) Lead II reference
-function narrowII(t){
-  // SVT: narrow QRS ms-based, T fixed at ~260ms
-  return -gauss(t,110,6,5)+gauss(t,130,9,72)-gauss(t,155,8,18)+gauss(t,260,45,14);
+// =============================================================
+// SVT MORPHOLOGY GENERATOR — per-patient randomised variation
+// Produces consistent morphology within a render, different each time
+// Models typical slow-fast AVNRT: narrow QRS, absent P, variable ST/T
+// =============================================================
+let svtMorph = generateSVTMorph();
+function generateSVTMorph() {
+  const r = Math.random;
+  // QRS amplitude scale — minor patient variation
+  const ampScale    = 0.88 + r() * 0.26;           // 0.88–1.14×
+  // ST depression: 0=isoelectric, 1=mild (~1mm), 2=moderate (~2.5mm)
+  // Weighted: 40% iso, 40% mild, 20% moderate — rate-related ST depression common in SVT
+  const stClass     = r() < 0.40 ? 0 : r() < 0.67 ? 1 : 2;
+  const stDep       = stClass === 0 ? 0 : stClass === 1 ? 1.5 + r() * 2.5 : 4 + r() * 3.5;
+  // T wave amplitude multiplier per region — creates inter-patient T wave variation
+  const tInferior   = 0.6 + r() * 0.8;             // II, III, aVF
+  const tLateral    = 0.7 + r() * 0.7;             // I, aVL, V5, V6
+  const tPrecordial = 0.5 + r() * 1.0;             // V1–V4 (most variable)
+  // T polarity in V1 — often inverted in SVT, occasionally flat
+  const tV1pol      = r() < 0.60 ? -1 : r() < 0.80 ? 0 : 1;
+  // Pseudo-R' in V1/V2 — small terminal notch on QRS (~50% of typical AVNRT)
+  const pseudoR     = r() < 0.50;
+  const pseudoRAmp  = pseudoR ? 3 + r() * 6 : 0;   // 3–9px notch
+  // Pseudo-S in inferior leads — small terminal negative deflection (~40%)
+  const pseudoS     = r() < 0.40;
+  const pseudoSAmp  = pseudoS ? 3 + r() * 5 : 0;   // 3–8px
+  // T wave position — compresses slightly at higher rates; fixed here, engine handles rate
+  const tPos        = 255 + r() * 15;               // 255–270ms
+  const tWidth      = 40 + r() * 12;                // 40–52ms width
+
+  return { ampScale, stDep, tInferior, tLateral, tPrecordial,
+           tV1pol, pseudoRAmp, pseudoSAmp, tPos, tWidth };
+}
+
+// narrowII: Lead II reference shape — uses current svtMorph
+function narrowII(ms){
+  const m = svtMorph;
+  const a = m.ampScale;
+  // QRS: Q@110, R@130, S@155 — narrow, fixed width
+  let y = -gauss(ms,110,6,5*a) + gauss(ms,130,9,72*a) - gauss(ms,155,8,18*a);
+  // Pseudo-S notch in inferior — small terminal deflection just after S wave
+  if(m.pseudoSAmp > 0) y -= gauss(ms,170,5,m.pseudoSAmp);
+  // ST depression — modelled as broad negative gaussian centred in ST segment
+  if(m.stDep > 0) y -= gauss(ms,210,30,m.stDep);
+  // T wave
+  y += m.tInferior * gauss(ms, m.tPos, m.tWidth, 14);
+  return y;
 }
 
 // VF sample (used identically across all leads, just scaled)
@@ -572,26 +615,49 @@ MORPH.nsr   = buildSinusWithAVR(sinusParams);
 MORPH.stach = MORPH.nsr;
 MORPH.sbrad = MORPH.nsr;
 
-// ---- SVT: narrow QRS, no visible P, retrograde P pseudo-S, rate compressed T ----
+// ---- SVT: narrow QRS, no visible P, retrograde P variants, variable ST/T ----
+// Uses svtMorph (generated once per patient via generateSVTMorph())
+// Call generateSVTMorph() + rebuildSVT() together when regenerating patient
 function buildSVT(){
-  const t={};
-  // SVT: narrow QRS, all positions fixed in ms. Scale factors per lead for polarity/amplitude.
-  // narrowQRS(ms): Q@110ms, R@130ms, S@155ms, T@260ms — fixed widths
-  function svtLead(qA,rA,sA,tA){
-    return (ms)=>-gauss(ms,110,6,qA)+gauss(ms,130,9,rA)-gauss(ms,155,8,sA)+gauss(ms,260,45,tA);
+  const t = {};
+  const m = svtMorph;
+  const a = m.ampScale;
+
+  // Core narrow QRS builder per lead
+  // stScale: how much ST depression applies to this lead (1=full, 0=none, neg=elevation)
+  // tMult: T wave amplitude multiplier for this lead's region
+  // tPol: T wave polarity for this lead (+1 or -1)
+  // inferiorPseudoS: whether to add pseudo-S notch
+  // v1PseudoR: whether to add pseudo-R' notch
+  function svtLead(qA, rA, sA, baseTamp, tMult, tPol, stScale, inferiorPS, v1PR){
+    return (ms) => {
+      let y = -gauss(ms,110,6,qA*a) + gauss(ms,130,9,rA*a) - gauss(ms,155,8,sA*a);
+      // Pseudo-R' notch in V1/V2 — small terminal upward deflection on QRS
+      if(v1PR && m.pseudoRAmp > 0) y += gauss(ms,162,4,m.pseudoRAmp);
+      // Pseudo-S notch in inferior leads
+      if(inferiorPS && m.pseudoSAmp > 0) y -= gauss(ms,170,5,m.pseudoSAmp);
+      // ST depression
+      if(m.stDep > 0) y -= gauss(ms,210,30,m.stDep * stScale);
+      // T wave
+      y += tPol * tMult * gauss(ms, m.tPos, m.tWidth, baseTamp);
+      return y;
+    };
   }
-  t['I']  =svtLead(4, 52, 8,  13);
-  t['II'] =(ms)=>narrowII(ms); // reference
-  t['III']=svtLead(3, 28, 5,  9);
-  t['aVR']=svtLead(-4,-55,-10,-11); // inverted
-  t['aVL']=svtLead(3, 22, 4,  7);
-  t['aVF']=svtLead(4, 48, 7,  12);
-  t['V1'] =svtLead(3, -10,18, -5); // rS in V1
-  t['V2'] =svtLead(2, 15, 28, 3);
-  t['V3'] =svtLead(3, 34, 20, 10);
-  t['V4'] =svtLead(4, 55, 13, 14);
-  t['V5'] =svtLead(4, 62, 8,  16);
-  t['V6'] =svtLead(3, 48, 5,  14);
+
+  // Lead definitions:
+  //              qA   rA    sA   baseT  tMult         tPol  stScale  infPS   v1PR
+  t['I']   = svtLead(4,  52,   8,  13,  m.tLateral,    1,   0.7,    false, false);
+  t['II']  = (ms) => narrowII(ms); // reference — uses narrowII directly
+  t['III'] = svtLead(3,  28,   5,   9,  m.tInferior,   1,   0.8,    m.pseudoSAmp>0, false);
+  t['aVR'] = svtLead(-4,-55, -10, -11,  m.tLateral,   -1,  -0.5,   false, false); // inverted, ST elevation mirror
+  t['aVL'] = svtLead(3,  22,   4,   7,  m.tLateral,    1,   0.3,   false, false);
+  t['aVF'] = svtLead(4,  48,   7,  12,  m.tInferior,   1,   0.9,   m.pseudoSAmp>0, false);
+  t['V1']  = svtLead(3, -10,  18,   6,  m.tPrecordial, m.tV1pol, 0.6, false, m.pseudoRAmp>0);
+  t['V2']  = svtLead(2,  15,  28,   4,  m.tPrecordial, 1,   0.7,   false, m.pseudoRAmp>0);
+  t['V3']  = svtLead(3,  34,  20,  10,  m.tPrecordial, 1,   0.85,  false, false);
+  t['V4']  = svtLead(4,  55,  13,  14,  m.tLateral,    1,   1.0,   false, false);
+  t['V5']  = svtLead(4,  62,   8,  16,  m.tLateral,    1,   1.0,   false, false);
+  t['V6']  = svtLead(3,  48,   5,  14,  m.tLateral,    1,   0.8,   false, false);
   return t;
 }
 MORPH.svt = buildSVT();
@@ -833,7 +899,7 @@ const RHYTHMS={
   nsr:  {label:'SINUS RHYTHM',        defaultBpm:72,  sliderMin:60,  sliderMax:100, sliderNote:''},
   stach:{label:'SINUS TACHYCARDIA',   defaultBpm:130, sliderMin:101, sliderMax:220, sliderNote:''},
   sbrad:{label:'SINUS BRADYCARDIA',   defaultBpm:48,  sliderMin:40,  sliderMax:59,  sliderNote:''},
-  svt:  {label:'SVT',                 defaultBpm:190, sliderMin:150, sliderMax:220, sliderNote:''},
+  svt:  {label:'SVT',                 defaultBpm:170, sliderMin:150, sliderMax:300, sliderNote:''},
   vt:   {label:'VENTRICULAR TACHYCARDIA',defaultBpm:175,sliderMin:100,sliderMax:220,sliderNote:''},
   aivr: {label:'IDIOVENTRICULAR',     defaultBpm:35,  sliderMin:20,  sliderMax:50,  sliderNote:'ESCAPE RANGE'},
   chb:  {label:'3° HEART BLOCK',      defaultBpm:38,  sliderMin:25,  sliderMax:55,  sliderNote:'VENTRICULAR RATE'},
@@ -1459,6 +1525,7 @@ function setRhythm(key, _bpmOverride, _bbbOverride){
   stripState=makeState();
   patient=generatePatient();
   if(key==='vt'||key==='aivr') vtMorph=generateVTMorph();
+  if(key==='svt'){ svtMorph=generateSVTMorph(); MORPH.svt=buildSVT(); }
   _nY=0; _nV=0;
   LEAD_LAYOUT.forEach(n=>{spikeData[n].fill(0);});
   spikeData['strip'].fill(0);
