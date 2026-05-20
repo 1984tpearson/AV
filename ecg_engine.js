@@ -697,8 +697,114 @@ function buildVT(){
   return t;
 }
 MORPH.vt = buildVT();
-// AIVR same morphology as VT (both ventricular)
-MORPH.aivr = MORPH.vt;
+
+// =============================================================
+// AIVR MORPHOLOGY GENERATOR — separate from VT, per-patient randomised
+// Wide ventricular complex but distinct from VT:
+//   - randomised axis: LBBB-like (RV origin, ~60%) or RBBB-like (LV origin, ~40%)
+//   - slightly less bizarre than VT (narrower width scale)
+//   - ~30% chance of 'rabbit ear' notch in V1
+//   - variable T wave amplitude
+// =============================================================
+let aivrMorph = generateAIVRMorph();
+function generateAIVRMorph() {
+  const r = Math.random;
+  // Axis type: LBBB-like (RV pacemaker, more common) vs RBBB-like (LV pacemaker)
+  const isLBBB     = r() < 0.60;
+  // Width: slightly less bizarre than VT
+  const widthScale = 0.75 + r() * 0.30;        // 0.75–1.05× (VT is 0.82–1.20)
+  // Peak amplitude
+  const peakAmp    = 48 + r() * 22;            // 48–70px
+  const negAmp     = 35 + r() * 25;            // 35–60px
+  // Rise/fall shape
+  const riseTime   = 0.18 + r() * 0.22;
+  const fallTime   = 0.14 + r() * 0.24;
+  const peakShape  = r();
+  const negShape   = r();
+  const peakPlat   = r() < 0.30 ? r() * 0.10 : 0;
+  const zc         = Math.min(riseTime + peakPlat + fallTime, 0.76);
+  // Rabbit ear notch in V1 (~30% chance) — taller left rabbit ear sign
+  const rabbitEar  = r() < 0.30;
+  const rabbitAmp  = rabbitEar ? 8 + r() * 14 : 0;
+  // T wave amplitude scale
+  const tAmpScale  = 0.7 + r() * 0.6;
+
+  return { isLBBB, widthScale, peakAmp, negAmp, riseTime, fallTime,
+           peakShape, negShape, peakPlat, zc, rabbitEar, rabbitAmp, tAmpScale };
+}
+
+function aivrComplex(t, beatVar, invert) {
+  const m = aivrMorph;
+  const period = 290 * m.widthScale;
+  if (t <= 0 || t >= period) return 0;
+  const ph = t / period;
+  const ampScale = 1.0 + (beatVar||0) * 0.10;
+  const pA = m.peakAmp * ampScale;
+  const nA = m.negAmp  * ampScale;
+  const { riseTime: rise, peakPlat: plat, fallTime: fall, zc,
+          peakShape, negShape } = m;
+
+  let y = 0;
+  if (ph < rise) {
+    y = pA * Math.pow(ph / rise, 1.0 - peakShape * 0.6);
+  } else if (ph < rise + plat) {
+    y = pA * (0.92 + 0.08 * Math.cos((ph - rise) / Math.max(plat,0.001) * Math.PI));
+  } else if (ph < zc) {
+    const frac = (ph - rise - plat) / fall;
+    y = pA * Math.pow(Math.max(1.0 - frac, 0), 1.0 + peakShape * 0.4);
+  } else {
+    const neg = 1.0 - zc;
+    const frac = (ph - zc) / neg;
+    y = -nA * Math.pow(Math.sin(frac * Math.PI), 1.0 - negShape * 0.5);
+  }
+  return invert ? -y : y;
+}
+
+function buildAIVR() {
+  const t = {};
+  const m = aivrMorph;
+
+  if (m.isLBBB) {
+    // LBBB-like: RV origin — broad positive in I, aVL, V5, V6; negative in V1-V3
+    t['I']   = (ms,v) =>  aivrComplex(ms,v,false) * 0.80;
+    t['II']  = (ms,v) =>  aivrComplex(ms,v,false) * 0.90;
+    t['III'] = (ms,v) =>  aivrComplex(ms,v,false) * 0.50;
+    t['aVR'] = (ms,v) => -aivrComplex(ms,v,false) * 0.75;
+    t['aVL'] = (ms,v) =>  aivrComplex(ms,v,false) * 0.65;
+    t['aVF'] = (ms,v) =>  aivrComplex(ms,v,false) * 0.60;
+    // V1: deep broad S (LBBB hallmark) — optionally rabbit ear notch
+    t['V1']  = (ms,v) => {
+      let y = -aivrComplex(ms,v,false) * 0.85;
+      if (m.rabbitAmp > 0) y += gauss(ms, 40, 20, m.rabbitAmp); // initial r before deep S
+      return y;
+    };
+    t['V2']  = (ms,v) => -aivrComplex(ms,v,false) * 0.70;
+    t['V3']  = (ms,v) => -aivrComplex(ms,v,false) * 0.30;  // transition
+    t['V4']  = (ms,v) =>  aivrComplex(ms,v,false) * 0.40;
+    t['V5']  = (ms,v) =>  aivrComplex(ms,v,false) * 0.85;
+    t['V6']  = (ms,v) =>  aivrComplex(ms,v,false) * 0.75;
+  } else {
+    // RBBB-like: LV origin — tall R in V1, negative in I/aVL/V5-V6
+    t['I']   = (ms,v) => -aivrComplex(ms,v,false) * 0.70;
+    t['II']  = (ms,v) =>  aivrComplex(ms,v,false) * 0.85;
+    t['III'] = (ms,v) =>  aivrComplex(ms,v,false) * 0.55;
+    t['aVR'] = (ms,v) =>  aivrComplex(ms,v,false) * 0.80;  // tall R in aVR (VT sign)
+    t['aVL'] = (ms,v) => -aivrComplex(ms,v,false) * 0.60;
+    t['aVF'] = (ms,v) =>  aivrComplex(ms,v,false) * 0.65;
+    t['V1']  = (ms,v) => {
+      let y = aivrComplex(ms,v,false) * 0.82;
+      if (m.rabbitAmp > 0) y += gauss(ms, 55, 18, m.rabbitAmp); // rabbit ear notch on R
+      return y;
+    };
+    t['V2']  = (ms,v) =>  aivrComplex(ms,v,false) * 0.72;
+    t['V3']  = (ms,v) =>  aivrComplex(ms,v,false) * 0.55;
+    t['V4']  = (ms,v) =>  aivrComplex(ms,v,false) * 0.40;
+    t['V5']  = (ms,v) => -aivrComplex(ms,v,false) * 0.55;  // rS pattern
+    t['V6']  = (ms,v) => -aivrComplex(ms,v,false) * 0.65;
+  }
+  return t;
+}
+MORPH.aivr = buildAIVR();
 
 // ---- CHB: independent P waves + wide ventricular escape (same VT morph but slower) ----
 MORPH.chb = MORPH.vt; // morphology same, rate different — handled in engine
@@ -901,7 +1007,7 @@ const RHYTHMS={
   sbrad:{label:'SINUS BRADYCARDIA',   defaultBpm:48,  sliderMin:40,  sliderMax:59,  sliderNote:''},
   svt:  {label:'SVT',                 defaultBpm:170, sliderMin:150, sliderMax:300, sliderNote:''},
   vt:   {label:'VENTRICULAR TACHYCARDIA',defaultBpm:175,sliderMin:100,sliderMax:220,sliderNote:''},
-  aivr: {label:'IDIOVENTRICULAR',     defaultBpm:35,  sliderMin:20,  sliderMax:50,  sliderNote:'ESCAPE RANGE'},
+  aivr: {label:'IDIOVENTRICULAR',     defaultBpm:60,  sliderMin:20,  sliderMax:110, sliderNote:'AIVR RANGE'},
   chb:  {label:'3° HEART BLOCK',      defaultBpm:38,  sliderMin:25,  sliderMax:55,  sliderNote:'VENTRICULAR RATE'},
   af:   {label:'ATRIAL FIBRILLATION', defaultBpm:110, sliderMin:60,  sliderMax:180, sliderNote:'MEDIAN VENTRICULAR RATE'},
   aflut:{label:'ATRIAL FLUTTER',      defaultBpm:0,   sliderMin:null,sliderMax:null,sliderNote:'4:1 — 75 VPM'},
@@ -1524,7 +1630,8 @@ function setRhythm(key, _bpmOverride, _bbbOverride){
   state=makeState();
   stripState=makeState();
   patient=generatePatient();
-  if(key==='vt'||key==='aivr') vtMorph=generateVTMorph();
+  if(key==='vt') vtMorph=generateVTMorph();
+  if(key==='aivr'){ aivrMorph=generateAIVRMorph(); MORPH.aivr=buildAIVR(); }
   if(key==='svt'){ svtMorph=generateSVTMorph(); MORPH.svt=buildSVT(); }
   _nY=0; _nV=0;
   LEAD_LAYOUT.forEach(n=>{spikeData[n].fill(0);});
