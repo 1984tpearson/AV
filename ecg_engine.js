@@ -1581,11 +1581,12 @@ function draw(ts){
     for(let i=0;i<leadSteps;i++){
       if(captureMode && headX > 0 && (headX+1) % LEAD_W === 0) {
         // Finish this last pixel then freeze leads only
+        const bbbMs=state.ms;
         const samples=computeSamples(state,msPerLeadPx,currentBpm,currentKey);
         const x=headX%LEAD_W;
         const noiseVal=sampleNoise();
         LEAD_LAYOUT.forEach(n=>{
-          const bbb=applyBBB(samples[n],state.ms,n);
+          const bbb=applyBBB(samples[n],bbbMs,n);
           traceData[n][x]=MID_LEAD-(bbb*patient.ampScale+noiseVal);
           spikeData[n][x]=0;
           if(state.spikeA){spikeData[n][x]=1;}
@@ -1597,11 +1598,12 @@ function draw(ts){
         leadsFrozen = true; // freeze leads, strip keeps running
         break;
       }
+      const bbbMs=state.ms;
       const samples=computeSamples(state,msPerLeadPx,currentBpm,currentKey);
       const x=headX%LEAD_W;
       const noiseVal=sampleNoise();
       LEAD_LAYOUT.forEach(n=>{
-        const bbb=applyBBB(samples[n],state.ms,n);
+        const bbb=applyBBB(samples[n],bbbMs,n);
         traceData[n][x]=MID_LEAD-(bbb*patient.ampScale+noiseVal);
         spikeData[n][x]=0;
         if(state.spikeA){ spikeData[n][x]=1; }
@@ -1619,9 +1621,10 @@ function draw(ts){
       // If leads already frozen and strip is about to wrap — do final capture
       if(leadsFrozen && stripHead > 0 && (stripHead+1) % STRIP_W === 0) {
         // Process last strip pixel
+        const stripBbbMs=stripState.ms;
         const samples=computeSamplesStrip(msPerStripPx);
         const x=stripHead%STRIP_W;
-        const stripBBB=applyBBB(samples['II'],stripState.ms,'II');
+        const stripBBB=applyBBB(samples['II'],stripBbbMs,'II');
         traceData['strip'][x]=MID_STRIP-(stripBBB*patient.ampScale+sampleNoise()*0.5);
         spikeData['strip'][x]=0;
         if(stripState.spikeA){ spikeData['strip'][x]=1; stripState.spikeA=false; }
@@ -1630,9 +1633,10 @@ function draw(ts){
         doCapture(); // now freeze everything and flash
         break;
       }
+      const stripBbbMs=stripState.ms;
       const samples=computeSamplesStrip(msPerStripPx);
       const x=stripHead%STRIP_W;
-      const stripBBB=applyBBB(samples['II'],stripState.ms,'II');
+      const stripBBB=applyBBB(samples['II'],stripBbbMs,'II');
       traceData['strip'][x]=MID_STRIP-(stripBBB*patient.ampScale+sampleNoise()*0.5);
       // Mirror pacing spikes to strip
       spikeData['strip'][x]=0;
