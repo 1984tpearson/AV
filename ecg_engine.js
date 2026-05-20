@@ -1768,35 +1768,15 @@ function renderTraceOn(ctx,data,W,hX,erasePx){
 }
 
 function _drawPath(ctx,data,W,startX,erasePx){
-  // Draw using virtual x coords (no wrap break) by translating ctx at the seam.
-  // This ensures the glow stroke is always one continuous path, preventing
-  // the visual alternation caused by different blending on wrapping vs non-wrapping beats.
-  ctx.save();
   ctx.beginPath();
-  const count = W - erasePx;
-  for(let i=0;i<count;i++){
-    const x = (startX + i) % W;
-    const y = data[x];
-    // Use virtual x = i so the path never wraps in canvas space
-    // We offset by -startX to keep the first pixel at its real position
-    // then clip to canvas width
-    if(i===0) ctx.moveTo(startX, y);
-    else {
-      // Real canvas x
-      const rx = (startX + i) % W;
-      if(rx === 0){
-        // At wrap point: stroke what we have, translate canvas left by W, continue
-        ctx.stroke();
-        ctx.translate(-W, 0);
-        ctx.beginPath();
-        ctx.moveTo(rx + W, y); // rx+W because we just translated by -W
-      } else {
-        ctx.lineTo(rx, y);
-      }
-    }
+  let first=true,prevX=-1;
+  for(let i=0;i<W-erasePx;i++){
+    const x=(startX+i)%W;
+    if(prevX!==-1&&x<prevX){ctx.stroke();ctx.beginPath();first=true;}
+    first?ctx.moveTo(x,data[x]):ctx.lineTo(x,data[x]);
+    first=false;prevX=x;
   }
   ctx.stroke();
-  ctx.restore();
 }
 
 // =====================================================================
