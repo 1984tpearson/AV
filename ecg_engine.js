@@ -1025,7 +1025,7 @@ const RHYTHMS={
   mob2: {label:'MOBITZ II',           defaultBpm:0,   sliderMin:null,sliderMax:null,sliderNote:'3:2 CONDUCTION'},
   vf:   {label:'VENTRICULAR FIBRILLATION',defaultBpm:0,   sliderMin:null,sliderMax:null,sliderNote:'NO ORGANISED RHYTHM'},
   deg1:   {label:'1ST DEGREE AV BLOCK',   defaultBpm:70, sliderMin:50,  sliderMax:100, sliderNote:'PR > 200ms'},
-  junct:  {label:'JUNCTIONAL RHYTHM',     defaultBpm:50, sliderMin:40,  sliderMax:60,  sliderNote:'AV JUNCTIONAL PACEMAKER'},
+  junct:  {label:'JUNCTIONAL RHYTHM',     defaultBpm:60, sliderMin:50,  sliderMax:150, sliderNote:'AV JUNCTIONAL PACEMAKER'},
   wpw:    {label:'WPW SYNDROME',          defaultBpm:72, sliderMin:60,  sliderMax:100, sliderNote:'PRE-EXCITATION'},
   pvc:    {label:'PVC BIGEMINY',          defaultBpm:70, sliderMin:50,  sliderMax:100, sliderNote:'EVERY OTHER BEAT'},
   hyperK: {label:'HYPERKALAEMIA',         defaultBpm:65, sliderMin:40,  sliderMax:80,  sliderNote:'PEAKED T WAVES / WIDE QRS'},
@@ -1289,26 +1289,33 @@ function computeSamples(s, dtMs, bpm, key){
       }
 
       if(key==='junct'){
-        // Inverted P in inferior leads, narrow QRS, short PR
-        const pSign = ['II','III','aVF'].includes(n) ? -1 : 1;
-        base = gauss(ms,55,18,P_AMP*0.9*Math.abs(sc))*pSign
-              -gauss(ms,Q_ONSET,Q_WIDTH,Q_AMP*patient.rAmp*Math.abs(sc))*(sc<0?-1:1)
-              +gauss(ms,R_PEAK,R_WIDTH,R_AMP*patient.rAmp*Math.abs(sc))*(sc<0?-1:1)
-              -gauss(ms,S_TROUGH,S_WIDTH,S_AMP*patient.rAmp*Math.abs(sc))*(sc<0?-1:1)
-              +gauss(ms,T_PEAK,T_WIDTH,T_AMP*patient.tAmp*Math.abs(sc))*(sc<0?-1:1);
+        // Junctional rhythm: no P wave, normal narrow QRS morphology
+        base = -gauss(ms,Q_ONSET,Q_WIDTH,Q_AMP*patient.rAmp*Math.abs(sc))*(sc<0?-1:1)
+               +gauss(ms,R_PEAK,R_WIDTH,R_AMP*patient.rAmp*Math.abs(sc))*(sc<0?-1:1)
+               -gauss(ms,S_TROUGH,S_WIDTH,S_AMP*patient.rAmp*Math.abs(sc))*(sc<0?-1:1)
+               +gauss(ms,T_PEAK,T_WIDTH,T_AMP*patient.tAmp*Math.abs(sc))*(sc<0?-1:1);
         out[n] = base; return;
       }
 
       if(key==='wpw'){
-        // Delta wave + short PR + widened QRS + discordant T
-        // V1 has dominant R (type A WPW)
-        const deltaAmp = ['V1','V2','V3'].includes(n) ? 18 : 14;
-        const tDisc = sc < 0 ? 1 : -1; // discordant T
-        base = gauss(ms,20,14,P_AMP*0.9*Math.abs(sc))
-              +gauss(ms,85,35,deltaAmp*Math.abs(sc))*(sc<0?-1:1)
-              +gauss(ms,145,14,R_AMP*patient.rAmp*Math.abs(sc))*(sc<0?-1:1)
-              -gauss(ms,175,10,S_AMP*patient.rAmp*Math.abs(sc))*(sc<0?-1:1)
-              +gauss(ms,330,65,T_AMP*0.8*patient.tAmp*Math.abs(sc))*tDisc*(sc<0?-1:1);
+        // WPW: short PR (~120ms), delta wave merging into widened QRS, discordant T
+        // Delta wave is a gentle slurred upstroke blending into the R — NOT a separate hump
+        // It starts early (~65ms) and merges smoothly into the R peak at ~150ms
+        // Type A (dominant R in V1) — most common/recognisable for training
+        const deltaAmp = ['V1','V2','aVR'].includes(n) ? 12*Math.abs(sc) : 8*Math.abs(sc);
+        const rAmp     = R_AMP * patient.rAmp * Math.abs(sc);
+        const sAmp     = S_AMP * patient.rAmp * Math.abs(sc);
+        // T is discordant: opposite to net QRS deflection
+        const tPol = sc < 0 ? 1 : -1;
+        // P wave: normal but short PR so sits close to QRS
+        base = gauss(ms, P_PEAK, P_WIDTH, P_AMP*patient.pAmp*Math.abs(sc))*(sc<0?-1:1)
+              // Delta: broad shallow ramp starting at ~65ms, peak at ~110ms — merges into R base
+              +gauss(ms, 110, 42, deltaAmp)*(sc<0?-1:1)
+              // QRS: widened — R at 150ms (vs normal 130ms), S at 185ms
+              +gauss(ms, 150, 12, rAmp)*(sc<0?-1:1)
+              -gauss(ms, 185, 9,  sAmp)*(sc<0?-1:1)
+              // Discordant T
+              +gauss(ms, 340, 60, T_AMP*0.85*patient.tAmp*Math.abs(sc))*tPol;
         out[n] = base; return;
       }
 
