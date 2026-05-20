@@ -1272,14 +1272,19 @@ function computeSamples(s, dtMs, bpm, key){
 
       // Per-rhythm modifications
       if(key==='deg1'){
-        // Longer PR — shift QRS+T right by 80ms
-        const baseFnShifted = MORPH.nsr[n];
-        // Re-compute with PR offset
-        base = gauss(ms,P_PEAK,P_WIDTH,P_AMP*patient.pAmp*Math.abs(sc))
-              -gauss(ms+80,Q_ONSET,Q_WIDTH,Q_AMP*patient.rAmp*Math.abs(sc))
-              +gauss(ms+80,R_PEAK,R_WIDTH,R_AMP*patient.rAmp*Math.abs(sc))*(sc<0?-1:1)
-              -gauss(ms+80,S_TROUGH,S_WIDTH,S_AMP*patient.rAmp*Math.abs(sc))*(sc<0?-1:1)
-              +gauss(ms,T_PEAK,T_WIDTH,T_AMP*patient.tAmp*Math.abs(sc))*(sc<0?-1:1);
+        // 1st degree AV block: normal sinus morphology, PR prolonged (210–320ms)
+        // prDelay stored on state at rhythm init; randomised per patient
+        const pr = s.deg1PR || 240;
+        // P wave polarity per lead — same as normal sinus
+        // aVR: inverted; V1: biphasic (small positive); others follow sc sign
+        const pPol = (n==='aVR') ? -1 : 1;
+        // P amplitude: boosted slightly vs normal so it's clearly visible
+        const pAmp = P_AMP * 1.3 * patient.pAmp * Math.abs(sc);
+        base = pPol * gauss(ms, P_PEAK, P_WIDTH, pAmp)
+              -gauss(ms+pr, Q_ONSET, Q_WIDTH, Q_AMP*patient.rAmp*Math.abs(sc))*(sc<0?-1:1)
+              +gauss(ms+pr, R_PEAK,  R_WIDTH, R_AMP*patient.rAmp*Math.abs(sc))*(sc<0?-1:1)
+              -gauss(ms+pr, S_TROUGH,S_WIDTH, S_AMP*patient.rAmp*Math.abs(sc))*(sc<0?-1:1)
+              +gauss(ms+pr, T_PEAK,  T_WIDTH, T_AMP*patient.tAmp*Math.abs(sc))*(sc<0?-1:1);
         out[n] = base; return;
       }
 
@@ -1643,6 +1648,12 @@ function setRhythm(key, _bpmOverride, _bbbOverride){
   if(key==='vt') vtMorph=generateVTMorph();
   if(key==='aivr'){ aivrMorph=generateAIVRMorph(); MORPH.aivr=buildAIVR(); }
   if(key==='svt'){ svtMorph=generateSVTMorph(); MORPH.svt=buildSVT(); }
+  if(key==='deg1'){
+    // Randomise PR interval: 210-300ms standard, 20% chance of marked block 300-320ms
+    const marked = Math.random() < 0.20;
+    state.deg1PR  = marked ? 300 + Math.floor(Math.random()*20) : 210 + Math.floor(Math.random()*90);
+    stripState.deg1PR = state.deg1PR;
+  }
   _nY=0; _nV=0;
   LEAD_LAYOUT.forEach(n=>{spikeData[n].fill(0);});
   spikeData['strip'].fill(0);
