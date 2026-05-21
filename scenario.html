@@ -2777,35 +2777,13 @@ function renderSection1(s, isTrauma) {
       </td>
     </tr>`;
 
-  // Life threat rows — pull first 3 steps from CPG package management
-  const _ltPkgKeys = (() => {
-    const cpgCodes = (s.cpg || '').split(/[,/]/).map(c => c.trim()).filter(Boolean);
-    if (cpgCodes.length) {
-      const matched = cpgCodes.map(code =>
-        Object.keys(CPG_PACKAGES).find(k => CPG_PACKAGES[k]?.cpg === code)
-      ).filter(Boolean);
-      if (matched.length) return matched;
-    }
-    const catVal = s.category && s.subcategory ? `${s.category}|${s.subcategory}` : '';
-    return CATEGORY_TO_CPG[catVal] || [];
-  })();
-  const _ltSteps = (() => {
-    if (!_ltPkgKeys.length) return s.treatment_als || s.treatment || [];
-    const all = [];
-    _ltPkgKeys.forEach(k => {
-      const pkg = CPG_PACKAGES[k];
-      if (!pkg) return;
-      const mgmt = pkg.management || pkg.resuscitationSteps || [];
-      if (Array.isArray(mgmt)) {
-        mgmt.forEach(item => {
-          if (typeof item === 'string' && !item.includes('(MICA)')) all.push(item);
-          else if (typeof item === 'object' && item.type === 'action' && item.text) all.push(item.text);
-        });
-      }
-    });
-    return all;
-  })();
-  const ltRows = _ltSteps.slice(0,3).map((t,i) => mkRow(`lt${i+1}`, t||`Life threat ${i+1}`)).join('') || mkRow('lt1','Life threat 1')+mkRow('lt2','Life threat 2')+mkRow('lt3','Life threat 3');
+  // Life threat rows — use AI-generated life_threats field if present, otherwise generic RABCDE placeholders
+  const _ltSteps = (s.life_threats || []).filter(Boolean);
+  const ltRows = _ltSteps.length
+    ? _ltSteps.map((t, i) => mkRow(`lt${i+1}`, t)).join('')
+    : mkRow('lt1', 'Airway — positioning / adjunct as indicated')
+      + mkRow('lt2', 'Breathing — oxygen therapy as indicated')
+      + mkRow('lt3', 'Circulation / Haemorrhage — control as indicated');
 
   const secondarySurvey = isTrauma ? `
     <div id="nav-ss" class="snav-anchor"></div><div class="asmt-section-header"><div class="asmt-section-title trauma">Secondary Survey — Trauma Head-to-Toe</div><button class="all-complete-btn" onclick="markGroupComplete('ss')">✓ All Complete</button></div>
@@ -2974,7 +2952,7 @@ function renderSection1(s, isTrauma) {
 
       <div id="nav-lt" class="snav-anchor"></div><div class="asmt-section-header"><div class="asmt-section-title">Life Threat Management</div><button class="all-complete-btn" onclick="markGroupComplete('lt')">✓ All Complete</button></div>
       <table class="asmt-table" data-group="lt" data-section="sec1">
-        <thead><tr><th class="left">Expected management (from scenario)</th><th>Prompting</th><th>Incomplete</th><th>Complete</th></tr></thead>
+        <thead><tr><th class="left">Expected management (from scenario) <span style="font-weight:400;font-style:italic;color:rgba(255,255,255,0.7);font-size:10px">— AI suggested · assessor discretion applies</span></th><th>Prompting</th><th>Incomplete</th><th>Complete</th></tr></thead>
         <tbody>${ltRows}</tbody>
       </table>
 
@@ -4600,7 +4578,7 @@ function buildCPGContext(catVal1, catVal2) {
   return `\n\nRELEVANT AV CPG CONTENT (v3.13.1) — use these exact doses and thresholds:\n${packageSections}${comboNote}`;
 }
 
-const SCENARIO_JSON_TEMPLATE = `{"title":"","subtitle":"","category":"CAT","subcategory":"SUB","type":"","cpg":"","level":"C/D","dispatch":"","vitals":{"GCS":{"E":0,"V":0,"M":0,"total":0,"description":""},"SpO2":"","RR":"","HR":"","BP":"","Temp":"","BGL":"","Rhythm":"","Weight":"","Ketones":"","EtCO2":""},"key_hx":"","medical_conditions":["","",""],"medications":["","",""],"allergies":"","flags":["","","",""],"ddx":["","","",""],"provisional":"","kq":[{"q":"","max":2,"answer":""},{"q":"","max":2,"answer":""},{"q":"","max":1,"answer":""}],"discussion":[]}`;
+const SCENARIO_JSON_TEMPLATE = `{"title":"","subtitle":"","category":"CAT","subcategory":"SUB","type":"","cpg":"","level":"C/D","dispatch":"","vitals":{"GCS":{"E":0,"V":0,"M":0,"total":0,"description":""},"SpO2":"","RR":"","HR":"","BP":"","Temp":"","BGL":"","Rhythm":"","Weight":"","Ketones":"","EtCO2":""},"key_hx":"","medical_conditions":["","",""],"medications":["","",""],"allergies":"","flags":["","","",""],"ddx":["","","",""],"provisional":"","life_threats":["",""],"kq":[{"q":"","max":2,"answer":""},{"q":"","max":2,"answer":""},{"q":"","max":1,"answer":""}],"discussion":[]}`;
 // Note: medical_conditions = short list e.g. ["Asthma (previous ICU admission)", "Type 2 Diabetes", "Hypertension"]
 // medications = short list e.g. ["Metoprolol 50mg daily", "Aspirin 100mg", "Candesartan 8mg"]
 // key_hx = legacy field kept for backwards compat with built-in scenarios
@@ -4732,6 +4710,7 @@ Category: ${categoryLabel}
 ${seedSection}${complaint ? '' : complaintLine + '\n'}${complexityNote}
 ${patientNote}
 Do NOT generate treatment or management steps — these are supplied from official CPG data. Leave treatment_als and treatment_mica out of the JSON entirely. Focus on generating an accurate, realistic scenario with correct vitals, flags, ddx, provisional diagnosis, and knowledge questions.
+For life_threats: provide 2–4 brief, immediate management actions a paramedic would perform immediately after the primary survey — BEFORE any history, vital signs, or diagnosis. These are based solely on what is visually apparent (e.g. active haemorrhage, severe respiratory distress, unconsciousness, major trauma mechanism). Actions must be physical and immediate: positioning, airway manoeuvres, adjuncts, oxygen delivery method and rate, haemorrhage control, spinal precautions, BVM ventilation, CPR, defibrillation. Do NOT include drug administration, IV access, monitoring, or any action requiring a diagnosis or vital signs. Use plain clinical language (e.g. "Apply direct pressure and tourniquet to arterial haemorrhage", "Position upright, apply non-rebreather mask 15 L/min", "Manual in-line cervical spine stabilisation"). Return as a flat array of strings. If there is no immediate life threat apparent from the primary survey, return 2 generic RABCDE safety actions appropriate to the presentation.
 For medical_conditions: provide a concise array of conditions only — no explanations unless clinically essential (e.g. ["Epilepsy (breakthrough seizure last month)", "Type 2 Diabetes", "Hypertension"]). Max 4 items.
 For medications: provide a concise array of medication names with doses — no extra description (e.g. ["Levetiracetam 500mg BD", "Metformin 500mg daily", "Amlodipine 10mg"]). Max 6 items. Use empty array if none.
 For allergies: approximately 25% of patients have allergies. Vary the allergen — do NOT default to penicillin every time. Use realistic Australian options: morphine, aspirin, ibuprofen, sulfonamides, latex, bee stings, nuts, shellfish, contrast dye, codeine, tramadol, or others as clinically plausible. For anaphylaxis scenarios always include the relevant allergen. Most patients (75%) have no allergy — return "" in those cases.
