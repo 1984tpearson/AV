@@ -2198,8 +2198,6 @@ function loadScenario(id) {
       try {
         const _ecgInst = new ECGEngine(le, {mode:'12lead', theme:'paper'});
         _ecgInst.setRhythm(mapped.key, mapped.bpm, mapped.bbbMode);
-        // Capture morph seed so assessor live view renders identically
-        if (!_ecgSeeds[id]) _ecgSeeds[id] = _ecgInst.getMorphSeed();
       } catch(e) { console.warn('12-lead ECG:', e); }
     });
   }, 300);
@@ -3066,7 +3064,7 @@ function renderSection1(s, isTrauma) {
           <div id="assessor-12lead-${s.id}" style="width:100%;max-width:100%;background:#faf7f2;border-radius:4px;overflow:hidden;margin-top:3px;display:block;" data-rhythm="${rhythmStr.replace(/"/g,'&quot;')}" data-hr="${hr}"></div>
           <div style="font-size:10px;color:var(--grey);font-style:italic;margin-top:4px;">⚠ Animated ECG is a simulation. Use Real ECG for teaching pattern recognition.</div>
         </div>`;
-      })()}}
+      })()}
 
       ${secondarySurvey}<div class="asmt-section-header"><div class="asmt-section-title">Focussed Assessments</div><button class="all-complete-btn" onclick="markGroupComplete('fa')">✓ All Complete</button></div>
       <table class="asmt-table" data-group="fa" data-section="sec1">
@@ -5394,7 +5392,6 @@ async function openPatientSessionModal() {
 
     const { uuid } = getIdentity();
     // Include ECG morph seed so student monitor renders same presentation
-    const _startSeed = _ecgSeeds[String(currentScenario.id)] || null;
     await sbFetch('active_sessions', {
       method: 'POST',
       prefer: 'return=minimal',
@@ -5402,10 +5399,9 @@ async function openPatientSessionModal() {
         session_code: code,
         scenario_id: String(currentScenario.id),
         assessor_uuid: uuid,
-        revealed: _startSeed ? { ecgSeed: _startSeed } : {}
+        revealed: {}
       })
     });
-    if (_startSeed) _sessionRevealed['ecgSeed'] = _startSeed;
 
     document.getElementById('psm-code').textContent = code;
     const patientUrl = `https://1984tpearson.github.io/AV/monitor.html?session=${code}`;
@@ -5989,7 +5985,7 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape') closeECGLigh
 let _assessorStrip = null;
 let _assessorLead  = null;
 let _assessorRhythmKey = null;
-const _ecgSeeds = {};  // keyed by scenario id — morph seed captured after first render
+
 
 function initAssessorECG(rhythmStr, hr) {
   if (!rhythmStr) return;
@@ -6006,8 +6002,7 @@ function initAssessorECG(rhythmStr, hr) {
     stripEl.style.height = '110px';
     _assessorStrip = new ECGEngine(stripEl, { mode: 'strip', theme: 'paper' });
     _assessorStrip.setRhythm(mapped.key, mapped.bpm, mapped.bbbMode);
-    const _seed = currentScenario && _ecgSeeds[String(currentScenario.id)];
-    if (_seed) _assessorStrip.applySeed(_seed);
+
   }
 
   // 12-lead — paper theme
@@ -6016,7 +6011,7 @@ function initAssessorECG(rhythmStr, hr) {
     if (_assessorLead) _assessorLead.destroy();
     _assessorLead = new ECGEngine(leadEl, { mode: '12lead', theme: 'paper' });
     _assessorLead.setRhythm(mapped.key, mapped.bpm, mapped.bbbMode);
-    if (_seed) _assessorLead.applySeed(_seed);
+
   }
 
   // Show real ECG link
