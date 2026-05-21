@@ -1638,9 +1638,11 @@ async function initApp() {
     }
   }, 800);
 
-  // Restore last open scenario if refreshed mid-session
+  // Restore last open scenario only if this is a same-tab refresh
+  // (sessionStorage is cleared on new tab/hyperlink, localStorage persists across both)
   const lastId = localStorage.getItem('av_last_scenario');
-  if (lastId) {
+  const wasInScenario = sessionStorage.getItem('av_in_scenario');
+  if (lastId && wasInScenario) {
     const all = getAllScenarios();
     const s = all.find(x => String(x.id) === lastId);
     if (s) loadScenario(lastId);
@@ -1849,8 +1851,10 @@ function showScreen(name) {
   // Persist current screen
   if (name === 'scenario-view' && currentScenario) {
     localStorage.setItem('av_last_scenario', String(currentScenario.id));
+    sessionStorage.setItem('av_in_scenario', '1');
   } else if (name === 'home-screen') {
     localStorage.removeItem('av_last_scenario');
+    sessionStorage.removeItem('av_in_scenario');
   }
 }
 
@@ -5351,7 +5355,7 @@ let _pendingRevealKey = null;   // vital to auto-reveal once session starts
 let _sessionRevealed = {};      // local cache of revealed state
 
 function generateSessionCode() {
-  return Math.floor(1000 + Math.random() * 9000).toString();
+  return Math.floor(100000 + Math.random() * 900000).toString();
 }
 
 // Called by inline reveal buttons throughout the scenario
@@ -5391,7 +5395,16 @@ async function openPatientSessionModal() {
     _sessionRevealed = {};
 
     const { uuid } = getIdentity();
-    // Include ECG morph seed so student monitor renders same presentation
+
+    // Clean up sessions older than 24 hours before creating a new one
+    try {
+      const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+      await sbFetch(`active_sessions?created_at=lt.${cutoff}`, {
+        method: 'DELETE',
+        prefer: 'return=minimal'
+      });
+    } catch(e) { console.warn('Session cleanup failed:', e); }
+
     await sbFetch('active_sessions', {
       method: 'POST',
       prefer: 'return=minimal',
