@@ -1409,7 +1409,6 @@ function toRow(s, overrides = {}) {
     provisional:  s.provisional || '',
     treatment_als: s.treatment_als || s.treatment || [],
     treatment_mica: s.treatment_mica || [],
-    life_threats: s.life_threats || [],
     kq:           s.kq || [],
     discussion:   s.discussion || [],
     creator_uuid: s.creator_uuid || getIdentity().uuid,
@@ -1439,7 +1438,6 @@ function fromRow(r) {
     provisional:  r.provisional,
     treatment_als: r.treatment_als || r.treatment || [],
     treatment_mica: r.treatment_mica || [],
-    life_threats: r.life_threats || [],
     kq:           r.kq || [],
     discussion:   r.discussion || [],
     creator_uuid: r.creator_uuid,
@@ -3048,10 +3046,59 @@ function renderSection1(s, isTrauma) {
             if (!rhythmStr) return mkRow('monitor','Monitor / ECG');
             const ecg = getECGImage(s.vitals&&s.vitals.Rhythm);
             const realBtn = ecg ? `<button onclick="openECGLightbox('${ecg.url.replace(/'/g,"\\'")}','${(ecg.label||'').replace(/'/g,"\\'")}');event.stopPropagation();" style="font-size:10px;padding:3px 8px;border:1px solid #ccc;background:white;border-radius:4px;cursor:pointer;color:#003366;">&#128247; Real ECG</button>` : '';
-            const monBtns = `<span style="display:inline-flex;gap:5px;align-items:center;margin-left:8px;"><button onclick="sendLeadIIToMonitor(event)" id="rb-LeadII" style="font-size:10px;padding:3px 9px;border:1px solid var(--navy);background:white;border-radius:4px;cursor:pointer;color:var(--navy);font-weight:600;">&#128242; Send Lead II</button><button onclick="send12LeadToMonitor(event)" id="rb-ECG" style="font-size:10px;padding:3px 9px;border:1px solid var(--navy);background:white;border-radius:4px;cursor:pointer;color:var(--navy);font-weight:600;">&#128242; Send 12-Lead</button>${realBtn}</span>`;
+            const monBtns = `<span style="display:inline-flex;gap:5px;align-items:center;margin-left:8px;"><button onclick="sendLeadIIToMonitor(event)" id="rb-LeadII" style="font-size:10px;padding:3px 9px;border:none;background:#1a7a3f;border-radius:4px;cursor:pointer;color:white;font-weight:600;">Send Lead II &#8594; &#128250;</button><button onclick="send12LeadToMonitor(event)" id="rb-ECG" style="font-size:10px;padding:3px 9px;border:none;background:#1a7a3f;border-radius:4px;cursor:pointer;color:white;font-weight:600;">Send 12-Lead &#8594; &#128250;</button>${realBtn}</span>`;
             return `<tr data-row-id="monitor"><td class="elem-label" style="display:flex;align-items:center;flex-wrap:wrap;gap:4px;">Monitor / ECG${monBtns}</td><td class="tick-col">${mkTick('monitor','prompted','Prompting Required')}</td><td class="tick-col">${mkTick('monitor','incomplete','Incomplete/Incorrect')}</td><td class="tick-col">${mkTick('monitor','complete','All Complete')}</td></tr>`;
           })()}
-          ${mkSubRow('vrhythm',`Ventricular Rhythm${hint(v.Rhythm||'','Rhythm')}`, '','','','monitor')}${mkSubRow('vrate','Ventricular Rate (±10bpm)', v.HR||'','','','monitor')}${mkSubRow('pwave','P Wave','','','','monitor')}${mkSubRow('pr','PR Interval','','','','monitor')}${mkSubRow('qrs','QRS Duration','','','','monitor')}${mkSubRow('interp','Correct Rhythm Interpretation','','','','monitor')}${mkSubRow('lead12','12 Lead (as appropriate)','','','','monitor')}
+          ${(()=>{
+            const ECG_CHARS = {
+              nsr:        { pwave:'Present, normal',    pr:'120–200ms (normal)',   qrs:'<120ms (narrow)' },
+              stach:      { pwave:'Present, normal',    pr:'120–200ms (normal)',   qrs:'<120ms (narrow)' },
+              sbrad:      { pwave:'Present, normal',    pr:'120–200ms (normal)',   qrs:'<120ms (narrow)' },
+              af:         { pwave:'Absent — fibrillatory baseline', pr:'Not measurable', qrs:'<120ms (narrow)' },
+              aflut:      { pwave:'Flutter waves (sawtooth 300bpm)', pr:'Variable (AV block)', qrs:'<120ms (narrow)' },
+              svt:        { pwave:'Absent or retrograde P waves', pr:'Not measurable', qrs:'<120ms (narrow)' },
+              vt:         { pwave:'Dissociated (AV dissociation)', pr:'Not measurable', qrs:'>120ms (broad)' },
+              vf:         { pwave:'Absent',             pr:'Not measurable',       qrs:'Chaotic — no QRS' },
+              asys:       { pwave:'Absent',             pr:'Not measurable',       qrs:'Absent' },
+              chb:        { pwave:'Present, regular — dissociated from QRS', pr:'Variable (no relationship)', qrs:'>120ms (broad escape)' },
+              mob1:       { pwave:'Present, normal',    pr:'Progressively lengthening', qrs:'<120ms (narrow)' },
+              mob2:       { pwave:'Present, normal',    pr:'Fixed, then dropped beat', qrs:'<120ms (narrow)' },
+              deg1:       { pwave:'Present, normal',    pr:'>200ms (prolonged)',   qrs:'<120ms (narrow)' },
+              junct:      { pwave:'Absent or retrograde', pr:'<120ms or not measurable', qrs:'<120ms (narrow)' },
+              wpw:        { pwave:'Present, normal',    pr:'<120ms (short) — delta wave', qrs:'Widened with delta wave' },
+              pvc:        { pwave:'Absent (ectopic beats)', pr:'Not measurable (ectopics)', qrs:'>120ms (broad ectopic)' },
+              aivr:       { pwave:'Dissociated',        pr:'Not measurable',       qrs:'>120ms (broad)' },
+              hyperK:     { pwave:'Flattened or absent', pr:'May be prolonged',    qrs:'Widened — sine wave pattern' },
+              hypoK:      { pwave:'Present, normal',    pr:'May be prolonged',     qrs:'Normal — prominent U wave' },
+              longQT:     { pwave:'Present, normal',    pr:'120–200ms (normal)',   qrs:'<120ms — prolonged QT interval' },
+              peri:       { pwave:'Present, normal',    pr:'120–200ms (normal)',   qrs:'<120ms — diffuse ST elevation' },
+              nstemi:     { pwave:'Present, normal',    pr:'120–200ms (normal)',   qrs:'<120ms — ST depression/T changes' },
+              pe:         { pwave:'Present, normal',    pr:'120–200ms (normal)',   qrs:'<120ms — S1Q3T3 pattern' },
+              brugada:    { pwave:'Present, normal',    pr:'120–200ms (normal)',   qrs:'RBBB-like with coved ST elevation V1–V2' },
+              'stemi-inf':{ pwave:'Present, normal',    pr:'120–200ms (normal)',   qrs:'<120ms — ST elevation II, III, aVF' },
+              'stemi-ant':{ pwave:'Present, normal',    pr:'120–200ms (normal)',   qrs:'<120ms — ST elevation V1–V4' },
+              'stemi-lat':{ pwave:'Present, normal',    pr:'120–200ms (normal)',   qrs:'<120ms — ST elevation I, aVL, V5–V6' },
+              'stemi-post':{ pwave:'Present, normal',   pr:'120–200ms (normal)',   qrs:'<120ms — tall R waves V1–V2, ST depression' },
+              vvipace:    { pwave:'May be absent/paced', pr:'Not applicable',      qrs:'>120ms (paced — broad)' },
+              aaipace:    { pwave:'Paced (pacing spike before P)', pr:'120–200ms', qrs:'<120ms (narrow)' },
+              dddpace:    { pwave:'Paced',               pr:'120–200ms (paced AV delay)', qrs:'>120ms (paced — broad)' },
+            };
+            // Derive key from ECGEngine if available, else raw rhythm string
+            const _ecgKey = (typeof ECGEngine !== 'undefined') ? (ECGEngine.mapRhythm(rhythmStr, hr)||{}).key : null;
+            const _ecgChar = ECG_CHARS[_ecgKey] || {};
+            const _bbb = (typeof ECGEngine !== 'undefined') ? (ECGEngine.mapRhythm(rhythmStr, hr)||{}).bbbMode : '';
+            const qrsOverride = _bbb === 'lbbb' ? '>120ms (LBBB — broad)' : _bbb === 'rbbb' ? '>120ms (RBBB — broad)' : null;
+            const _pw = _ecgChar.pwave || '';
+            const _pr = _ecgChar.pr || '';
+            const _qrs = qrsOverride || _ecgChar.qrs || '';
+            return mkSubRow('vrhythm',\`Ventricular Rhythm\${hint(v.Rhythm||'','Rhythm')}\`, '','','','monitor')
+              + mkSubRow('vrate','Ventricular Rate (±10bpm)', v.HR||'','','','monitor')
+              + mkSubRow('pwave',\`P Wave\${_pw ? \`<span class="vital-hint" style="background:var(--navy)">\${_pw}</span>\` : ''}\`,'','','','monitor')
+              + mkSubRow('pr',\`PR Interval\${_pr ? \`<span class="vital-hint" style="background:var(--navy)">\${_pr}</span>\` : ''}\`,'','','','monitor')
+              + mkSubRow('qrs',\`QRS Duration\${_qrs ? \`<span class="vital-hint" style="background:var(--navy)">\${_qrs}</span>\` : ''}\`,'','','','monitor')
+              + mkSubRow('interp','Correct Rhythm Interpretation','','','','monitor')
+              + mkSubRow('lead12','12 Lead (as appropriate)','','','','monitor');
+          })()}
         </tbody>
       </table>
 
