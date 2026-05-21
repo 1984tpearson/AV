@@ -3050,6 +3050,8 @@ function renderSection1(s, isTrauma) {
             return `<tr data-row-id="monitor"><td class="elem-label" style="display:flex;align-items:center;flex-wrap:wrap;gap:4px;">Monitor / ECG${monBtns}</td><td class="tick-col">${mkTick('monitor','prompted','Prompting Required')}</td><td class="tick-col">${mkTick('monitor','incomplete','Incomplete/Incorrect')}</td><td class="tick-col">${mkTick('monitor','complete','All Complete')}</td></tr>`;
           })()}
           ${(()=>{
+            const rhythmStr = (s.vitals&&s.vitals.Rhythm)||'';
+            const hr = parseInt((s.vitals&&s.vitals.HR)||72)||72;
             const ECG_CHARS = {
               nsr:         { pwave:'Present, normal',                            pr:'120–200ms (normal)',                    qrs:'<120ms (narrow)' },
               stach:       { pwave:'Present, normal',                            pr:'120–200ms (normal)',                    qrs:'<120ms (narrow)' },
