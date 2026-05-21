@@ -5502,8 +5502,9 @@ async function send12LeadToMonitor(event) {
   if (btn) { btn.style.background = _sessionRevealed['ECG'] ? 'var(--navy)' : 'white'; btn.style.color = _sessionRevealed['ECG'] ? 'white' : 'var(--navy)'; }
 }
 
-document.getElementById('patient-session-modal').addEventListener('click', e => {
-  if (e.target === document.getElementById('patient-session-modal')) closePatientSessionModal();
+const _psmEl = document.getElementById('patient-session-modal');
+if (_psmEl) _psmEl.addEventListener('click', e => {
+  if (e.target === _psmEl) closePatientSessionModal();
 });
 
 
