@@ -3098,7 +3098,7 @@ function renderSection1(s, isTrauma) {
               + mkSubRow('pwave',  'P Wave'      + hintBadge(_pw),   '','','','monitor')
               + mkSubRow('pr',     'PR Interval' + hintBadge(_pr),   '','','','monitor')
               + mkSubRow('qrs',    'QRS Duration'+ hintBadge(_qrsVal),'','','','monitor')
-              + mkSubRow('interp', 'Correct Rhythm Interpretation',   '','','','monitor')
+              + mkSubRow('interp', 'Correct Rhythm Interpretation' + hintBadge(rhythmStr), '','','','monitor')
               + mkSubRow('lead12', '12 Lead (as appropriate)',        '','','','monitor');
           })()}
         </tbody>
