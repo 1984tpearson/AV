@@ -4772,6 +4772,7 @@ For vitals.Weight: always provide a realistic weight in kg appropriate to the pa
 For vitals.Ketones: always provide a realistic blood ketone value in mmol/L (e.g. "0.2 mmol/L"). Use elevated values (>1.5 mmol/L) for DKA, hyperglycaemia, or diabetic emergencies. Use normal/low values (0.1–0.5 mmol/L) for all other presentations. Never leave blank.
 For vitals.EtCO2: always provide a realistic end-tidal CO₂ value in mmHg (e.g. "38 mmHg"). Use low values for hyperventilation or poor perfusion states; high values for hypoventilation, opioid OD, or severe respiratory failure; normal range (35–45 mmHg) for most presentations. Never leave blank.
 For the "discussion" field: provide 2–4 brief bullet points about management or considerations that are BEYOND AV scope — e.g. in-hospital treatment, specialist interventions, or relevant clinical nuance not covered by AV CPGs. These are suggested discussion prompts for the CI to use with the student. They are NOT assessable and NOT part of AV management. Label them clearly as beyond-scope. Return as an array of strings.
+For the "subtitle" field: always use the format "48yo Female — Chest pain and diaphoresis" (age + gender + em dash + brief clinical description). Age must match the patient demographics exactly. Gender should be Male or Female (capitalised). The clinical description after the em dash should be concise (5–8 words) and match the provisional diagnosis.
 Return ONLY a valid JSON object:
 ${SCENARIO_JSON_TEMPLATE.replace('CAT', category).replace('SUB', subcategory)}`;
 
@@ -5164,10 +5165,13 @@ function showStickyBar(s) {
   const nav = document.getElementById('scenario-nav');
   if (nav) { nav.style.top = '100px'; nav.style.height = 'calc(100vh - 100px)'; }
 
-  // Title — show age+gender on top line, job type below
+  // Title — show age+gender on top line, provisional diagnosis below
   const subtitle = s.subtitle || '';
-  const ageMatch = subtitle.match(/(\d+(?:\.\d+)?)\s*(?:yo|yr|year|mo\b|\/12|months?)/i);
-  const genderMatch = subtitle.match(/\b(male|female|boy|girl)\b/i);
+  const dispatch = s.dispatch || '';
+  // Try subtitle first, fall back to dispatch for age/gender
+  const searchText = subtitle + ' ' + dispatch;
+  const ageMatch = searchText.match(/(\d+(?:\.\d+)?)\s*(?:yo\b|yr\b|year|-year|mo\b|\/12|months?)/i);
+  const genderMatch = searchText.match(/\b(male|female|boy|girl)\b/i);
   let demogStr = '';
   if (ageMatch) {
     const rawAge = parseFloat(ageMatch[1]);
@@ -5180,7 +5184,7 @@ function showStickyBar(s) {
     demogStr = demogStr ? `${demogStr} ${abbr}` : abbr;
   }
   document.getElementById('sticky-title-demog').textContent = demogStr || '—';
-  document.getElementById('sticky-title-sub').textContent = s.subcategory || s.category || '';
+  document.getElementById('sticky-title-sub').textContent = s.provisional || s.subcategory || s.category || '';
 
   // Vitals
   const vitalsEl = document.getElementById('sticky-vitals');
