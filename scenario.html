@@ -3051,53 +3051,53 @@ function renderSection1(s, isTrauma) {
           })()}
           ${(()=>{
             const ECG_CHARS = {
-              nsr:        { pwave:'Present, normal',    pr:'120–200ms (normal)',   qrs:'<120ms (narrow)' },
-              stach:      { pwave:'Present, normal',    pr:'120–200ms (normal)',   qrs:'<120ms (narrow)' },
-              sbrad:      { pwave:'Present, normal',    pr:'120–200ms (normal)',   qrs:'<120ms (narrow)' },
-              af:         { pwave:'Absent — fibrillatory baseline', pr:'Not measurable', qrs:'<120ms (narrow)' },
-              aflut:      { pwave:'Flutter waves (sawtooth 300bpm)', pr:'Variable (AV block)', qrs:'<120ms (narrow)' },
-              svt:        { pwave:'Absent or retrograde P waves', pr:'Not measurable', qrs:'<120ms (narrow)' },
-              vt:         { pwave:'Dissociated (AV dissociation)', pr:'Not measurable', qrs:'>120ms (broad)' },
-              vf:         { pwave:'Absent',             pr:'Not measurable',       qrs:'Chaotic — no QRS' },
-              asys:       { pwave:'Absent',             pr:'Not measurable',       qrs:'Absent' },
-              chb:        { pwave:'Present, regular — dissociated from QRS', pr:'Variable (no relationship)', qrs:'>120ms (broad escape)' },
-              mob1:       { pwave:'Present, normal',    pr:'Progressively lengthening', qrs:'<120ms (narrow)' },
-              mob2:       { pwave:'Present, normal',    pr:'Fixed, then dropped beat', qrs:'<120ms (narrow)' },
-              deg1:       { pwave:'Present, normal',    pr:'>200ms (prolonged)',   qrs:'<120ms (narrow)' },
-              junct:      { pwave:'Absent or retrograde', pr:'<120ms or not measurable', qrs:'<120ms (narrow)' },
-              wpw:        { pwave:'Present, normal',    pr:'<120ms (short) — delta wave', qrs:'Widened with delta wave' },
-              pvc:        { pwave:'Absent (ectopic beats)', pr:'Not measurable (ectopics)', qrs:'>120ms (broad ectopic)' },
-              aivr:       { pwave:'Dissociated',        pr:'Not measurable',       qrs:'>120ms (broad)' },
-              hyperK:     { pwave:'Flattened or absent', pr:'May be prolonged',    qrs:'Widened — sine wave pattern' },
-              hypoK:      { pwave:'Present, normal',    pr:'May be prolonged',     qrs:'Normal — prominent U wave' },
-              longQT:     { pwave:'Present, normal',    pr:'120–200ms (normal)',   qrs:'<120ms — prolonged QT interval' },
-              peri:       { pwave:'Present, normal',    pr:'120–200ms (normal)',   qrs:'<120ms — diffuse ST elevation' },
-              nstemi:     { pwave:'Present, normal',    pr:'120–200ms (normal)',   qrs:'<120ms — ST depression/T changes' },
-              pe:         { pwave:'Present, normal',    pr:'120–200ms (normal)',   qrs:'<120ms — S1Q3T3 pattern' },
-              brugada:    { pwave:'Present, normal',    pr:'120–200ms (normal)',   qrs:'RBBB-like with coved ST elevation V1–V2' },
-              'stemi-inf':{ pwave:'Present, normal',    pr:'120–200ms (normal)',   qrs:'<120ms — ST elevation II, III, aVF' },
-              'stemi-ant':{ pwave:'Present, normal',    pr:'120–200ms (normal)',   qrs:'<120ms — ST elevation V1–V4' },
-              'stemi-lat':{ pwave:'Present, normal',    pr:'120–200ms (normal)',   qrs:'<120ms — ST elevation I, aVL, V5–V6' },
-              'stemi-post':{ pwave:'Present, normal',   pr:'120–200ms (normal)',   qrs:'<120ms — tall R waves V1–V2, ST depression' },
-              vvipace:    { pwave:'May be absent/paced', pr:'Not applicable',      qrs:'>120ms (paced — broad)' },
-              aaipace:    { pwave:'Paced (pacing spike before P)', pr:'120–200ms', qrs:'<120ms (narrow)' },
-              dddpace:    { pwave:'Paced',               pr:'120–200ms (paced AV delay)', qrs:'>120ms (paced — broad)' },
+              nsr:         { pwave:'Present, normal',                            pr:'120–200ms (normal)',                    qrs:'<120ms (narrow)' },
+              stach:       { pwave:'Present, normal',                            pr:'120–200ms (normal)',                    qrs:'<120ms (narrow)' },
+              sbrad:       { pwave:'Present, normal',                            pr:'120–200ms (normal)',                    qrs:'<120ms (narrow)' },
+              af:          { pwave:'Absent — fibrillatory baseline',             pr:'Not measurable',                        qrs:'<120ms (narrow)' },
+              aflut:       { pwave:'Flutter waves (sawtooth 300bpm)',            pr:'Variable (AV block)',                   qrs:'<120ms (narrow)' },
+              svt:         { pwave:'Absent or retrograde P waves',               pr:'Not measurable',                        qrs:'<120ms (narrow)' },
+              vt:          { pwave:'Dissociated (AV dissociation)',              pr:'Not measurable',                        qrs:'>120ms (broad)' },
+              vf:          { pwave:'Absent',                                     pr:'Not measurable',                        qrs:'Chaotic — no QRS' },
+              asys:        { pwave:'Absent',                                     pr:'Not measurable',                        qrs:'Absent' },
+              chb:         { pwave:'Present, regular — dissociated from QRS',   pr:'Variable (no AV relationship)',         qrs:'>120ms (broad escape)' },
+              mob1:        { pwave:'Present, normal',                            pr:'Progressively lengthening',             qrs:'<120ms (narrow)' },
+              mob2:        { pwave:'Present, normal',                            pr:'Fixed, then dropped beat',              qrs:'<120ms (narrow)' },
+              deg1:        { pwave:'Present, normal',                            pr:'>200ms (prolonged)',                    qrs:'<120ms (narrow)' },
+              junct:       { pwave:'Absent or retrograde',                       pr:'<120ms or not measurable',              qrs:'<120ms (narrow)' },
+              wpw:         { pwave:'Present, normal',                            pr:'<120ms (short) — delta wave',           qrs:'Widened with delta wave' },
+              pvc:         { pwave:'Absent (ectopic beats)',                     pr:'Not measurable (ectopics)',             qrs:'>120ms (broad ectopic)' },
+              aivr:        { pwave:'Dissociated',                                pr:'Not measurable',                        qrs:'>120ms (broad)' },
+              hyperK:      { pwave:'Flattened or absent',                        pr:'May be prolonged',                      qrs:'Widened — sine wave pattern' },
+              hypoK:       { pwave:'Present, normal',                            pr:'May be prolonged',                      qrs:'Normal — prominent U wave' },
+              longQT:      { pwave:'Present, normal',                            pr:'120–200ms (normal)',                    qrs:'<120ms — prolonged QT interval' },
+              peri:        { pwave:'Present, normal',                            pr:'120–200ms (normal)',                    qrs:'<120ms — diffuse ST elevation' },
+              nstemi:      { pwave:'Present, normal',                            pr:'120–200ms (normal)',                    qrs:'<120ms — ST depression/T changes' },
+              pe:          { pwave:'Present, normal',                            pr:'120–200ms (normal)',                    qrs:'<120ms — S1Q3T3 pattern' },
+              brugada:     { pwave:'Present, normal',                            pr:'120–200ms (normal)',                    qrs:'RBBB-like with coved ST elevation V1–V2' },
+              'stemi-inf': { pwave:'Present, normal',                            pr:'120–200ms (normal)',                    qrs:'<120ms — ST elevation II, III, aVF' },
+              'stemi-ant': { pwave:'Present, normal',                            pr:'120–200ms (normal)',                    qrs:'<120ms — ST elevation V1–V4' },
+              'stemi-lat': { pwave:'Present, normal',                            pr:'120–200ms (normal)',                    qrs:'<120ms — ST elevation I, aVL, V5–V6' },
+              'stemi-post':{ pwave:'Present, normal',                            pr:'120–200ms (normal)',                    qrs:'<120ms — tall R V1–V2, ST depression' },
+              vvipace:     { pwave:'May be absent/paced',                        pr:'Not applicable',                        qrs:'>120ms (paced — broad)' },
+              aaipace:     { pwave:'Paced (pacing spike before P)',              pr:'120–200ms',                             qrs:'<120ms (narrow)' },
+              dddpace:     { pwave:'Paced',                                      pr:'120–200ms (paced AV delay)',            qrs:'>120ms (paced — broad)' },
             };
-            // Derive key from ECGEngine if available, else raw rhythm string
-            const _ecgKey = (typeof ECGEngine !== 'undefined') ? (ECGEngine.mapRhythm(rhythmStr, hr)||{}).key : null;
+            const _ecgMapped = (typeof ECGEngine !== 'undefined') ? (ECGEngine.mapRhythm(rhythmStr, hr) || {}) : {};
+            const _ecgKey = _ecgMapped.key || null;
             const _ecgChar = ECG_CHARS[_ecgKey] || {};
-            const _bbb = (typeof ECGEngine !== 'undefined') ? (ECGEngine.mapRhythm(rhythmStr, hr)||{}).bbbMode : '';
-            const qrsOverride = _bbb === 'lbbb' ? '>120ms (LBBB — broad)' : _bbb === 'rbbb' ? '>120ms (RBBB — broad)' : null;
-            const _pw = _ecgChar.pwave || '';
-            const _pr = _ecgChar.pr || '';
-            const _qrs = qrsOverride || _ecgChar.qrs || '';
-            return mkSubRow('vrhythm',\`Ventricular Rhythm\${hint(v.Rhythm||'','Rhythm')}\`, '','','','monitor')
-              + mkSubRow('vrate','Ventricular Rate (±10bpm)', v.HR||'','','','monitor')
-              + mkSubRow('pwave',\`P Wave\${_pw ? \`<span class="vital-hint" style="background:var(--navy)">\${_pw}</span>\` : ''}\`,'','','','monitor')
-              + mkSubRow('pr',\`PR Interval\${_pr ? \`<span class="vital-hint" style="background:var(--navy)">\${_pr}</span>\` : ''}\`,'','','','monitor')
-              + mkSubRow('qrs',\`QRS Duration\${_qrs ? \`<span class="vital-hint" style="background:var(--navy)">\${_qrs}</span>\` : ''}\`,'','','','monitor')
-              + mkSubRow('interp','Correct Rhythm Interpretation','','','','monitor')
-              + mkSubRow('lead12','12 Lead (as appropriate)','','','','monitor');
+            const _bbb = _ecgMapped.bbbMode || '';
+            const _qrsVal = _bbb === 'lbbb' ? '>120ms (LBBB — broad)' : _bbb === 'rbbb' ? '>120ms (RBBB — broad)' : (_ecgChar.qrs || '');
+            const _pw  = _ecgChar.pwave || '';
+            const _pr  = _ecgChar.pr    || '';
+            const hintBadge = (val) => val ? '<span class="vital-hint" style="background:var(--navy)">' + val + '</span>' : '';
+            return mkSubRow('vrhythm', 'Ventricular Rhythm' + hint(v.Rhythm||'','Rhythm'), '','','','monitor')
+              + mkSubRow('vrate',  'Ventricular Rate (\u00b110bpm)', v.HR||'','','','monitor')
+              + mkSubRow('pwave',  'P Wave'      + hintBadge(_pw),   '','','','monitor')
+              + mkSubRow('pr',     'PR Interval' + hintBadge(_pr),   '','','','monitor')
+              + mkSubRow('qrs',    'QRS Duration'+ hintBadge(_qrsVal),'','','','monitor')
+              + mkSubRow('interp', 'Correct Rhythm Interpretation',   '','','','monitor')
+              + mkSubRow('lead12', '12 Lead (as appropriate)',        '','','','monitor');
           })()}
         </tbody>
       </table>
