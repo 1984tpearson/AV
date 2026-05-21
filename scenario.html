@@ -637,18 +637,18 @@ body.snav-active #content { padding-left: 60px; }
 .sticky-timer-btn:active { background: rgba(255,255,255,0.3); }
 
 /* Scenario title */
-#sticky-title { padding: 0 12px; flex-shrink: 0; border-right: 1px solid rgba(255,255,255,0.15); display: none; }
+#sticky-title { padding: 0 10px; flex-shrink: 0; border-right: 1px solid rgba(255,255,255,0.15); display: none; }
 @media (min-width: 500px) { #sticky-title { display: block; } }
-#sticky-title .st-name { font-size: 12px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 150px; }
-#sticky-title .st-sub { font-size: 10px; opacity: 0.65; white-space: nowrap; }
+#sticky-title .st-demog { font-size: 13px; font-weight: 800; white-space: nowrap; line-height: 1.2; }
+#sticky-title .st-sub { font-size: 10px; opacity: 0.6; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 160px; margin-top: 1px; }
 
 /* Vitals strip */
 #sticky-vitals { display: flex; align-items: center; gap: 0; overflow-x: auto; flex: 1; padding: 0 4px; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
 #sticky-vitals::-webkit-scrollbar { display: none; }
-.sv-item { display: flex; flex-direction: column; align-items: center; padding: 5px 10px; border-right: 1px solid rgba(255,255,255,0.1); flex-shrink: 0; cursor: default; }
+.sv-item { display: flex; flex-direction: column; align-items: center; padding: 4px 7px; border-right: 1px solid rgba(255,255,255,0.1); flex-shrink: 0; cursor: default; }
 .sv-item.abnormal { background: rgba(192,57,43,0.35); }
-.sv-label { font-size: 9px; opacity: 0.6; text-transform: uppercase; letter-spacing: 0.5px; }
-.sv-value { font-size: 13px; font-weight: 700; white-space: nowrap; }
+.sv-label { font-size: 8px; opacity: 0.6; text-transform: uppercase; letter-spacing: 0.4px; }
+.sv-value { font-size: 12px; font-weight: 700; white-space: nowrap; }
 .sv-gcs-item { align-items: flex-start; min-width: 0; max-width: 260px; }
 .sv-gcs-item .sv-value { font-size: 12px; }
 .sv-gcs-desc { font-size: 10px; opacity: 0.75; font-style: italic; white-space: normal; line-height: 1.3; margin-top: 1px; }
@@ -656,9 +656,6 @@ body.snav-active #content { padding-left: 60px; }
 /* Edit button in sticky bar */
 #sticky-edit-btn { padding: 6px 12px; background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.25); color: white; border-radius: 6px; cursor: pointer; font-size: 11px; font-weight: 700; flex-shrink: 0; margin: 0 8px; min-height: 32px; display: flex; align-items: center; gap: 4px; }
 #sticky-edit-btn:active { background: rgba(255,255,255,0.25); }
-#sticky-ecg-btn { padding: 6px 10px; background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.25); color: white; border-radius: 6px; cursor: pointer; font-size: 11px; font-weight: 700; flex-shrink: 0; margin: 0 0 0 0; min-height: 32px; display: none; align-items: center; gap: 4px; }
-#sticky-ecg-btn.visible { display: flex; }
-#sticky-ecg-btn:active { background: rgba(255,255,255,0.25); }
 
 /* Push content down to account for topbar + sticky bar */
 #main-wrapper { margin-top: 56px; }
@@ -5167,9 +5164,23 @@ function showStickyBar(s) {
   const nav = document.getElementById('scenario-nav');
   if (nav) { nav.style.top = '100px'; nav.style.height = 'calc(100vh - 100px)'; }
 
-  // Title
-  document.getElementById('sticky-title-name').textContent = s.title || '—';
-  document.getElementById('sticky-title-sub').textContent = s.subtitle || s.category || '';
+  // Title — show age+gender on top line, job type below
+  const subtitle = s.subtitle || '';
+  const ageMatch = subtitle.match(/(\d+(?:\.\d+)?)\s*(?:yo|yr|year|mo\b|\/12|months?)/i);
+  const genderMatch = subtitle.match(/\b(male|female|boy|girl)\b/i);
+  let demogStr = '';
+  if (ageMatch) {
+    const rawAge = parseFloat(ageMatch[1]);
+    const isMo = /mo\b|\/12|months?/i.test(ageMatch[0]);
+    demogStr = isMo ? `${Math.round(rawAge)}mo` : `${Math.round(rawAge)}yo`;
+  }
+  if (genderMatch) {
+    const g = genderMatch[1].toLowerCase();
+    const abbr = (g === 'female' || g === 'girl') ? 'F' : 'M';
+    demogStr = demogStr ? `${demogStr} ${abbr}` : abbr;
+  }
+  document.getElementById('sticky-title-demog').textContent = demogStr || '—';
+  document.getElementById('sticky-title-sub').textContent = s.subcategory || s.category || '';
 
   // Vitals
   const vitalsEl = document.getElementById('sticky-vitals');
@@ -5197,20 +5208,6 @@ function showStickyBar(s) {
   const el = document.getElementById('sticky-timer-display');
   if (el) el.textContent = `${String(m).padStart(2,'0')}:${String(ss).padStart(2,'0')}`;
 
-  // ECG button — show only if scenario has a matching ECG
-  const ecgBtn = document.getElementById('sticky-ecg-btn');
-  if (ecgBtn) {
-    const ecgData = getECGImage(s.vitals && s.vitals.Rhythm);
-    if (ecgData) {
-      ecgBtn.classList.add('visible');
-      ecgBtn._ecgSrc = ecgData.url;
-      ecgBtn._ecgLabel = ecgData.label;
-    } else {
-      ecgBtn.classList.remove('visible');
-      ecgBtn._ecgSrc = null;
-      ecgBtn._ecgLabel = null;
-    }
-  }
 }
 
 // ============================================================
@@ -6041,10 +6038,6 @@ function closeECGLightbox() {
   document.getElementById('ecg-lightbox').classList.remove('open');
 }
 
-function openStickyECG() {
-  const btn = document.getElementById('sticky-ecg-btn');
-  if (btn && btn._ecgSrc) openECGLightbox(btn._ecgSrc, btn._ecgLabel);
-}
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closeECGLightbox(); });
 
 // ── Live ECG Engine (assessor side) ──────────────────────────────────
@@ -6138,11 +6131,10 @@ window.initAssessorECG = initAssessorECG;
       <button class="sticky-timer-btn" onclick="resetTimer()">↺</button>
     </div>
     <div id="sticky-title">
-      <div class="st-name" id="sticky-title-name">—</div>
+      <div class="st-demog" id="sticky-title-demog">—</div>
       <div class="st-sub" id="sticky-title-sub">—</div>
     </div>
     <div id="sticky-vitals"></div>
-    <button id="sticky-ecg-btn" onclick="openStickyECG()">📈 ECG</button>
   </div>
 </div>
 
