@@ -2975,7 +2975,7 @@ function renderSection1(s, isTrauma) {
         <thead><tr><th class="left">Element</th><th>Prompting</th><th>Incomplete</th><th>Complete</th></tr></thead>
         <tbody>
           ${mkRow('rsa','RSA — Respiratory')}
-          ${mkSubRow('appearance','Appearance','','','','rsa')}${mkSubRow('speech','Speech','','','','rsa')}${mkSubRow('breathsounds','Breath/Chest sounds','','','','rsa')}${mkSubRow('rr',`Respiratory Rate${hint(v.RR||'','RR')}`, '','','','rsa')}${mkSubRow('rrhythm','Respiratory Rhythm','','','','rsa')}${mkSubRow('wob2','Work of Breathing','','','','rsa')}${mkSubRow('spo2',`SpO₂${hint(v.SpO2||'','SpO2')}`, '','','','rsa')}
+          ${mkSubRow('appearance',`Appearance${s.rsa&&s.rsa.appearance?infoHint(s.rsa.appearance):''}`, '','','','rsa')}${mkSubRow('speech',`Speech${s.rsa&&s.rsa.speech?infoHint(s.rsa.speech):''}`, '','','','rsa')}${mkSubRow('breathsounds',`Breath/Chest sounds${s.rsa&&s.rsa.breath_sounds?infoHint(s.rsa.breath_sounds):''}`, '','','','rsa')}${mkSubRow('rr',`Respiratory Rate${hint(v.RR||'','RR')}`, '','','','rsa')}${mkSubRow('rrhythm',`Respiratory Rhythm${s.rsa&&s.rsa.rhythm?infoHint(s.rsa.rhythm):''}`, '','','','rsa')}${mkSubRow('wob2',`Work of Breathing${s.rsa&&s.rsa.wob?infoHint(s.rsa.wob):''}`, '','','','rsa')}${mkSubRow('spo2',`SpO₂${hint(v.SpO2||'','SpO2')}`, '','','','rsa')}
           ${mkRow('psa','PSA — Circulatory')}
           ${(()=>{
             // SKIN — context-derived
@@ -4630,7 +4630,7 @@ function buildCPGContext(catVal1, catVal2) {
   return `\n\nRELEVANT AV CPG CONTENT (v3.13.1) — use these exact doses and thresholds:\n${packageSections}${comboNote}`;
 }
 
-const SCENARIO_JSON_TEMPLATE = `{"title":"","subtitle":"","category":"CAT","subcategory":"SUB","type":"","cpg":"","level":"C/D","dispatch":"","vitals":{"GCS":{"E":0,"V":0,"M":0,"total":0,"description":""},"SpO2":"","RR":"","HR":"","BP":"","Temp":"","BGL":"","Rhythm":"","Weight":"","Ketones":"","EtCO2":""},"key_hx":"","medical_conditions":["","",""],"medications":["","",""],"allergies":"","flags":["","","",""],"ddx":["","","",""],"provisional":"","life_threats":["",""],"kq":[{"q":"","max":2,"answer":""},{"q":"","max":2,"answer":""},{"q":"","max":1,"answer":""}],"discussion":[]}`;
+const SCENARIO_JSON_TEMPLATE = `{"title":"","subtitle":"","category":"CAT","subcategory":"SUB","type":"","cpg":"","level":"C/D","dispatch":"","vitals":{"GCS":{"E":0,"V":0,"M":0,"total":0,"description":""},"SpO2":"","RR":"","HR":"","BP":"","Temp":"","BGL":"","Rhythm":"","Weight":"","Ketones":"","EtCO2":""},"key_hx":"","medical_conditions":["","",""],"medications":["","",""],"allergies":"","flags":["","","",""],"ddx":["","","",""],"provisional":"","rsa":{"appearance":"","speech":"","breath_sounds":"","rhythm":"","wob":""},"life_threats":["",""],"kq":[{"q":"","max":2,"answer":""},{"q":"","max":2,"answer":""},{"q":"","max":1,"answer":""}],"discussion":[]}`;
 // Note: medical_conditions = short list e.g. ["Asthma (previous ICU admission)", "Type 2 Diabetes", "Hypertension"]
 // medications = short list e.g. ["Metoprolol 50mg daily", "Aspirin 100mg", "Candesartan 8mg"]
 // key_hx = legacy field kept for backwards compat with built-in scenarios
@@ -4772,6 +4772,13 @@ For vitals.Weight: always provide a realistic weight in kg appropriate to the pa
 For vitals.Ketones: always provide a realistic blood ketone value in mmol/L (e.g. "0.2 mmol/L"). Use elevated values (>1.5 mmol/L) for DKA, hyperglycaemia, or diabetic emergencies. Use normal/low values (0.1–0.5 mmol/L) for all other presentations. Never leave blank.
 For vitals.EtCO2: always provide a realistic end-tidal CO₂ value in mmHg (e.g. "38 mmHg"). Use low values for hyperventilation or poor perfusion states; high values for hypoventilation, opioid OD, or severe respiratory failure; normal range (35–45 mmHg) for most presentations. Never leave blank.
 For the "discussion" field: provide 2–4 brief bullet points about management or considerations that are BEYOND AV scope — e.g. in-hospital treatment, specialist interventions, or relevant clinical nuance not covered by AV CPGs. These are suggested discussion prompts for the CI to use with the student. They are NOT assessable and NOT part of AV management. Label them clearly as beyond-scope. Return as an array of strings.
+For the "rsa" field: populate each sub-field with the clinically appropriate descriptor for this specific patient, chosen from the fixed options below (taken directly from CPG A0103). Each component is assessed independently — do NOT assume all components must come from the same severity column. Choose based on the patient's presentation, vitals, and diagnosis.
+- rsa.appearance: one of — "Calm, quiet" | "Calm or mildly anxious" | "Distressed, anxious" | "Distressed, anxious, fighting to breathe, exhausted" | "Catatonic"
+- rsa.speech: one of — "Clear and steady" | "Sentences" | "Phrases" | "Single words" | "Unable to speak"
+- rsa.breath_sounds: one of — "Normal lung sounds" | "Wheeze" | "Crackles" | "Wheeze and crackles" | "Silent chest" | "Full field crackles" | "Inspiratory stridor" | "Normal"
+- rsa.rhythm: one of — "Regular and even" | "Slightly prolonged expiratory phase" | "Prolonged expiratory phase" | "Kussmaul breathing" | "Cheyne-Stokes respiration" | "Agonal breathing"
+- rsa.wob: one of — "Normal, no increased effort" | "Mild increase in effort" | "Moderate increase in effort" | "Accessory muscle use" | "Moderate increase in effort, accessory muscle use" | "Severe/maximal effort — accessory muscle use, intercostal retraction, tracheal tugging" | "Poor respiratory effort"
+For non-respiratory presentations, use normal/near-normal values unless vitals or context suggest otherwise (e.g. a shocked trauma patient may have tachypnoea and increased WoB even without primary respiratory pathology).
 For the "subtitle" field: always use the format "48yo Female — Chest pain and diaphoresis" (age + gender + em dash + brief clinical description). Age must match the patient demographics exactly. Gender should be Male or Female (capitalised). The clinical description after the em dash should be concise (5–8 words) and match the provisional diagnosis.
 Return ONLY a valid JSON object:
 ${SCENARIO_JSON_TEMPLATE.replace('CAT', category).replace('SUB', subcategory)}`;
