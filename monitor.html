@@ -107,7 +107,7 @@ body { background: #0a0d14; color: #e0e0e0; font-family: 'Courier New', monospac
 <div id="connect-screen">
   <h2>Patient Monitor</h2>
   <p>Enter the session code from your assessor</p>
-  <input type="text" id="code-input" maxlength="4" inputmode="numeric" pattern="[0-9]*" placeholder="····" oninput="this.value=this.value.replace(/[^0-9]/g,'')">
+  <input type="text" id="code-input" maxlength="6" inputmode="numeric" pattern="[0-9]*" placeholder="····" oninput="this.value=this.value.replace(/[^0-9]/g,'')">
   <button id="connect-btn" onclick="connectSession()">Connect</button>
   <div id="connect-error">Session not found. Check the code and try again.</div>
 </div>
