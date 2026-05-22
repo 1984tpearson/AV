@@ -2821,7 +2821,7 @@ function renderSection1(s, isTrauma) {
           ${mkRow('dra','Dynamic Risk Assessment')}
           ${mkSubRow('ppe','PPE','','','','dra')}${mkSubRow('dangers','Dangers','','','','dra')}
           ${mkRow('rapid','Rapid Assessment (Adult/PAT)')}
-          ${mkSubRow('alertness','Alertness', gcsNum < 15 ? `GCS ${gcs.display}` : 'Alert', gcsNum < 14 ? 'GCS' : '','','rapid')}${mkSubRow('wob1','Work of Breathing', wobHint,'','','rapid')}${mkSubRow('skin1','Skin','','','','rapid')}${mkSubRow('wellunwell','Well / Unwell', wellHint, wellHint==='UNWELL'?'flag':'','','rapid')}
+          ${mkSubRow('alertness','Alertness', gcsNum < 15 ? `GCS ${gcs.display}` : 'Alert', gcsNum < 14 ? 'GCS' : '','','rapid')}${mkSubRow('wob1',`Work of Breathing${s.ra&&s.ra.wob?infoHint(s.ra.wob):''}`, wobHint,'','','rapid')}${mkSubRow('skin1',`Skin${s.ra&&s.ra.skin?infoHint(s.ra.skin):''}`, '','','','rapid')}${mkSubRow('wellunwell','Well / Unwell', wellHint, wellHint==='UNWELL'?'flag':'','','rapid')}
         </tbody>
       </table>
 
@@ -2942,7 +2942,7 @@ function renderSection1(s, isTrauma) {
             <td class="tick-col"><button class="sub-tick-btn" id="sub-ps-disability-complete" onclick="toggleSubTick('ps-disability','complete','ps-primary')" title="Complete">—</button></td>
           </tr>
           <tr data-row-id="ps-exposure" data-parent="ps-primary">
-            <td class="elem-label indent">Exposure${mkHint(exposureHint, exposureRelevant)}</td>
+            <td class="elem-label indent">Exposure${s.ps_exposure ? infoHint(s.ps_exposure) : mkHint(exposureHint, exposureRelevant)}</td>
             <td class="tick-col"><button class="sub-tick-btn" id="sub-ps-exposure-prompted" onclick="toggleSubTick('ps-exposure','prompted','ps-primary')" title="Prompting Required">—</button></td>
             <td class="tick-col"><button class="sub-tick-btn" id="sub-ps-exposure-incomplete" onclick="toggleSubTick('ps-exposure','incomplete','ps-primary')" title="Incomplete/Incorrect">—</button></td>
             <td class="tick-col"><button class="sub-tick-btn" id="sub-ps-exposure-complete" onclick="toggleSubTick('ps-exposure','complete','ps-primary')" title="Complete">—</button></td>
@@ -2966,7 +2966,7 @@ function renderSection1(s, isTrauma) {
           ${mkRow('hxhist','History of injury/illness')}
           ${mkSubRow('hxtimeline',`Timeline${s.hx&&s.hx.timeline?infoHint(s.hx.timeline):''}`, '','','','hxhist')}${mkSubRow('hxnature',`Nature${s.hx&&s.hx.nature?infoHint(s.hx.nature):''}`, '','','','hxhist')}${mkSubRow('hxprodromal',`Prodromal symptoms${s.hx&&s.hx.prodromal?infoHint(s.hx.prodromal):''}`, '','','','hxhist')}${mkSubRow('hxaggreliev',`Aggravating / Relieving factors${s.hx&&s.hx.aggreliev?infoHint(s.hx.aggreliev):''}`, '','','','hxhist')}${mkSubRow('hxassoc',`Associated circumstances${s.hx&&s.hx.assoc?infoHint(s.hx.assoc):''}`, '','','','hxhist')}${mkSubRow('hxsimilar',`Similar episodes${s.hx&&s.hx.similar?infoHint(s.hx.similar):''}`, '','','','hxhist')}
           ${mkRow('phmedical', `Medical conditions${keyHxShort ? infoHint(keyHxShort) : ''}`)}
-          ${mkSubRow('phmeds', 'Medications' + (medList.length ? infoHint(medList.join(', ')) : (s.medications ? '' : '')), '', '', false, 'phmedical')}${mkSubRow('phallergies','Allergies' + (s.allergies ? infoHint(s.allergies) : ''),'','',false,'phmedical')}${mkSubRow('phrisk','Risk factors','','','','phmedical')}${mkSubRow('phsocial','Social & environmental','','','','phmedical')}
+          ${mkSubRow('phmeds', 'Medications' + (medList.length ? infoHint(medList.join(', ')) : (s.medications ? '' : '')), '', '', false, 'phmedical')}${mkSubRow('phallergies','Allergies' + (s.allergies ? infoHint(s.allergies) : ''),'','',false,'phmedical')}${mkSubRow('phrisk','Risk factors','','','','phmedical')}${mkSubRow('phsocial',`Social & environmental${s.social?infoHint(s.social):''}`, '','','','phmedical')}
         </tbody>
       </table>
 
@@ -4630,7 +4630,7 @@ function buildCPGContext(catVal1, catVal2) {
   return `\n\nRELEVANT AV CPG CONTENT (v3.13.1) — use these exact doses and thresholds:\n${packageSections}${comboNote}`;
 }
 
-const SCENARIO_JSON_TEMPLATE = `{"title":"","subtitle":"","category":"CAT","subcategory":"SUB","type":"","cpg":"","level":"C/D","dispatch":"","vitals":{"GCS":{"E":0,"V":0,"M":0,"total":0,"description":""},"SpO2":"","RR":"","HR":"","BP":"","Temp":"","BGL":"","Rhythm":"","Weight":"","Ketones":"","EtCO2":""},"key_hx":"","hx":{"timeline":"","nature":"","prodromal":"","aggreliev":"","assoc":"","similar":""},"medical_conditions":["","",""],"medications":["","",""],"allergies":"","flags":["","","",""],"ddx":["","","",""],"provisional":"","rsa":{"appearance":"","speech":"","breath_sounds":"","rhythm":"","wob":""},"life_threats":["",""],"kq":[{"q":"","max":2,"answer":""},{"q":"","max":2,"answer":""},{"q":"","max":1,"answer":""}],"discussion":[]}`;
+const SCENARIO_JSON_TEMPLATE = `{"title":"","subtitle":"","category":"CAT","subcategory":"SUB","type":"","cpg":"","level":"C/D","dispatch":"","vitals":{"GCS":{"E":0,"V":0,"M":0,"total":0,"description":""},"SpO2":"","RR":"","HR":"","BP":"","Temp":"","BGL":"","Rhythm":"","Weight":"","Ketones":"","EtCO2":""},"key_hx":"","hx":{"timeline":"","nature":"","prodromal":"","aggreliev":"","assoc":"","similar":""},"medical_conditions":["","",""],"medications":["","",""],"allergies":"","flags":["","","",""],"ddx":["","","",""],"provisional":"","ra":{"wob":"","skin":""},"ps_exposure":"","social":"","rsa":{"appearance":"","speech":"","breath_sounds":"","rhythm":"","wob":""},"life_threats":["",""],"kq":[{"q":"","max":2,"answer":""},{"q":"","max":2,"answer":""},{"q":"","max":1,"answer":""}],"discussion":[]}`;
 // Note: medical_conditions = short list e.g. ["Asthma (previous ICU admission)", "Type 2 Diabetes", "Hypertension"]
 // medications = short list e.g. ["Metoprolol 50mg daily", "Aspirin 100mg", "Candesartan 8mg"]
 // key_hx = legacy field kept for backwards compat with built-in scenarios
@@ -4779,6 +4779,11 @@ For vitals.Weight: always provide a realistic weight in kg appropriate to the pa
 For vitals.Ketones: always provide a realistic blood ketone value in mmol/L (e.g. "0.2 mmol/L"). Use elevated values (>1.5 mmol/L) for DKA, hyperglycaemia, or diabetic emergencies. Use normal/low values (0.1–0.5 mmol/L) for all other presentations. Never leave blank.
 For vitals.EtCO2: always provide a realistic end-tidal CO₂ value in mmHg (e.g. "38 mmHg"). Use low values for hyperventilation or poor perfusion states; high values for hypoventilation, opioid OD, or severe respiratory failure; normal range (35–45 mmHg) for most presentations. Never leave blank.
 For the "discussion" field: provide 2–4 brief bullet points about management or considerations that are BEYOND AV scope — e.g. in-hospital treatment, specialist interventions, or relevant clinical nuance not covered by AV CPGs. These are suggested discussion prompts for the CI to use with the student. They are NOT assessable and NOT part of AV management. Label them clearly as beyond-scope. Return as an array of strings.
+For the "ra" field (Rapid Assessment — what is seen at a glance on approach):
+- ra.wob: brief visual impression of breathing effort — one of: "Adequate" | "Increased effort" | "Decreased effort" | "Agonal" | "Not breathing" | "Laboured" | "Shallow"
+- ra.skin: brief visual impression of skin on approach — concise phrase describing colour, moisture, and temperature (e.g. "Warm, pink, dry" | "Pale, diaphoretic" | "Cyanosed, mottled" | "Flushed, warm" | "Cold, pale, mottled" | "Jaundiced" | "Urticarial rash"). Match to patient's clinical state and ethnicity where relevant.
+For "ps_exposure": a single short sentence describing the patient's clothing/environment in the context of exposure risk — what does the paramedic see on arrival? Focus on clothing appropriateness vs environment (e.g. "Adequately clothed, moderate temperature environment" | "Wearing heavy jumper indoors, room is 35°C" | "Found unclothed in cold backyard, ambient temp ~5°C" | "Wet clothing following submersion, cold evening"). For most scenarios this will be unremarkable — use "Adequately clothed, no environmental exposure concerns" as the default. Leave "" only if genuinely not applicable (e.g. in-hospital transfer).
+For "social": a brief phrase about social/environmental circumstances relevant to ongoing care — living situation, support, home conditions (e.g. "Lives alone, no carer support" | "Well-supported, family present" | "Poor home conditions, evidence of self-neglect" | "Unhoused, sleeping rough" | "Elderly, lives alone in aged care facility"). For most working-age adults and trauma/vehicle scenarios use "" or keep very brief. Increase rate of social complexity for elderly patients, mental health presentations, and chronic illness scenarios.
 For the "rsa" field: populate each sub-field with the clinically appropriate descriptor for this specific patient, chosen from the fixed options below (taken directly from CPG A0103). Each component is assessed independently — do NOT assume all components must come from the same severity column. Choose based on the patient's presentation, vitals, and diagnosis.
 - rsa.appearance: one of — "Calm, quiet" | "Calm or mildly anxious" | "Distressed, anxious" | "Distressed, anxious, fighting to breathe, exhausted" | "Catatonic"
 - rsa.speech: one of — "Clear and steady" | "Sentences" | "Phrases" | "Single words" | "Unable to speak"
