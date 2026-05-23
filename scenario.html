@@ -601,6 +601,57 @@ body.snav-active #content { padding-left: 60px; }
 .sum-result-badge.pass { background: var(--green-light); color: var(--green); border: 2px solid var(--green); }
 .sum-result-badge.fail { background: var(--red-light); color: var(--red); border: 2px solid var(--red); }
 
+/* ============================================================ ERROR FLAGGING SYSTEM */
+#flag-error-btn { position: fixed; bottom: 88px; right: 16px; z-index: 50; background: var(--red); color: white; border: none; border-radius: 28px; padding: 0 18px; height: 48px; font-size: 13px; font-weight: 700; cursor: pointer; box-shadow: 0 4px 16px rgba(192,57,43,0.35); display: none; align-items: center; gap: 8px; white-space: nowrap; transition: background 0.2s, box-shadow 0.2s; }
+#flag-error-btn.visible { display: flex; }
+#flag-error-btn.active { background: #922B21; box-shadow: 0 4px 20px rgba(192,57,43,0.55); animation: flagPulse 2s infinite; }
+@keyframes flagPulse { 0%,100%{box-shadow:0 4px 20px rgba(192,57,43,0.55)} 50%{box-shadow:0 4px 28px rgba(192,57,43,0.9)} }
+#flag-error-btn:active { opacity: 0.85; }
+.row-flag-btn { display: none; background: none; border: none; cursor: pointer; padding: 2px 4px; margin-left: 4px; font-size: 14px; opacity: 0.35; transition: opacity 0.15s, transform 0.15s; vertical-align: middle; line-height: 1; flex-shrink: 0; }
+.row-flag-btn:hover { opacity: 0.8; transform: scale(1.15); }
+.row-flag-btn.flagged { opacity: 1; }
+body.flag-mode-active .row-flag-btn { display: inline-block; }
+.correction-badge { display: inline-flex; align-items: center; gap: 4px; background: #fff3cd; border: 1px solid #f0c040; border-radius: 5px; padding: 1px 7px; font-size: 11px; font-weight: 700; color: #7d5a00; cursor: pointer; margin-left: 6px; vertical-align: middle; white-space: nowrap; }
+.correction-badge:hover { background: #ffe69c; }
+.correction-badge .cb-icon { font-size: 10px; }
+#correction-popover { display: none; position: fixed; z-index: 500; background: white; border: 2px solid var(--red); border-radius: 12px; box-shadow: 0 8px 32px rgba(0,0,0,0.22); width: 340px; max-width: calc(100vw - 32px); padding: 0; overflow: hidden; }
+#correction-popover.open { display: block; }
+.cp-header { background: var(--red); color: white; padding: 10px 14px; display: flex; justify-content: space-between; align-items: center; }
+.cp-header h4 { font-size: 13px; font-weight: 700; margin: 0; }
+.cp-close { background: none; border: none; color: white; font-size: 18px; cursor: pointer; line-height: 1; padding: 0 2px; opacity: 0.85; }
+.cp-close:hover { opacity: 1; }
+.cp-body { padding: 14px; display: flex; flex-direction: column; gap: 10px; }
+.cp-field-label { font-size: 11px; font-weight: 700; color: var(--grey); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 2px; }
+.cp-orig { font-size: 12px; color: var(--grey); background: var(--light); border-radius: 5px; padding: 5px 8px; border-left: 3px solid var(--border); }
+.cp-new-input { width: 100%; padding: 8px 10px; border: 1.5px solid var(--red); border-radius: 7px; font-size: 13px; outline: none; }
+.cp-new-input:focus { border-color: #922B21; box-shadow: 0 0 0 2px rgba(192,57,43,0.12); }
+.cp-comment-input { width: 100%; padding: 8px 10px; border: 1.5px solid var(--border); border-radius: 7px; font-size: 12px; outline: none; resize: none; min-height: 60px; }
+.cp-comment-input:focus { border-color: var(--navy); }
+.cp-by { font-size: 11px; color: var(--grey); font-style: italic; }
+.cp-footer { display: flex; gap: 8px; padding: 10px 14px; border-top: 1px solid var(--border); background: var(--light); }
+.cp-save-btn { flex: 1; padding: 10px; background: var(--red); color: white; border: none; border-radius: 7px; font-weight: 700; font-size: 13px; cursor: pointer; }
+.cp-save-btn:active { opacity: 0.85; }
+.cp-cancel-btn { padding: 10px 14px; background: white; color: var(--grey); border: 1px solid var(--border); border-radius: 7px; font-weight: 600; font-size: 12px; cursor: pointer; }
+.cp-revert-btn { font-size: 11px; color: var(--red); background: none; border: none; cursor: pointer; text-decoration: underline; padding: 0; font-weight: 600; }
+.cp-revert-btn:hover { opacity: 0.75; }
+#corrections-modal .modal-inner { max-width: 720px; }
+.corr-item { border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; margin-bottom: 10px; background: white; }
+.corr-item-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; margin-bottom: 6px; }
+.corr-scenario-title { font-size: 13px; font-weight: 700; color: var(--navy); }
+.corr-field-label { font-size: 11px; font-weight: 600; color: var(--grey); margin-top: 1px; }
+.corr-values { display: flex; align-items: center; gap: 8px; font-size: 12px; margin-bottom: 4px; flex-wrap: wrap; }
+.corr-orig-val { color: var(--grey); text-decoration: line-through; }
+.corr-arrow { color: var(--grey); }
+.corr-new-val { color: var(--green); font-weight: 700; }
+.corr-comment { font-size: 12px; color: var(--text); font-style: italic; background: var(--light); border-radius: 5px; padding: 5px 8px; margin-bottom: 4px; }
+.corr-meta { font-size: 11px; color: var(--grey); }
+.corr-status-badge { font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 10px; flex-shrink: 0; }
+.corr-status-badge.active { background: var(--green-light); color: var(--green); border: 1px solid var(--green); }
+.corr-status-badge.reverted { background: var(--light); color: var(--grey); border: 1px solid var(--border); }
+.corr-filter-bar { display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; }
+.corr-filter-btn { padding: 6px 14px; border-radius: 20px; border: 1.5px solid var(--border); background: white; font-size: 12px; font-weight: 600; cursor: pointer; color: var(--grey); }
+.corr-filter-btn.active { background: var(--navy); color: white; border-color: var(--navy); }
+
 /* ============================================================ PRINT */
 @media print {
   #topbar, #sidebar, #sidebar-overlay, .modal-overlay, .action-bar, .timer-controls, .sidebar-bottom, #score-panel-toggle, #score-sheet, #score-sheet-overlay, #sticky-bar, .sticky-bar-offset { display: none !important; }
@@ -836,6 +887,42 @@ body.snav-active #content { padding-left: 60px; }
   </div>
 </footer>
 
+<!-- Flag Error FAB -->
+<button id="flag-error-btn" onclick="toggleFlagMode()">🚩 Flag Error</button>
+
+<!-- Correction Popover -->
+<div id="correction-popover">
+  <div class="cp-header">
+    <h4 id="cp-title">🚩 Flag an Error</h4>
+    <button class="cp-close" onclick="closeCorrectionPopover()">✕</button>
+  </div>
+  <div class="cp-body">
+    <div>
+      <div class="cp-field-label" id="cp-field-label">Field</div>
+      <div class="cp-orig" id="cp-orig-val">Original value</div>
+    </div>
+    <div id="cp-edit-section">
+      <div class="cp-field-label">Corrected Value</div>
+      <input class="cp-new-input" id="cp-new-val" type="text" placeholder="Enter corrected value…">
+    </div>
+    <div>
+      <div class="cp-field-label">Comment <span style="font-weight:400;text-transform:none">(optional — why is this wrong?)</span></div>
+      <textarea class="cp-comment-input" id="cp-comment" placeholder="e.g. RR of 28 is inconsistent with SpO2 99% and no respiratory distress described…"></textarea>
+    </div>
+    <div class="cp-by" id="cp-by-label"></div>
+    <div id="cp-view-section" style="display:none">
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px">
+        <div class="cp-field-label" style="margin:0">Corrected by <span id="cp-view-by" style="color:var(--text);font-weight:700"></span></div>
+        <button class="cp-revert-btn" onclick="revertCorrection()">↩ Revert to original</button>
+      </div>
+    </div>
+  </div>
+  <div class="cp-footer">
+    <button class="cp-cancel-btn" onclick="closeCorrectionPopover()">Cancel</button>
+    <button class="cp-save-btn" id="cp-save-btn" onclick="saveCorrection()">💾 Save Correction</button>
+  </div>
+</div>
+
 <!-- Score FAB + Sheet -->
 <button id="score-panel-toggle" onclick="toggleScoreSheet()">📊</button>
 <div id="score-sheet-overlay" onclick="closeScoreSheet()"></div>
@@ -974,6 +1061,24 @@ body.snav-active #content { padding-left: 60px; }
       <div class="form-group"><label>Message *</label><textarea id="fb-message" rows="5" placeholder="Describe your feedback, suggestion or issue…" style="resize:vertical"></textarea></div>
       <button class="modal-submit-btn" id="fb-submit-btn" style="background:var(--purple)" onclick="submitFeedback()">📨 Send Feedback</button>
       <div id="fb-status" style="margin-top:10px;font-size:13px;min-height:20px"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Corrections Review Modal (Admin) -->
+<div class="modal-overlay" id="corrections-modal">
+  <div class="modal-inner">
+    <div class="modal-header" style="background:var(--red)">
+      <h2>🚩 Error Corrections Log</h2>
+      <button class="modal-close" onclick="closeCorrectionsModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="corr-filter-bar">
+        <button class="corr-filter-btn active" id="cf-all" onclick="filterCorrections('all')">All</button>
+        <button class="corr-filter-btn" id="cf-active" onclick="filterCorrections('active')">Active</button>
+        <button class="corr-filter-btn" id="cf-reverted" onclick="filterCorrections('reverted')">Reverted</button>
+      </div>
+      <div id="corrections-list"><p style="color:var(--grey);font-size:13px">Loading corrections…</p></div>
     </div>
   </div>
 </div>
@@ -1860,7 +1965,12 @@ function showScreen(name) {
   // Score FAB only on scenario view
   const fab = document.getElementById('score-panel-toggle');
   if (fab) fab.classList.toggle('visible', name === 'scenario-view');
-  if (name !== 'scenario-view') { hideStickyBar(); hideScenarioNav(); }
+  const flagBtn = document.getElementById('flag-error-btn');
+  if (flagBtn) flagBtn.classList.toggle('visible', name === 'scenario-view');
+  if (name !== 'scenario-view') {
+    hideStickyBar(); hideScenarioNav();
+    if (document.body.classList.contains('flag-mode-active')) toggleFlagMode(true);
+  }
   else { setTimeout(buildScenarioNav, 100); }
   window.scrollTo(0, 0);
   // Persist current screen
@@ -2193,54 +2303,46 @@ function loadScenario(id) {
   if (si) si.classList.add('active');
 
   const view = document.getElementById('scenario-view');
+  // Render immediately with uncorrected data, then reload corrections and re-render
+  _corrections = [];
   view.innerHTML = renderScenario(s);
   showScreen('scenario-view');
-  // Init live ECG engines after render
-  setTimeout(() => {
-    if (typeof ECGEngine === 'undefined') { console.warn('ECGEngine not loaded'); return; }
-    document.querySelectorAll('[id^="assessor-12lead-"]').forEach(le => {
-      if (le._ecgInit) return;
-      le._ecgInit = true;
-      const rhythm = le.dataset.rhythm;
-      const hr = parseInt(le.dataset.hr)||72;
-      if (!rhythm) return;
-      const id = le.id.replace('assessor-12lead-','');
-
-      // Force layout then read actual pixel width
-      le.style.display = 'block';
-      le.style.overflow = 'hidden';
-      const w = le.getBoundingClientRect().width || le.clientWidth || 700;
-      le.style.width = Math.floor(w) + 'px';
-
-      const mapped = ECGEngine.mapRhythm(rhythm, hr);
-
-      try {
-        const _ecgInst = new ECGEngine(le, {mode:'12lead', theme:'paper'});
-        _ecgInst.setRhythm(mapped.key, mapped.bpm, mapped.bbbMode);
-      } catch(e) { console.warn('12-lead ECG:', e); }
-    });
-  }, 300);
-
-  // Embed ECG image if available
-  const ecgImg = document.getElementById('ecg-img-' + s.id);
-  if (ecgImg) {
-    const ecg = getECGImage(s.vitals && s.vitals.Rhythm);
-    if (ecg) embedECGImage(ecgImg, ecg.url);
-  }
-
-  // Open key sections
+  // Open key sections immediately (will be re-opened after corrections load too)
   ['sec-dispatch','sec-flags','sec-patient-assessment','sec-diagnosis','sec-implement'].forEach(sid => {
-    const b = document.getElementById(sid);
-    const h = b && b.previousElementSibling;
-    if (b) b.classList.add('open');
-    if (h) h.classList.add('open');
+    const b0 = document.getElementById(sid); const h0 = b0 && b0.previousElementSibling;
+    if (b0) b0.classList.add('open'); if (h0) h0.classList.add('open');
   });
-
-  updateScoreSheet();
-  showStickyBar(s);
-
-  // Apply current level (hides/shows sections, rebuilds nav, updates timer)
-  applyLevel(currentLevel);
+  updateScoreSheet(); showStickyBar(s); applyLevel(currentLevel);
+  // Load corrections async and re-render with them applied
+  loadCorrectionsForScenario(s.id).then(() => {
+    if (!currentScenario || String(currentScenario.id) !== String(s.id)) return;
+    const patched = applyCorrectionsToScenario(s);
+    view.innerHTML = renderScenario(patched);
+    injectFlagButtons();
+    // Re-open key sections, update score, sticky bar
+    ['sec-dispatch','sec-flags','sec-patient-assessment','sec-diagnosis','sec-implement'].forEach(sid => {
+      const b2 = document.getElementById(sid); const h2 = b2 && b2.previousElementSibling;
+      if (b2) b2.classList.add('open'); if (h2) h2.classList.add('open');
+    });
+    updateScoreSheet(); showStickyBar(patched); applyLevel(currentLevel);
+    // Re-embed ECG image
+    const ecgImg2 = document.getElementById('ecg-img-' + s.id);
+    if (ecgImg2) { const ecg2 = getECGImage(s.vitals && s.vitals.Rhythm); if (ecg2) embedECGImage(ecgImg2, ecg2.url); }
+    // Re-init ECG
+    setTimeout(() => {
+      if (typeof ECGEngine === 'undefined') return;
+      document.querySelectorAll('[id^="assessor-12lead-"]').forEach(le => {
+        if (le._ecgInit) return; le._ecgInit = true;
+        const rhythm = le.dataset.rhythm; const hr = parseInt(le.dataset.hr)||72;
+        if (!rhythm) return;
+        le.style.display='block'; le.style.overflow='hidden';
+        const w = le.getBoundingClientRect().width || le.clientWidth || 700;
+        le.style.width = Math.floor(w)+'px';
+        const mapped = ECGEngine.mapRhythm(rhythm, hr);
+        try { const _ecgInst = new ECGEngine(le,{mode:'12lead',theme:'paper'}); _ecgInst.setRhythm(mapped.key,mapped.bpm,mapped.bbbMode); } catch(e2){console.warn('12-lead ECG:',e2);}
+      });
+    }, 300);
+  });
 
   window.scrollTo(0, 0);
 }
@@ -5136,7 +5238,7 @@ function renderManageModal() {
   const { uuid, name } = getIdentity();
   const adminBadge = isAdmin() ? ' 🔑 Admin' : '';
   const adminLink = isAdmin()
-    ? `<span style="color:var(--grey)"> · <a href="#" onclick="adminLogout();return false;" style="color:var(--grey);text-decoration:underline;font-size:11px">Logout admin</a> · <a href="#" onclick="openDevNotesBanner();return false;" style="color:var(--grey);text-decoration:underline;font-size:11px">Dev Notes</a></span>`
+    ? `<span style="color:var(--grey)"> · <a href="#" onclick="adminLogout();return false;" style="color:var(--grey);text-decoration:underline;font-size:11px">Logout admin</a> · <a href="#" onclick="openDevNotesBanner();return false;" style="color:var(--grey);text-decoration:underline;font-size:11px">Dev Notes</a> · <a href="#" onclick="openCorrectionsModal();return false;" style="color:var(--red);text-decoration:underline;font-size:11px;font-weight:700">🚩 Corrections Log</a></span>`
     : `<span style="color:var(--grey)"> · <a href="#" onclick="adminLogin();return false;" style="color:var(--grey);text-decoration:none;font-size:11px">···</a></span>`;
   const cloudBanner = `<div style="background:#E8F8F5;border:1px solid #A2D9CE;border-radius:8px;padding:8px 12px;font-size:12px;color:#1E8449;margin-bottom:12px">☁️ <strong>Supabase sync active</strong> — scenarios shared with all users.${adminBadge ? `<span style="color:var(--amber);font-weight:700"> ${adminBadge}</span>` : ''}<br><span style="color:var(--grey)">You: ${name || 'Anonymous'}</span>${adminLink}</div>`;
 
@@ -6189,6 +6291,412 @@ function _tryInitECGFromScenario() {
 
 // Also expose so it can be called directly when a scenario opens
 window.initAssessorECG = initAssessorECG;
+
+// ============================================================
+// ERROR CORRECTION SYSTEM
+// ============================================================
+
+// In-memory cache of corrections for the current scenario
+let _corrections = []; // array of correction objects from Supabase
+let _flagModeActive = false;
+let _popoverState = null; // { fieldKey, fieldLabel, originalValue, correctionId|null, anchorEl }
+
+// Correction field definitions — what can be flagged and how
+const CORRECTABLE_FIELDS = {
+  // Vitals
+  'vital_RR':       { label: 'Respiratory Rate (RR)',   getter: s => String((s.vitals||{}).RR||'') },
+  'vital_HR':       { label: 'Heart Rate (HR)',          getter: s => String((s.vitals||{}).HR||'') },
+  'vital_BP':       { label: 'Blood Pressure (BP)',      getter: s => String((s.vitals||{}).BP||'') },
+  'vital_SpO2':     { label: 'SpO₂',                    getter: s => String((s.vitals||{}).SpO2||'') },
+  'vital_Temp':     { label: 'Temperature',              getter: s => String((s.vitals||{}).Temp||'') },
+  'vital_BGL':      { label: 'BGL',                      getter: s => String((s.vitals||{}).BGL||'') },
+  'vital_GCS':      { label: 'GCS',                      getter: s => { const g=(s.vitals||{}).GCS; return g&&typeof g==='object'?`${g.total} (E${g.E}V${g.V}M${g.M})`:String(g||''); } },
+  'vital_Rhythm':   { label: 'Rhythm',                   getter: s => String((s.vitals||{}).Rhythm||'') },
+  'vital_EtCO2':    { label: 'EtCO₂',                   getter: s => String((s.vitals||{}).EtCO2||'') },
+  'vital_Weight':   { label: 'Weight',                   getter: s => String((s.vitals||{}).Weight||'') },
+  // Scenario fields
+  'field_dispatch': { label: 'Dispatch / Presentation',  getter: s => s.dispatch||'' },
+  'field_key_hx':   { label: 'Key History',              getter: s => s.key_hx||'' },
+  'field_provisional':{ label: 'Provisional Diagnosis',  getter: s => s.provisional||'' },
+};
+
+// Apply active corrections to a scenario object before rendering
+function applyCorrectionsToScenario(s) {
+  if (!_corrections || !_corrections.length) return s;
+  const patched = JSON.parse(JSON.stringify(s)); // deep clone
+  for (const c of _corrections) {
+    if (c.status !== 'active') continue;
+    if (c.field_key.startsWith('vital_')) {
+      const vk = c.field_key.replace('vital_', '');
+      if (!patched.vitals) patched.vitals = {};
+      // For GCS, store as string (display only; the GCS object is used elsewhere but hint will show corrected)
+      patched.vitals[vk] = c.corrected_value;
+      patched._correctedVitals = patched._correctedVitals || {};
+      patched._correctedVitals[vk] = { original: c.original_value, correction: c };
+    } else if (c.field_key.startsWith('field_')) {
+      const fk = c.field_key.replace('field_', '');
+      patched[fk] = c.corrected_value;
+      patched._correctedFields = patched._correctedFields || {};
+      patched._correctedFields[fk] = { original: c.original_value, correction: c };
+    } else if (c.field_key.startsWith('mgmt_')) {
+      patched._correctedMgmt = patched._correctedMgmt || {};
+      patched._correctedMgmt[c.field_key] = { original: c.original_value, corrected: c.corrected_value, correction: c };
+    } else if (c.field_key.startsWith('kq_')) {
+      patched._correctedKQ = patched._correctedKQ || {};
+      patched._correctedKQ[c.field_key] = { original: c.original_value, corrected: c.corrected_value, correction: c };
+    } else if (c.field_key.startsWith('flag_')) {
+      patched._correctedFlags = patched._correctedFlags || {};
+      patched._correctedFlags[c.field_key] = { original: c.original_value, corrected: c.corrected_value, correction: c };
+    }
+  }
+  return patched;
+}
+
+// Load corrections for current scenario from Supabase
+async function loadCorrectionsForScenario(scenarioId) {
+  _corrections = [];
+  if (!scenarioId) return;
+  try {
+    const res = await sbFetch(`scenario_corrections?scenario_id=eq.${encodeURIComponent(scenarioId)}&order=timestamp.desc`);
+    _corrections = Array.isArray(res) ? res : [];
+  } catch(e) {
+    console.warn('Could not load corrections:', e);
+    _corrections = [];
+  }
+}
+
+// Inject flag buttons into the rendered scenario DOM (post-render pass)
+function injectFlagButtons() {
+  if (!currentScenario) return;
+  const s = currentScenario;
+
+  // Helper: find active correction for a field key
+  const getCorr = (fk) => _corrections.find(c => c.field_key === fk && c.status === 'active');
+
+  // Helper: make a flag button element
+  const makeFlag = (fieldKey, fieldLabel, origValue) => {
+    const corr = getCorr(fieldKey);
+    const btn = document.createElement('button');
+    btn.className = 'row-flag-btn' + (corr ? ' flagged' : '');
+    btn.title = corr ? `Correction by ${corr.corrected_by_name} — click to view` : 'Flag an error in this field';
+    btn.textContent = corr ? '🚩' : '⚑';
+    btn.onclick = (e) => { e.stopPropagation(); openCorrectionPopover(fieldKey, fieldLabel, origValue, btn, corr || null); };
+    return btn;
+  };
+
+  // 1. Vital hint badges in sticky bar and dispatch card
+  const vitalItems = document.querySelectorAll('.vital-item, .vital-hint');
+  // Instead target vital-hint spans in subrows — look for data-row-id based rows
+  // Simpler: inject flags into the sticky bar vitals and dispatch vitals grid
+  const vitalGrid = document.querySelector('.vitals-grid');
+  if (vitalGrid) {
+    vitalGrid.querySelectorAll('.vital-item').forEach(item => {
+      const label = item.querySelector('.vl');
+      const val = item.querySelector('.vv');
+      if (!label || !val) return;
+      const vk = label.textContent.trim();
+      const fieldKey = 'vital_' + vk;
+      if (!CORRECTABLE_FIELDS[fieldKey]) return;
+      const origVal = CORRECTABLE_FIELDS[fieldKey].getter(s);
+      if (!item.querySelector('.row-flag-btn')) {
+        const corr = getCorr(fieldKey);
+        const badge = makeFlag(fieldKey, CORRECTABLE_FIELDS[fieldKey].label, origVal);
+        item.style.position = 'relative';
+        item.appendChild(badge);
+        // If corrected, mark item visually
+        if (corr) item.style.outline = '2px solid #f0c040';
+      }
+    });
+  }
+
+  // 2. VSS subrow vital hints — inject into hint spans
+  document.querySelectorAll('.vital-hint').forEach(hint => {
+    const tr = hint.closest('tr[data-row-id]');
+    if (!tr) return;
+    const rowId = tr.dataset.rowId;
+    // Map row IDs to vital field keys
+    const rowToField = { rr:'vital_RR', hr:'vital_HR', bp:'vital_BP', spo2:'vital_SpO2', temp:'vital_Temp', bgl:'vital_BGL', gcstotal:'vital_GCS', vrhythm:'vital_Rhythm', etco2:'vital_EtCO2', weight:'vital_Weight' };
+    const fk = rowToField[rowId];
+    if (!fk || !CORRECTABLE_FIELDS[fk]) return;
+    if (hint.querySelector('.row-flag-btn')) return;
+    const origVal = CORRECTABLE_FIELDS[fk].getter(s);
+    const corr = getCorr(fk);
+    const btn = makeFlag(fk, CORRECTABLE_FIELDS[fk].label, origVal);
+    btn.style.fontSize = '11px';
+    hint.appendChild(btn);
+    if (corr) { hint.style.background = '#f0c040'; hint.style.color = '#3d2e00'; }
+  });
+
+  // 3. Flags list items
+  (s.flags||[]).forEach((flag, i) => {
+    const fk = `flag_${i}`;
+    const items = document.querySelectorAll('.flag-item');
+    const item = items[i];
+    if (!item || item.querySelector('.row-flag-btn')) return;
+    const btn = makeFlag(fk, `Clinical Flag ${i+1}`, flag);
+    item.appendChild(btn);
+    const corr = getCorr(fk);
+    if (corr) { item.style.background = '#fff3cd'; item.style.borderRadius = '4px'; }
+  });
+
+  // 4. Dispatch text and key history
+  const dispatchCard = document.querySelector('.dispatch-card .dc-text');
+  if (dispatchCard && !dispatchCard.querySelector('.row-flag-btn')) {
+    const fk = 'field_dispatch';
+    const btn = makeFlag(fk, 'Dispatch / Presentation', s.dispatch||'');
+    dispatchCard.appendChild(btn);
+    if (getCorr(fk)) dispatchCard.style.background = '#fff9e0';
+  }
+
+  // 5. Provisional Dx hint
+  const ddxInfo = document.querySelector('.ddx-info');
+  if (ddxInfo && !ddxInfo.querySelector('.row-flag-btn')) {
+    const btn = makeFlag('field_provisional', 'Provisional Diagnosis', s.provisional||'');
+    ddxInfo.appendChild(btn);
+  }
+
+  // 6. Management / treatment list items
+  document.querySelectorAll('.treatment-box li, .treatment-mica-box li, .cpg-typed-step').forEach((li, i) => {
+    const fk = `mgmt_${i}`;
+    if (li.querySelector('.row-flag-btn')) return;
+    const btn = makeFlag(fk, `Management Step ${i+1}`, li.textContent.replace(/[⚑🚩]/g,'').trim());
+    btn.style.fontSize = '11px';
+    li.appendChild(btn);
+    const corr = getCorr(fk);
+    if (corr) { li.style.background = '#fff3cd'; li.style.borderRadius = '3px'; li.style.padding = '1px 4px'; }
+  });
+
+  // 7. Knowledge question text
+  document.querySelectorAll('.kq-block').forEach((block, i) => {
+    const fk = `kq_${i}`;
+    const qEl = block.querySelector('.kq-question div:last-child');
+    if (!qEl || qEl.querySelector('.row-flag-btn')) return;
+    const origText = (s.kq||[])[i] ? (s.kq||[])[i].q : '';
+    const btn = makeFlag(fk, `Knowledge Question ${i+1}`, origText);
+    btn.style.fontSize = '11px';
+    qEl.appendChild(btn);
+    const corr = getCorr(fk);
+    if (corr) block.style.borderLeft = '3px solid #f0c040';
+  });
+}
+
+// Toggle flag mode on/off
+function toggleFlagMode(forceOff = false) {
+  const btn = document.getElementById('flag-error-btn');
+  if (forceOff || _flagModeActive) {
+    _flagModeActive = false;
+    document.body.classList.remove('flag-mode-active');
+    if (btn) { btn.classList.remove('active'); btn.innerHTML = '🚩 Flag Error'; }
+    closeCorrectionPopover();
+  } else {
+    _flagModeActive = true;
+    document.body.classList.add('flag-mode-active');
+    if (btn) { btn.classList.add('active'); btn.innerHTML = '✕ Done Flagging'; }
+    showToast('🚩 Flag mode on — tap ⚑ next to any field to correct it');
+  }
+}
+
+// Open the correction popover
+function openCorrectionPopover(fieldKey, fieldLabel, originalValue, anchorEl, existingCorr) {
+  _popoverState = { fieldKey, fieldLabel, originalValue, correctionId: existingCorr ? existingCorr.id : null, anchorEl };
+  const pop = document.getElementById('correction-popover');
+  const id = getIdentity();
+
+  document.getElementById('cp-field-label').textContent = fieldLabel;
+  document.getElementById('cp-orig-val').textContent = originalValue || '(empty)';
+  document.getElementById('cp-by-label').textContent = `Submitting as: ${id.name || 'Unknown'} (${id.svcNum || 'no ID'})`;
+
+  const editSec = document.getElementById('cp-edit-section');
+  const viewSec = document.getElementById('cp-view-section');
+  const saveBtn = document.getElementById('cp-save-btn');
+
+  if (existingCorr) {
+    // Viewing an existing correction — show both edit and revert options
+    document.getElementById('cp-title').textContent = '✏️ Edit Correction';
+    document.getElementById('cp-new-val').value = existingCorr.corrected_value;
+    document.getElementById('cp-comment').value = existingCorr.comment || '';
+    document.getElementById('cp-view-by').textContent = `${existingCorr.corrected_by_name} (${existingCorr.corrected_by_svcnum})`;
+    editSec.style.display = 'block';
+    viewSec.style.display = 'block';
+    saveBtn.textContent = '💾 Update Correction';
+  } else {
+    document.getElementById('cp-title').textContent = '🚩 Flag an Error';
+    document.getElementById('cp-new-val').value = originalValue || '';
+    document.getElementById('cp-comment').value = '';
+    editSec.style.display = 'block';
+    viewSec.style.display = 'none';
+    saveBtn.textContent = '💾 Save Correction';
+  }
+
+  // Position popover near anchor
+  pop.classList.add('open');
+  const rect = anchorEl.getBoundingClientRect();
+  const popW = 340;
+  const leftPos = Math.min(rect.left, window.innerWidth - popW - 16);
+  const topPos = rect.bottom + 8 + window.scrollY;
+  pop.style.left = Math.max(8, leftPos) + 'px';
+  pop.style.top = topPos + 'px';
+
+  setTimeout(() => document.getElementById('cp-new-val').focus(), 50);
+}
+
+function closeCorrectionPopover() {
+  document.getElementById('correction-popover').classList.remove('open');
+  _popoverState = null;
+}
+
+// Save a correction to Supabase
+async function saveCorrection() {
+  if (!_popoverState || !currentScenario) return;
+  const { fieldKey, fieldLabel, originalValue, correctionId } = _popoverState;
+  const newVal = document.getElementById('cp-new-val').value.trim();
+  const comment = document.getElementById('cp-comment').value.trim();
+  if (!newVal) { showToast('⚠️ Please enter a corrected value'); return; }
+  const id = getIdentity();
+  const saveBtn = document.getElementById('cp-save-btn');
+  saveBtn.disabled = true; saveBtn.textContent = 'Saving…';
+
+  try {
+    const payload = {
+      scenario_id: String(currentScenario.id),
+      field_key: fieldKey,
+      field_label: fieldLabel,
+      original_value: originalValue,
+      corrected_value: newVal,
+      comment: comment || null,
+      corrected_by_name: id.name || 'Unknown',
+      corrected_by_svcnum: id.svcNum || '',
+      corrected_by_uuid: id.uuid,
+      status: 'active'
+    };
+
+    if (correctionId) {
+      // Update existing
+      await sbFetch(`scenario_corrections?id=eq.${correctionId}`, {
+        method: 'PATCH',
+        prefer: 'return=representation',
+        body: JSON.stringify({ corrected_value: newVal, comment: comment || null, corrected_by_name: id.name||'Unknown', corrected_by_svcnum: id.svcNum||'', timestamp: new Date().toISOString() })
+      });
+    } else {
+      await sbFetch('scenario_corrections', { method: 'POST', prefer: 'return=representation', body: JSON.stringify(payload) });
+    }
+
+    closeCorrectionPopover();
+    showToast('✓ Correction saved');
+    // Reload corrections and re-render
+    await loadCorrectionsForScenario(currentScenario.id);
+    const patched = applyCorrectionsToScenario(currentScenario);
+    document.getElementById('scenario-view').innerHTML = renderScenario(patched);
+    injectFlagButtons();
+    if (_flagModeActive) document.body.classList.add('flag-mode-active');
+  } catch(e) {
+    showToast('⚠️ Could not save: ' + e.message);
+  } finally {
+    saveBtn.disabled = false; saveBtn.textContent = '💾 Save Correction';
+  }
+}
+
+// Revert a correction back to original
+async function revertCorrection() {
+  if (!_popoverState || !_popoverState.correctionId) return;
+  if (!confirm('Revert this correction? The original value will be shown again.')) return;
+  const saveBtn = document.getElementById('cp-save-btn');
+  saveBtn.disabled = true;
+  try {
+    await sbFetch(`scenario_corrections?id=eq.${_popoverState.correctionId}`, {
+      method: 'PATCH',
+      prefer: 'return=representation',
+      body: JSON.stringify({ status: 'reverted' })
+    });
+    closeCorrectionPopover();
+    showToast('↩ Reverted to original');
+    await loadCorrectionsForScenario(currentScenario.id);
+    const patched = applyCorrectionsToScenario(currentScenario);
+    document.getElementById('scenario-view').innerHTML = renderScenario(patched);
+    injectFlagButtons();
+    if (_flagModeActive) document.body.classList.add('flag-mode-active');
+  } catch(e) {
+    showToast('⚠️ Revert failed: ' + e.message);
+  } finally {
+    saveBtn.disabled = false;
+  }
+}
+
+// Close popover on outside click
+document.addEventListener('click', (e) => {
+  const pop = document.getElementById('correction-popover');
+  if (pop && pop.classList.contains('open') && !pop.contains(e.target) && !e.target.classList.contains('row-flag-btn')) {
+    closeCorrectionPopover();
+  }
+});
+
+// ============================================================
+// CORRECTIONS ADMIN MODAL
+// ============================================================
+let _allCorrections = [];
+let _corrFilter = 'all';
+let _allScenarios = [];
+
+async function openCorrectionsModal() {
+  document.getElementById('corrections-modal').classList.add('open');
+  document.getElementById('corrections-list').innerHTML = '<p style="color:var(--grey);font-size:13px">Loading…</p>';
+  try {
+    const res = await sbFetch('scenario_corrections?order=timestamp.desc&limit=200');
+    _allCorrections = Array.isArray(res) ? res : [];
+    _allScenarios = getAllScenarios();
+    renderCorrectionsList();
+  } catch(e) {
+    document.getElementById('corrections-list').innerHTML = `<p style="color:var(--red);font-size:13px">⚠️ Could not load: ${e.message}</p>`;
+  }
+}
+
+function closeCorrectionsModal() {
+  document.getElementById('corrections-modal').classList.remove('open');
+}
+document.getElementById('corrections-modal').addEventListener('click', e => {
+  if (e.target === document.getElementById('corrections-modal')) closeCorrectionsModal();
+});
+
+function filterCorrections(filter) {
+  _corrFilter = filter;
+  document.querySelectorAll('.corr-filter-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('cf-' + filter).classList.add('active');
+  renderCorrectionsList();
+}
+
+function renderCorrectionsList() {
+  const list = document.getElementById('corrections-list');
+  const filtered = _corrFilter === 'all' ? _allCorrections : _allCorrections.filter(c => c.status === _corrFilter);
+  if (!filtered.length) {
+    list.innerHTML = '<p style="color:var(--grey);font-size:13px;text-align:center;padding:20px 0">No corrections found.</p>';
+    return;
+  }
+  list.innerHTML = filtered.map(c => {
+    const scen = _allScenarios.find(s => String(s.id) === String(c.scenario_id));
+    const scenTitle = scen ? scen.title : `Scenario ${c.scenario_id}`;
+    const dt = c.timestamp ? new Date(c.timestamp).toLocaleDateString('en-AU', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }) : '—';
+    const statusClass = c.status === 'active' ? 'active' : 'reverted';
+    const statusLabel = c.status === 'active' ? 'Active' : 'Reverted';
+    return `<div class="corr-item">
+      <div class="corr-item-header">
+        <div>
+          <div class="corr-scenario-title">${scenTitle}</div>
+          <div class="corr-field-label">${c.field_label}</div>
+        </div>
+        <span class="corr-status-badge ${statusClass}">${statusLabel}</span>
+      </div>
+      <div class="corr-values">
+        <span class="corr-orig-val">${c.original_value||'(empty)'}</span>
+        <span class="corr-arrow">→</span>
+        <span class="corr-new-val">${c.corrected_value}</span>
+      </div>
+      ${c.comment ? `<div class="corr-comment">"${c.comment}"</div>` : ''}
+      <div class="corr-meta">By ${c.corrected_by_name} (${c.corrected_by_svcnum||'no ID'}) · ${dt}</div>
+    </div>`;
+  }).join('');
+}
+
+
 
 
 </script>
