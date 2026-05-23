@@ -3696,10 +3696,32 @@ function resetAll() {
 // ============================================================
 function isAbnormal(key, value) {
   const v = String(value).toLowerCase();
+  // Get paediatric range if current scenario is paediatric and age is known
+  const s = currentScenario;
+  let paedRange = null;
+  if (s && (s.category === 'Paediatric' || s.category === 'Newborn') && s.subtitle) {
+    const age = parseAgeFromSubtitle(s.subtitle);
+    if (age !== null) paedRange = getPaedRange(age);
+  }
   if (key==='SpO2') { const n=parseFloat(v); return n<94; }
-  if (key==='HR') { const n=parseFloat(v); return n<60||n>100; }
-  if (key==='RR') { const n=parseFloat(v); return n<12||n>20; }
-  if (key==='BP') { const m=v.match(/(\d+)\/(\d+)/); if(m) return parseInt(m[1])<90||parseInt(m[1])>160; }
+  if (key==='HR') {
+    const n=parseFloat(v);
+    if (paedRange) return n < paedRange.HR[0] || n > paedRange.HR[1];
+    return n<60||n>100;
+  }
+  if (key==='RR') {
+    const n=parseFloat(v);
+    if (paedRange) return n < paedRange.RR[0] || n > paedRange.RR[1];
+    return n<12||n>20;
+  }
+  if (key==='BP') {
+    const m=v.match(/(\d+)\/(\d+)/);
+    if (m) {
+      const sbp = parseInt(m[1]);
+      if (paedRange) return sbp < paedRange.sBP[0] || sbp > paedRange.sBP[1] + 30;
+      return sbp<90||sbp>160;
+    }
+  }
   if (key==='BGL') { const n=parseFloat(v); return n<4||n>10; }
   if (key==='GCS') { const n = (value && typeof value === 'object') ? (value.total || 15) : parseFloat(String(value)); return n < 14; }
   if (key==='Temp') { const n=parseFloat(v); return n<36||n>38.5; }
@@ -4294,7 +4316,7 @@ const CPG_SUBTYPE_LABELS = {
   asthma:                   'Asthma',
   copd:                     'COPD Exacerbation',
   upper_airway_obstruction: 'Upper Airway Obstruction',
-  croup:                    'Croup (P0601)',
+  croup:                    'Croup',
   dyspnoea:                 'Undifferentiated Dyspnoea',
   pulmonary_embolism:       'Pulmonary Embolism',
   // Mental Health
@@ -4779,6 +4801,7 @@ Category: ${categoryLabel}
 ${seedSection}${complaint ? '' : complaintLine + '\n'}${complexityNote}
 ${patientNote}
 Do NOT generate treatment or management steps — these are supplied from official CPG data. Leave treatment_als and treatment_mica out of the JSON entirely. Focus on generating an accurate, realistic scenario with correct vitals, flags, ddx, provisional diagnosis, and knowledge questions.
+For the "cpg" field: set this to the CPG code of the PRIMARY guideline for this scenario (e.g. "P0601-1" for Croup, "P0602" for Asthma, "A0603" for Upper Airway Obstruction). The correct code is always shown in the CPG context header above in the format "--- CPG: Title (CODE) ---". Use that code exactly — do NOT invent or guess a CPG code.
 For life_threats: provide 2–4 brief, immediate management actions a paramedic would perform immediately after the primary survey — BEFORE any history, vital signs, or diagnosis. These are based solely on what is visually apparent (e.g. active haemorrhage, severe respiratory distress, unconsciousness, major trauma mechanism). Actions must be physical and immediate: positioning, airway manoeuvres, adjuncts, oxygen delivery method and rate, haemorrhage control, spinal precautions, BVM ventilation, CPR, defibrillation. Do NOT include drug administration, IV access, monitoring, or any action requiring a diagnosis or vital signs. Use plain clinical language (e.g. "Apply direct pressure and tourniquet to arterial haemorrhage", "Position upright, apply non-rebreather mask 15 L/min", "Manual in-line cervical spine stabilisation"). Return as a flat array of strings. If there is no immediate life threat apparent from the primary survey, return 2 generic RABCDE safety actions appropriate to the presentation.
 For the "hx" field: provide brief, clinically appropriate hint text for each history sub-field. These are shown as info badges to help the CI/assessor know what the patient would say. Leave a field as "" if it is not relevant or not applicable (e.g. a child with no prior episodes, a trauma with no prodrome). Keep each value concise — one short sentence or phrase. Fields:
 - hx.timeline: when symptoms started and how they progressed (e.g. "Onset 2 hours ago, gradually worsening")
