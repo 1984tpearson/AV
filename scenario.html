@@ -607,9 +607,12 @@ body.snav-active #content { padding-left: 60px; }
 #flag-error-btn.active { background: #922B21; box-shadow: 0 4px 20px rgba(192,57,43,0.55); animation: flagPulse 2s infinite; }
 @keyframes flagPulse { 0%,100%{box-shadow:0 4px 20px rgba(192,57,43,0.55)} 50%{box-shadow:0 4px 28px rgba(192,57,43,0.9)} }
 #flag-error-btn:active { opacity: 0.85; }
-.row-flag-btn { display: none; background: none; border: none; cursor: pointer; padding: 2px 4px; margin-left: 4px; font-size: 14px; opacity: 0.35; transition: opacity 0.15s, transform 0.15s; vertical-align: middle; line-height: 1; flex-shrink: 0; }
-.row-flag-btn:hover { opacity: 0.8; transform: scale(1.15); }
+.row-flag-btn { display: none; background: none; border: none; cursor: pointer; padding: 0 2px; margin-left: 4px; font-size: 11px; opacity: 0.3; transition: opacity 0.15s, transform 0.15s; vertical-align: middle; line-height: 1; flex-shrink: 0; }
+.row-flag-btn:hover { opacity: 1; transform: scale(1.25); }
 .row-flag-btn.flagged { opacity: 1; }
+/* Corrected fields: grey flag always visible, even outside flag mode */
+.row-flag-btn.persistent { display: inline-block !important; opacity: 0.45; filter: grayscale(1) brightness(0.6); }
+.row-flag-btn.persistent:hover { opacity: 1; filter: none; transform: scale(1.2); }
 body.flag-mode-active .row-flag-btn { display: inline-block; }
 .correction-badge { display: inline-flex; align-items: center; gap: 4px; background: #fff3cd; border: 1px solid #f0c040; border-radius: 5px; padding: 1px 7px; font-size: 11px; font-weight: 700; color: #7d5a00; cursor: pointer; margin-left: 6px; vertical-align: middle; white-space: nowrap; }
 .correction-badge:hover { background: #ffe69c; }
@@ -6304,50 +6307,114 @@ let _popoverState = null; // { fieldKey, fieldLabel, originalValue, correctionId
 // Correction field definitions — what can be flagged and how
 const CORRECTABLE_FIELDS = {
   // Vitals
-  'vital_RR':       { label: 'Respiratory Rate (RR)',   getter: s => String((s.vitals||{}).RR||'') },
-  'vital_HR':       { label: 'Heart Rate (HR)',          getter: s => String((s.vitals||{}).HR||'') },
-  'vital_BP':       { label: 'Blood Pressure (BP)',      getter: s => String((s.vitals||{}).BP||'') },
-  'vital_SpO2':     { label: 'SpO₂',                    getter: s => String((s.vitals||{}).SpO2||'') },
-  'vital_Temp':     { label: 'Temperature',              getter: s => String((s.vitals||{}).Temp||'') },
-  'vital_BGL':      { label: 'BGL',                      getter: s => String((s.vitals||{}).BGL||'') },
-  'vital_GCS':      { label: 'GCS',                      getter: s => { const g=(s.vitals||{}).GCS; return g&&typeof g==='object'?`${g.total} (E${g.E}V${g.V}M${g.M})`:String(g||''); } },
-  'vital_Rhythm':   { label: 'Rhythm',                   getter: s => String((s.vitals||{}).Rhythm||'') },
-  'vital_EtCO2':    { label: 'EtCO₂',                   getter: s => String((s.vitals||{}).EtCO2||'') },
-  'vital_Weight':   { label: 'Weight',                   getter: s => String((s.vitals||{}).Weight||'') },
-  // Scenario fields
-  'field_dispatch': { label: 'Dispatch / Presentation',  getter: s => s.dispatch||'' },
-  'field_key_hx':   { label: 'Key History',              getter: s => s.key_hx||'' },
-  'field_provisional':{ label: 'Provisional Diagnosis',  getter: s => s.provisional||'' },
+  'vital_RR':         { label: 'Respiratory Rate (RR)',        getter: s => String((s.vitals||{}).RR||'') },
+  'vital_HR':         { label: 'Heart Rate (HR)',               getter: s => String((s.vitals||{}).HR||'') },
+  'vital_BP':         { label: 'Blood Pressure (BP)',           getter: s => String((s.vitals||{}).BP||'') },
+  'vital_SpO2':       { label: 'SpO₂',                         getter: s => String((s.vitals||{}).SpO2||'') },
+  'vital_Temp':       { label: 'Temperature',                   getter: s => String((s.vitals||{}).Temp||'') },
+  'vital_BGL':        { label: 'BGL',                           getter: s => String((s.vitals||{}).BGL||'') },
+  'vital_GCS':        { label: 'GCS',                           getter: s => { const g=(s.vitals||{}).GCS; return g&&typeof g==='object'?`${g.total} (E${g.E}V${g.V}M${g.M})`:String(g||''); } },
+  'vital_Rhythm':     { label: 'Rhythm',                        getter: s => String((s.vitals||{}).Rhythm||'') },
+  'vital_EtCO2':      { label: 'EtCO₂',                        getter: s => String((s.vitals||{}).EtCO2||'') },
+  'vital_Weight':     { label: 'Weight',                        getter: s => String((s.vitals||{}).Weight||'') },
+  'vital_Ketones':    { label: 'Ketones',                       getter: s => String((s.vitals||{}).Ketones||'') },
+  // Scenario header
+  'field_title':      { label: 'Scenario Title',                getter: s => s.title||'' },
+  'field_subtitle':   { label: 'Subtitle / Demographics',       getter: s => s.subtitle||'' },
+  'field_cpg':        { label: 'CPG Code',                      getter: s => s.cpg||'' },
+  // Dispatch / history
+  'field_dispatch':   { label: 'Dispatch / Presentation',       getter: s => s.dispatch||'' },
+  'field_key_hx':     { label: 'Key History',                   getter: s => s.key_hx||'' },
+  // Hx detail hints
+  'field_hx_timeline':  { label: 'Hx — Timeline',              getter: s => (s.hx||{}).timeline||'' },
+  'field_hx_nature':    { label: 'Hx — Nature',                getter: s => (s.hx||{}).nature||'' },
+  'field_hx_prodromal': { label: 'Hx — Prodromal symptoms',    getter: s => (s.hx||{}).prodromal||'' },
+  'field_hx_aggreliev': { label: 'Hx — Aggravating/Relieving', getter: s => (s.hx||{}).aggreliev||'' },
+  'field_hx_assoc':     { label: 'Hx — Associated circumstances',getter: s => (s.hx||{}).assoc||'' },
+  'field_hx_similar':   { label: 'Hx — Similar episodes',      getter: s => (s.hx||{}).similar||'' },
+  // PMHx
+  'field_medications':  { label: 'Medications',                 getter: s => (s.medications||[]).join(', ') },
+  'field_allergies':    { label: 'Allergies',                   getter: s => s.allergies||'' },
+  'field_social':       { label: 'Social & Environmental',      getter: s => s.social||'' },
+  // Rapid assessment hints
+  'field_ra_wob':       { label: 'RA — Work of Breathing',      getter: s => (s.ra||{}).wob||'' },
+  'field_ra_skin':      { label: 'RA — Skin',                   getter: s => (s.ra||{}).skin||'' },
+  'field_ps_exposure':  { label: 'PS Exposure',                 getter: s => s.ps_exposure||'' },
+  // RSA hints
+  'field_rsa_appearance':  { label: 'RSA — Appearance',        getter: s => (s.rsa||{}).appearance||'' },
+  'field_rsa_speech':      { label: 'RSA — Speech',            getter: s => (s.rsa||{}).speech||'' },
+  'field_rsa_breath':      { label: 'RSA — Breath Sounds',     getter: s => (s.rsa||{}).breath_sounds||'' },
+  'field_rsa_rhythm':      { label: 'RSA — Respiratory Rhythm',getter: s => (s.rsa||{}).rhythm||'' },
+  'field_rsa_wob':         { label: 'RSA — Work of Breathing', getter: s => (s.rsa||{}).wob||'' },
+  // Diagnosis
+  'field_provisional':  { label: 'Provisional Diagnosis',       getter: s => s.provisional||'' },
 };
 
 // Apply active corrections to a scenario object before rendering
 function applyCorrectionsToScenario(s) {
   if (!_corrections || !_corrections.length) return s;
-  const patched = JSON.parse(JSON.stringify(s)); // deep clone
+  const patched = JSON.parse(JSON.stringify(s));
   for (const c of _corrections) {
     if (c.status !== 'active') continue;
-    if (c.field_key.startsWith('vital_')) {
-      const vk = c.field_key.replace('vital_', '');
+    const fk = c.field_key;
+    const cv = c.corrected_value;
+
+    if (fk.startsWith('vital_')) {
+      const vk = fk.replace('vital_', '');
       if (!patched.vitals) patched.vitals = {};
-      // For GCS, store as string (display only; the GCS object is used elsewhere but hint will show corrected)
-      patched.vitals[vk] = c.corrected_value;
-      patched._correctedVitals = patched._correctedVitals || {};
-      patched._correctedVitals[vk] = { original: c.original_value, correction: c };
-    } else if (c.field_key.startsWith('field_')) {
-      const fk = c.field_key.replace('field_', '');
-      patched[fk] = c.corrected_value;
-      patched._correctedFields = patched._correctedFields || {};
-      patched._correctedFields[fk] = { original: c.original_value, correction: c };
-    } else if (c.field_key.startsWith('mgmt_')) {
-      patched._correctedMgmt = patched._correctedMgmt || {};
-      patched._correctedMgmt[c.field_key] = { original: c.original_value, corrected: c.corrected_value, correction: c };
-    } else if (c.field_key.startsWith('kq_')) {
-      patched._correctedKQ = patched._correctedKQ || {};
-      patched._correctedKQ[c.field_key] = { original: c.original_value, corrected: c.corrected_value, correction: c };
-    } else if (c.field_key.startsWith('flag_')) {
-      patched._correctedFlags = patched._correctedFlags || {};
-      patched._correctedFlags[c.field_key] = { original: c.original_value, corrected: c.corrected_value, correction: c };
+      patched.vitals[vk] = cv;
+
+    } else if (fk === 'field_dispatch')    { patched.dispatch = cv;
+    } else if (fk === 'field_key_hx')      { patched.key_hx = cv;
+    } else if (fk === 'field_provisional') { patched.provisional = cv;
+    } else if (fk === 'field_title')       { patched.title = cv;
+    } else if (fk === 'field_subtitle')    { patched.subtitle = cv;
+    } else if (fk === 'field_cpg')         { patched.cpg = cv;
+    } else if (fk === 'field_medications') { patched.medications = cv.split(',').map(x=>x.trim());
+    } else if (fk === 'field_allergies')   { patched.allergies = cv;
+    } else if (fk === 'field_social')      { patched.social = cv;
+    } else if (fk === 'field_ps_exposure') { patched.ps_exposure = cv;
+
+    } else if (fk.startsWith('field_hx_')) {
+      const hxk = fk.replace('field_hx_', '');
+      if (!patched.hx) patched.hx = {};
+      patched.hx[hxk] = cv;
+
+    } else if (fk.startsWith('field_ra_')) {
+      const rak = fk.replace('field_ra_', '');
+      if (!patched.ra) patched.ra = {};
+      patched.ra[rak] = cv;
+
+    } else if (fk.startsWith('field_rsa_')) {
+      const rsak = fk.replace('field_rsa_', '');
+      if (!patched.rsa) patched.rsa = {};
+      patched.rsa[rsak] = cv;
+
+    } else if (fk.startsWith('flag_')) {
+      const i = parseInt(fk.replace('flag_', ''));
+      if (!isNaN(i) && patched.flags) patched.flags[i] = cv;
+
+    } else if (fk.startsWith('ddx_')) {
+      const i = parseInt(fk.replace('ddx_', ''));
+      if (!isNaN(i) && patched.ddx) patched.ddx[i] = cv;
+
+    } else if (fk.startsWith('lt_')) {
+      const i = parseInt(fk.replace('lt_', ''));
+      if (!isNaN(i) && patched.life_threats) patched.life_threats[i] = cv;
+
+    } else if (fk.startsWith('disc_')) {
+      const i = parseInt(fk.replace('disc_', ''));
+      if (!isNaN(i) && patched.discussion) patched.discussion[i] = cv;
+
+    } else if (fk.startsWith('kq_q_')) {
+      const i = parseInt(fk.replace('kq_q_', ''));
+      if (!isNaN(i) && patched.kq && patched.kq[i]) patched.kq[i].q = cv;
+
+    } else if (fk.startsWith('kq_a_')) {
+      const i = parseInt(fk.replace('kq_a_', ''));
+      if (!isNaN(i) && patched.kq && patched.kq[i]) patched.kq[i].answer = cv;
     }
+    // mgmt_ corrections are display-only (CPG-sourced, not in scenario object)
   }
   return patched;
 }
@@ -6370,114 +6437,201 @@ function injectFlagButtons() {
   if (!currentScenario) return;
   const s = currentScenario;
 
-  // Helper: find active correction for a field key
   const getCorr = (fk) => _corrections.find(c => c.field_key === fk && c.status === 'active');
 
-  // Helper: make a flag button element
+  // makeFlag: corrected fields always show grey flag; uncorrected only show in flag mode
   const makeFlag = (fieldKey, fieldLabel, origValue) => {
     const corr = getCorr(fieldKey);
     const btn = document.createElement('button');
-    btn.className = 'row-flag-btn' + (corr ? ' flagged' : '');
-    btn.title = corr ? `Correction by ${corr.corrected_by_name} — click to view` : 'Flag an error in this field';
-    btn.textContent = corr ? '🚩' : '⚑';
+    // corrected = always visible grey flag; uncorrected = hidden until flag mode
+    btn.className = corr ? 'row-flag-btn flagged persistent' : 'row-flag-btn';
+    btn.title = corr
+      ? `✏️ Corrected by ${corr.corrected_by_name}${corr.comment ? ' — "'+corr.comment+'"' : ''} — click to view`
+      : '🚩 Flag an error in this field';
+    btn.innerHTML = corr
+      ? '<span style="font-size:11px">🏴</span>'   // grey flag = corrected, always visible
+      : '<span style="font-size:11px">🚩</span>';   // red flag = flag mode only
     btn.onclick = (e) => { e.stopPropagation(); openCorrectionPopover(fieldKey, fieldLabel, origValue, btn, corr || null); };
     return btn;
   };
 
-  // 1. Vital hint badges in sticky bar and dispatch card
-  const vitalItems = document.querySelectorAll('.vital-item, .vital-hint');
-  // Instead target vital-hint spans in subrows — look for data-row-id based rows
-  // Simpler: inject flags into the sticky bar vitals and dispatch vitals grid
-  const vitalGrid = document.querySelector('.vitals-grid');
-  if (vitalGrid) {
-    vitalGrid.querySelectorAll('.vital-item').forEach(item => {
-      const label = item.querySelector('.vl');
-      const val = item.querySelector('.vv');
-      if (!label || !val) return;
-      const vk = label.textContent.trim();
-      const fieldKey = 'vital_' + vk;
-      if (!CORRECTABLE_FIELDS[fieldKey]) return;
-      const origVal = CORRECTABLE_FIELDS[fieldKey].getter(s);
-      if (!item.querySelector('.row-flag-btn')) {
-        const corr = getCorr(fieldKey);
-        const badge = makeFlag(fieldKey, CORRECTABLE_FIELDS[fieldKey].label, origVal);
-        item.style.position = 'relative';
-        item.appendChild(badge);
-        // If corrected, mark item visually
-        if (corr) item.style.outline = '2px solid #f0c040';
-      }
+  // Helper: inject a flag after a specific element, skip if already present on parent
+  const injectAfter = (el, btn) => { if (el && !el.parentElement.querySelector('.row-flag-btn[data-fk="'+btn._fk+'"]')) { btn._fk && (btn.dataset.fk = btn._fk); el.insertAdjacentElement('afterend', btn); } };
+  const appendTo  = (el, btn) => { if (el && !el.querySelector('[data-fk="'+btn._fk+'"]')) { btn._fk && (btn.dataset.fk = btn._fk); el.appendChild(btn); } };
+
+  const inject = (el, fieldKey, fieldLabel, origValue, mode='append') => {
+    if (!el) return;
+    if (el.querySelector(`[data-fk="${fieldKey}"]`)) return;
+    const btn = makeFlag(fieldKey, fieldLabel, origValue);
+    btn.dataset.fk = fieldKey;
+    if (mode === 'after') el.insertAdjacentElement('afterend', btn);
+    else el.appendChild(btn);
+  };
+
+  // ── 1. DISPATCH CARD VITALS (top grid) ─────────────────────────────────────
+  document.querySelectorAll('.vitals-grid .vital-item').forEach(item => {
+    const label = item.querySelector('.vl');
+    if (!label) return;
+    const vk = label.textContent.trim();
+    const fk = 'vital_' + vk;
+    if (!CORRECTABLE_FIELDS[fk] || item.querySelector('[data-fk]')) return;
+    const btn = makeFlag(fk, CORRECTABLE_FIELDS[fk].label, CORRECTABLE_FIELDS[fk].getter(s));
+    btn.dataset.fk = fk;
+    item.appendChild(btn);
+  });
+
+  // ── 2. VSS VITAL HINT BADGES (after hint span, outside it) ─────────────────
+  const vssRowMap = { rr:'vital_RR', hr:'vital_HR', bp:'vital_BP', spo2:'vital_SpO2',
+    temp:'vital_Temp', bgl:'vital_BGL', gcstotal:'vital_GCS', vrhythm:'vital_Rhythm',
+    etco2:'vital_EtCO2', weight:'vital_Weight', ketones:'vital_Ketones' };
+  document.querySelectorAll('tr[data-row-id]').forEach(tr => {
+    const fk = vssRowMap[tr.dataset.rowId];
+    if (!fk || tr.querySelector('[data-fk]')) return;
+    const hint = tr.querySelector('.vital-hint');
+    if (!hint) return;
+    const btn = makeFlag(fk, CORRECTABLE_FIELDS[fk].label, CORRECTABLE_FIELDS[fk].getter(s));
+    btn.dataset.fk = fk;
+    hint.insertAdjacentElement('afterend', btn);
+  });
+
+  // ── 3. INFO HINT BOXES (hx details, ra, rsa, medications, allergies, social) ─
+  const infoHintRowMap = {
+    'hxtimeline':  'field_hx_timeline',
+    'hxnature':    'field_hx_nature',
+    'hxprodromal': 'field_hx_prodromal',
+    'hxaggreliev': 'field_hx_aggreliev',
+    'hxassoc':     'field_hx_assoc',
+    'hxsimilar':   'field_hx_similar',
+    'phmeds':      'field_medications',
+    'phallergies': 'field_allergies',
+    'phsocial':    'field_social',
+    'wob1':        'field_ra_wob',
+    'skin1':       'field_ra_skin',
+  };
+  // RSA rows — in VSS section, labelled by content
+  const rsaRowMap = {
+    'appearance': 'field_rsa_appearance',
+    'speech':     'field_rsa_speech',
+    'breathsounds':'field_rsa_breath',
+    'rrrhythm':   'field_rsa_rhythm',
+    'wob2':       'field_rsa_wob',
+  };
+  const allInfoRowMap = { ...infoHintRowMap, ...rsaRowMap };
+
+  document.querySelectorAll('tr[data-row-id]').forEach(tr => {
+    const fk = allInfoRowMap[tr.dataset.rowId];
+    if (!fk || tr.querySelector('[data-fk]')) return;
+    // Find the infoHint span (dark background hint)
+    const hint = tr.querySelector('.vital-hint[style*="2E4057"], .vital-hint[style*="background:#2E"]');
+    const labelTd = tr.querySelector('.elem-label');
+    const anchor = hint || labelTd;
+    if (!anchor || !CORRECTABLE_FIELDS[fk]) return;
+    const btn = makeFlag(fk, CORRECTABLE_FIELDS[fk].label, CORRECTABLE_FIELDS[fk].getter(s));
+    btn.dataset.fk = fk;
+    anchor.insertAdjacentElement('afterend', btn);
+  });
+
+  // ── 4. DISPATCH TEXT ────────────────────────────────────────────────────────
+  const dispatchTexts = document.querySelectorAll('.dispatch-card .dc-text');
+  dispatchTexts.forEach((el, i) => {
+    if (el.querySelector('[data-fk]')) return;
+    const fk = i === 0 ? 'field_dispatch' : 'field_key_hx';
+    const label = i === 0 ? 'Dispatch / Presentation' : 'Key History';
+    const val = i === 0 ? (s.dispatch||'') : (s.key_hx||'');
+    const btn = makeFlag(fk, label, val);
+    btn.dataset.fk = fk;
+    el.appendChild(btn);
+  });
+
+  // ── 5. CLINICAL FLAGS ───────────────────────────────────────────────────────
+  document.querySelectorAll('.flag-item').forEach((item, i) => {
+    if (item.querySelector('[data-fk]')) return;
+    const origFlag = (s.flags||[])[i] || '';
+    const btn = makeFlag(`flag_${i}`, `Clinical Flag ${i+1}`, origFlag);
+    btn.dataset.fk = `flag_${i}`;
+    item.appendChild(btn);
+  });
+
+  // ── 6. DDx LIST ─────────────────────────────────────────────────────────────
+  const ddxInfo = document.querySelector('.ddx-info');
+  if (ddxInfo) {
+    (s.ddx||[]).forEach((dx, i) => {
+      const fk = `ddx_${i}`;
+      if (ddxInfo.querySelector(`[data-fk="${fk}"]`)) return;
+      const btn = makeFlag(fk, `DDx ${i+1}`, dx);
+      btn.dataset.fk = fk;
+      ddxInfo.appendChild(btn);
+    });
+    // Provisional Dx
+    if (!ddxInfo.querySelector('[data-fk="field_provisional"]')) {
+      const btn = makeFlag('field_provisional', 'Provisional Diagnosis', s.provisional||'');
+      btn.dataset.fk = 'field_provisional';
+      ddxInfo.appendChild(btn);
+    }
+  }
+
+  // ── 7. LIFE THREATS ─────────────────────────────────────────────────────────
+  document.querySelectorAll('[data-row-id^="lt"]').forEach((tr, i) => {
+    if (tr.querySelector('[data-fk]')) return;
+    const origLT = (s.life_threats||[])[i] || tr.querySelector('.elem-label')?.textContent?.trim() || '';
+    const fk = `lt_${i}`;
+    const btn = makeFlag(fk, `Life Threat Step ${i+1}`, origLT);
+    btn.dataset.fk = fk;
+    const label = tr.querySelector('.elem-label');
+    if (label) label.appendChild(btn);
+  });
+
+  // ── 8. MANAGEMENT STEPS ─────────────────────────────────────────────────────
+  document.querySelectorAll('.treatment-box li, .treatment-mica-box li, .cpg-typed-step').forEach((li, i) => {
+    if (li.querySelector('[data-fk]')) return;
+    const fk = `mgmt_${i}`;
+    const origText = li.textContent.replace(/🏴|🚩/g,'').trim();
+    const btn = makeFlag(fk, `Management Step ${i+1}`, origText);
+    btn.dataset.fk = fk;
+    li.appendChild(btn);
+  });
+
+  // ── 9. KNOWLEDGE QUESTIONS + ANSWERS ────────────────────────────────────────
+  document.querySelectorAll('.kq-block').forEach((block, i) => {
+    // Question text
+    const qEl = block.querySelector('.kq-question div:last-child');
+    if (qEl && !qEl.querySelector('[data-fk]')) {
+      const origQ = (s.kq||[])[i]?.q || '';
+      const btn = makeFlag(`kq_q_${i}`, `Knowledge Question ${i+1}`, origQ);
+      btn.dataset.fk = `kq_q_${i}`;
+      qEl.appendChild(btn);
+    }
+    // Answer text
+    const aEl = block.querySelector('.kq-answer');
+    if (aEl && !aEl.querySelector('[data-fk]')) {
+      const origA = (s.kq||[])[i]?.answer || '';
+      const btn = makeFlag(`kq_a_${i}`, `KQ ${i+1} Answer`, origA);
+      btn.dataset.fk = `kq_a_${i}`;
+      aEl.appendChild(btn);
+    }
+  });
+
+  // ── 10. DISCUSSION PROMPTS ──────────────────────────────────────────────────
+  const discussionBox = document.querySelector('.discussion-box');
+  if (discussionBox) {
+    discussionBox.querySelectorAll('li').forEach((li, i) => {
+      if (li.querySelector('[data-fk]')) return;
+      const origD = (s.discussion||[])[i] || li.textContent.replace(/🏴|🚩/g,'').trim();
+      const btn = makeFlag(`disc_${i}`, `Discussion Prompt ${i+1}`, origD);
+      btn.dataset.fk = `disc_${i}`;
+      li.appendChild(btn);
     });
   }
 
-  // 2. VSS subrow vital hints — inject into hint spans
-  document.querySelectorAll('.vital-hint').forEach(hint => {
-    const tr = hint.closest('tr[data-row-id]');
-    if (!tr) return;
-    const rowId = tr.dataset.rowId;
-    // Map row IDs to vital field keys
-    const rowToField = { rr:'vital_RR', hr:'vital_HR', bp:'vital_BP', spo2:'vital_SpO2', temp:'vital_Temp', bgl:'vital_BGL', gcstotal:'vital_GCS', vrhythm:'vital_Rhythm', etco2:'vital_EtCO2', weight:'vital_Weight' };
-    const fk = rowToField[rowId];
-    if (!fk || !CORRECTABLE_FIELDS[fk]) return;
-    if (hint.querySelector('.row-flag-btn')) return;
-    const origVal = CORRECTABLE_FIELDS[fk].getter(s);
-    const corr = getCorr(fk);
-    const btn = makeFlag(fk, CORRECTABLE_FIELDS[fk].label, origVal);
-    btn.style.fontSize = '11px';
-    hint.appendChild(btn);
-    if (corr) { hint.style.background = '#f0c040'; hint.style.color = '#3d2e00'; }
-  });
-
-  // 3. Flags list items
-  (s.flags||[]).forEach((flag, i) => {
-    const fk = `flag_${i}`;
-    const items = document.querySelectorAll('.flag-item');
-    const item = items[i];
-    if (!item || item.querySelector('.row-flag-btn')) return;
-    const btn = makeFlag(fk, `Clinical Flag ${i+1}`, flag);
-    item.appendChild(btn);
-    const corr = getCorr(fk);
-    if (corr) { item.style.background = '#fff3cd'; item.style.borderRadius = '4px'; }
-  });
-
-  // 4. Dispatch text and key history
-  const dispatchCard = document.querySelector('.dispatch-card .dc-text');
-  if (dispatchCard && !dispatchCard.querySelector('.row-flag-btn')) {
-    const fk = 'field_dispatch';
-    const btn = makeFlag(fk, 'Dispatch / Presentation', s.dispatch||'');
-    dispatchCard.appendChild(btn);
-    if (getCorr(fk)) dispatchCard.style.background = '#fff9e0';
+  // ── 11. SCENARIO HEADER (title, subtitle, CPG) ──────────────────────────────
+  const titleEl = document.querySelector('.scenario-header h2');
+  if (titleEl && !titleEl.querySelector('[data-fk]')) {
+    inject(titleEl, 'field_title', 'Scenario Title', s.title||'');
   }
-
-  // 5. Provisional Dx hint
-  const ddxInfo = document.querySelector('.ddx-info');
-  if (ddxInfo && !ddxInfo.querySelector('.row-flag-btn')) {
-    const btn = makeFlag('field_provisional', 'Provisional Diagnosis', s.provisional||'');
-    ddxInfo.appendChild(btn);
+  const subtitleEl = document.getElementById('sh-subtitle-display');
+  if (subtitleEl && !subtitleEl.querySelector('[data-fk]')) {
+    inject(subtitleEl, 'field_subtitle', 'Subtitle / Demographics', s.subtitle||'');
   }
-
-  // 6. Management / treatment list items
-  document.querySelectorAll('.treatment-box li, .treatment-mica-box li, .cpg-typed-step').forEach((li, i) => {
-    const fk = `mgmt_${i}`;
-    if (li.querySelector('.row-flag-btn')) return;
-    const btn = makeFlag(fk, `Management Step ${i+1}`, li.textContent.replace(/[⚑🚩]/g,'').trim());
-    btn.style.fontSize = '11px';
-    li.appendChild(btn);
-    const corr = getCorr(fk);
-    if (corr) { li.style.background = '#fff3cd'; li.style.borderRadius = '3px'; li.style.padding = '1px 4px'; }
-  });
-
-  // 7. Knowledge question text
-  document.querySelectorAll('.kq-block').forEach((block, i) => {
-    const fk = `kq_${i}`;
-    const qEl = block.querySelector('.kq-question div:last-child');
-    if (!qEl || qEl.querySelector('.row-flag-btn')) return;
-    const origText = (s.kq||[])[i] ? (s.kq||[])[i].q : '';
-    const btn = makeFlag(fk, `Knowledge Question ${i+1}`, origText);
-    btn.style.fontSize = '11px';
-    qEl.appendChild(btn);
-    const corr = getCorr(fk);
-    if (corr) block.style.borderLeft = '3px solid #f0c040';
-  });
 }
 
 // Toggle flag mode on/off
@@ -6528,14 +6682,20 @@ function openCorrectionPopover(fieldKey, fieldLabel, originalValue, anchorEl, ex
     saveBtn.textContent = '💾 Save Correction';
   }
 
-  // Position popover near anchor
+  // Position popover near anchor — popover is position:fixed so use raw viewport coords
   pop.classList.add('open');
   const rect = anchorEl.getBoundingClientRect();
   const popW = 340;
-  const leftPos = Math.min(rect.left, window.innerWidth - popW - 16);
-  const topPos = rect.bottom + 8 + window.scrollY;
-  pop.style.left = Math.max(8, leftPos) + 'px';
-  pop.style.top = topPos + 'px';
+  const popH = 320; // approximate
+  // Prefer below anchor; flip above if too close to bottom
+  let top = rect.bottom + 8;
+  if (top + popH > window.innerHeight - 16) top = Math.max(8, rect.top - popH - 8);
+  // Prefer left-aligned to anchor; shift left if overflows right edge
+  let left = rect.left;
+  if (left + popW > window.innerWidth - 16) left = window.innerWidth - popW - 16;
+  left = Math.max(8, left);
+  pop.style.left = left + 'px';
+  pop.style.top = top + 'px';
 
   setTimeout(() => document.getElementById('cp-new-val').focus(), 50);
 }
