@@ -4227,7 +4227,7 @@ const CATEGORY_TO_CPG = {
   'Paediatric|Cardiac Arrest':    ['cardiac_arrest_medical', 'cardiac_arrest_traumatic', 'rosc_management', 'withholding_resuscitation'],
   'Paediatric|Airway Management': ['essential_airway', 'endotracheal_intubation', 'difficult_airway', 'upper_airway_obstruction'],
   'Paediatric|Pain Relief':       ['pain_relief'],
-  'Paediatric|Respiratory':       ['asthma', 'upper_airway_obstruction'],
+  'Paediatric|Respiratory':       ['asthma', 'croup'],
   'Paediatric|Medical':           ['seizures', 'hypoglycaemia', 'anaphylaxis', 'hyperglycaemia'],
   'Paediatric|Infection':         ['sepsis'],
   'Paediatric|Trauma':            ['major_trauma', 'head_injury', 'chest_injury', 'burns'],
@@ -4294,6 +4294,7 @@ const CPG_SUBTYPE_LABELS = {
   asthma:                   'Asthma',
   copd:                     'COPD Exacerbation',
   upper_airway_obstruction: 'Upper Airway Obstruction',
+  croup:                    'Croup (P0601)',
   dyspnoea:                 'Undifferentiated Dyspnoea',
   pulmonary_embolism:       'Pulmonary Embolism',
   // Mental Health
@@ -4792,6 +4793,15 @@ For allergies: this field must reflect a DOCUMENTED ALLERGY, not a current expos
 For vitals.GCS: always return the structured object {E, V, M, total, description}. Choose component scores appropriate to the clinical presentation — do NOT default every scenario to GCS 15 / E4V5M6. Impaired consciousness should be reflected with realistic component scores. The description must match the scores (e.g. E2 V3 M5 = "eyes open to pain, inappropriate words, localising to pain").
 For vitals.Rhythm: Always include a cardiac rhythm using standard clinical terms (e.g. "Atrial Fibrillation", "Sinus Tachycardia", "Normal Sinus Rhythm"). Rules: (1) Non-cardiac scenarios: default to rate-appropriate sinus rhythm — "Sinus Tachycardia" if HR >100, "Sinus Bradycardia" if HR <60, otherwise "Normal Sinus Rhythm". (2) Consider age-appropriate incidental rhythms that don't affect primary management — e.g. a 78yo with pneumonia may coincidentally be in Atrial Fibrillation; a 72yo trauma patient may have 1st Degree AV Block. This is realistic and encouraged for patients over 65. (3) Cardiac scenarios: use a clinically appropriate rhythm for the presentation. (4) PEA cardiac arrest: use "Pulseless Electrical Activity (PEA)" — do NOT use VF or Asystole for PEA. (5) Never leave Rhythm blank.
 For vitals.Weight: always provide a realistic weight in kg appropriate to the patient's age and presentation (e.g. "82 kg", "14 kg"). For adults use a realistic Australian adult weight. For paediatric patients use an age-appropriate weight. Never leave blank.
+For PAEDIATRIC scenarios: vitals MUST reflect the patient's age using the following AV CPG normal ranges. Generate values appropriate to the clinical context — a sick child should have vitals OUTSIDE these normal ranges in clinically appropriate directions (e.g. tachycardia, tachypnoea, hypoxia, hypotension). Normal ranges by age group:
+- Newborn (Birth–24hrs): HR 110–170, RR 25–60, sBP >60
+- Small Infant (<3mo): HR 110–170, RR 25–60, sBP >60
+- Large Infant (3–12mo): HR 105–165, RR 25–55, sBP >65
+- Small Child (1–4yr): HR 85–150, RR 20–40, sBP >70
+- Medium Child (5–11yr): HR 70–135, RR 16–34, sBP >80
+- Adolescent (12–15yr): HR 60–120, RR 14–26, sBP >90
+Do NOT generate adult-range vitals for paediatric patients (e.g. RR 18 is NOT elevated for a 7-year-old — it is normal). Weight should follow: Newborn ~3.5 kg, Small Infant ~5 kg, Large Infant ~8 kg, Small Child ~14–18 kg, Medium Child ~20–30 kg, Adolescent ~45–60 kg.
+For CROUP scenarios specifically: always generate a child aged 6 months to 5 years (most common age group per CPG P0601). Present with barking cough, inspiratory stridor, hoarse voice, and increased work of breathing. Symptoms worse at night. Classify as mild, moderate, or severe and ensure vitals, behaviour, and RSA findings are consistent with that severity. Provisional diagnosis must be "Croup". CPG field must be "P0601". Do NOT generate epiglottitis or foreign body obstruction as a croup scenario — these are differentials to be considered, not the diagnosis.
 For vitals.Ketones: always provide a realistic blood ketone value in mmol/L (e.g. "0.2 mmol/L"). Use elevated values (>1.5 mmol/L) for DKA, hyperglycaemia, or diabetic emergencies. Use normal/low values (0.1–0.5 mmol/L) for all other presentations. Never leave blank.
 For vitals.EtCO2: always provide a realistic end-tidal CO₂ value in mmHg (e.g. "38 mmHg"). Use low values for hyperventilation or poor perfusion states; high values for hypoventilation, opioid OD, or severe respiratory failure; normal range (35–45 mmHg) for most presentations. Never leave blank.
 For the "discussion" field: provide 2–4 brief bullet points about management or considerations that are BEYOND AV scope — e.g. in-hospital treatment, specialist interventions, or relevant clinical nuance not covered by AV CPGs. These are suggested discussion prompts for the CI to use with the student. They are NOT assessable and NOT part of AV management. Label them clearly as beyond-scope. Return as an array of strings.
@@ -5858,12 +5868,12 @@ function updatePaedAge(ageVal) {
 
 
 const PAED_VITALS_RANGES = [
-  { label: 'Neonate (0–1mo)',   ageMin:0,   ageMax:0.08, HR:[100,160], RR:[40,60], sBP:[60,80],  wt:3.5 },
-  { label: 'Infant (1–12mo)',   ageMin:0.08,ageMax:1,    HR:[100,160], RR:[30,50], sBP:[70,95],  wt:6   },
-  { label: 'Toddler (1–2yr)',   ageMin:1,   ageMax:2,    HR:[90,150],  RR:[24,40], sBP:[80,100], wt:12  },
-  { label: 'Preschool (2–5yr)', ageMin:2,   ageMax:5,    HR:[80,130],  RR:[22,34], sBP:[85,100], wt:16  },
-  { label: 'School (5–12yr)',   ageMin:5,   ageMax:12,   HR:[70,120],  RR:[18,25], sBP:[90,110], wt:20  },
-  { label: 'Adolescent (12+)',  ageMin:12,  ageMax:18,   HR:[60,100],  RR:[12,20], sBP:[100,120],wt:50  },
+  { label: 'Newborn (0–24hrs)',      ageMin:0,    ageMax:0.003, HR:[110,170], RR:[25,60], sBP:[60,80],  wt:3.5 },
+  { label: 'Small Infant (<3mo)',    ageMin:0.003,ageMax:0.25,  HR:[110,170], RR:[25,60], sBP:[60,80],  wt:5   },
+  { label: 'Large Infant (3–12mo)',  ageMin:0.25, ageMax:1,     HR:[105,165], RR:[25,55], sBP:[65,90],  wt:8   },
+  { label: 'Small Child (1–4yr)',    ageMin:1,    ageMax:5,     HR:[85,150],  RR:[20,40], sBP:[70,100], wt:16  },
+  { label: 'Medium Child (5–11yr)',  ageMin:5,    ageMax:12,    HR:[70,135],  RR:[16,34], sBP:[80,110], wt:25  },
+  { label: 'Adolescent (12–15yr)',   ageMin:12,   ageMax:16,    HR:[60,120],  RR:[14,26], sBP:[90,120], wt:50  },
 ];
 
 function getPaedRange(age) {
