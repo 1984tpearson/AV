@@ -607,13 +607,16 @@ body.snav-active #content { padding-left: 60px; }
 #flag-error-btn.active { background: #922B21; box-shadow: 0 4px 20px rgba(192,57,43,0.55); animation: flagPulse 2s infinite; }
 @keyframes flagPulse { 0%,100%{box-shadow:0 4px 20px rgba(192,57,43,0.55)} 50%{box-shadow:0 4px 28px rgba(192,57,43,0.9)} }
 #flag-error-btn:active { opacity: 0.85; }
-.row-flag-btn { display: none; background: none; border: none; cursor: pointer; padding: 0 2px; margin-left: 4px; font-size: 11px; opacity: 0.3; transition: opacity 0.15s, transform 0.15s; vertical-align: middle; line-height: 1; flex-shrink: 0; }
-.row-flag-btn:hover { opacity: 1; transform: scale(1.25); }
-.row-flag-btn.flagged { opacity: 1; }
-/* Corrected fields: grey flag always visible, even outside flag mode */
-.row-flag-btn.persistent { display: inline-block !important; opacity: 0.45; filter: grayscale(1) brightness(0.6); }
-.row-flag-btn.persistent:hover { opacity: 1; filter: none; transform: scale(1.2); }
-body.flag-mode-active .row-flag-btn { display: inline-block; }
+/* ── FLAG MODE: dotted outline on flaggable elements ── */
+.row-flag-btn { display: none; background: none; border: none; cursor: pointer; padding: 0; margin: 0; font-size: 0; width: 0; height: 0; position: absolute; }
+/* Persistent edited indicator — always visible, no flag mode needed */
+.correction-edited-label { display: inline; font-size: 10px; color: #999; font-style: italic; font-weight: 400; margin-left: 5px; white-space: nowrap; cursor: pointer; vertical-align: middle; }
+.correction-edited-label:hover { color: var(--navy); text-decoration: underline; }
+/* Flag mode: outline the parent container of each flaggable element */
+body.flag-mode-active .flaggable { position: relative; cursor: pointer; border-radius: 4px; outline: 1.5px dashed #bbb; outline-offset: 2px; transition: outline-color 0.15s, background 0.15s; }
+body.flag-mode-active .flaggable:hover { outline: 2px solid var(--red); outline-offset: 2px; background: rgba(192,57,43,0.04); }
+body.flag-mode-active .flaggable.has-correction { outline: 1.5px dashed #888; }
+body.flag-mode-active .flaggable.has-correction:hover { outline: 2px solid var(--red); }
 .correction-badge { display: inline-flex; align-items: center; gap: 4px; background: #fff3cd; border: 1px solid #f0c040; border-radius: 5px; padding: 1px 7px; font-size: 11px; font-weight: 700; color: #7d5a00; cursor: pointer; margin-left: 6px; vertical-align: middle; white-space: nowrap; }
 .correction-badge:hover { background: #ffe69c; }
 .correction-badge .cb-icon { font-size: 10px; }
@@ -6432,206 +6435,139 @@ async function loadCorrectionsForScenario(scenarioId) {
   }
 }
 
-// Inject flag buttons into the rendered scenario DOM (post-render pass)
+// Inject flag interactions into the rendered scenario DOM (post-render pass)
 function injectFlagButtons() {
   if (!currentScenario) return;
   const s = currentScenario;
 
   const getCorr = (fk) => _corrections.find(c => c.field_key === fk && c.status === 'active');
 
-  // makeFlag: corrected fields always show grey flag; uncorrected only show in flag mode
-  const makeFlag = (fieldKey, fieldLabel, origValue) => {
+  // Make an element flaggable: adds dotted outline in flag mode, (edited) label if corrected
+  const makeFlaggable = (el, fieldKey, fieldLabel, origValue) => {
+    if (!el || el.dataset.fk) return;
     const corr = getCorr(fieldKey);
-    const btn = document.createElement('button');
-    // corrected = always visible grey flag; uncorrected = hidden until flag mode
-    btn.className = corr ? 'row-flag-btn flagged persistent' : 'row-flag-btn';
-    btn.title = corr
-      ? `✏️ Corrected by ${corr.corrected_by_name}${corr.comment ? ' — "'+corr.comment+'"' : ''} — click to view`
-      : '🚩 Flag an error in this field';
-    btn.innerHTML = corr
-      ? '<span style="font-size:11px">🏴</span>'   // grey flag = corrected, always visible
-      : '<span style="font-size:11px">🚩</span>';   // red flag = flag mode only
-    btn.onclick = (e) => { e.stopPropagation(); openCorrectionPopover(fieldKey, fieldLabel, origValue, btn, corr || null); };
-    return btn;
+    el.dataset.fk = fieldKey;
+    el.classList.add('flaggable');
+    if (corr) el.classList.add('has-correction');
+
+    el.addEventListener('click', (e) => {
+      if (_flagModeActive || corr) {
+        e.stopPropagation();
+        openCorrectionPopover(fieldKey, fieldLabel, origValue, el, corr || null);
+      }
+    });
+
+    if (corr) {
+      const lbl = document.createElement('span');
+      lbl.className = 'correction-edited-label';
+      lbl.title = `Corrected by ${corr.corrected_by_name}${corr.comment ? ': "'+corr.comment+'"' : ''} — click to view`;
+      lbl.textContent = '(edited)';
+      lbl.onclick = (e) => { e.stopPropagation(); openCorrectionPopover(fieldKey, fieldLabel, origValue, el, corr); };
+      el.appendChild(lbl);
+    }
   };
 
-  // Helper: inject a flag after a specific element, skip if already present on parent
-  const injectAfter = (el, btn) => { if (el && !el.parentElement.querySelector('.row-flag-btn[data-fk="'+btn._fk+'"]')) { btn._fk && (btn.dataset.fk = btn._fk); el.insertAdjacentElement('afterend', btn); } };
-  const appendTo  = (el, btn) => { if (el && !el.querySelector('[data-fk="'+btn._fk+'"]')) { btn._fk && (btn.dataset.fk = btn._fk); el.appendChild(btn); } };
-
-  const inject = (el, fieldKey, fieldLabel, origValue, mode='append') => {
-    if (!el) return;
-    if (el.querySelector(`[data-fk="${fieldKey}"]`)) return;
-    const btn = makeFlag(fieldKey, fieldLabel, origValue);
-    btn.dataset.fk = fieldKey;
-    if (mode === 'after') el.insertAdjacentElement('afterend', btn);
-    else el.appendChild(btn);
-  };
-
-  // ── 1. DISPATCH CARD VITALS (top grid) ─────────────────────────────────────
+  // 1. DISPATCH CARD VITALS
   document.querySelectorAll('.vitals-grid .vital-item').forEach(item => {
     const label = item.querySelector('.vl');
     if (!label) return;
-    const vk = label.textContent.trim();
-    const fk = 'vital_' + vk;
-    if (!CORRECTABLE_FIELDS[fk] || item.querySelector('[data-fk]')) return;
-    const btn = makeFlag(fk, CORRECTABLE_FIELDS[fk].label, CORRECTABLE_FIELDS[fk].getter(s));
-    btn.dataset.fk = fk;
-    item.appendChild(btn);
+    const fk = 'vital_' + label.textContent.trim();
+    if (!CORRECTABLE_FIELDS[fk]) return;
+    makeFlaggable(item, fk, CORRECTABLE_FIELDS[fk].label, CORRECTABLE_FIELDS[fk].getter(s));
   });
 
-  // ── 2. VSS VITAL HINT BADGES (after hint span, outside it) ─────────────────
+  // 2. VSS VITAL HINT BADGES
   const vssRowMap = { rr:'vital_RR', hr:'vital_HR', bp:'vital_BP', spo2:'vital_SpO2',
     temp:'vital_Temp', bgl:'vital_BGL', gcstotal:'vital_GCS', vrhythm:'vital_Rhythm',
     etco2:'vital_EtCO2', weight:'vital_Weight', ketones:'vital_Ketones' };
   document.querySelectorAll('tr[data-row-id]').forEach(tr => {
     const fk = vssRowMap[tr.dataset.rowId];
-    if (!fk || tr.querySelector('[data-fk]')) return;
+    if (!fk) return;
     const hint = tr.querySelector('.vital-hint');
-    if (!hint) return;
-    const btn = makeFlag(fk, CORRECTABLE_FIELDS[fk].label, CORRECTABLE_FIELDS[fk].getter(s));
-    btn.dataset.fk = fk;
-    hint.insertAdjacentElement('afterend', btn);
+    if (hint) makeFlaggable(hint, fk, CORRECTABLE_FIELDS[fk].label, CORRECTABLE_FIELDS[fk].getter(s));
   });
 
-  // ── 3. INFO HINT BOXES (hx details, ra, rsa, medications, allergies, social) ─
-  const infoHintRowMap = {
-    'hxtimeline':  'field_hx_timeline',
-    'hxnature':    'field_hx_nature',
-    'hxprodromal': 'field_hx_prodromal',
-    'hxaggreliev': 'field_hx_aggreliev',
-    'hxassoc':     'field_hx_assoc',
-    'hxsimilar':   'field_hx_similar',
-    'phmeds':      'field_medications',
-    'phallergies': 'field_allergies',
-    'phsocial':    'field_social',
-    'wob1':        'field_ra_wob',
-    'skin1':       'field_ra_skin',
+  // 3. INFO HINT BOXES
+  const infoRowMap = {
+    hxtimeline:'field_hx_timeline', hxnature:'field_hx_nature',
+    hxprodromal:'field_hx_prodromal', hxaggreliev:'field_hx_aggreliev',
+    hxassoc:'field_hx_assoc', hxsimilar:'field_hx_similar',
+    phmeds:'field_medications', phallergies:'field_allergies', phsocial:'field_social',
+    wob1:'field_ra_wob', skin1:'field_ra_skin',
+    appearance:'field_rsa_appearance', speech:'field_rsa_speech',
+    breathsounds:'field_rsa_breath', rrrhythm:'field_rsa_rhythm', wob2:'field_rsa_wob',
   };
-  // RSA rows — in VSS section, labelled by content
-  const rsaRowMap = {
-    'appearance': 'field_rsa_appearance',
-    'speech':     'field_rsa_speech',
-    'breathsounds':'field_rsa_breath',
-    'rrrhythm':   'field_rsa_rhythm',
-    'wob2':       'field_rsa_wob',
-  };
-  const allInfoRowMap = { ...infoHintRowMap, ...rsaRowMap };
-
   document.querySelectorAll('tr[data-row-id]').forEach(tr => {
-    const fk = allInfoRowMap[tr.dataset.rowId];
-    if (!fk || tr.querySelector('[data-fk]')) return;
-    // Find the infoHint span (dark background hint)
-    const hint = tr.querySelector('.vital-hint[style*="2E4057"], .vital-hint[style*="background:#2E"]');
-    const labelTd = tr.querySelector('.elem-label');
-    const anchor = hint || labelTd;
-    if (!anchor || !CORRECTABLE_FIELDS[fk]) return;
-    const btn = makeFlag(fk, CORRECTABLE_FIELDS[fk].label, CORRECTABLE_FIELDS[fk].getter(s));
-    btn.dataset.fk = fk;
-    anchor.insertAdjacentElement('afterend', btn);
+    const fk = infoRowMap[tr.dataset.rowId];
+    if (!fk || !CORRECTABLE_FIELDS[fk]) return;
+    const hint = tr.querySelector('.vital-hint');
+    if (hint) makeFlaggable(hint, fk, CORRECTABLE_FIELDS[fk].label, CORRECTABLE_FIELDS[fk].getter(s));
   });
 
-  // ── 4. DISPATCH TEXT ────────────────────────────────────────────────────────
-  const dispatchTexts = document.querySelectorAll('.dispatch-card .dc-text');
-  dispatchTexts.forEach((el, i) => {
-    if (el.querySelector('[data-fk]')) return;
+  // 4. DISPATCH TEXT & KEY HISTORY
+  document.querySelectorAll('.dispatch-card .dc-text').forEach((el, i) => {
     const fk = i === 0 ? 'field_dispatch' : 'field_key_hx';
-    const label = i === 0 ? 'Dispatch / Presentation' : 'Key History';
-    const val = i === 0 ? (s.dispatch||'') : (s.key_hx||'');
-    const btn = makeFlag(fk, label, val);
-    btn.dataset.fk = fk;
-    el.appendChild(btn);
+    const lbl = i === 0 ? 'Dispatch / Presentation' : 'Key History';
+    makeFlaggable(el, fk, lbl, i === 0 ? (s.dispatch||'') : (s.key_hx||''));
   });
 
-  // ── 5. CLINICAL FLAGS ───────────────────────────────────────────────────────
+  // 5. CLINICAL FLAGS
   document.querySelectorAll('.flag-item').forEach((item, i) => {
-    if (item.querySelector('[data-fk]')) return;
-    const origFlag = (s.flags||[])[i] || '';
-    const btn = makeFlag(`flag_${i}`, `Clinical Flag ${i+1}`, origFlag);
-    btn.dataset.fk = `flag_${i}`;
-    item.appendChild(btn);
+    makeFlaggable(item, `flag_${i}`, `Clinical Flag ${i+1}`, (s.flags||[])[i]||'');
   });
 
-  // ── 6. DDx LIST ─────────────────────────────────────────────────────────────
+  // 6. DDx + PROVISIONAL
   const ddxInfo = document.querySelector('.ddx-info');
-  if (ddxInfo) {
-    (s.ddx||[]).forEach((dx, i) => {
-      const fk = `ddx_${i}`;
-      if (ddxInfo.querySelector(`[data-fk="${fk}"]`)) return;
-      const btn = makeFlag(fk, `DDx ${i+1}`, dx);
-      btn.dataset.fk = fk;
-      ddxInfo.appendChild(btn);
-    });
-    // Provisional Dx
-    if (!ddxInfo.querySelector('[data-fk="field_provisional"]')) {
-      const btn = makeFlag('field_provisional', 'Provisional Diagnosis', s.provisional||'');
-      btn.dataset.fk = 'field_provisional';
-      ddxInfo.appendChild(btn);
-    }
-  }
+  if (ddxInfo) makeFlaggable(ddxInfo, 'field_provisional', 'Provisional Diagnosis', s.provisional||'');
 
-  // ── 7. LIFE THREATS ─────────────────────────────────────────────────────────
-  document.querySelectorAll('[data-row-id^="lt"]').forEach((tr, i) => {
-    if (tr.querySelector('[data-fk]')) return;
-    const origLT = (s.life_threats||[])[i] || tr.querySelector('.elem-label')?.textContent?.trim() || '';
-    const fk = `lt_${i}`;
-    const btn = makeFlag(fk, `Life Threat Step ${i+1}`, origLT);
-    btn.dataset.fk = fk;
+  // 7. LIFE THREATS
+  document.querySelectorAll('tr[data-row-id^="lt"]').forEach((tr, i) => {
     const label = tr.querySelector('.elem-label');
-    if (label) label.appendChild(btn);
+    if (label) makeFlaggable(label, `lt_${i}`, `Life Threat ${i+1}`, (s.life_threats||[])[i]||label.textContent.trim());
   });
 
-  // ── 8. MANAGEMENT STEPS ─────────────────────────────────────────────────────
+  // 8. MANAGEMENT STEPS
   document.querySelectorAll('.treatment-box li, .treatment-mica-box li, .cpg-typed-step').forEach((li, i) => {
-    if (li.querySelector('[data-fk]')) return;
-    const fk = `mgmt_${i}`;
-    const origText = li.textContent.replace(/🏴|🚩/g,'').trim();
-    const btn = makeFlag(fk, `Management Step ${i+1}`, origText);
-    btn.dataset.fk = fk;
-    li.appendChild(btn);
+    makeFlaggable(li, `mgmt_${i}`, `Management Step ${i+1}`, li.textContent.replace(/\(edited\)/g,'').trim());
   });
 
-  // ── 9. KNOWLEDGE QUESTIONS + ANSWERS ────────────────────────────────────────
+  // 9. KNOWLEDGE QUESTIONS + ANSWERS
   document.querySelectorAll('.kq-block').forEach((block, i) => {
-    // Question text
     const qEl = block.querySelector('.kq-question div:last-child');
-    if (qEl && !qEl.querySelector('[data-fk]')) {
-      const origQ = (s.kq||[])[i]?.q || '';
-      const btn = makeFlag(`kq_q_${i}`, `Knowledge Question ${i+1}`, origQ);
-      btn.dataset.fk = `kq_q_${i}`;
-      qEl.appendChild(btn);
-    }
-    // Answer text
+    if (qEl) makeFlaggable(qEl, `kq_q_${i}`, `Knowledge Question ${i+1}`, (s.kq||[])[i]?.q||'');
     const aEl = block.querySelector('.kq-answer');
-    if (aEl && !aEl.querySelector('[data-fk]')) {
-      const origA = (s.kq||[])[i]?.answer || '';
-      const btn = makeFlag(`kq_a_${i}`, `KQ ${i+1} Answer`, origA);
-      btn.dataset.fk = `kq_a_${i}`;
-      aEl.appendChild(btn);
-    }
+    if (aEl) makeFlaggable(aEl, `kq_a_${i}`, `KQ ${i+1} Answer`, (s.kq||[])[i]?.answer||'');
   });
 
-  // ── 10. DISCUSSION PROMPTS ──────────────────────────────────────────────────
-  const discussionBox = document.querySelector('.discussion-box');
-  if (discussionBox) {
-    discussionBox.querySelectorAll('li').forEach((li, i) => {
-      if (li.querySelector('[data-fk]')) return;
-      const origD = (s.discussion||[])[i] || li.textContent.replace(/🏴|🚩/g,'').trim();
-      const btn = makeFlag(`disc_${i}`, `Discussion Prompt ${i+1}`, origD);
-      btn.dataset.fk = `disc_${i}`;
-      li.appendChild(btn);
-    });
-  }
+  // 10. DISCUSSION PROMPTS
+  document.querySelectorAll('.discussion-box li').forEach((li, i) => {
+    makeFlaggable(li, `disc_${i}`, `Discussion Prompt ${i+1}`, (s.discussion||[])[i]||li.textContent.replace(/\(edited\)/g,'').trim());
+  });
 
-  // ── 11. SCENARIO HEADER (title, subtitle, CPG) ──────────────────────────────
+  // 11. SCENARIO HEADER
   const titleEl = document.querySelector('.scenario-header h2');
-  if (titleEl && !titleEl.querySelector('[data-fk]')) {
-    inject(titleEl, 'field_title', 'Scenario Title', s.title||'');
-  }
+  if (titleEl) makeFlaggable(titleEl, 'field_title', 'Scenario Title', s.title||'');
   const subtitleEl = document.getElementById('sh-subtitle-display');
-  if (subtitleEl && !subtitleEl.querySelector('[data-fk]')) {
-    inject(subtitleEl, 'field_subtitle', 'Subtitle / Demographics', s.subtitle||'');
-  }
+  if (subtitleEl) makeFlaggable(subtitleEl, 'field_subtitle', 'Subtitle / Demographics', s.subtitle||'');
+}
+
+// Re-initialise ECG after a scenario re-render (e.g. after correction saved)
+function reInitECGAfterRender(scenarioId, rhythm) {
+  const ecgImg = document.getElementById('ecg-img-' + scenarioId);
+  if (ecgImg) { const ecg = getECGImage(rhythm); if (ecg) embedECGImage(ecgImg, ecg.url); }
+  setTimeout(() => {
+    if (typeof ECGEngine === 'undefined') return;
+    document.querySelectorAll('[id^="assessor-12lead-"]').forEach(le => {
+      if (le._ecgInit) return; le._ecgInit = true;
+      const r = le.dataset.rhythm; const hr = parseInt(le.dataset.hr)||72;
+      if (!r) return;
+      le.style.display = 'block'; le.style.overflow = 'hidden';
+      const w = le.getBoundingClientRect().width || le.clientWidth || 700;
+      le.style.width = Math.floor(w) + 'px';
+      const mapped = ECGEngine.mapRhythm(r, hr);
+      try { const _ei = new ECGEngine(le,{mode:'12lead',theme:'paper'}); _ei.setRhythm(mapped.key,mapped.bpm,mapped.bbbMode); } catch(e){console.warn('ECG re-init:',e);}
+    });
+  }, 300);
 }
 
 // Toggle flag mode on/off
@@ -6743,14 +6679,18 @@ async function saveCorrection() {
 
     closeCorrectionPopover();
     showToast('✓ Correction saved');
-    // Reload corrections and re-render
+    // Reload corrections and re-render with full restore
     await loadCorrectionsForScenario(currentScenario.id);
     const patched = applyCorrectionsToScenario(currentScenario);
     document.getElementById('scenario-view').innerHTML = renderScenario(patched);
+    ['sec-dispatch','sec-flags','sec-patient-assessment','sec-diagnosis','sec-implement'].forEach(sid => {
+      const b = document.getElementById(sid); const h = b && b.previousElementSibling;
+      if (b) b.classList.add('open'); if (h) h.classList.add('open');
+    });
+    updateScoreSheet(); showStickyBar(patched); applyLevel(currentLevel);
     injectFlagButtons();
     if (_flagModeActive) document.body.classList.add('flag-mode-active');
-  } catch(e) {
-    showToast('⚠️ Could not save: ' + e.message);
+    reInitECGAfterRender(currentScenario.id, (patched.vitals||{}).Rhythm);
   } finally {
     saveBtn.disabled = false; saveBtn.textContent = '💾 Save Correction';
   }
@@ -6771,12 +6711,16 @@ async function revertCorrection() {
     closeCorrectionPopover();
     showToast('↩ Reverted to original');
     await loadCorrectionsForScenario(currentScenario.id);
-    const patched = applyCorrectionsToScenario(currentScenario);
-    document.getElementById('scenario-view').innerHTML = renderScenario(patched);
+    const patched2 = applyCorrectionsToScenario(currentScenario);
+    document.getElementById('scenario-view').innerHTML = renderScenario(patched2);
+    ['sec-dispatch','sec-flags','sec-patient-assessment','sec-diagnosis','sec-implement'].forEach(sid => {
+      const b = document.getElementById(sid); const h = b && b.previousElementSibling;
+      if (b) b.classList.add('open'); if (h) h.classList.add('open');
+    });
+    updateScoreSheet(); showStickyBar(patched2); applyLevel(currentLevel);
     injectFlagButtons();
     if (_flagModeActive) document.body.classList.add('flag-mode-active');
-  } catch(e) {
-    showToast('⚠️ Revert failed: ' + e.message);
+    reInitECGAfterRender(currentScenario.id, (patched2.vitals||{}).Rhythm);
   } finally {
     saveBtn.disabled = false;
   }
