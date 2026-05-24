@@ -127,11 +127,26 @@ body.snav-active #content { padding-left: 60px; }
 .car-count { font-size: 11px; color: var(--grey); font-weight: 600; flex-shrink: 0; margin-right: 6px; }
 .car-chevron { font-size: 11px; color: var(--grey); flex-shrink: 0; transition: transform 0.2s; }
 .car-chevron.open { transform: rotate(90deg); }
-.cat-accordion-body { display: none; padding: 8px 12px 10px 48px; background: #f7f9fc; border-top: 1px solid #eaedf0; }
+.cat-accordion-body { display: none; background: #f7f9fc; border-top: 1px solid #eaedf0; }
 .cat-accordion-body.open { display: block; }
-.cat-body-desc { font-size: 11px; color: var(--grey); line-height: 1.5; }
-.cat-body-browse { display: inline-block; margin-top: 7px; font-size: 12px; font-weight: 700; color: var(--navy); background: white; border: 1.5px solid var(--navy); border-radius: 6px; padding: 5px 12px; cursor: pointer; }
-.cat-body-browse:active { background: var(--light); }
+.cat-subrow { display: flex; align-items: center; gap: 8px; padding: 9px 14px 9px 44px; cursor: pointer; border-bottom: 1px solid #eef0f3; transition: background 0.12s; min-height: 40px; }
+.cat-subrow:active { background: #e8ecf2; }
+.cat-subrow.has-types { cursor: pointer; }
+.csr-name { font-size: 13px; color: var(--text); flex: 1; }
+.csr-count { font-size: 11px; color: var(--grey); font-weight: 600; }
+.csr-arrow { font-size: 12px; color: var(--grey); margin-left: 2px; transition: transform 0.2s; }
+.csr-chevron.open { transform: rotate(90deg); }
+.cat-typebody { display: none; background: #eef1f6; border-bottom: 1px solid #e2e6ed; }
+.cat-typebody.open { display: block; }
+.cat-typerow { display: flex; align-items: center; gap: 8px; padding: 8px 14px 8px 60px; cursor: pointer; border-bottom: 1px solid #e6eaf0; transition: background 0.12s; min-height: 36px; }
+.cat-typerow:active { background: #dde3ee; }
+.ctr-name { font-size: 12px; color: var(--navy); flex: 1; }
+.ctr-count { font-size: 11px; color: var(--grey); font-weight: 600; }
+.ctr-arrow { font-size: 11px; color: var(--grey); }
+.cat-type-browse-all { padding: 7px 14px 7px 60px; font-size: 11px; font-weight: 600; color: var(--navy); cursor: pointer; opacity: 0.6; border-top: 1px solid #dde3ee; }
+.cat-type-browse-all:active { opacity: 1; }
+.cat-browse-all { padding: 9px 14px 9px 44px; font-size: 12px; font-weight: 600; color: var(--navy); cursor: pointer; opacity: 0.7; border-top: 1px solid #eaedf0; }
+.cat-browse-all:active { opacity: 1; background: #e8ecf2; }
 .car-stripe { width: 3px; height: 20px; border-radius: 2px; flex-shrink: 0; }
 
 /* Home panels grid */
@@ -1164,7 +1179,12 @@ body.flag-mode-active .flaggable.has-correction:hover { outline: 2px solid var(-
       <div class="form-group"><label>Title *</label><input type="text" id="c-title" placeholder="e.g. Anaphylaxis"></div>
       <div class="form-group"><label>Subtitle</label><input type="text" id="c-subtitle" placeholder="e.g. 42yo Female — Bee Sting"></div>
       <div class="form-group"><label>Category *</label>
-        <select id="c-category">
+        <select id="c-category" onchange="updateCreateTypeDropdown()">
+        </select>
+      </div>
+      <div class="form-group" id="c-type-group" style="display:none"><label>Scenario Type</label>
+        <select id="c-scenario-type">
+          <option value="">— Any / Unspecified —</option>
         </select>
       </div>
       <div class="form-group"><label>CPG Reference</label><input type="text" id="c-cpg" placeholder="e.g. CPG A0704"></div>
@@ -1569,6 +1589,7 @@ function toRow(s, overrides = {}) {
     subtitle:     s.subtitle || '',
     category:     s.category || 'Custom',
     subcategory:  s.subcategory || '',
+    scenario_type: s.scenario_type || null,
     type:         s.type || 'medical',
     cpg:          s.cpg || '',
     level:        s.level || 'C/D',
@@ -1609,6 +1630,7 @@ function fromRow(r) {
     subtitle:     r.subtitle,
     category:     r.category,
     subcategory:  r.subcategory,
+    scenario_type: r.scenario_type || null,
     type:         r.type,
     cpg:          r.cpg,
     level:        r.level,
@@ -1896,26 +1918,87 @@ function buildCategoryAccordion() {
   const container = document.getElementById('home-cat-accordion');
   if (!container) return;
   const all = getAllScenarios();
-  const groups = {};
-  all.forEach(s => { const g = s.category || 'Custom'; groups[g] = (groups[g] || 0) + 1; });
+
+  // Count per category, per subcategory, per scenario_type
+  const catCounts = {};
+  const subcatCounts = {}; // [cat][sub] = n
+  const typeCounts  = {}; // [cat|sub][type] = n
+  all.forEach(s => {
+    const g   = s.category || 'Custom';
+    const sub = s.subcategory || g;
+    const key = `${g}|${sub}`;
+    catCounts[g] = (catCounts[g] || 0) + 1;
+    if (!subcatCounts[g]) subcatCounts[g] = {};
+    subcatCounts[g][sub] = (subcatCounts[g][sub] || 0) + 1;
+    if (s.scenario_type) {
+      if (!typeCounts[key]) typeCounts[key] = {};
+      typeCounts[key][s.scenario_type] = (typeCounts[key][s.scenario_type] || 0) + 1;
+    }
+  });
 
   const defs = [
-    { key: 'Adult',           icon: '🧑', color: 'var(--navy)',    desc: 'Cardiac Arrest, STEMI, APO, Bradycardia, Asthma, Anaphylaxis, Stroke, Hypoglycaemia, Sepsis, Epilepsy, ABD, Opioids, Trauma, Burns, Drowning' },
-    { key: 'Paediatric',      icon: '🧒', color: 'var(--blue)',    desc: 'Cardiac Arrest, Asthma, Croup, Febrile Seizure, Anaphylaxis, Trauma' },
-    { key: 'Maternity',       icon: '🤰', color: 'var(--purple)',  desc: 'Normal Birth, Pre-eclampsia/Eclampsia, Primary PPH, Cord Prolapse, APH, Preterm Labour, Shoulder Dystocia, Miscarriage' },
-    { key: 'Newborn',         icon: '👶', color: 'var(--green)',   desc: 'Newborn Resuscitation' },
-    { key: 'Treat and Refer', icon: '🩹', color: '#6D4C41',        desc: 'Epistaxis, Minor Burns' },
-    { key: 'Custom',          icon: '✦',  color: '#16A085',        desc: 'AI-generated and manually created scenarios saved to the shared library' },
+    { key: 'Adult',           icon: '🧑', color: 'var(--navy)'   },
+    { key: 'Paediatric',      icon: '🧒', color: 'var(--blue)'   },
+    { key: 'Maternity',       icon: '🤰', color: 'var(--purple)' },
+    { key: 'Newborn',         icon: '👶', color: 'var(--green)'  },
+    { key: 'Treat and Refer', icon: '🩹', color: '#6D4C41'       },
+    { key: 'Custom',          icon: '✦',  color: '#16A085'       },
   ];
 
   container.innerHTML = defs.map((d, i) => {
-    const count = groups[d.key] || 0;
+    const count = catCounts[d.key] || 0;
     const countLabel = d.key === 'Custom'
       ? (count > 0 ? `${count} saved` : 'none yet')
       : `${count} scenario${count !== 1 ? 's' : ''}`;
     const isLast = i === defs.length - 1;
+
+    // Subcategory rows
+    const orderedSubs = [
+      ...(SUBCAT_ORDER[d.key] || []),
+      ...Object.keys(subcatCounts[d.key] || {}).filter(s => !(SUBCAT_ORDER[d.key] || []).includes(s))
+    ];
+
+    const subcatRows = d.key === 'Custom' ? '' : orderedSubs.map(sub => {
+      const subCount = (subcatCounts[d.key] || {})[sub] || 0;
+      const display  = SUBCAT_DISPLAY[sub] || sub;
+      const catSubKey = `${d.key}|${sub}`;
+      const typeKeys  = CATEGORY_TO_CPG[catSubKey] || [];
+
+      // Build type rows if there are multiple types
+      let typeRowsHtml = '';
+      if (typeKeys.length > 1) {
+        typeRowsHtml = typeKeys.map(tk => {
+          const typeLabel = CPG_SUBTYPE_LABELS[tk] || tk;
+          const tc = (typeCounts[catSubKey] || {})[tk] || 0;
+          return `<div class="cat-typerow" onclick="event.stopPropagation();openCategoryScreenFiltered('${d.key}','${sub.replace(/'/g,"\\'")}','${tk}')">
+            <div class="ctr-name">${typeLabel}</div>
+            ${tc > 0 ? `<div class="ctr-count">${tc}</div>` : ''}
+            <div class="ctr-arrow">›</div>
+          </div>`;
+        }).join('');
+      }
+
+      const hasTypes = typeKeys.length > 1;
+      // If has types: clicking the subrow toggles it; if single type: go direct
+      const subOnClick = hasTypes
+        ? `toggleSubRow(this)`
+        : `openSubcategoryScreen('${d.key}','${sub.replace(/'/g,"\\'")}')`;
+
+      return `<div class="cat-subrow${hasTypes ? ' has-types' : ''}" onclick="${subOnClick}">
+          <div class="csr-name">${display}</div>
+          ${subCount > 0 ? `<div class="csr-count">${subCount}</div>` : ''}
+          <div class="csr-arrow${hasTypes ? ' csr-chevron' : ''}">›</div>
+        </div>
+        ${hasTypes ? `<div class="cat-typebody">
+          ${typeRowsHtml}
+          <div class="cat-type-browse-all" onclick="openSubcategoryScreen('${d.key}','${sub.replace(/'/g,"\\'")}')">Browse all ${display} →</div>
+        </div>` : ''}`;
+    }).join('');
+
+    const browseAll = `<div class="cat-browse-all" onclick="openCategoryScreen('${d.key}')">Browse all ${d.key === 'Custom' ? 'custom scenarios' : d.key + ' scenarios'} →</div>`;
+
     return `
-      <div class="cat-accordion-row${isLast ? ' last' : ''}" onclick="toggleCatRow(this, '${d.key}')">
+      <div class="cat-accordion-row${isLast ? ' last' : ''}" onclick="toggleCatRow(this)">
         <div class="car-stripe" style="background:${d.color}"></div>
         <div class="car-icon">${d.icon}</div>
         <div class="car-name">${d.key}</div>
@@ -1923,24 +2006,23 @@ function buildCategoryAccordion() {
         <div class="car-chevron">›</div>
       </div>
       <div class="cat-accordion-body">
-        <div class="cat-body-desc">${d.desc}</div>
-        <button class="cat-body-browse" onclick="event.stopPropagation();openCategoryScreen('${d.key}')">Browse ${d.key} →</button>
+        ${subcatRows}
+        ${browseAll}
       </div>`;
   }).join('');
 }
 
-function toggleCatRow(rowEl, key) {
-  const body = rowEl.nextElementSibling;
-  const chevron = rowEl.querySelector('.car-chevron');
-  const isOpen = body.classList.contains('open');
-  // Close all
-  document.querySelectorAll('.cat-accordion-body').forEach(b => b.classList.remove('open'));
-  document.querySelectorAll('.cat-accordion-row').forEach(r => { r.classList.remove('expanded'); r.querySelector('.car-chevron').classList.remove('open'); });
-  // Open this one if it was closed
+function toggleSubRow(subRowEl) {
+  const typebody = subRowEl.nextElementSibling;
+  if (!typebody || !typebody.classList.contains('cat-typebody')) return;
+  const chevron = subRowEl.querySelector('.csr-chevron');
+  const isOpen = typebody.classList.contains('open');
+  // Close all type bodies within this accordion body
+  subRowEl.closest('.cat-accordion-body').querySelectorAll('.cat-typebody').forEach(b => b.classList.remove('open'));
+  subRowEl.closest('.cat-accordion-body').querySelectorAll('.csr-chevron').forEach(c => c.classList.remove('open'));
   if (!isOpen) {
-    body.classList.add('open');
-    rowEl.classList.add('expanded');
-    chevron.classList.add('open');
+    typebody.classList.add('open');
+    if (chevron) chevron.classList.add('open');
   }
 }
 
@@ -2088,7 +2170,23 @@ function populateCategorySelect(selectId, prefixOption) {
   el.innerHTML = html;
 }
 
-// Populate all category selects on page load
+// Cascade scenario type dropdown in the manual create form
+function updateCreateTypeDropdown() {
+  const catVal = document.getElementById('c-category').value;
+  const group = document.getElementById('c-type-group');
+  const select = document.getElementById('c-scenario-type');
+  if (!group || !select) return;
+  const keys = CATEGORY_TO_CPG[catVal] || [];
+  if (keys.length === 0) {
+    group.style.display = 'none';
+    return;
+  }
+  group.style.display = '';
+  select.innerHTML = '<option value="">— Any / Unspecified —</option>' +
+    keys.map(k => `<option value="${k}">${CPG_SUBTYPE_LABELS[k] || k}</option>`).join('');
+}
+
+
 document.addEventListener('DOMContentLoaded', () => {
   populateCategorySelect('gen-category');
   populateCategorySelect('gen-category-2', '— None (single scenario) —');
@@ -2245,9 +2343,58 @@ function openSubcategoryScreen(categoryKey, subcategoryKey) {
   showScreen('subcategory-screen');
 }
 
-// ============================================================
-// DEV NOTES — admin-editable amber banner with dismiss logic
-// ============================================================
+// Open subcategory screen pre-filtered to a specific scenario_type
+function openCategoryScreenFiltered(categoryKey, subcategoryKey, scenarioType) {
+  const all = getAllScenarios();
+  const typeLabel = CPG_SUBTYPE_LABELS[scenarioType] || scenarioType;
+  const color = CAT_COLORS[categoryKey] || 'var(--navy)';
+
+  // Show matching scenarios; fall back to all in subcategory if none typed yet
+  const typed = all.filter(s =>
+    (s.category || 'Custom') === categoryKey &&
+    (s.subcategory || categoryKey) === subcategoryKey &&
+    s.scenario_type === scenarioType
+  );
+  const fallback = typed.length === 0;
+  const scenarios = fallback
+    ? all.filter(s => (s.category || 'Custom') === categoryKey && (s.subcategory || categoryKey) === subcategoryKey)
+    : typed;
+
+  const sorted = sortByRecent(scenarios);
+  const subcatDisplay = SUBCAT_DISPLAY[subcategoryKey] || subcategoryKey;
+
+  const scenarioItems = sorted.length > 0
+    ? sorted.map(s => {
+        const aiBadge    = s.ai_generated ? '<span class="si-badge ai">AI</span>' : '';
+        const customBadge = (!s.is_builtin && !s.ai_generated) ? '<span class="si-badge custom">Custom</span>' : '';
+        const nameBadge  = (s.creator_name && !s.is_builtin) ? `<span class="si-badge" style="background:#EBF5FB;color:var(--blue);border:1px solid #AED6F1">${s.creator_name}</span>` : '';
+        return `<div class="subcat-scenario-item" onclick="loadScenario('${s.id}')">
+          <div class="ssi-title">${s.title || 'Untitled'}</div>
+          <div class="ssi-sub">${s.subtitle || s.cpg || ''}</div>
+          <div class="ssi-badges">${aiBadge}${customBadge}${nameBadge}</div>
+        </div>`;
+      }).join('')
+    : `<div style="padding:16px;font-size:13px;color:var(--grey);font-style:italic">No scenarios yet — generate one with the AI Generator.</div>`;
+
+  const screen = document.getElementById('subcategory-screen');
+  screen.innerHTML = `
+    <div class="browse-header" style="background:${color}">
+      <button class="browse-back-btn" onclick="openSubcategoryScreen('${categoryKey}','${subcategoryKey.replace(/'/g,"\\'")}')">← ${subcatDisplay}</button>
+      <div class="browse-header-text">
+        <h2>${typeLabel}</h2>
+        <p>${sorted.length} scenario${sorted.length !== 1 ? 's' : ''}${fallback ? ' (all types)' : ''}</p>
+      </div>
+    </div>
+    <div style="display:flex;gap:10px;margin-bottom:14px">
+      <button class="random-btn" style="margin-bottom:0;flex:1" onclick="loadRandomScenario('${categoryKey}','${subcategoryKey.replace(/'/g,"\\'")}')">🎲 Random</button>
+      <button class="random-btn navy" style="margin-bottom:0;flex:1" onclick="openAIModalWithContext('${categoryKey}','${subcategoryKey.replace(/'/g,"\\'")}')">✦ Generate</button>
+    </div>
+    <div class="subcat-scenario-list">${scenarioItems}</div>
+  `;
+  showScreen('subcategory-screen');
+}
+
+
 function devNotesHash(str) {
   // Simple hash to detect when content has changed
   let h = 0;
@@ -5173,6 +5320,10 @@ ${SCENARIO_JSON_TEMPLATE.replace('CAT', category).replace('SUB', subcategory)}`;
       }
     }
     lastAIScenario = scenario;
+    // Tag scenario_type from the CPG subtype selection
+    const _subtypeEl = document.getElementById('gen-cpg-subtype');
+    const _chosenType = _subtypeEl && _subtypeEl.value !== '__random__' ? _subtypeEl.value : null;
+    if (_chosenType) scenario.scenario_type = _chosenType;
     // Increment daily usage count
     if (!isAdmin()) {
       const today = new Date().toISOString().slice(0,10);
@@ -5298,6 +5449,10 @@ function openCreateModal() {
   addRepItem('c-ddx-list','ddx'); addRepItem('c-ddx-list','ddx'); addRepItem('c-ddx-list','ddx');
   addRepItem('c-treatment-list','treatment'); addRepItem('c-treatment-list','treatment'); addRepItem('c-treatment-list','treatment');
   addKQBlock(); addKQBlock();
+  // Reset type dropdown
+  const typeGroup = document.getElementById('c-type-group');
+  if (typeGroup) typeGroup.style.display = 'none';
+  updateCreateTypeDropdown();
   document.getElementById('create-modal').classList.add('open');
 }
 function closeCreateModal() { document.getElementById('create-modal').classList.remove('open'); }
@@ -5355,6 +5510,7 @@ async function saveManualScenario() {
     subtitle: document.getElementById('c-subtitle').value.trim(),
     category,
     subcategory,
+    scenario_type: document.getElementById('c-scenario-type').value || null,
     type: subcategory && subcategory.toLowerCase().includes('trauma') ? 'trauma' : category.toLowerCase().includes('paed') ? 'paediatric' : category === 'Maternity' ? 'obstetric' : 'medical',
     cpg: document.getElementById('c-cpg').value.trim() || 'Custom',
     level: 'C/D',
