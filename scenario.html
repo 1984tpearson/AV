@@ -4,13 +4,16 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>AV Scenario Assessment Tool</title>
+<script>
+// Apply saved theme immediately to prevent flash
+(function(){const t=localStorage.getItem('av_theme');if(t&&t!=='default')document.documentElement.setAttribute('data-theme',t);})();
+</script>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M16 2L4 9V16C4 22.6 9.4 28.7 16 30C22.6 28.7 28 22.6 28 16V9L16 2Z' fill='%231C3A6E'/%3E%3Cpath d='M15 15H12V17H15V20H17V17H20V15H17V12H15V15Z' fill='white'/%3E%3C/svg%3E">
 <style>
 :root {
   --navy: #1C3A6E; --navy-dark: #122849; --navy-light: #2A4F8F;
   --red: #C0392B; --red-light: #FDEDEC;
-  --amber: #E8921A; --amber-light: #FEF5E7;
-  --green: #27833A; --green-light: #EAFAF1;
+  --amber: #E8921A; --amber-light: #FEF5E7; --btn-accent: #E8921A;  --green: #27833A; --green-light: #EAFAF1;
   --blue: #2E86C1; --blue-light: #EBF5FB;
   --purple: #7D3C98; --purple-light: #F5EEF8;
   --grey: #6C7A89; --light: #F4F6F9; --white: #FFFFFF; --text: #1A1A2E; --border: #D5D8DC;
@@ -18,6 +21,203 @@
   --tap: 48px; /* minimum tap target */
 }
 * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+/* ============================================================ THEMES */
+/* Each theme remaps the semantic tokens used throughout the UI */
+
+/* ARCTIC — crisp white, sky blue */
+[data-theme="arctic"] {
+  --navy: #0277BD; --navy-dark: #01579B; --navy-light: #0288D1;
+  --amber: #0288D1; --amber-light: #E1F5FE; --btn-accent: #E87A00;
+  --green: #00897B; --green-light: #E0F2F1;
+  --blue: #1565C0; --blue-light: #E3F2FD;
+  --purple: #6A1B9A; --purple-light: #F3E5F5;
+  --red: #C62828; --red-light: #FFEBEE;
+  --grey: #546E7A;
+  --light: #EEF5FB; --white: #FFFFFF; --text: #0D2137; --border: #B8D4EA;
+  --shadow: 0 2px 8px rgba(2,119,189,0.13);
+}
+/* ROSE — soft white, dusty rose */
+[data-theme="rose"] {
+  --navy: #8B3A52; --navy-dark: #6B2A3E; --navy-light: #A84E68;
+  --amber: #D45C78; --amber-light: #FDEEF2; --btn-accent: #D4A000;
+  --green: #4A7C5A; --green-light: #EBF4EE;
+  --blue: #3D6B9E; --blue-light: #E8F0F8;
+  --purple: #7B4FA0; --purple-light: #F3ECF8;
+  --red: #B71C3C; --red-light: #FDECF0;
+  --grey: #8A6070;
+  --light: #FDF5F7; --white: #FFFFFF; --text: #2A0D18; --border: #E8C8D0;
+  --shadow: 0 2px 8px rgba(139,58,82,0.12);
+}
+/* SAGE — pale green, forest accent */
+[data-theme="sage"] {
+  --navy: #2D5A3D; --navy-dark: #1E3E2A; --navy-light: #3D7050;
+  --amber: #3D8B5A; --amber-light: #EAF5EE; --btn-accent: #D47A00;
+  --green: #2E7D52; --green-light: #E8F5EE;
+  --blue: #2E6D9E; --blue-light: #E8F0F8;
+  --purple: #5A3D8A; --purple-light: #F0ECF8;
+  --red: #A62828; --red-light: #FDECEC;
+  --grey: #6A8A72;
+  --light: #F2F8F4; --white: #FFFFFF; --text: #0F2218; --border: #C0D9C8;
+  --shadow: 0 2px 8px rgba(45,90,61,0.12);
+}
+/* SAND — warm beige, caramel */
+[data-theme="sand"] {
+  --navy: #7C5A2A; --navy-dark: #5A3E18; --navy-light: #9A7038;
+  --amber: #C8882A; --amber-light: #FDF3E3; --btn-accent: #C85A00;
+  --green: #4A6A3A; --green-light: #EDF4E8;
+  --blue: #3A6080; --blue-light: #E8EEF4;
+  --purple: #6A4A7A; --purple-light: #F0ECF8;
+  --red: #A03020; --red-light: #FDECEC;
+  --grey: #8A7258;
+  --light: #FAF6EE; --white: #FFFDF8; --text: #2C1A00; --border: #E0CFA8;
+  --shadow: 0 2px 8px rgba(124,90,42,0.12);
+}
+/* MINT — fresh white, vivid teal */
+[data-theme="mint"] {
+  --navy: #1A6B6B; --navy-dark: #0E4848; --navy-light: #228888;
+  --amber: #00B8A0; --amber-light: #E0FAF6; --btn-accent: #E07000;
+  --green: #1A9060; --green-light: #E0F5EC;
+  --blue: #1A60A0; --blue-light: #E0EEF8;
+  --purple: #5A3A8A; --purple-light: #F0ECF8;
+  --red: #A02828; --red-light: #FDECEC;
+  --grey: #4A8A80;
+  --light: #F0FAF8; --white: #FFFFFF; --text: #082020; --border: #B0DDD8;
+  --shadow: 0 2px 8px rgba(26,107,107,0.13);
+}
+/* PAPER — off-white, ink black */
+[data-theme="paper"] {
+  --navy: #1A1A1A; --navy-dark: #000000; --navy-light: #333333;
+  --amber: #333333; --amber-light: #EEECE8; --btn-accent: #1A5BAA;
+  --green: #2A5A2A; --green-light: #E8F4E8;
+  --blue: #1A3A6A; --blue-light: #E8EEF8;
+  --purple: #3A1A6A; --purple-light: #F0ECF8;
+  --red: #8A1A1A; --red-light: #FDECEC;
+  --grey: #6A6A6A;
+  --light: #F5F2ED; --white: #FDFBF7; --text: #111111; --border: #D8D0C4;
+  --shadow: 0 2px 8px rgba(0,0,0,0.10);
+}
+/* MIDNIGHT — deep blue-black, electric cyan */
+[data-theme="midnight"] {
+  --navy: #0D1B2A; --navy-dark: #060E18; --navy-light: #162438;
+  --amber: #00E5FF; --amber-light: rgba(0,229,255,0.12); --btn-accent: #00E5FF;
+  --green: #00E676; --green-light: rgba(0,230,118,0.12);
+  --blue: #448AFF; --blue-light: rgba(68,138,255,0.12);
+  --purple: #E040FB; --purple-light: rgba(224,64,251,0.12);
+  --red: #FF5252; --red-light: rgba(255,82,82,0.12);
+  --grey: #7A90A8;
+  --light: #162535; --white: #1E3048; --text: #DDE8F4; --border: #2A4060;
+  --shadow: 0 2px 12px rgba(0,0,0,0.6);
+}
+/* FOREST — deep green, vivid gold */
+[data-theme="forest"] {
+  --navy: #162618; --navy-dark: #0C1A0E; --navy-light: #1F3622;
+  --amber: #FFD600; --amber-light: rgba(255,214,0,0.12); --btn-accent: #FFD600;
+  --green: #69F0AE; --green-light: rgba(105,240,174,0.12);
+  --blue: #40C4FF; --blue-light: rgba(64,196,255,0.12);
+  --purple: #EA80FC; --purple-light: rgba(234,128,252,0.12);
+  --red: #FF6E6E; --red-light: rgba(255,110,110,0.12);
+  --grey: #7A9E80;
+  --light: #1A3020; --white: #223828; --text: #E0EEE2; --border: #2E4A34;
+  --shadow: 0 2px 12px rgba(0,0,0,0.5);
+}
+/* OCEAN — deep sea, aqua glow */
+[data-theme="ocean"] {
+  --navy: #0A2038; --navy-dark: #061828; --navy-light: #0E2E4E;
+  --amber: #00C8A0; --amber-light: rgba(0,200,160,0.12); --btn-accent: #00C8A0;
+  --green: #00E676; --green-light: rgba(0,230,118,0.12);
+  --blue: #40C4FF; --blue-light: rgba(64,196,255,0.12);
+  --purple: #CE93D8; --purple-light: rgba(206,147,216,0.12);
+  --red: #FF6E6E; --red-light: rgba(255,110,110,0.12);
+  --grey: #5A8898;
+  --light: #112438; --white: #183A54; --text: #CCE8F0; --border: #1E4468;
+  --shadow: 0 2px 12px rgba(0,0,0,0.6);
+}
+/* DUSK — purple-grey twilight, peach accent */
+[data-theme="dusk"] {
+  --navy: #2A1E3A; --navy-dark: #1A1228; --navy-light: #362850;
+  --amber: #FF9A6C; --amber-light: rgba(255,154,108,0.12); --btn-accent: #FF9A6C;
+  --green: #80CBC4; --green-light: rgba(128,203,196,0.12);
+  --blue: #82B1FF; --blue-light: rgba(130,177,255,0.12);
+  --purple: #CE93D8; --purple-light: rgba(206,147,216,0.12);
+  --red: #FF8A80; --red-light: rgba(255,138,128,0.12);
+  --grey: #8A7AA8;
+  --light: #221830; --white: #302044; --text: #E8DCF4; --border: #44305E;
+  --shadow: 0 2px 12px rgba(0,0,0,0.55);
+}
+
+/* Dark theme adjustments */
+[data-theme="midnight"],[data-theme="forest"],[data-theme="ocean"],[data-theme="dusk"] {
+  color-scheme: dark;
+}
+[data-theme="midnight"] #sidebar,
+[data-theme="forest"] #sidebar,
+[data-theme="ocean"] #sidebar,
+[data-theme="dusk"] #sidebar { background: var(--white); border-color: var(--border); }
+[data-theme="midnight"] .cat-accordion,
+[data-theme="forest"] .cat-accordion,
+[data-theme="ocean"] .cat-accordion,
+[data-theme="dusk"] .cat-accordion { background: var(--white); border-color: var(--border); }
+[data-theme="midnight"] .home-panel,
+[data-theme="forest"] .home-panel,
+[data-theme="ocean"] .home-panel,
+[data-theme="dusk"] .home-panel { background: var(--white); border-color: var(--border); }
+[data-theme="midnight"] .hp-title,
+[data-theme="forest"] .hp-title,
+[data-theme="ocean"] .hp-title,
+[data-theme="dusk"] .hp-title { color: var(--text); }
+[data-theme="midnight"] .cat-accordion-body,
+[data-theme="forest"] .cat-accordion-body,
+[data-theme="ocean"] .cat-accordion-body,
+[data-theme="dusk"] .cat-accordion-body { background: var(--light); border-color: var(--border); }
+[data-theme="midnight"] .cat-typebody,
+[data-theme="forest"] .cat-typebody,
+[data-theme="ocean"] .cat-typebody,
+[data-theme="dusk"] .cat-typebody { background: var(--navy-dark); border-color: var(--border); }
+[data-theme="midnight"] .cat-subrow,
+[data-theme="forest"] .cat-subrow,
+[data-theme="ocean"] .cat-subrow,
+[data-theme="dusk"] .cat-subrow { border-color: var(--border); }
+[data-theme="midnight"] .subcat-scenario-item,
+[data-theme="forest"] .subcat-scenario-item,
+[data-theme="ocean"] .subcat-scenario-item,
+[data-theme="dusk"] .subcat-scenario-item { background: var(--white); border-color: var(--border); }
+[data-theme="midnight"] .recent-scenario-item,
+[data-theme="forest"] .recent-scenario-item,
+[data-theme="ocean"] .recent-scenario-item,
+[data-theme="dusk"] .recent-scenario-item { background: var(--white); border-color: var(--border); }
+[data-theme="midnight"] .home-random-btn,
+[data-theme="forest"] .home-random-btn,
+[data-theme="ocean"] .home-random-btn,
+[data-theme="dusk"] .home-random-btn { background: var(--white); color: var(--text); border-color: var(--border); }
+[data-theme="midnight"] .modal-inner,
+[data-theme="forest"] .modal-inner,
+[data-theme="ocean"] .modal-inner,
+[data-theme="dusk"] .modal-inner { background: var(--white); }
+[data-theme="midnight"] .modal-body,
+[data-theme="forest"] .modal-body,
+[data-theme="ocean"] .modal-body,
+[data-theme="dusk"] .modal-body { background: var(--light); color: var(--text); }
+[data-theme="midnight"] input,[data-theme="forest"] input,[data-theme="ocean"] input,[data-theme="dusk"] input,
+[data-theme="midnight"] textarea,[data-theme="forest"] textarea,[data-theme="ocean"] textarea,[data-theme="dusk"] textarea,
+[data-theme="midnight"] select,[data-theme="forest"] select,[data-theme="ocean"] select,[data-theme="dusk"] select { background: var(--navy); color: var(--text); border-color: var(--border); }
+[data-theme="midnight"] .sidebar-bottom,
+[data-theme="forest"] .sidebar-bottom,
+[data-theme="ocean"] .sidebar-bottom,
+[data-theme="dusk"] .sidebar-bottom { background: var(--navy-dark); border-color: var(--border); }
+[data-theme="midnight"] body,[data-theme="forest"] body,[data-theme="ocean"] body,[data-theme="dusk"] body { background: var(--light); color: var(--text); }
+[data-theme="midnight"] #content,[data-theme="forest"] #content,[data-theme="ocean"] #content,[data-theme="dusk"] #content { background: var(--light); }
+
+/* Theme selector UI */
+.theme-selector { padding: 10px 12px; border-top: 1px solid var(--border); }
+.theme-selector-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--grey); margin-bottom: 8px; }
+.theme-swatches { display: flex; gap: 7px; flex-wrap: wrap; }
+.theme-swatch { width: 32px; height: 32px; border-radius: 50%; cursor: pointer; border: 2px solid transparent; transition: transform 0.15s, border-color 0.15s; position: relative; flex-shrink: 0; }
+.theme-swatch:active { transform: scale(0.9); }
+.theme-swatch.active { border-color: var(--text); transform: scale(1.1); }
+.theme-swatch[title]::after { content: attr(title); position: absolute; bottom: calc(100% + 6px); left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.75); color: white; font-size: 10px; white-space: nowrap; padding: 3px 7px; border-radius: 4px; pointer-events: none; opacity: 0; transition: opacity 0.15s; }
+.theme-swatch:hover::after { opacity: 1; }
+
 html { font-size: 16px; }
 body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background: var(--light); color: var(--text); line-height: 1.5; overscroll-behavior: none; }
 
@@ -99,9 +299,74 @@ body.snav-active #content { padding-left: 60px; }
 
 /* HOME */
 #home-screen { max-width: 820px; margin: 0 auto; }
-.welcome-header { background: var(--navy); color: white; border-radius: 12px; padding: 24px 24px; margin-bottom: 16px; }
-.welcome-header h2 { font-size: 20px; font-weight: 700; margin-bottom: 6px; }
-.welcome-header p { font-size: 13px; opacity: 0.8; }
+.welcome-header { background: var(--navy); color: white; border-radius: 12px; padding: 18px 20px; margin-bottom: 14px; }
+.welcome-header h2 { font-size: 18px; font-weight: 700; margin-bottom: 4px; }
+.welcome-header p { font-size: 12px; opacity: 0.75; }
+
+/* Action buttons */
+.home-actions { margin-bottom: 14px; }
+.home-ai-btn { width: 100%; background: var(--btn-accent); color: white; border: none; border-radius: 10px; padding: 14px 16px; font-size: 15px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; box-shadow: var(--shadow); min-height: var(--tap); }
+.home-ai-btn:active { opacity: 0.85; }
+.home-secondary-actions { display: flex; gap: 12px; margin-top: 8px; padding: 0 2px; }
+.home-create-btn { background: none; border: none; color: var(--navy); font-size: 12px; font-weight: 600; cursor: pointer; padding: 4px 0; text-decoration: underline; text-underline-offset: 2px; opacity: 0.75; }
+.home-create-btn:active { opacity: 1; }
+
+/* Random button — slimmer */
+.home-random-btn { background: white; color: var(--navy); border: 1.5px solid var(--border); border-radius: 10px; padding: 10px 16px; font-size: 13px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 8px; box-shadow: none; min-height: 40px; width: 100%; margin-bottom: 14px; justify-content: center; }
+.home-random-btn:active { background: var(--light); }
+
+/* Category accordion */
+.home-section-label { font-size: 11px; font-weight: 700; color: var(--grey); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 6px; margin-top: 4px; }
+.cat-accordion { background: white; border: 1px solid var(--border); border-radius: 10px; overflow: hidden; margin-bottom: 14px; box-shadow: var(--shadow); }
+.cat-accordion-row { display: flex; align-items: center; gap: 10px; padding: 11px 14px; cursor: pointer; border-bottom: 1px solid #f0f2f5; transition: background 0.12s; user-select: none; min-height: var(--tap); }
+.cat-accordion-row:last-child { border-bottom: none; }
+.cat-accordion-row:active { background: var(--light); }
+.cat-accordion-row.expanded { background: #f7f9fc; }
+.car-icon { font-size: 16px; width: 24px; text-align: center; flex-shrink: 0; }
+.car-name { font-size: 13px; font-weight: 700; color: var(--text); flex: 1; }
+.car-count { font-size: 11px; color: var(--grey); font-weight: 600; flex-shrink: 0; margin-right: 6px; }
+.car-chevron { font-size: 11px; color: var(--grey); flex-shrink: 0; transition: transform 0.2s; }
+.car-chevron.open { transform: rotate(90deg); }
+.cat-accordion-body { display: none; background: #f7f9fc; border-top: 1px solid #eaedf0; }
+.cat-accordion-body.open { display: block; }
+.cat-subrow { display: flex; align-items: center; gap: 8px; padding: 9px 14px 9px 44px; cursor: pointer; border-bottom: 1px solid #eef0f3; transition: background 0.12s; min-height: 40px; }
+.cat-subrow:active { background: #e8ecf2; }
+.cat-subrow.has-types { cursor: pointer; }
+.csr-name { font-size: 13px; color: var(--text); flex: 1; }
+.csr-count { font-size: 11px; color: var(--grey); font-weight: 600; }
+.csr-arrow { font-size: 12px; color: var(--grey); margin-left: 2px; transition: transform 0.2s; }
+.csr-chevron.open { transform: rotate(90deg); }
+.cat-typebody { display: none; background: #eef1f6; border-bottom: 1px solid #e2e6ed; }
+.cat-typebody.open { display: block; }
+.cat-typerow { display: flex; align-items: center; gap: 8px; padding: 8px 14px 8px 60px; cursor: pointer; border-bottom: 1px solid #e6eaf0; transition: background 0.12s; min-height: 36px; }
+.cat-typerow:active { background: #dde3ee; }
+.ctr-name { font-size: 12px; color: var(--navy); flex: 1; }
+.ctr-count { font-size: 11px; color: var(--grey); font-weight: 600; }
+.ctr-arrow { font-size: 11px; color: var(--grey); }
+.cat-type-browse-all { padding: 7px 14px 7px 60px; font-size: 11px; font-weight: 600; color: var(--navy); cursor: pointer; opacity: 0.6; border-top: 1px solid #dde3ee; }
+.cat-type-browse-all:active { opacity: 1; }
+.cat-browse-all { padding: 9px 14px 9px 44px; font-size: 12px; font-weight: 600; color: var(--navy); cursor: pointer; opacity: 0.7; border-top: 1px solid #eaedf0; }
+.cat-browse-all:active { opacity: 1; background: #e8ecf2; }
+.car-stripe { width: 3px; height: 20px; border-radius: 2px; flex-shrink: 0; }
+
+/* Home panels grid */
+.home-panels { display: grid; grid-template-columns: 1fr; gap: 12px; }
+@media (min-width: 600px) { .home-panels { grid-template-columns: 1fr 1fr; } }
+.home-panel { background: white; border: 1px solid var(--border); border-radius: 10px; overflow: hidden; box-shadow: var(--shadow); }
+.home-panel-header { padding: 10px 14px 8px; border-bottom: 1px solid #f0f2f5; display: flex; align-items: center; gap: 6px; }
+.home-panel-title { font-size: 11px; font-weight: 700; color: var(--grey); text-transform: uppercase; letter-spacing: 0.06em; flex: 1; }
+.home-panel-body { padding: 6px 0; min-height: 60px; }
+.home-panel-empty { font-size: 12px; color: var(--grey); padding: 14px 14px; opacity: 0.7; font-style: italic; }
+.hp-item { display: flex; align-items: center; gap: 9px; padding: 7px 14px; cursor: pointer; transition: background 0.12s; }
+.hp-item:active { background: var(--light); }
+.hp-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+.hp-title { font-size: 13px; font-weight: 600; color: var(--navy); flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hp-sub { font-size: 11px; color: var(--grey); flex-shrink: 0; }
+.hp-badge { font-size: 10px; font-weight: 700; padding: 1px 5px; border-radius: 4px; flex-shrink: 0; }
+.hp-badge.ai { background: #FEF9E7; color: var(--amber); border: 1px solid #F9E79F; }
+.hp-badge.custom { background: #EBF5FB; color: var(--blue); border: 1px solid #AED6F1; }
+
+/* keep old stats-grid in case used elsewhere */
 .stats-grid { display: grid; grid-template-columns: repeat(2,1fr); gap: 10px; margin-bottom: 16px; }
 @media (min-width: 600px) { .stats-grid { grid-template-columns: repeat(4,1fr); } }
 .stat-card { background: white; border-radius: 10px; padding: 14px; text-align: center; border: 1px solid var(--border); box-shadow: var(--shadow); }
@@ -112,21 +377,12 @@ body.snav-active #content { padding-left: 60px; }
 .stat-card.blue .stat-num { color: var(--blue); }
 .stat-card.purple .stat-num { color: var(--purple); }
 .stat-card.green .stat-num { color: var(--green); }
+/* legacy cat-card kept for any remaining references */
 .category-overview { display: grid; grid-template-columns: 1fr; gap: 10px; }
 @media (min-width: 600px) { .category-overview { grid-template-columns: repeat(2,1fr); } }
-
-/* Home screen two-column layout for tablets/PCs */
 .home-two-col { display: grid; grid-template-columns: 1fr; gap: 16px; }
 @media (min-width: 700px) { .home-two-col { grid-template-columns: 1fr 1fr; align-items: start; } }
-.cat-card { background: white; border-radius: 10px; padding: 14px 18px; border: 1px solid var(--border); border-left: 4px solid var(--navy); box-shadow: var(--shadow); cursor: pointer; transition: transform 0.12s, box-shadow 0.12s; user-select: none; }
-.cat-card:hover { transform: translateY(-2px); box-shadow: 0 4px 16px rgba(28,58,110,0.15); }
-.cat-card:active { transform: translateY(0); box-shadow: var(--shadow); opacity: 0.85; }
-.cat-card.trauma { border-left-color: var(--red); }
-.cat-card.paediatric { border-left-color: var(--blue); }
-.cat-card.obstetric { border-left-color: var(--purple); }
-.cat-card.newborn { border-left-color: var(--green); }
-.cat-card.treatrefer { border-left-color: #6D4C41; }
-.cat-card.custom { border-left-color: #16A085; }
+.cat-card { background: white; border-radius: 10px; padding: 14px 18px; border: 1px solid var(--border); border-left: 4px solid var(--navy); box-shadow: var(--shadow); cursor: pointer; user-select: none; }
 .cat-card h3 { font-size: 13px; font-weight: 700; margin-bottom: 4px; display: flex; align-items: center; gap: 6px; }
 .cat-card .cat-arrow { font-size: 11px; opacity: 0.5; margin-left: auto; }
 .cat-card p { font-size: 12px; color: var(--grey); line-height: 1.4; }
@@ -765,8 +1021,7 @@ body.flag-mode-active .flaggable.has-correction:hover { outline: 2px solid var(-
 .ssi-title { font-size: 13px; font-weight: 700; color: var(--navy); }
 .ssi-sub { font-size: 11px; color: var(--grey); margin-top: 2px; }
 .ssi-badges { display: flex; gap: 4px; margin-top: 4px; flex-wrap: wrap; }
-.home-random-btn { background: var(--amber); color: white; border: none; border-radius: 10px; padding: 13px 16px; font-size: 14px; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 8px; box-shadow: var(--shadow); min-height: var(--tap); width: 100%; margin-bottom: 14px; justify-content: center; }
-.home-random-btn:active { opacity: 0.85; }
+/* home-random-btn defined in HOME section above */
 </style>
 <script src="cpg_packages_combined.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700&display=swap" rel="stylesheet">
@@ -833,6 +1088,22 @@ body.flag-mode-active .flaggable.has-correction:hover { outline: 2px solid var(-
   <div id="search-box"><input type="text" id="search-input" placeholder="Search scenarios…" oninput="filterScenarios(this.value)"></div>
   <div id="scenario-list"></div>
   <div class="sidebar-bottom">
+    <div class="theme-selector">
+      <div class="theme-selector-label">🎨 Theme</div>
+      <div class="theme-swatches" id="theme-swatches">
+        <div class="theme-swatch" data-theme="default"  title="Default"  style="background:linear-gradient(135deg,#1C3A6E 50%,#E8921A 50%)" onclick="applyTheme('default')"></div>
+        <div class="theme-swatch" data-theme="arctic"   title="Arctic"   style="background:linear-gradient(135deg,#0277BD 50%,#EEF5FB 50%)" onclick="applyTheme('arctic')"></div>
+        <div class="theme-swatch" data-theme="rose"     title="Rose"     style="background:linear-gradient(135deg,#8B3A52 50%,#FDF5F7 50%)" onclick="applyTheme('rose')"></div>
+        <div class="theme-swatch" data-theme="sage"     title="Sage"     style="background:linear-gradient(135deg,#2D5A3D 50%,#F2F8F4 50%)" onclick="applyTheme('sage')"></div>
+        <div class="theme-swatch" data-theme="sand"     title="Sand"     style="background:linear-gradient(135deg,#7C5A2A 50%,#FAF6EE 50%)" onclick="applyTheme('sand')"></div>
+        <div class="theme-swatch" data-theme="mint"     title="Mint"     style="background:linear-gradient(135deg,#1A6B6B 50%,#F0FAF8 50%)" onclick="applyTheme('mint')"></div>
+        <div class="theme-swatch" data-theme="paper"    title="Paper"    style="background:linear-gradient(135deg,#1A1A1A 50%,#F5F2ED 50%)" onclick="applyTheme('paper')"></div>
+        <div class="theme-swatch" data-theme="midnight" title="Midnight" style="background:linear-gradient(135deg,#0D1B2A 50%,#00E5FF 50%)" onclick="applyTheme('midnight')"></div>
+        <div class="theme-swatch" data-theme="forest"   title="Forest"   style="background:linear-gradient(135deg,#162618 50%,#FFD600 50%)" onclick="applyTheme('forest')"></div>
+        <div class="theme-swatch" data-theme="ocean"    title="Ocean"    style="background:linear-gradient(135deg,#0A2038 50%,#00C8A0 50%)" onclick="applyTheme('ocean')"></div>
+        <div class="theme-swatch" data-theme="dusk"     title="Dusk"     style="background:linear-gradient(135deg,#2A1E3A 50%,#FF9A6C 50%)" onclick="applyTheme('dusk')"></div>
+      </div>
+    </div>
     <button class="sidebar-bottom-btn amber" onclick="closeSidebar();openAIModal()">✦ AI Generator</button>
     <button class="sidebar-bottom-btn green" onclick="closeSidebar();openCreateModal()">✏️ Create Manually</button>
     <button class="sidebar-bottom-btn purple" onclick="closeSidebar();openManageModal()">⚙ Manage Custom</button>
@@ -848,21 +1119,25 @@ body.flag-mode-active .flaggable.has-correction:hover { outline: 2px solid var(-
         <h2>AV Verbal Scenario Assessment Tool</h2>
         <p>Assessor-facing tool for ALS verbal scenarios. Select a scenario from the library or create your own.</p>
       </div>
-      <div class="quick-actions">
-        <button class="quick-action-btn amber" onclick="openAIModal()">✦ AI Generator</button>
-        <button class="quick-action-btn green" onclick="openCreateModal()">✏️ Create Manually</button>
-        <button class="quick-action-btn purple" onclick="openManageModal()">⚙ Custom Library</button>
+
+      <div class="home-actions">
+        <button class="home-ai-btn" onclick="openAIModal()">✦ AI Generator</button>
+        <div class="home-secondary-actions">
+          <button class="home-create-btn" onclick="openCreateModal()">✏️ Create manually</button>
+        </div>
       </div>
+
       <button class="home-random-btn" onclick="loadRandomScenario(null, null)">🎲 Random Scenario — Any Category</button>
 
-      <div class="home-two-col">
-        <div class="category-overview" id="home-category-overview">
-          <!-- populated by buildHomeCategoryCards() -->
-        </div>
-        <div id="home-recent-scenarios">
-          <!-- populated by buildRecentScenariosList() -->
-        </div>
+      <div class="home-section-label">Browse by Category</div>
+      <div class="cat-accordion" id="home-cat-accordion">
+        <!-- populated by buildCategoryAccordion() -->
       </div>
+
+      <div class="home-panels" id="home-panels">
+        <!-- populated by buildHomePanels() -->
+      </div>
+
       <div id="dev-notes-banner" style="margin-top:16px">
         <div class="dev-notes-banner-header">
           <div class="dev-notes-banner-title">⚠️ Dev Notes</div>
@@ -1120,7 +1395,12 @@ body.flag-mode-active .flaggable.has-correction:hover { outline: 2px solid var(-
       <div class="form-group"><label>Title *</label><input type="text" id="c-title" placeholder="e.g. Anaphylaxis"></div>
       <div class="form-group"><label>Subtitle</label><input type="text" id="c-subtitle" placeholder="e.g. 42yo Female — Bee Sting"></div>
       <div class="form-group"><label>Category *</label>
-        <select id="c-category">
+        <select id="c-category" onchange="updateCreateTypeDropdown()">
+        </select>
+      </div>
+      <div class="form-group" id="c-type-group" style="display:none"><label>Scenario Type</label>
+        <select id="c-scenario-type">
+          <option value="">— Any / Unspecified —</option>
         </select>
       </div>
       <div class="form-group"><label>CPG Reference</label><input type="text" id="c-cpg" placeholder="e.g. CPG A0704"></div>
@@ -1525,6 +1805,7 @@ function toRow(s, overrides = {}) {
     subtitle:     s.subtitle || '',
     category:     s.category || 'Custom',
     subcategory:  s.subcategory || '',
+    scenario_type: s.scenario_type || null,
     type:         s.type || 'medical',
     cpg:          s.cpg || '',
     level:        s.level || 'C/D',
@@ -1565,6 +1846,7 @@ function fromRow(r) {
     subtitle:     r.subtitle,
     category:     r.category,
     subcategory:  r.subcategory,
+    scenario_type: r.scenario_type || null,
     type:         r.type,
     cpg:          r.cpg,
     level:        r.level,
@@ -1675,8 +1957,8 @@ async function deleteScenarioFromCloud(id) {
 // Legacy compat — called by old code paths after mutations
 async function saveCustomScenarios() {
   updateCustomCount();
-  buildHomeCategoryCards();
-  buildRecentScenariosList();
+  buildHomeScreen();
+  // buildRecentScenariosList — merged into buildHomeScreen
 }
 
 function updateCustomCount() {
@@ -1774,8 +2056,8 @@ async function initApp() {
   updateCustomCount();
 
   buildSidebar(getAllScenarios());
-  buildHomeCategoryCards();
-  buildRecentScenariosList();
+  buildHomeScreen();
+  // buildRecentScenariosList — merged into buildHomeScreen
   loadDevNotes();
 
   // Pulse the hamburger button briefly to draw attention to it
@@ -1840,80 +2122,225 @@ function openSidebarToGroup(groupName) {
   });
 }
 
-function buildHomeCategoryCards() {
+// ============================================================
+// HOME SCREEN — unified builder
+// ============================================================
+function buildHomeScreen() {
+  buildCategoryAccordion();
+  buildHomePanels();
+}
+
+function buildCategoryAccordion() {
+  const container = document.getElementById('home-cat-accordion');
+  if (!container) return;
   const all = getAllScenarios();
-  const groups = {};
+
+  // Count per category, per subcategory, per scenario_type
+  const catCounts = {};
+  const subcatCounts = {}; // [cat][sub] = n
+  const typeCounts  = {}; // [cat|sub][type] = n
   all.forEach(s => {
-    const g = s.category || 'Custom';
-    groups[g] = (groups[g] || 0) + 1;
+    const g   = s.category || 'Custom';
+    const sub = s.subcategory || g;
+    const key = `${g}|${sub}`;
+    catCounts[g] = (catCounts[g] || 0) + 1;
+    if (!subcatCounts[g]) subcatCounts[g] = {};
+    subcatCounts[g][sub] = (subcatCounts[g][sub] || 0) + 1;
+    if (s.scenario_type) {
+      if (!typeCounts[key]) typeCounts[key] = {};
+      typeCounts[key][s.scenario_type] = (typeCounts[key][s.scenario_type] || 0) + 1;
+    }
   });
 
   const defs = [
-    { key: 'Adult',          cls: '',           icon: '🧑',  desc: 'Cardiac Arrest, STEMI, APO, Bradycardia, Asthma, Anaphylaxis, Stroke, Hypoglycaemia, Sepsis, Epilepsy, ABD, Opioids, Trauma, Burns, Drowning' },
-    { key: 'Paediatric',     cls: 'paediatric', icon: '🧒',  desc: 'Cardiac Arrest, Asthma, Croup, Febrile Seizure, Anaphylaxis, Trauma' },
-    { key: 'Maternity',      cls: 'obstetric',  icon: '🤰',  desc: 'Normal Birth, Pre-eclampsia/Eclampsia, Primary PPH, Cord Prolapse, APH, Preterm Labour, Shoulder Dystocia, Miscarriage' },
-    { key: 'Newborn',        cls: 'newborn',    icon: '👶',  desc: 'Newborn Resuscitation' },
-    { key: 'Treat and Refer',cls: 'treatrefer', icon: '🩹',  desc: 'Epistaxis, Minor Burns' },
-    { key: 'Custom',         cls: 'custom',     icon: '✦',   desc: 'AI-generated and manually created scenarios saved to shared library' },
+    { key: 'Adult',           icon: '🧑', color: 'var(--navy)'   },
+    { key: 'Paediatric',      icon: '🧒', color: 'var(--blue)'   },
+    { key: 'Maternity',       icon: '🤰', color: 'var(--purple)' },
+    { key: 'Newborn',         icon: '👶', color: 'var(--green)'  },
+    { key: 'Treat and Refer', icon: '🩹', color: '#6D4C41'       },
+    { key: 'Custom',          icon: '✦',  color: '#16A085'       },
   ];
 
-  const container = document.getElementById('home-category-overview');
-  if (!container) return;
-  container.innerHTML = defs.map(d => {
-    const count = groups[d.key] || 0;
-    const countLabel = d.key === 'Custom' ? (count > 0 ? `${count} saved` : 'none yet') : `${count} scenario${count !== 1 ? 's' : ''}`;
-    return `<div class="cat-card ${d.cls}" onclick="openCategoryScreen('${d.key}')">
-      <h3>${d.icon} ${d.key} <span class="cat-arrow">→</span></h3>
-      <div style="font-size:11px;font-weight:600;color:var(--grey);margin-bottom:4px">${countLabel}</div>
-      <p>${d.desc}</p>
-    </div>`;
+  container.innerHTML = defs.map((d, i) => {
+    const count = catCounts[d.key] || 0;
+    const countLabel = d.key === 'Custom'
+      ? (count > 0 ? `${count} saved` : 'none yet')
+      : `${count} scenario${count !== 1 ? 's' : ''}`;
+    const isLast = i === defs.length - 1;
+
+    // Subcategory rows
+    const orderedSubs = [
+      ...(SUBCAT_ORDER[d.key] || []),
+      ...Object.keys(subcatCounts[d.key] || {}).filter(s => !(SUBCAT_ORDER[d.key] || []).includes(s))
+    ];
+
+    const subcatRows = d.key === 'Custom' ? '' : orderedSubs.map(sub => {
+      const subCount = (subcatCounts[d.key] || {})[sub] || 0;
+      const display  = SUBCAT_DISPLAY[sub] || sub;
+      const catSubKey = `${d.key}|${sub}`;
+      const typeKeys  = CATEGORY_TO_CPG[catSubKey] || [];
+
+      // Build type rows if there are multiple types
+      let typeRowsHtml = '';
+      if (typeKeys.length > 1) {
+        typeRowsHtml = typeKeys.map(tk => {
+          const typeLabel = CPG_SUBTYPE_LABELS[tk] || tk;
+          const tc = (typeCounts[catSubKey] || {})[tk] || 0;
+          return `<div class="cat-typerow" onclick="event.stopPropagation();openCategoryScreenFiltered('${d.key}','${sub.replace(/'/g,"\\'")}','${tk}')">
+            <div class="ctr-name">${typeLabel}</div>
+            ${tc > 0 ? `<div class="ctr-count">${tc}</div>` : ''}
+            <div class="ctr-arrow">›</div>
+          </div>`;
+        }).join('');
+      }
+
+      const hasTypes = typeKeys.length > 1;
+      // If has types: clicking the subrow toggles it; if single type: go direct
+      const subOnClick = hasTypes
+        ? `toggleSubRow(this)`
+        : `openSubcategoryScreen('${d.key}','${sub.replace(/'/g,"\\'")}')`;
+
+      return `<div class="cat-subrow${hasTypes ? ' has-types' : ''}" onclick="${subOnClick}">
+          <div class="csr-name">${display}</div>
+          ${subCount > 0 ? `<div class="csr-count">${subCount}</div>` : ''}
+          <div class="csr-arrow${hasTypes ? ' csr-chevron' : ''}">›</div>
+        </div>
+        ${hasTypes ? `<div class="cat-typebody">
+          ${typeRowsHtml}
+          <div class="cat-type-browse-all" onclick="openSubcategoryScreen('${d.key}','${sub.replace(/'/g,"\\'")}')">Browse all ${display} →</div>
+        </div>` : ''}`;
+    }).join('');
+
+    const browseAll = `<div class="cat-browse-all" onclick="openCategoryScreen('${d.key}')">Browse all ${d.key === 'Custom' ? 'custom scenarios' : d.key + ' scenarios'} →</div>`;
+
+    return `
+      <div class="cat-accordion-row${isLast ? ' last' : ''}" onclick="toggleCatRow(this)">
+        <div class="car-stripe" style="background:${d.color}"></div>
+        <div class="car-icon">${d.icon}</div>
+        <div class="car-name">${d.key}</div>
+        <div class="car-count">${countLabel}</div>
+        <div class="car-chevron">›</div>
+      </div>
+      <div class="cat-accordion-body">
+        ${subcatRows}
+        ${browseAll}
+      </div>`;
   }).join('');
 }
 
-function buildRecentScenariosList() {
-  const container = document.getElementById('home-recent-scenarios');
+function toggleCatRow(rowEl) {
+  const body = rowEl.nextElementSibling;
+  const chevron = rowEl.querySelector('.car-chevron');
+  const isOpen = body.classList.contains('open');
+  // Close all
+  document.querySelectorAll('.cat-accordion-body').forEach(b => b.classList.remove('open'));
+  document.querySelectorAll('.cat-accordion-row').forEach(r => {
+    r.classList.remove('expanded');
+    const ch = r.querySelector('.car-chevron');
+    if (ch) ch.classList.remove('open');
+  });
+  // Open this one if it was closed
+  if (!isOpen) {
+    body.classList.add('open');
+    rowEl.classList.add('expanded');
+    chevron.classList.add('open');
+  }
+}
+
+function toggleSubRow(subRowEl) {
+  const typebody = subRowEl.nextElementSibling;
+  if (!typebody || !typebody.classList.contains('cat-typebody')) return;
+  const chevron = subRowEl.querySelector('.csr-chevron');
+  const isOpen = typebody.classList.contains('open');
+  // Close all type bodies within this accordion body
+  subRowEl.closest('.cat-accordion-body').querySelectorAll('.cat-typebody').forEach(b => b.classList.remove('open'));
+  subRowEl.closest('.cat-accordion-body').querySelectorAll('.csr-chevron').forEach(c => c.classList.remove('open'));
+  if (!isOpen) {
+    typebody.classList.add('open');
+    if (chevron) chevron.classList.add('open');
+  }
+}
+
+function buildHomePanels() {
+  const container = document.getElementById('home-panels');
   if (!container) return;
   const all = getAllScenarios();
 
-  // Sort: custom/AI first (by embedded timestamp in id), then builtins by id
-  const withTime = all.map(s => {
-    let t = 0;
-    if (s.created_at) t = new Date(s.created_at).getTime();
-    else if (s.id && String(s.id).startsWith('ai_')) t = parseInt(String(s.id).replace('ai_','')) || 0;
-    else if (s.id && String(s.id).startsWith('custom_')) t = parseInt(String(s.id).replace('custom_','')) || 0;
-    return { s, t };
-  });
-
-  // Only show scenarios with a meaningful timestamp (custom/AI/cloud) in the recent list
-  const recent = withTime
-    .filter(x => x.t > 0)
-    .sort((a, b) => b.t - a.t)
-    .slice(0, 10)
-    .map(x => x.s);
-
-  if (recent.length === 0) {
-    container.innerHTML = '';
-    return;
+  // Helper: sort by timestamp
+  function withTimestamp(scenarios) {
+    return scenarios.map(s => {
+      let t = 0;
+      if (s.created_at) t = new Date(s.created_at).getTime();
+      else if (s.id && String(s.id).startsWith('ai_')) t = parseInt(String(s.id).replace('ai_','')) || 0;
+      else if (s.id && String(s.id).startsWith('custom_')) t = parseInt(String(s.id).replace('custom_','')) || 0;
+      return { s, t };
+    });
   }
 
+  function renderItems(list, max) {
+    if (!list.length) return '<div class="home-panel-empty">Nothing here yet</div>';
+    return list.slice(0, max).map(s => {
+      const dot = CAT_COLORS[s.category] || 'var(--grey)';
+      const badge = s.ai_generated
+        ? '<span class="hp-badge ai">AI</span>'
+        : (!s.is_builtin ? '<span class="hp-badge custom">Custom</span>' : '');
+      const sub = s.subcategory || s.category || '';
+      return `<div class="hp-item" onclick="loadScenario('${s.id}')">
+        <div class="hp-dot" style="background:${dot}"></div>
+        <div class="hp-title">${s.title || 'Untitled'}</div>
+        <div class="hp-sub">${sub}</div>
+        ${badge}
+      </div>`;
+    }).join('');
+  }
+
+  // Recently added — any with timestamp, sorted desc
+  const recentAll = withTimestamp(all).filter(x => x.t > 0).sort((a,b) => b.t - a.t).map(x => x.s);
+
+  // My Scenarios — created by this user (non-builtin with timestamp), sorted desc
+  const myScenarios = withTimestamp(all)
+    .filter(x => x.t > 0 && !x.s.is_builtin)
+    .sort((a,b) => b.t - a.t)
+    .map(x => x.s);
+
+  // Favourites & Most Popular — placeholders
+  const favIds = JSON.parse(localStorage.getItem('av_favourites') || '[]');
+  const favScenarios = favIds.map(id => all.find(s => String(s.id) === String(id))).filter(Boolean);
+
   container.innerHTML = `
-    <div class="recent-scenarios-section">
-      <div class="recent-scenarios-title">🕐 Recently Added</div>
-      ${recent.map(s => {
-        const dot = CAT_COLORS[s.category] || 'var(--grey)';
-        const badge = s.ai_generated
-          ? '<span class="recent-si-badge ai">AI</span>'
-          : (!s.is_builtin ? '<span class="recent-si-badge custom">Custom</span>' : '');
-        const sub = [s.category, s.subcategory].filter(Boolean).join(' · ');
-        return `<div class="recent-scenario-item" onclick="loadScenario('${s.id}')">
-          <div class="recent-si-dot" style="background:${dot}"></div>
-          <div class="recent-si-title">${s.title || 'Untitled'}</div>
-          <div class="recent-si-sub">${sub}</div>
-          ${badge}
-        </div>`;
-      }).join('')}
+    <div class="home-panel">
+      <div class="home-panel-header">
+        <span style="font-size:14px">🕐</span>
+        <div class="home-panel-title">Recently Added</div>
+      </div>
+      <div class="home-panel-body">${renderItems(recentAll, 8)}</div>
+    </div>
+    <div class="home-panel">
+      <div class="home-panel-header">
+        <span style="font-size:14px">📁</span>
+        <div class="home-panel-title">My Scenarios</div>
+      </div>
+      <div class="home-panel-body">${myScenarios.length ? renderItems(myScenarios, 8) : '<div class="home-panel-empty">Scenarios you create will appear here</div>'}</div>
+    </div>
+    <div class="home-panel">
+      <div class="home-panel-header">
+        <span style="font-size:14px">⭐</span>
+        <div class="home-panel-title">My Favourites</div>
+      </div>
+      <div class="home-panel-body">${favScenarios.length ? renderItems(favScenarios, 8) : '<div class="home-panel-empty">Your favourited scenarios will appear here</div>'}</div>
+    </div>
+    <div class="home-panel">
+      <div class="home-panel-header">
+        <span style="font-size:14px">🔥</span>
+        <div class="home-panel-title">Most Popular</div>
+      </div>
+      <div class="home-panel-body"><div class="home-panel-empty">Coming soon</div></div>
     </div>`;
 }
+
+// Legacy alias — called in older code paths
+function buildHomeCategoryCards() { buildHomeScreen(); }
+function buildRecentScenariosList() { /* merged into buildHomeScreen */ }
 
 // ============================================================
 // BROWSE NAVIGATION — category → subcategory → scenario
@@ -1978,9 +2405,26 @@ function populateCategorySelect(selectId, prefixOption) {
   el.innerHTML = html;
 }
 
-// Populate all category selects on page load
+// Cascade scenario type dropdown in the manual create form
+function updateCreateTypeDropdown() {
+  const catVal = document.getElementById('c-category').value;
+  const group = document.getElementById('c-type-group');
+  const select = document.getElementById('c-scenario-type');
+  if (!group || !select) return;
+  const keys = CATEGORY_TO_CPG[catVal] || [];
+  if (keys.length === 0) {
+    group.style.display = 'none';
+    return;
+  }
+  group.style.display = '';
+  select.innerHTML = '<option value="">— Any / Unspecified —</option>' +
+    keys.map(k => `<option value="${k}">${CPG_SUBTYPE_LABELS[k] || k}</option>`).join('');
+}
+
+
 document.addEventListener('DOMContentLoaded', () => {
   populateCategorySelect('gen-category');
+  initTheme();
   populateCategorySelect('gen-category-2', '— None (single scenario) —');
   populateCategorySelect('c-category');
   populateCategorySelect('e-category');
@@ -2135,9 +2579,58 @@ function openSubcategoryScreen(categoryKey, subcategoryKey) {
   showScreen('subcategory-screen');
 }
 
-// ============================================================
-// DEV NOTES — admin-editable amber banner with dismiss logic
-// ============================================================
+// Open subcategory screen pre-filtered to a specific scenario_type
+function openCategoryScreenFiltered(categoryKey, subcategoryKey, scenarioType) {
+  const all = getAllScenarios();
+  const typeLabel = CPG_SUBTYPE_LABELS[scenarioType] || scenarioType;
+  const color = CAT_COLORS[categoryKey] || 'var(--navy)';
+
+  // Show matching scenarios; fall back to all in subcategory if none typed yet
+  const typed = all.filter(s =>
+    (s.category || 'Custom') === categoryKey &&
+    (s.subcategory || categoryKey) === subcategoryKey &&
+    s.scenario_type === scenarioType
+  );
+  const fallback = typed.length === 0;
+  const scenarios = fallback
+    ? all.filter(s => (s.category || 'Custom') === categoryKey && (s.subcategory || categoryKey) === subcategoryKey)
+    : typed;
+
+  const sorted = sortByRecent(scenarios);
+  const subcatDisplay = SUBCAT_DISPLAY[subcategoryKey] || subcategoryKey;
+
+  const scenarioItems = sorted.length > 0
+    ? sorted.map(s => {
+        const aiBadge    = s.ai_generated ? '<span class="si-badge ai">AI</span>' : '';
+        const customBadge = (!s.is_builtin && !s.ai_generated) ? '<span class="si-badge custom">Custom</span>' : '';
+        const nameBadge  = (s.creator_name && !s.is_builtin) ? `<span class="si-badge" style="background:#EBF5FB;color:var(--blue);border:1px solid #AED6F1">${s.creator_name}</span>` : '';
+        return `<div class="subcat-scenario-item" onclick="loadScenario('${s.id}')">
+          <div class="ssi-title">${s.title || 'Untitled'}</div>
+          <div class="ssi-sub">${s.subtitle || s.cpg || ''}</div>
+          <div class="ssi-badges">${aiBadge}${customBadge}${nameBadge}</div>
+        </div>`;
+      }).join('')
+    : `<div style="padding:16px;font-size:13px;color:var(--grey);font-style:italic">No scenarios yet — generate one with the AI Generator.</div>`;
+
+  const screen = document.getElementById('subcategory-screen');
+  screen.innerHTML = `
+    <div class="browse-header" style="background:${color}">
+      <button class="browse-back-btn" onclick="openSubcategoryScreen('${categoryKey}','${subcategoryKey.replace(/'/g,"\\'")}')">← ${subcatDisplay}</button>
+      <div class="browse-header-text">
+        <h2>${typeLabel}</h2>
+        <p>${sorted.length} scenario${sorted.length !== 1 ? 's' : ''}${fallback ? ' (all types)' : ''}</p>
+      </div>
+    </div>
+    <div style="display:flex;gap:10px;margin-bottom:14px">
+      <button class="random-btn" style="margin-bottom:0;flex:1" onclick="loadRandomScenario('${categoryKey}','${subcategoryKey.replace(/'/g,"\\'")}')">🎲 Random</button>
+      <button class="random-btn navy" style="margin-bottom:0;flex:1" onclick="openAIModalWithContext('${categoryKey}','${subcategoryKey.replace(/'/g,"\\'")}')">✦ Generate</button>
+    </div>
+    <div class="subcat-scenario-list">${scenarioItems}</div>
+  `;
+  showScreen('subcategory-screen');
+}
+
+
 function devNotesHash(str) {
   // Simple hash to detect when content has changed
   let h = 0;
@@ -2231,6 +2724,31 @@ function toggleSidebar() {
   sb.classList.toggle('open', !isOpen);
   ov.classList.toggle('open', !isOpen);
 }
+// ============================================================
+// THEME SYSTEM
+// ============================================================
+function applyTheme(theme) {
+  if (theme === 'default') {
+    document.documentElement.removeAttribute('data-theme');
+  } else {
+    document.documentElement.setAttribute('data-theme', theme);
+  }
+  localStorage.setItem('av_theme', theme);
+  updateThemeSwatches(theme);
+}
+
+function updateThemeSwatches(active) {
+  document.querySelectorAll('.theme-swatch').forEach(el => {
+    el.classList.toggle('active', el.dataset.theme === active);
+  });
+}
+
+function initTheme() {
+  const saved = localStorage.getItem('av_theme') || 'default';
+  // Already applied in <head> to avoid flash — just update swatch state
+  updateThemeSwatches(saved);
+}
+
 function closeSidebar() {
   document.getElementById('sidebar').classList.remove('open');
   document.getElementById('sidebar-overlay').classList.remove('open');
@@ -5063,6 +5581,10 @@ ${SCENARIO_JSON_TEMPLATE.replace('CAT', category).replace('SUB', subcategory)}`;
       }
     }
     lastAIScenario = scenario;
+    // Tag scenario_type from the CPG subtype selection
+    const _subtypeEl = document.getElementById('gen-cpg-subtype');
+    const _chosenType = _subtypeEl && _subtypeEl.value !== '__random__' ? _subtypeEl.value : null;
+    if (_chosenType) scenario.scenario_type = _chosenType;
     // Increment daily usage count
     if (!isAdmin()) {
       const today = new Date().toISOString().slice(0,10);
@@ -5148,9 +5670,9 @@ async function autoSaveAIScenario(scenario) {
     customScenarios.push(scenario);
     if (window._cloudScenarios) window._cloudScenarios.push(scenario);
     buildSidebar(getAllScenarios());
-    buildHomeCategoryCards();
+    buildHomeScreen();
     updateCustomCount();
-    buildRecentScenariosList();
+    // buildRecentScenariosList — merged into buildHomeScreen
     showToast('✓ Scenario saved to shared library');
   } catch(e) {
     showToast('⚠️ Auto-save failed: ' + e.message);
@@ -5188,6 +5710,10 @@ function openCreateModal() {
   addRepItem('c-ddx-list','ddx'); addRepItem('c-ddx-list','ddx'); addRepItem('c-ddx-list','ddx');
   addRepItem('c-treatment-list','treatment'); addRepItem('c-treatment-list','treatment'); addRepItem('c-treatment-list','treatment');
   addKQBlock(); addKQBlock();
+  // Reset type dropdown
+  const typeGroup = document.getElementById('c-type-group');
+  if (typeGroup) typeGroup.style.display = 'none';
+  updateCreateTypeDropdown();
   document.getElementById('create-modal').classList.add('open');
 }
 function closeCreateModal() { document.getElementById('create-modal').classList.remove('open'); }
@@ -5245,6 +5771,7 @@ async function saveManualScenario() {
     subtitle: document.getElementById('c-subtitle').value.trim(),
     category,
     subcategory,
+    scenario_type: document.getElementById('c-scenario-type').value || null,
     type: subcategory && subcategory.toLowerCase().includes('trauma') ? 'trauma' : category.toLowerCase().includes('paed') ? 'paediatric' : category === 'Maternity' ? 'obstetric' : 'medical',
     cpg: document.getElementById('c-cpg').value.trim() || 'Custom',
     level: 'C/D',
@@ -5288,8 +5815,8 @@ async function saveManualScenario() {
     customScenarios.push(scenario);
     if (window._cloudScenarios) window._cloudScenarios.push(scenario);
     buildSidebar(getAllScenarios());
-    buildHomeCategoryCards();
-    buildRecentScenariosList();
+    buildHomeScreen();
+    // buildRecentScenariosList — merged into buildHomeScreen
     updateCustomCount();
     closeCreateModal();
     showToast('✓ Scenario saved to shared library!');
@@ -5358,8 +5885,8 @@ async function deleteCustomScenario(id) {
     customScenarios = customScenarios.filter(s => String(s.id) !== String(id));
     if (window._cloudScenarios) window._cloudScenarios = window._cloudScenarios.filter(s => String(s.id) !== String(id));
     buildSidebar(getAllScenarios());
-    buildHomeCategoryCards();
-    buildRecentScenariosList();
+    buildHomeScreen();
+    // buildRecentScenariosList — merged into buildHomeScreen
     updateCustomCount();
     renderManageModal();
     showToast('✓ Scenario deleted');
@@ -5382,8 +5909,8 @@ async function deleteAllCustomScenarios() {
     } catch(e) { failed++; }
   }
   buildSidebar(getAllScenarios());
-  buildHomeCategoryCards();
-  buildRecentScenariosList();
+  buildHomeScreen();
+  // buildRecentScenariosList — merged into buildHomeScreen
   updateCustomCount();
   renderManageModal();
   showToast(failed ? `⚠️ ${failed} scenario(s) failed to delete` : '✓ All scenarios deleted');
@@ -5992,8 +6519,8 @@ async function revertScenarioEdits() {
     showStickyBar(orig);
   }
   buildSidebar(getAllScenarios());
-  buildHomeCategoryCards();
-  buildRecentScenariosList();
+  buildHomeScreen();
+  // buildRecentScenariosList — merged into buildHomeScreen
   updateCustomCount();
   showToast('✓ Scenario deleted');
 }
