@@ -602,16 +602,16 @@ body.snav-active #content { padding-left: 60px; }
 .sum-result-badge.fail { background: var(--red-light); color: var(--red); border: 2px solid var(--red); }
 
 /* ============================================================ ERROR FLAGGING SYSTEM */
-#flag-error-btn { position: fixed; bottom: 88px; right: 16px; z-index: 50; background: var(--red); color: white; border: none; border-radius: 28px; padding: 0 18px; height: 48px; font-size: 13px; font-weight: 700; cursor: pointer; box-shadow: 0 4px 16px rgba(192,57,43,0.35); display: none; align-items: center; gap: 8px; white-space: nowrap; transition: background 0.2s, box-shadow 0.2s; }
+#flag-error-btn { position: fixed; bottom: 24px; right: 16px; z-index: 50; background: var(--red); color: white; border: none; border-radius: 28px; padding: 0 18px; height: 48px; font-size: 13px; font-weight: 700; cursor: pointer; box-shadow: 0 4px 16px rgba(192,57,43,0.35); display: none; align-items: center; gap: 8px; white-space: nowrap; transition: background 0.2s, box-shadow 0.2s; }
 #flag-error-btn.visible { display: flex; }
 #flag-error-btn.active { background: #922B21; box-shadow: 0 4px 20px rgba(192,57,43,0.55); animation: flagPulse 2s infinite; }
 @keyframes flagPulse { 0%,100%{box-shadow:0 4px 20px rgba(192,57,43,0.55)} 50%{box-shadow:0 4px 28px rgba(192,57,43,0.9)} }
 #flag-error-btn:active { opacity: 0.85; }
 /* Key History FAB */
-#keyhx-fab { position: fixed; bottom: 148px; right: 16px; z-index: 50; background: var(--navy); color: white; border: none; border-radius: 28px; padding: 0 18px; height: 48px; font-size: 13px; font-weight: 700; cursor: pointer; box-shadow: 0 4px 16px rgba(28,58,110,0.3); display: none; align-items: center; gap: 8px; white-space: nowrap; }
+#keyhx-fab { position: fixed; bottom: 84px; right: 16px; z-index: 50; background: var(--navy); color: white; border: none; border-radius: 28px; padding: 0 18px; height: 48px; font-size: 13px; font-weight: 700; cursor: pointer; box-shadow: 0 4px 16px rgba(28,58,110,0.3); display: none; align-items: center; gap: 8px; white-space: nowrap; }
 #keyhx-fab.visible { display: flex; }
 #keyhx-fab:active { opacity: 0.85; }
-#keyhx-panel { position: fixed; bottom: 208px; right: 16px; z-index: 49; width: 320px; max-width: calc(100vw - 32px); background: white; border: 1px solid var(--border); border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.18); display: none; flex-direction: column; overflow: hidden; }
+#keyhx-panel { position: fixed; bottom: 144px; right: 16px; z-index: 49; width: 320px; max-width: calc(100vw - 32px); background: white; border: 1px solid var(--border); border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.18); display: none; flex-direction: column; overflow: hidden; }
 #keyhx-panel.open { display: flex; }
 #keyhx-panel-header { background: var(--navy); color: white; padding: 9px 14px; font-size: 12px; font-weight: 700; letter-spacing: 0.3px; }
 #keyhx-panel-body { padding: 12px 14px; font-size: 13px; line-height: 1.55; color: var(--text); }
