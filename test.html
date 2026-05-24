@@ -2012,6 +2012,25 @@ function buildCategoryAccordion() {
   }).join('');
 }
 
+function toggleCatRow(rowEl) {
+  const body = rowEl.nextElementSibling;
+  const chevron = rowEl.querySelector('.car-chevron');
+  const isOpen = body.classList.contains('open');
+  // Close all
+  document.querySelectorAll('.cat-accordion-body').forEach(b => b.classList.remove('open'));
+  document.querySelectorAll('.cat-accordion-row').forEach(r => {
+    r.classList.remove('expanded');
+    const ch = r.querySelector('.car-chevron');
+    if (ch) ch.classList.remove('open');
+  });
+  // Open this one if it was closed
+  if (!isOpen) {
+    body.classList.add('open');
+    rowEl.classList.add('expanded');
+    chevron.classList.add('open');
+  }
+}
+
 function toggleSubRow(subRowEl) {
   const typebody = subRowEl.nextElementSibling;
   if (!typebody || !typebody.classList.contains('cat-typebody')) return;
