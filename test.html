@@ -601,6 +601,63 @@ body.snav-active #content { padding-left: 60px; }
 .sum-result-badge.pass { background: var(--green-light); color: var(--green); border: 2px solid var(--green); }
 .sum-result-badge.fail { background: var(--red-light); color: var(--red); border: 2px solid var(--red); }
 
+/* ============================================================ ERROR FLAGGING SYSTEM */
+#flag-error-btn { position: fixed; bottom: 88px; right: 16px; z-index: 50; background: var(--red); color: white; border: none; border-radius: 28px; padding: 0 18px; height: 48px; font-size: 13px; font-weight: 700; cursor: pointer; box-shadow: 0 4px 16px rgba(192,57,43,0.35); display: none; align-items: center; gap: 8px; white-space: nowrap; transition: background 0.2s, box-shadow 0.2s; }
+#flag-error-btn.visible { display: flex; }
+#flag-error-btn.active { background: #922B21; box-shadow: 0 4px 20px rgba(192,57,43,0.55); animation: flagPulse 2s infinite; }
+@keyframes flagPulse { 0%,100%{box-shadow:0 4px 20px rgba(192,57,43,0.55)} 50%{box-shadow:0 4px 28px rgba(192,57,43,0.9)} }
+#flag-error-btn:active { opacity: 0.85; }
+/* ── FLAG MODE: dotted outline on flaggable elements ── */
+.row-flag-btn { display: none; background: none; border: none; cursor: pointer; padding: 0; margin: 0; font-size: 0; width: 0; height: 0; position: absolute; }
+/* Persistent edited indicator — always visible, no flag mode needed */
+.correction-edited-label { display: inline; font-size: 10px; color: #999; font-style: italic; font-weight: 400; margin-left: 5px; white-space: nowrap; cursor: pointer; vertical-align: middle; }
+.correction-edited-label:hover { color: var(--navy); text-decoration: underline; }
+/* Flag mode: outline the parent container of each flaggable element */
+body.flag-mode-active .flaggable { position: relative; cursor: pointer; border-radius: 4px; outline: 1.5px dashed #bbb; outline-offset: 2px; transition: outline-color 0.15s, background 0.15s; }
+body.flag-mode-active .flaggable:hover { outline: 2px solid var(--red); outline-offset: 2px; background: rgba(192,57,43,0.04); }
+body.flag-mode-active .flaggable.has-correction { outline: 1.5px dashed #888; }
+body.flag-mode-active .flaggable.has-correction:hover { outline: 2px solid var(--red); }
+.correction-badge { display: inline-flex; align-items: center; gap: 4px; background: #fff3cd; border: 1px solid #f0c040; border-radius: 5px; padding: 1px 7px; font-size: 11px; font-weight: 700; color: #7d5a00; cursor: pointer; margin-left: 6px; vertical-align: middle; white-space: nowrap; }
+.correction-badge:hover { background: #ffe69c; }
+.correction-badge .cb-icon { font-size: 10px; }
+#correction-popover { display: none; position: fixed; z-index: 500; background: white; border: 2px solid var(--red); border-radius: 12px; box-shadow: 0 8px 32px rgba(0,0,0,0.22); width: 340px; max-width: calc(100vw - 32px); padding: 0; overflow: hidden; }
+#correction-popover.open { display: block; }
+.cp-header { background: var(--red); color: white; padding: 10px 14px; display: flex; justify-content: space-between; align-items: center; }
+.cp-header h4 { font-size: 13px; font-weight: 700; margin: 0; }
+.cp-close { background: none; border: none; color: white; font-size: 18px; cursor: pointer; line-height: 1; padding: 0 2px; opacity: 0.85; }
+.cp-close:hover { opacity: 1; }
+.cp-body { padding: 14px; display: flex; flex-direction: column; gap: 10px; }
+.cp-field-label { font-size: 11px; font-weight: 700; color: var(--grey); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 2px; }
+.cp-orig { font-size: 12px; color: var(--grey); background: var(--light); border-radius: 5px; padding: 5px 8px; border-left: 3px solid var(--border); }
+.cp-new-input { width: 100%; padding: 8px 10px; border: 1.5px solid var(--red); border-radius: 7px; font-size: 13px; outline: none; }
+.cp-new-input:focus { border-color: #922B21; box-shadow: 0 0 0 2px rgba(192,57,43,0.12); }
+.cp-comment-input { width: 100%; padding: 8px 10px; border: 1.5px solid var(--border); border-radius: 7px; font-size: 12px; outline: none; resize: none; min-height: 60px; }
+.cp-comment-input:focus { border-color: var(--navy); }
+.cp-by { font-size: 11px; color: var(--grey); font-style: italic; }
+.cp-footer { display: flex; gap: 8px; padding: 10px 14px; border-top: 1px solid var(--border); background: var(--light); }
+.cp-save-btn { flex: 1; padding: 10px; background: var(--red); color: white; border: none; border-radius: 7px; font-weight: 700; font-size: 13px; cursor: pointer; }
+.cp-save-btn:active { opacity: 0.85; }
+.cp-cancel-btn { padding: 10px 14px; background: white; color: var(--grey); border: 1px solid var(--border); border-radius: 7px; font-weight: 600; font-size: 12px; cursor: pointer; }
+.cp-revert-btn { font-size: 11px; color: var(--red); background: none; border: none; cursor: pointer; text-decoration: underline; padding: 0; font-weight: 600; }
+.cp-revert-btn:hover { opacity: 0.75; }
+#corrections-modal .modal-inner { max-width: 720px; }
+.corr-item { border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; margin-bottom: 10px; background: white; }
+.corr-item-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; margin-bottom: 6px; }
+.corr-scenario-title { font-size: 13px; font-weight: 700; color: var(--navy); }
+.corr-field-label { font-size: 11px; font-weight: 600; color: var(--grey); margin-top: 1px; }
+.corr-values { display: flex; align-items: center; gap: 8px; font-size: 12px; margin-bottom: 4px; flex-wrap: wrap; }
+.corr-orig-val { color: var(--grey); text-decoration: line-through; }
+.corr-arrow { color: var(--grey); }
+.corr-new-val { color: var(--green); font-weight: 700; }
+.corr-comment { font-size: 12px; color: var(--text); font-style: italic; background: var(--light); border-radius: 5px; padding: 5px 8px; margin-bottom: 4px; }
+.corr-meta { font-size: 11px; color: var(--grey); }
+.corr-status-badge { font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 10px; flex-shrink: 0; }
+.corr-status-badge.active { background: var(--green-light); color: var(--green); border: 1px solid var(--green); }
+.corr-status-badge.reverted { background: var(--light); color: var(--grey); border: 1px solid var(--border); }
+.corr-filter-bar { display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; }
+.corr-filter-btn { padding: 6px 14px; border-radius: 20px; border: 1.5px solid var(--border); background: white; font-size: 12px; font-weight: 600; cursor: pointer; color: var(--grey); }
+.corr-filter-btn.active { background: var(--navy); color: white; border-color: var(--navy); }
+
 /* ============================================================ PRINT */
 @media print {
   #topbar, #sidebar, #sidebar-overlay, .modal-overlay, .action-bar, .timer-controls, .sidebar-bottom, #score-panel-toggle, #score-sheet, #score-sheet-overlay, #sticky-bar, .sticky-bar-offset { display: none !important; }
@@ -637,18 +694,18 @@ body.snav-active #content { padding-left: 60px; }
 .sticky-timer-btn:active { background: rgba(255,255,255,0.3); }
 
 /* Scenario title */
-#sticky-title { padding: 0 12px; flex-shrink: 0; border-right: 1px solid rgba(255,255,255,0.15); display: none; }
+#sticky-title { padding: 0 10px; flex-shrink: 0; border-right: 1px solid rgba(255,255,255,0.15); display: none; }
 @media (min-width: 500px) { #sticky-title { display: block; } }
-#sticky-title .st-name { font-size: 12px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 150px; }
-#sticky-title .st-sub { font-size: 10px; opacity: 0.65; white-space: nowrap; }
+#sticky-title .st-demog { font-size: 13px; font-weight: 800; white-space: nowrap; line-height: 1.2; }
+#sticky-title .st-sub { font-size: 10px; opacity: 0.6; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 160px; margin-top: 1px; }
 
 /* Vitals strip */
 #sticky-vitals { display: flex; align-items: center; gap: 0; overflow-x: auto; flex: 1; padding: 0 4px; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
 #sticky-vitals::-webkit-scrollbar { display: none; }
-.sv-item { display: flex; flex-direction: column; align-items: center; padding: 5px 10px; border-right: 1px solid rgba(255,255,255,0.1); flex-shrink: 0; cursor: default; }
+.sv-item { display: flex; flex-direction: column; align-items: center; padding: 4px 7px; border-right: 1px solid rgba(255,255,255,0.1); flex-shrink: 0; cursor: default; }
 .sv-item.abnormal { background: rgba(192,57,43,0.35); }
-.sv-label { font-size: 9px; opacity: 0.6; text-transform: uppercase; letter-spacing: 0.5px; }
-.sv-value { font-size: 13px; font-weight: 700; white-space: nowrap; }
+.sv-label { font-size: 8px; opacity: 0.6; text-transform: uppercase; letter-spacing: 0.4px; }
+.sv-value { font-size: 12px; font-weight: 700; white-space: nowrap; }
 .sv-gcs-item { align-items: flex-start; min-width: 0; max-width: 260px; }
 .sv-gcs-item .sv-value { font-size: 12px; }
 .sv-gcs-desc { font-size: 10px; opacity: 0.75; font-style: italic; white-space: normal; line-height: 1.3; margin-top: 1px; }
@@ -656,9 +713,6 @@ body.snav-active #content { padding-left: 60px; }
 /* Edit button in sticky bar */
 #sticky-edit-btn { padding: 6px 12px; background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.25); color: white; border-radius: 6px; cursor: pointer; font-size: 11px; font-weight: 700; flex-shrink: 0; margin: 0 8px; min-height: 32px; display: flex; align-items: center; gap: 4px; }
 #sticky-edit-btn:active { background: rgba(255,255,255,0.25); }
-#sticky-ecg-btn { padding: 6px 10px; background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.25); color: white; border-radius: 6px; cursor: pointer; font-size: 11px; font-weight: 700; flex-shrink: 0; margin: 0 0 0 0; min-height: 32px; display: none; align-items: center; gap: 4px; }
-#sticky-ecg-btn.visible { display: flex; }
-#sticky-ecg-btn:active { background: rgba(255,255,255,0.25); }
 
 /* Push content down to account for topbar + sticky bar */
 #main-wrapper { margin-top: 56px; }
@@ -839,6 +893,42 @@ body.snav-active #content { padding-left: 60px; }
   </div>
 </footer>
 
+<!-- Flag Error FAB -->
+<button id="flag-error-btn" onclick="toggleFlagMode()">🚩 Flag Error</button>
+
+<!-- Correction Popover -->
+<div id="correction-popover">
+  <div class="cp-header">
+    <h4 id="cp-title">🚩 Flag an Error</h4>
+    <button class="cp-close" onclick="closeCorrectionPopover()">✕</button>
+  </div>
+  <div class="cp-body">
+    <div>
+      <div class="cp-field-label" id="cp-field-label">Field</div>
+      <div class="cp-orig" id="cp-orig-val">Original value</div>
+    </div>
+    <div id="cp-edit-section">
+      <div class="cp-field-label">Corrected Value</div>
+      <input class="cp-new-input" id="cp-new-val" type="text" placeholder="Enter corrected value…">
+    </div>
+    <div>
+      <div class="cp-field-label">Comment <span style="font-weight:400;text-transform:none">(optional — why is this wrong?)</span></div>
+      <textarea class="cp-comment-input" id="cp-comment" placeholder="e.g. RR of 28 is inconsistent with SpO2 99% and no respiratory distress described…"></textarea>
+    </div>
+    <div class="cp-by" id="cp-by-label"></div>
+    <div id="cp-view-section" style="display:none">
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px">
+        <div class="cp-field-label" style="margin:0">Corrected by <span id="cp-view-by" style="color:var(--text);font-weight:700"></span></div>
+        <button class="cp-revert-btn" onclick="revertCorrection()">↩ Revert to original</button>
+      </div>
+    </div>
+  </div>
+  <div class="cp-footer">
+    <button class="cp-cancel-btn" onclick="closeCorrectionPopover()">Cancel</button>
+    <button class="cp-save-btn" id="cp-save-btn" onclick="saveCorrection()">💾 Save Correction</button>
+  </div>
+</div>
+
 <!-- Score FAB + Sheet -->
 <button id="score-panel-toggle" onclick="toggleScoreSheet()">📊</button>
 <div id="score-sheet-overlay" onclick="closeScoreSheet()"></div>
@@ -977,6 +1067,24 @@ body.snav-active #content { padding-left: 60px; }
       <div class="form-group"><label>Message *</label><textarea id="fb-message" rows="5" placeholder="Describe your feedback, suggestion or issue…" style="resize:vertical"></textarea></div>
       <button class="modal-submit-btn" id="fb-submit-btn" style="background:var(--purple)" onclick="submitFeedback()">📨 Send Feedback</button>
       <div id="fb-status" style="margin-top:10px;font-size:13px;min-height:20px"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Corrections Review Modal (Admin) -->
+<div class="modal-overlay" id="corrections-modal">
+  <div class="modal-inner">
+    <div class="modal-header" style="background:var(--red)">
+      <h2>🚩 Error Corrections Log</h2>
+      <button class="modal-close" onclick="closeCorrectionsModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="corr-filter-bar">
+        <button class="corr-filter-btn active" id="cf-all" onclick="filterCorrections('all')">All</button>
+        <button class="corr-filter-btn" id="cf-active" onclick="filterCorrections('active')">Active</button>
+        <button class="corr-filter-btn" id="cf-reverted" onclick="filterCorrections('reverted')">Reverted</button>
+      </div>
+      <div id="corrections-list"><p style="color:var(--grey);font-size:13px">Loading corrections…</p></div>
     </div>
   </div>
 </div>
@@ -1404,11 +1512,20 @@ function toRow(s, overrides = {}) {
     dispatch:     s.dispatch || '',
     vitals:       s.vitals || {},
     key_hx:       s.key_hx || '',
+    hx:           s.hx || {},
+    medical_conditions: s.medical_conditions || [],
+    medications:  s.medications || [],
+    allergies:    s.allergies || '',
+    rsa:          s.rsa || {},
+    ra:           s.ra || {},
+    ps_exposure:  s.ps_exposure || '',
+    social:       s.social || '',
     flags:        s.flags || [],
     ddx:          s.ddx || [],
     provisional:  s.provisional || '',
     treatment_als: s.treatment_als || s.treatment || [],
     treatment_mica: s.treatment_mica || [],
+    life_threats: s.life_threats || [],
     kq:           s.kq || [],
     discussion:   s.discussion || [],
     creator_uuid: s.creator_uuid || getIdentity().uuid,
@@ -1433,11 +1550,20 @@ function fromRow(r) {
     dispatch:     r.dispatch,
     vitals:       r.vitals || {},
     key_hx:       r.key_hx,
+    hx:           r.hx || {},
+    medical_conditions: r.medical_conditions || [],
+    medications:  r.medications || [],
+    allergies:    r.allergies || '',
+    rsa:          r.rsa || {},
+    ra:           r.ra || {},
+    ps_exposure:  r.ps_exposure || '',
+    social:       r.social || '',
     flags:        r.flags || [],
     ddx:          r.ddx || [],
     provisional:  r.provisional,
     treatment_als: r.treatment_als || r.treatment || [],
     treatment_mica: r.treatment_mica || [],
+    life_threats: r.life_threats || [],
     kq:           r.kq || [],
     discussion:   r.discussion || [],
     creator_uuid: r.creator_uuid,
@@ -1638,9 +1764,11 @@ async function initApp() {
     }
   }, 800);
 
-  // Restore last open scenario if refreshed mid-session
+  // Restore last open scenario only if this is a same-tab refresh
+  // (sessionStorage is cleared on new tab/hyperlink, localStorage persists across both)
   const lastId = localStorage.getItem('av_last_scenario');
-  if (lastId) {
+  const wasInScenario = sessionStorage.getItem('av_in_scenario');
+  if (lastId && wasInScenario) {
     const all = getAllScenarios();
     const s = all.find(x => String(x.id) === lastId);
     if (s) loadScenario(lastId);
@@ -1843,14 +1971,21 @@ function showScreen(name) {
   // Score FAB only on scenario view
   const fab = document.getElementById('score-panel-toggle');
   if (fab) fab.classList.toggle('visible', name === 'scenario-view');
-  if (name !== 'scenario-view') { hideStickyBar(); hideScenarioNav(); }
+  const flagBtn = document.getElementById('flag-error-btn');
+  if (flagBtn) flagBtn.classList.toggle('visible', name === 'scenario-view');
+  if (name !== 'scenario-view') {
+    hideStickyBar(); hideScenarioNav();
+    if (document.body.classList.contains('flag-mode-active')) toggleFlagMode(true);
+  }
   else { setTimeout(buildScenarioNav, 100); }
   window.scrollTo(0, 0);
   // Persist current screen
   if (name === 'scenario-view' && currentScenario) {
     localStorage.setItem('av_last_scenario', String(currentScenario.id));
+    sessionStorage.setItem('av_in_scenario', '1');
   } else if (name === 'home-screen') {
     localStorage.removeItem('av_last_scenario');
+    sessionStorage.removeItem('av_in_scenario');
   }
 }
 
@@ -2174,54 +2309,46 @@ function loadScenario(id) {
   if (si) si.classList.add('active');
 
   const view = document.getElementById('scenario-view');
+  // Render immediately with uncorrected data, then reload corrections and re-render
+  _corrections = [];
   view.innerHTML = renderScenario(s);
   showScreen('scenario-view');
-  // Init live ECG engines after render
-  setTimeout(() => {
-    if (typeof ECGEngine === 'undefined') { console.warn('ECGEngine not loaded'); return; }
-    document.querySelectorAll('[id^="assessor-12lead-"]').forEach(le => {
-      if (le._ecgInit) return;
-      le._ecgInit = true;
-      const rhythm = le.dataset.rhythm;
-      const hr = parseInt(le.dataset.hr)||72;
-      if (!rhythm) return;
-      const id = le.id.replace('assessor-12lead-','');
-
-      // Force layout then read actual pixel width
-      le.style.display = 'block';
-      le.style.overflow = 'hidden';
-      const w = le.getBoundingClientRect().width || le.clientWidth || 700;
-      le.style.width = Math.floor(w) + 'px';
-
-      const mapped = ECGEngine.mapRhythm(rhythm, hr);
-
-      try {
-        const _ecgInst = new ECGEngine(le, {mode:'12lead', theme:'paper'});
-        _ecgInst.setRhythm(mapped.key, mapped.bpm, mapped.bbbMode);
-      } catch(e) { console.warn('12-lead ECG:', e); }
-    });
-  }, 300);
-
-  // Embed ECG image if available
-  const ecgImg = document.getElementById('ecg-img-' + s.id);
-  if (ecgImg) {
-    const ecg = getECGImage(s.vitals && s.vitals.Rhythm);
-    if (ecg) embedECGImage(ecgImg, ecg.url);
-  }
-
-  // Open key sections
+  // Open key sections immediately (will be re-opened after corrections load too)
   ['sec-dispatch','sec-flags','sec-patient-assessment','sec-diagnosis','sec-implement'].forEach(sid => {
-    const b = document.getElementById(sid);
-    const h = b && b.previousElementSibling;
-    if (b) b.classList.add('open');
-    if (h) h.classList.add('open');
+    const b0 = document.getElementById(sid); const h0 = b0 && b0.previousElementSibling;
+    if (b0) b0.classList.add('open'); if (h0) h0.classList.add('open');
   });
-
-  updateScoreSheet();
-  showStickyBar(s);
-
-  // Apply current level (hides/shows sections, rebuilds nav, updates timer)
-  applyLevel(currentLevel);
+  updateScoreSheet(); showStickyBar(s); applyLevel(currentLevel);
+  // Load corrections async and re-render with them applied
+  loadCorrectionsForScenario(s.id).then(() => {
+    if (!currentScenario || String(currentScenario.id) !== String(s.id)) return;
+    const patched = applyCorrectionsToScenario(s);
+    view.innerHTML = renderScenario(patched);
+    injectFlagButtons();
+    // Re-open key sections, update score, sticky bar
+    ['sec-dispatch','sec-flags','sec-patient-assessment','sec-diagnosis','sec-implement'].forEach(sid => {
+      const b2 = document.getElementById(sid); const h2 = b2 && b2.previousElementSibling;
+      if (b2) b2.classList.add('open'); if (h2) h2.classList.add('open');
+    });
+    updateScoreSheet(); showStickyBar(patched); applyLevel(currentLevel);
+    // Re-embed ECG image
+    const ecgImg2 = document.getElementById('ecg-img-' + s.id);
+    if (ecgImg2) { const ecg2 = getECGImage(s.vitals && s.vitals.Rhythm); if (ecg2) embedECGImage(ecgImg2, ecg2.url); }
+    // Re-init ECG
+    setTimeout(() => {
+      if (typeof ECGEngine === 'undefined') return;
+      document.querySelectorAll('[id^="assessor-12lead-"]').forEach(le => {
+        if (le._ecgInit) return; le._ecgInit = true;
+        const rhythm = le.dataset.rhythm; const hr = parseInt(le.dataset.hr)||72;
+        if (!rhythm) return;
+        le.style.display='block'; le.style.overflow='hidden';
+        const w = le.getBoundingClientRect().width || le.clientWidth || 700;
+        le.style.width = Math.floor(w)+'px';
+        const mapped = ECGEngine.mapRhythm(rhythm, hr);
+        try { const _ecgInst = new ECGEngine(le,{mode:'12lead',theme:'paper'}); _ecgInst.setRhythm(mapped.key,mapped.bpm,mapped.bbbMode); } catch(e2){console.warn('12-lead ECG:',e2);}
+      });
+    }, 300);
+  });
 
   window.scrollTo(0, 0);
 }
@@ -2775,35 +2902,13 @@ function renderSection1(s, isTrauma) {
       </td>
     </tr>`;
 
-  // Life threat rows — pull first 3 steps from CPG package management
-  const _ltPkgKeys = (() => {
-    const cpgCodes = (s.cpg || '').split(/[,/]/).map(c => c.trim()).filter(Boolean);
-    if (cpgCodes.length) {
-      const matched = cpgCodes.map(code =>
-        Object.keys(CPG_PACKAGES).find(k => CPG_PACKAGES[k]?.cpg === code)
-      ).filter(Boolean);
-      if (matched.length) return matched;
-    }
-    const catVal = s.category && s.subcategory ? `${s.category}|${s.subcategory}` : '';
-    return CATEGORY_TO_CPG[catVal] || [];
-  })();
-  const _ltSteps = (() => {
-    if (!_ltPkgKeys.length) return s.treatment_als || s.treatment || [];
-    const all = [];
-    _ltPkgKeys.forEach(k => {
-      const pkg = CPG_PACKAGES[k];
-      if (!pkg) return;
-      const mgmt = pkg.management || pkg.resuscitationSteps || [];
-      if (Array.isArray(mgmt)) {
-        mgmt.forEach(item => {
-          if (typeof item === 'string' && !item.includes('(MICA)')) all.push(item);
-          else if (typeof item === 'object' && item.type === 'action' && item.text) all.push(item.text);
-        });
-      }
-    });
-    return all;
-  })();
-  const ltRows = _ltSteps.slice(0,3).map((t,i) => mkRow(`lt${i+1}`, t||`Life threat ${i+1}`)).join('') || mkRow('lt1','Life threat 1')+mkRow('lt2','Life threat 2')+mkRow('lt3','Life threat 3');
+  // Life threat rows — use AI-generated life_threats field if present, otherwise generic RABCDE placeholders
+  const _ltSteps = (s.life_threats || []).filter(Boolean);
+  const ltRows = _ltSteps.length
+    ? _ltSteps.map((t, i) => mkRow(`lt${i+1}`, t)).join('')
+    : mkRow('lt1', 'Airway — positioning / adjunct as indicated')
+      + mkRow('lt2', 'Breathing — oxygen therapy as indicated')
+      + mkRow('lt3', 'Circulation / Haemorrhage — control as indicated');
 
   const secondarySurvey = isTrauma ? `
     <div id="nav-ss" class="snav-anchor"></div><div class="asmt-section-header"><div class="asmt-section-title trauma">Secondary Survey — Trauma Head-to-Toe</div><button class="all-complete-btn" onclick="markGroupComplete('ss')">✓ All Complete</button></div>
@@ -2840,7 +2945,7 @@ function renderSection1(s, isTrauma) {
           ${mkRow('dra','Dynamic Risk Assessment')}
           ${mkSubRow('ppe','PPE','','','','dra')}${mkSubRow('dangers','Dangers','','','','dra')}
           ${mkRow('rapid','Rapid Assessment (Adult/PAT)')}
-          ${mkSubRow('alertness','Alertness', gcsNum < 15 ? `GCS ${gcs.display}` : 'Alert', gcsNum < 14 ? 'GCS' : '','','rapid')}${mkSubRow('wob1','Work of Breathing', wobHint,'','','rapid')}${mkSubRow('skin1','Skin','','','','rapid')}${mkSubRow('wellunwell','Well / Unwell', wellHint, wellHint==='UNWELL'?'flag':'','','rapid')}
+          ${mkSubRow('alertness','Alertness', gcsNum < 15 ? `GCS ${gcs.display}` : 'Alert', gcsNum < 14 ? 'GCS' : '','','rapid')}${mkSubRow('wob1',`Work of Breathing${s.ra&&s.ra.wob?infoHint(s.ra.wob):''}`, wobHint,'','','rapid')}${mkSubRow('skin1',`Skin${s.ra&&s.ra.skin?infoHint(s.ra.skin):''}`, '','','','rapid')}${mkSubRow('wellunwell','Well / Unwell', wellHint, wellHint==='UNWELL'?'flag':'','','rapid')}
         </tbody>
       </table>
 
@@ -2961,7 +3066,7 @@ function renderSection1(s, isTrauma) {
             <td class="tick-col"><button class="sub-tick-btn" id="sub-ps-disability-complete" onclick="toggleSubTick('ps-disability','complete','ps-primary')" title="Complete">—</button></td>
           </tr>
           <tr data-row-id="ps-exposure" data-parent="ps-primary">
-            <td class="elem-label indent">Exposure${mkHint(exposureHint, exposureRelevant)}</td>
+            <td class="elem-label indent">Exposure${s.ps_exposure ? infoHint(s.ps_exposure) : mkHint(exposureHint, exposureRelevant)}</td>
             <td class="tick-col"><button class="sub-tick-btn" id="sub-ps-exposure-prompted" onclick="toggleSubTick('ps-exposure','prompted','ps-primary')" title="Prompting Required">—</button></td>
             <td class="tick-col"><button class="sub-tick-btn" id="sub-ps-exposure-incomplete" onclick="toggleSubTick('ps-exposure','incomplete','ps-primary')" title="Incomplete/Incorrect">—</button></td>
             <td class="tick-col"><button class="sub-tick-btn" id="sub-ps-exposure-complete" onclick="toggleSubTick('ps-exposure','complete','ps-primary')" title="Complete">—</button></td>
@@ -2972,7 +3077,7 @@ function renderSection1(s, isTrauma) {
 
       <div id="nav-lt" class="snav-anchor"></div><div class="asmt-section-header"><div class="asmt-section-title">Life Threat Management</div><button class="all-complete-btn" onclick="markGroupComplete('lt')">✓ All Complete</button></div>
       <table class="asmt-table" data-group="lt" data-section="sec1">
-        <thead><tr><th class="left">Expected management (from scenario)</th><th>Prompting</th><th>Incomplete</th><th>Complete</th></tr></thead>
+        <thead><tr><th class="left">Expected management (from scenario)</th><th>Prompting</th><th>Incomplete</th><th>Complete</th></tr><tr><td colspan="4" style="background:#FEF9F0;border:1px solid #F0A500;padding:5px 10px;font-size:11px;color:#7D5A00;font-style:italic">⚠ AI-suggested — assessor discretion applies when determining correct response</td></tr></thead>
         <tbody>${ltRows}</tbody>
       </table>
 
@@ -2983,9 +3088,9 @@ function renderSection1(s, isTrauma) {
           ${mkRow('sitrep','Early SITREP / Request backup')}
           ${mkSubRow('limitation','Limitation of treatment / Consent','','','','sitrep')}${mkSubRow('rest','Rest / Position','','','','sitrep')}${mkSubRow('rapport','Rapport & Reassurance','','','','sitrep')}
           ${mkRow('hxhist','History of injury/illness')}
-          ${mkSubRow('hxtimeline','Timeline','','','','hxhist')}${mkSubRow('hxnature','Nature','','','','hxhist')}${mkSubRow('hxprodromal','Prodromal symptoms','','','','hxhist')}${mkSubRow('hxaggreliev','Aggravating / Relieving factors','','','','hxhist')}${mkSubRow('hxassoc','Associated circumstances','','','','hxhist')}${mkSubRow('hxsimilar','Similar episodes','','','','hxhist')}
+          ${mkSubRow('hxtimeline',`Timeline${s.hx&&s.hx.timeline?infoHint(s.hx.timeline):''}`, '','','','hxhist')}${mkSubRow('hxnature',`Nature${s.hx&&s.hx.nature?infoHint(s.hx.nature):''}`, '','','','hxhist')}${mkSubRow('hxprodromal',`Prodromal symptoms${s.hx&&s.hx.prodromal?infoHint(s.hx.prodromal):''}`, '','','','hxhist')}${mkSubRow('hxaggreliev',`Aggravating / Relieving factors${s.hx&&s.hx.aggreliev?infoHint(s.hx.aggreliev):''}`, '','','','hxhist')}${mkSubRow('hxassoc',`Associated circumstances${s.hx&&s.hx.assoc?infoHint(s.hx.assoc):''}`, '','','','hxhist')}${mkSubRow('hxsimilar',`Similar episodes${s.hx&&s.hx.similar?infoHint(s.hx.similar):''}`, '','','','hxhist')}
           ${mkRow('phmedical', `Medical conditions${keyHxShort ? infoHint(keyHxShort) : ''}`)}
-          ${mkSubRow('phmeds', 'Medications' + (medList.length ? infoHint(medList.join(', ')) : (s.medications ? '' : '')), '', '', false, 'phmedical')}${mkSubRow('phallergies','Allergies' + (s.allergies ? infoHint(s.allergies) : ''),'','',false,'phmedical')}${mkSubRow('phrisk','Risk factors','','','','phmedical')}${mkSubRow('phsocial','Social & environmental','','','','phmedical')}
+          ${mkSubRow('phmeds', 'Medications' + (medList.length ? infoHint(medList.join(', ')) : (s.medications ? '' : '')), '', '', false, 'phmedical')}${mkSubRow('phallergies','Allergies' + (s.allergies ? infoHint(s.allergies) : ''),'','',false,'phmedical')}${mkSubRow('phrisk','Risk factors','','','','phmedical')}${mkSubRow('phsocial',`Social & environmental${s.social?infoHint(s.social):''}`, '','','','phmedical')}
         </tbody>
       </table>
 
@@ -2994,7 +3099,7 @@ function renderSection1(s, isTrauma) {
         <thead><tr><th class="left">Element</th><th>Prompting</th><th>Incomplete</th><th>Complete</th></tr></thead>
         <tbody>
           ${mkRow('rsa','RSA — Respiratory')}
-          ${mkSubRow('appearance','Appearance','','','','rsa')}${mkSubRow('speech','Speech','','','','rsa')}${mkSubRow('breathsounds','Breath/Chest sounds','','','','rsa')}${mkSubRow('rr',`Respiratory Rate${hint(v.RR||'','RR')}`, '','','','rsa')}${mkSubRow('rrhythm','Respiratory Rhythm','','','','rsa')}${mkSubRow('wob2','Work of Breathing','','','','rsa')}${mkSubRow('spo2',`SpO₂${hint(v.SpO2||'','SpO2')}`, '','','','rsa')}
+          ${mkSubRow('appearance',`Appearance${s.rsa&&s.rsa.appearance?infoHint(s.rsa.appearance):''}`, '','','','rsa')}${mkSubRow('speech',`Speech${s.rsa&&s.rsa.speech?infoHint(s.rsa.speech):''}`, '','','','rsa')}${mkSubRow('breathsounds',`Breath/Chest sounds${s.rsa&&s.rsa.breath_sounds?infoHint(s.rsa.breath_sounds):''}`, '','','','rsa')}${mkSubRow('rr',`Respiratory Rate${hint(v.RR||'','RR')}`, '','','','rsa')}${mkSubRow('rrhythm',`Respiratory Rhythm${s.rsa&&s.rsa.rhythm?infoHint(s.rsa.rhythm):''}`, '','','','rsa')}${mkSubRow('wob2',`Work of Breathing${s.rsa&&s.rsa.wob?infoHint(s.rsa.wob):''}`, '','','','rsa')}${mkSubRow('spo2',`SpO₂${hint(v.SpO2||'','SpO2')}`, '','','','rsa')}
           ${mkRow('psa','PSA — Circulatory')}
           ${(()=>{
             // SKIN — context-derived
@@ -3058,8 +3163,67 @@ function renderSection1(s, isTrauma) {
           ${mkSubRow('ketones',`Blood Ketone Level<span class="vital-hint" style="background:${ketoneAbn ? 'var(--amber)' : 'var(--grey)'}">${ketoneHint}</span>`, '','','','adjuncts')}
           ${mkSubRow('etco2',`EtCO₂<span class="vital-hint" style="background:${etco2Abn ? 'var(--amber)' : 'var(--grey)'}">${etco2Hint}</span>`, '','','','adjuncts')}`;
           })()}
-          ${mkRow('monitor','Monitor / ECG')}
-          ${mkSubRow('vrhythm',`Ventricular Rhythm${hint(v.Rhythm||'','Rhythm')}`, '','','','monitor')}${mkSubRow('vrate','Ventricular Rate (±10bpm)', v.HR||'','','','monitor')}${mkSubRow('pwave','P Wave','','','','monitor')}${mkSubRow('pr','PR Interval','','','','monitor')}${mkSubRow('qrs','QRS Duration','','','','monitor')}${mkSubRow('interp','Correct Rhythm Interpretation','','','','monitor')}${mkSubRow('lead12','12 Lead (as appropriate)','','','','monitor')}
+          ${(()=>{
+            const rhythmStr = (s.vitals&&s.vitals.Rhythm)||'';
+            const hr = parseInt((s.vitals&&s.vitals.HR)||72)||72;
+            if (!rhythmStr) return mkRow('monitor','Monitor / ECG');
+            const ecg = getECGImage(s.vitals&&s.vitals.Rhythm);
+            const realBtn = ecg ? `<button onclick="openECGLightbox('${ecg.url.replace(/'/g,"\\'")}','${(ecg.label||'').replace(/'/g,"\\'")}');event.stopPropagation();" style="font-size:10px;padding:3px 8px;border:1px solid #ccc;background:white;border-radius:4px;cursor:pointer;color:#003366;">&#128247; Real ECG</button>` : '';
+            const monBtns = `<span style="display:inline-flex;gap:5px;align-items:center;margin-left:8px;"><button onclick="sendLeadIIToMonitor(event)" id="rb-LeadII" style="font-size:10px;padding:3px 9px;border:none;background:#1a7a3f;border-radius:4px;cursor:pointer;color:white;font-weight:600;">Send Lead II &#8594; &#128250;</button><button onclick="send12LeadToMonitor(event)" id="rb-ECG" style="font-size:10px;padding:3px 9px;border:none;background:#1a7a3f;border-radius:4px;cursor:pointer;color:white;font-weight:600;">Send 12-Lead &#8594; &#128250;</button>${realBtn}</span>`;
+            return `<tr data-row-id="monitor"><td class="elem-label" style="display:flex;align-items:center;flex-wrap:wrap;gap:4px;">Monitor / ECG${monBtns}</td><td class="tick-col">${mkTick('monitor','prompted','Prompting Required')}</td><td class="tick-col">${mkTick('monitor','incomplete','Incomplete/Incorrect')}</td><td class="tick-col">${mkTick('monitor','complete','All Complete')}</td></tr>`;
+          })()}
+          ${(()=>{
+            const rhythmStr = (s.vitals&&s.vitals.Rhythm)||'';
+            const hr = parseInt((s.vitals&&s.vitals.HR)||72)||72;
+            const ECG_CHARS = {
+              nsr:         { pwave:'Present, normal',                            pr:'120–200ms (normal)',                    qrs:'<120ms (narrow)' },
+              stach:       { pwave:'Present, normal',                            pr:'120–200ms (normal)',                    qrs:'<120ms (narrow)' },
+              sbrad:       { pwave:'Present, normal',                            pr:'120–200ms (normal)',                    qrs:'<120ms (narrow)' },
+              af:          { pwave:'Absent — fibrillatory baseline',             pr:'Not measurable',                        qrs:'<120ms (narrow)' },
+              aflut:       { pwave:'Flutter waves (sawtooth 300bpm)',            pr:'Variable (AV block)',                   qrs:'<120ms (narrow)' },
+              svt:         { pwave:'Absent or retrograde P waves',               pr:'Not measurable',                        qrs:'<120ms (narrow)' },
+              vt:          { pwave:'Dissociated (AV dissociation)',              pr:'Not measurable',                        qrs:'>120ms (broad)' },
+              vf:          { pwave:'Absent',                                     pr:'Not measurable',                        qrs:'Chaotic — no QRS' },
+              asys:        { pwave:'Absent',                                     pr:'Not measurable',                        qrs:'Absent' },
+              chb:         { pwave:'Present, regular — dissociated from QRS',   pr:'Variable (no AV relationship)',         qrs:'>120ms (broad escape)' },
+              mob1:        { pwave:'Present, normal',                            pr:'Progressively lengthening',             qrs:'<120ms (narrow)' },
+              mob2:        { pwave:'Present, normal',                            pr:'Fixed, then dropped beat',              qrs:'<120ms (narrow)' },
+              deg1:        { pwave:'Present, normal',                            pr:'>200ms (prolonged)',                    qrs:'<120ms (narrow)' },
+              junct:       { pwave:'Absent or retrograde',                       pr:'<120ms or not measurable',              qrs:'<120ms (narrow)' },
+              wpw:         { pwave:'Present, normal',                            pr:'<120ms (short) — delta wave',           qrs:'Widened with delta wave' },
+              pvc:         { pwave:'Absent (ectopic beats)',                     pr:'Not measurable (ectopics)',             qrs:'>120ms (broad ectopic)' },
+              aivr:        { pwave:'Dissociated',                                pr:'Not measurable',                        qrs:'>120ms (broad)' },
+              hyperK:      { pwave:'Flattened or absent',                        pr:'May be prolonged',                      qrs:'Widened — sine wave pattern' },
+              hypoK:       { pwave:'Present, normal',                            pr:'May be prolonged',                      qrs:'Normal — prominent U wave' },
+              longQT:      { pwave:'Present, normal',                            pr:'120–200ms (normal)',                    qrs:'<120ms — prolonged QT interval' },
+              peri:        { pwave:'Present, normal',                            pr:'120–200ms (normal)',                    qrs:'<120ms — diffuse ST elevation' },
+              nstemi:      { pwave:'Present, normal',                            pr:'120–200ms (normal)',                    qrs:'<120ms — ST depression/T changes' },
+              pe:          { pwave:'Present, normal',                            pr:'120–200ms (normal)',                    qrs:'<120ms — S1Q3T3 pattern' },
+              brugada:     { pwave:'Present, normal',                            pr:'120–200ms (normal)',                    qrs:'RBBB-like with coved ST elevation V1–V2' },
+              'stemi-inf': { pwave:'Present, normal',                            pr:'120–200ms (normal)',                    qrs:'<120ms — ST elevation II, III, aVF' },
+              'stemi-ant': { pwave:'Present, normal',                            pr:'120–200ms (normal)',                    qrs:'<120ms — ST elevation V1–V4' },
+              'stemi-lat': { pwave:'Present, normal',                            pr:'120–200ms (normal)',                    qrs:'<120ms — ST elevation I, aVL, V5–V6' },
+              'stemi-post':{ pwave:'Present, normal',                            pr:'120–200ms (normal)',                    qrs:'<120ms — tall R V1–V2, ST depression' },
+              vvipace:     { pwave:'May be absent/paced',                        pr:'Not applicable',                        qrs:'>120ms (paced — broad)' },
+              aaipace:     { pwave:'Paced (pacing spike before P)',              pr:'120–200ms',                             qrs:'<120ms (narrow)' },
+              dddpace:     { pwave:'Paced',                                      pr:'120–200ms (paced AV delay)',            qrs:'>120ms (paced — broad)' },
+            };
+            const _ecgMapped = (typeof ECGEngine !== 'undefined') ? (ECGEngine.mapRhythm(rhythmStr, hr) || {}) : {};
+            const _ecgKey = _ecgMapped.key || null;
+            const _ecgChar = ECG_CHARS[_ecgKey] || {};
+            const _bbb = _ecgMapped.bbbMode || '';
+            const _qrsVal = _bbb === 'lbbb' ? '>120ms (LBBB — broad)' : _bbb === 'rbbb' ? '>120ms (RBBB — broad)' : (_ecgChar.qrs || '');
+            const _pw  = _ecgChar.pwave || '';
+            const _pr  = _ecgChar.pr    || '';
+            const hintBadge = (val) => val ? '<span class="vital-hint" style="background:var(--navy)">' + val + '</span>' : '';
+            return mkSubRow('vrhythm', 'Ventricular Rhythm' + hint(v.Rhythm||'','Rhythm'), '','','','monitor')
+              + mkSubRow('vrate',  'Ventricular Rate (\u00b110bpm)', v.HR||'','','','monitor')
+              + mkSubRow('pwave',  'P Wave'      + hintBadge(_pw),   '','','','monitor')
+              + mkSubRow('pr',     'PR Interval' + hintBadge(_pr),   '','','','monitor')
+              + mkSubRow('qrs',    'QRS Duration'+ hintBadge(_qrsVal),'','','','monitor')
+              + mkSubRow('interp', 'Correct Rhythm Interpretation' + hintBadge(rhythmStr), '','','','monitor')
+              + mkSubRow('lead12', '12 Lead (as appropriate)',        '','','','monitor');
+          })()}
         </tbody>
       </table>
 
@@ -3078,7 +3242,7 @@ function renderSection1(s, isTrauma) {
           <div id="assessor-12lead-${s.id}" style="width:100%;max-width:100%;background:#faf7f2;border-radius:4px;overflow:hidden;margin-top:3px;display:block;" data-rhythm="${rhythmStr.replace(/"/g,'&quot;')}" data-hr="${hr}"></div>
           <div style="font-size:10px;color:var(--grey);font-style:italic;margin-top:4px;">⚠ Animated ECG is a simulation. Use Real ECG for teaching pattern recognition.</div>
         </div>`;
-      })()}}
+      })()}
 
       ${secondarySurvey}<div class="asmt-section-header"><div class="asmt-section-title">Focussed Assessments</div><button class="all-complete-btn" onclick="markGroupComplete('fa')">✓ All Complete</button></div>
       <table class="asmt-table" data-group="fa" data-section="sec1">
@@ -3275,7 +3439,11 @@ function _monitorRevealOnComplete(rowId, type, isActive) {
   const vitalKey = ROW_TO_VITAL[rowId];
   if (!vitalKey) return;
   if (type === 'complete' && isActive) {
+    // Complete ticked — reveal vital on monitor
     toggleReveal(vitalKey, true);
+  } else if ((type === 'incomplete' && isActive) || (type === 'complete' && !isActive)) {
+    // Incomplete ticked OR complete unticked — hide vital from monitor
+    toggleReveal(vitalKey, false);
   }
 }
 
@@ -3636,10 +3804,32 @@ function resetAll() {
 // ============================================================
 function isAbnormal(key, value) {
   const v = String(value).toLowerCase();
+  // Get paediatric range if current scenario is paediatric and age is known
+  const s = currentScenario;
+  let paedRange = null;
+  if (s && (s.category === 'Paediatric' || s.category === 'Newborn') && s.subtitle) {
+    const age = parseAgeFromSubtitle(s.subtitle);
+    if (age !== null) paedRange = getPaedRange(age);
+  }
   if (key==='SpO2') { const n=parseFloat(v); return n<94; }
-  if (key==='HR') { const n=parseFloat(v); return n<60||n>100; }
-  if (key==='RR') { const n=parseFloat(v); return n<12||n>20; }
-  if (key==='BP') { const m=v.match(/(\d+)\/(\d+)/); if(m) return parseInt(m[1])<90||parseInt(m[1])>160; }
+  if (key==='HR') {
+    const n=parseFloat(v);
+    if (paedRange) return n < paedRange.HR[0] || n > paedRange.HR[1];
+    return n<60||n>100;
+  }
+  if (key==='RR') {
+    const n=parseFloat(v);
+    if (paedRange) return n < paedRange.RR[0] || n > paedRange.RR[1];
+    return n<12||n>20;
+  }
+  if (key==='BP') {
+    const m=v.match(/(\d+)\/(\d+)/);
+    if (m) {
+      const sbp = parseInt(m[1]);
+      if (paedRange) return sbp < paedRange.sBP[0] || sbp > paedRange.sBP[1] + 30;
+      return sbp<90||sbp>160;
+    }
+  }
   if (key==='BGL') { const n=parseFloat(v); return n<4||n>10; }
   if (key==='GCS') { const n = (value && typeof value === 'object') ? (value.total || 15) : parseFloat(String(value)); return n < 14; }
   if (key==='Temp') { const n=parseFloat(v); return n<36||n>38.5; }
@@ -4167,7 +4357,7 @@ const CATEGORY_TO_CPG = {
   'Paediatric|Cardiac Arrest':    ['cardiac_arrest_medical', 'cardiac_arrest_traumatic', 'rosc_management', 'withholding_resuscitation'],
   'Paediatric|Airway Management': ['essential_airway', 'endotracheal_intubation', 'difficult_airway', 'upper_airway_obstruction'],
   'Paediatric|Pain Relief':       ['pain_relief'],
-  'Paediatric|Respiratory':       ['asthma', 'upper_airway_obstruction'],
+  'Paediatric|Respiratory':       ['asthma', 'croup'],
   'Paediatric|Medical':           ['seizures', 'hypoglycaemia', 'anaphylaxis', 'hyperglycaemia'],
   'Paediatric|Infection':         ['sepsis'],
   'Paediatric|Trauma':            ['major_trauma', 'head_injury', 'chest_injury', 'burns'],
@@ -4234,6 +4424,7 @@ const CPG_SUBTYPE_LABELS = {
   asthma:                   'Asthma',
   copd:                     'COPD Exacerbation',
   upper_airway_obstruction: 'Upper Airway Obstruction',
+  croup:                    'Croup',
   dyspnoea:                 'Undifferentiated Dyspnoea',
   pulmonary_embolism:       'Pulmonary Embolism',
   // Mental Health
@@ -4586,7 +4777,7 @@ function buildCPGContext(catVal1, catVal2) {
   return `\n\nRELEVANT AV CPG CONTENT (v3.13.1) — use these exact doses and thresholds:\n${packageSections}${comboNote}`;
 }
 
-const SCENARIO_JSON_TEMPLATE = `{"title":"","subtitle":"","category":"CAT","subcategory":"SUB","type":"","cpg":"","level":"C/D","dispatch":"","vitals":{"GCS":{"E":0,"V":0,"M":0,"total":0,"description":""},"SpO2":"","RR":"","HR":"","BP":"","Temp":"","BGL":"","Rhythm":"","Weight":"","Ketones":"","EtCO2":""},"key_hx":"","medical_conditions":["","",""],"medications":["","",""],"allergies":"","flags":["","","",""],"ddx":["","","",""],"provisional":"","kq":[{"q":"","max":2,"answer":""},{"q":"","max":2,"answer":""},{"q":"","max":1,"answer":""}],"discussion":[]}`;
+const SCENARIO_JSON_TEMPLATE = `{"title":"","subtitle":"","category":"CAT","subcategory":"SUB","type":"","cpg":"","level":"C/D","dispatch":"","vitals":{"GCS":{"E":0,"V":0,"M":0,"total":0,"description":""},"SpO2":"","RR":"","HR":"","BP":"","Temp":"","BGL":"","Rhythm":"","Weight":"","Ketones":"","EtCO2":""},"key_hx":"","hx":{"timeline":"","nature":"","prodromal":"","aggreliev":"","assoc":"","similar":""},"medical_conditions":["","",""],"medications":["","",""],"allergies":"","flags":["","","",""],"ddx":["","","",""],"provisional":"","ra":{"wob":"","skin":""},"ps_exposure":"","social":"","rsa":{"appearance":"","speech":"","breath_sounds":"","rhythm":"","wob":""},"life_threats":["",""],"kq":[{"q":"","max":2,"answer":""},{"q":"","max":2,"answer":""},{"q":"","max":1,"answer":""}],"discussion":[]}`;
 // Note: medical_conditions = short list e.g. ["Asthma (previous ICU admission)", "Type 2 Diabetes", "Hypertension"]
 // medications = short list e.g. ["Metoprolol 50mg daily", "Aspirin 100mg", "Candesartan 8mg"]
 // key_hx = legacy field kept for backwards compat with built-in scenarios
@@ -4707,7 +4898,7 @@ async function generateAIScenario() {
     ? `You MUST use the exact drug doses, thresholds, and management steps from the CPG content provided below. Do not invent doses or deviate from the provided protocol.${cpgContext}`
     : 'Use your knowledge of AV CPGs to generate an accurate scenario.';
 
-  const systemPrompt = `You are a clinical scenario writer for Ambulance Victoria (AV) paramedic education. Write accurate ALS (Level C/D) verbal assessment scenarios based strictly on AV Clinical Practice Guidelines v3.13.1 (December 2025). Respond with valid JSON only — no markdown, no preamble. CRITICAL RULE: All clinical content (treatment, drug doses, management steps, assessment criteria, key questions and answers) must be drawn exclusively from the AV CPG content provided. Do NOT add management steps, drug doses, or clinical guidance that are not explicitly stated in the CPGs — not even if they are standard clinical practice. The ONLY exception is the "discussion" field, which is intentionally separate and may draw on broader clinical knowledge. GCS FORMAT: vitals.GCS must always be a JSON object with four fields: E (eyes, integer 1–4), V (verbal, integer 1–5), M (motor, integer 1–6), total (integer, must equal E+V+M exactly), and description (a short clinical sentence describing the patient's observable behaviour matching those scores, e.g. "eyes open to pain only, inappropriate words, localising to pain"). A fully alert patient is E4 V5 M6 total 15. Never return GCS as a plain string or number. AUSTRALIAN TERMINOLOGY: Use Australian medical terminology and drug names throughout (e.g. adrenaline not epinephrine, paracetamol not acetaminophen, salbutamol not albuterol). Use mmol/L for BGL. Use Australian English spelling. This is an Ambulance Victoria scenario — do not use US EMS terminology, ACLS protocols, or American drug names anywhere in the output. ${cpgInstruction}`;
+  const systemPrompt = `You are a clinical scenario writer for Ambulance Victoria (AV) paramedic education. Write accurate ALS (Level C/D) verbal assessment scenarios based strictly on AV Clinical Practice Guidelines v3.13.1 (December 2025). Respond with valid JSON only — no markdown, no preamble. CRITICAL RULE: All clinical content (treatment, drug doses, management steps, assessment criteria, key questions and answers) must be drawn exclusively from the AV CPG content provided. Do NOT add management steps, drug doses, or clinical guidance that are not explicitly stated in the CPGs — not even if they are standard clinical practice. The ONLY exceptions are: (1) the "discussion" field, which is intentionally separate and may draw on broader clinical knowledge; and (2) the "life_threats" field, which contains immediate pre-assessment physical actions — these must always be populated and are exempt from the CPG-only rule. GCS FORMAT: vitals.GCS must always be a JSON object with four fields: E (eyes, integer 1–4), V (verbal, integer 1–5), M (motor, integer 1–6), total (integer, must equal E+V+M exactly), and description (a short clinical sentence describing the patient's observable behaviour matching those scores, e.g. "eyes open to pain only, inappropriate words, localising to pain"). A fully alert patient is E4 V5 M6 total 15. Never return GCS as a plain string or number. AUSTRALIAN TERMINOLOGY: Use Australian medical terminology and drug names throughout (e.g. adrenaline not epinephrine, paracetamol not acetaminophen, salbutamol not albuterol). Use mmol/L for BGL. Use Australian English spelling. This is an Ambulance Victoria scenario — do not use US EMS terminology, ACLS protocols, or American drug names anywhere in the output. ${cpgInstruction}`;
 
   const seedSection = complaint
     ? `\n== SCENARIO SEED (non-negotiable anchors) ==\n${complaint}\nThese details MUST appear in the scenario. Use them as a creative brief — build a rich, realistic backstory and narrative around them. Any name given must appear in the dispatch and subtitle. Any demographics given (age, gender) must be used exactly. Any clinical details (e.g. choking on watermelon, also septic, patient is blind) must be woven naturally into the relevant fields (dispatch, key_hx, medical_conditions, vitals, etc.). Do NOT invent contradictory details. Write a specific, believable scenario grounded in these anchors, not generic placeholder text.\n== END SEED ==\n`
@@ -4718,15 +4909,46 @@ Category: ${categoryLabel}
 ${seedSection}${complaint ? '' : complaintLine + '\n'}${complexityNote}
 ${patientNote}
 Do NOT generate treatment or management steps — these are supplied from official CPG data. Leave treatment_als and treatment_mica out of the JSON entirely. Focus on generating an accurate, realistic scenario with correct vitals, flags, ddx, provisional diagnosis, and knowledge questions.
-For medical_conditions: provide a concise array of conditions only — no explanations unless clinically essential (e.g. ["Epilepsy (breakthrough seizure last month)", "Type 2 Diabetes", "Hypertension"]). Max 4 items.
-For medications: provide a concise array of medication names with doses — no extra description (e.g. ["Levetiracetam 500mg BD", "Metformin 500mg daily", "Amlodipine 10mg"]). Max 6 items. Use empty array if none.
-For allergies: approximately 25% of patients have allergies. Vary the allergen — do NOT default to penicillin every time. Use realistic Australian options: morphine, aspirin, ibuprofen, sulfonamides, latex, bee stings, nuts, shellfish, contrast dye, codeine, tramadol, or others as clinically plausible. For anaphylaxis scenarios always include the relevant allergen. Most patients (75%) have no allergy — return "" in those cases.
+For the "cpg" field: set this to the CPG code of the PRIMARY guideline for this scenario (e.g. "P0601-1" for Croup, "P0602" for Asthma, "A0603" for Upper Airway Obstruction). The correct code is always shown in the CPG context header above in the format "--- CPG: Title (CODE) ---". Use that code exactly — do NOT invent or guess a CPG code.
+For life_threats: provide 2–4 brief, immediate management actions a paramedic would perform immediately after the primary survey — BEFORE any history, vital signs, or diagnosis. These are based solely on what is visually apparent (e.g. active haemorrhage, severe respiratory distress, unconsciousness, major trauma mechanism). Actions must be physical and immediate: positioning, airway manoeuvres, adjuncts, oxygen delivery method and rate, haemorrhage control, spinal precautions, BVM ventilation, CPR, defibrillation. Do NOT include drug administration, IV access, monitoring, or any action requiring a diagnosis or vital signs. Use plain clinical language (e.g. "Apply direct pressure and tourniquet to arterial haemorrhage", "Position upright, apply non-rebreather mask 15 L/min", "Manual in-line cervical spine stabilisation"). Return as a flat array of strings. If there is no immediate life threat apparent from the primary survey, return 2 generic RABCDE safety actions appropriate to the presentation.
+For the "hx" field: provide brief, clinically appropriate hint text for each history sub-field. These are shown as info badges to help the CI/assessor know what the patient would say. Leave a field as "" if it is not relevant or not applicable (e.g. a child with no prior episodes, a trauma with no prodrome). Keep each value concise — one short sentence or phrase. Fields:
+- hx.timeline: when symptoms started and how they progressed (e.g. "Onset 2 hours ago, gradually worsening")
+- hx.nature: character/quality of the presenting complaint (e.g. "Tight, crushing chest pain radiating to left arm")
+- hx.prodromal: symptoms preceding the main event, if any (e.g. "Nausea and diaphoresis for 30 minutes prior")
+- hx.aggreliev: what makes it better or worse (e.g. "Worse on exertion, partially relieved by rest")
+- hx.assoc: relevant associated symptoms or circumstances (e.g. "Shortness of breath, no cough or fever")
+- hx.similar: any prior similar episodes (e.g. "One prior episode 6 months ago, self-resolved" or "" if none)
+For medical_conditions: CRITICAL — this must be a concise array of pre-existing medical CONDITIONS ONLY. Do NOT put the history of the current presentation here. Do NOT put narrative text here. Examples of correct format: ["Asthma (diagnosed age 12)", "Type 2 Diabetes", "Hypertension"]. Use empty array [] if the patient has no relevant medical history (e.g. healthy child, young adult with no PMHx). Max 4 items.
+For medications: provide a concise array of medication names with doses — no extra description (e.g. ["Levetiracetam 500mg BD", "Metformin 500mg daily", "Amlodipine 10mg"]). Max 6 items. Use empty array [] if none.
+For allergies: this field must reflect a DOCUMENTED ALLERGY, not a current exposure. For anaphylaxis scenarios — ALWAYS populate this field with the causative allergen (e.g. "Prawns / shellfish", "Bee sting venom", "Penicillin"). For all other scenarios: approximately 25% of patients have a pre-existing allergy — vary the allergen using realistic Australian options: morphine, aspirin, ibuprofen, sulfonamides, latex, bee stings, nuts, shellfish, contrast dye, codeine, tramadol. Return "" if no known allergy.
 For vitals.GCS: always return the structured object {E, V, M, total, description}. Choose component scores appropriate to the clinical presentation — do NOT default every scenario to GCS 15 / E4V5M6. Impaired consciousness should be reflected with realistic component scores. The description must match the scores (e.g. E2 V3 M5 = "eyes open to pain, inappropriate words, localising to pain").
 For vitals.Rhythm: Always include a cardiac rhythm using standard clinical terms (e.g. "Atrial Fibrillation", "Sinus Tachycardia", "Normal Sinus Rhythm"). Rules: (1) Non-cardiac scenarios: default to rate-appropriate sinus rhythm — "Sinus Tachycardia" if HR >100, "Sinus Bradycardia" if HR <60, otherwise "Normal Sinus Rhythm". (2) Consider age-appropriate incidental rhythms that don't affect primary management — e.g. a 78yo with pneumonia may coincidentally be in Atrial Fibrillation; a 72yo trauma patient may have 1st Degree AV Block. This is realistic and encouraged for patients over 65. (3) Cardiac scenarios: use a clinically appropriate rhythm for the presentation. (4) PEA cardiac arrest: use "Pulseless Electrical Activity (PEA)" — do NOT use VF or Asystole for PEA. (5) Never leave Rhythm blank.
 For vitals.Weight: always provide a realistic weight in kg appropriate to the patient's age and presentation (e.g. "82 kg", "14 kg"). For adults use a realistic Australian adult weight. For paediatric patients use an age-appropriate weight. Never leave blank.
+For PAEDIATRIC scenarios: vitals MUST reflect the patient's age using the following AV CPG normal ranges. Generate values appropriate to the clinical context — a sick child should have vitals OUTSIDE these normal ranges in clinically appropriate directions (e.g. tachycardia, tachypnoea, hypoxia, hypotension). Normal ranges by age group:
+- Newborn (Birth–24hrs): HR 110–170, RR 25–60, sBP >60
+- Small Infant (<3mo): HR 110–170, RR 25–60, sBP >60
+- Large Infant (3–12mo): HR 105–165, RR 25–55, sBP >65
+- Small Child (1–4yr): HR 85–150, RR 20–40, sBP >70
+- Medium Child (5–11yr): HR 70–135, RR 16–34, sBP >80
+- Adolescent (12–15yr): HR 60–120, RR 14–26, sBP >90
+Do NOT generate adult-range vitals for paediatric patients (e.g. RR 18 is NOT elevated for a 7-year-old — it is normal). Weight should follow: Newborn ~3.5 kg, Small Infant ~5 kg, Large Infant ~8 kg, Small Child ~14–18 kg, Medium Child ~20–30 kg, Adolescent ~45–60 kg.
+For CROUP scenarios specifically: always generate a child aged 6 months to 5 years (most common age group per CPG P0601). Present with barking cough, inspiratory stridor, hoarse voice, and increased work of breathing. Symptoms worse at night. Classify as mild, moderate, or severe and ensure vitals, behaviour, and RSA findings are consistent with that severity. Provisional diagnosis must be "Croup". CPG field must be "P0601". Do NOT generate epiglottitis or foreign body obstruction as a croup scenario — these are differentials to be considered, not the diagnosis.
 For vitals.Ketones: always provide a realistic blood ketone value in mmol/L (e.g. "0.2 mmol/L"). Use elevated values (>1.5 mmol/L) for DKA, hyperglycaemia, or diabetic emergencies. Use normal/low values (0.1–0.5 mmol/L) for all other presentations. Never leave blank.
 For vitals.EtCO2: always provide a realistic end-tidal CO₂ value in mmHg (e.g. "38 mmHg"). Use low values for hyperventilation or poor perfusion states; high values for hypoventilation, opioid OD, or severe respiratory failure; normal range (35–45 mmHg) for most presentations. Never leave blank.
 For the "discussion" field: provide 2–4 brief bullet points about management or considerations that are BEYOND AV scope — e.g. in-hospital treatment, specialist interventions, or relevant clinical nuance not covered by AV CPGs. These are suggested discussion prompts for the CI to use with the student. They are NOT assessable and NOT part of AV management. Label them clearly as beyond-scope. Return as an array of strings.
+For the "ra" field (Rapid Assessment — what is seen at a glance on approach):
+- ra.wob: brief visual impression of breathing effort — one of: "Adequate" | "Increased effort" | "Decreased effort" | "Agonal" | "Not breathing" | "Laboured" | "Shallow"
+- ra.skin: brief visual impression of skin on approach — concise phrase describing colour, moisture, and temperature (e.g. "Warm, pink, dry" | "Pale, diaphoretic" | "Cyanosed, mottled" | "Flushed, warm" | "Cold, pale, mottled" | "Jaundiced" | "Urticarial rash"). Match to patient's clinical state and ethnicity where relevant.
+For "ps_exposure": a single short sentence describing the patient's clothing/environment in the context of exposure risk — what does the paramedic see on arrival? Focus on clothing appropriateness vs environment (e.g. "Adequately clothed, moderate temperature environment" | "Wearing heavy jumper indoors, room is 35°C" | "Found unclothed in cold backyard, ambient temp ~5°C" | "Wet clothing following submersion, cold evening"). For most scenarios this will be unremarkable — use "Adequately clothed, no environmental exposure concerns" as the default. Leave "" only if genuinely not applicable (e.g. in-hospital transfer).
+For "social": a brief phrase about social/environmental circumstances relevant to ongoing care — living situation, support, home conditions (e.g. "Lives alone, no carer support" | "Well-supported, family present" | "Poor home conditions, evidence of self-neglect" | "Unhoused, sleeping rough" | "Elderly, lives alone in aged care facility"). For most working-age adults and trauma/vehicle scenarios use "" or keep very brief. Increase rate of social complexity for elderly patients, mental health presentations, and chronic illness scenarios.
+For the "rsa" field: populate each sub-field with the clinically appropriate descriptor for this specific patient, chosen from the fixed options below (taken directly from CPG A0103). Each component is assessed independently — do NOT assume all components must come from the same severity column. Choose based on the patient's presentation, vitals, and diagnosis.
+- rsa.appearance: one of — "Calm, quiet" | "Calm or mildly anxious" | "Distressed, anxious" | "Distressed, anxious, fighting to breathe, exhausted" | "Catatonic"
+- rsa.speech: one of — "Clear and steady" | "Sentences" | "Phrases" | "Single words" | "Unable to speak"
+- rsa.breath_sounds: one of — "Normal lung sounds" | "Wheeze" | "Crackles" | "Wheeze and crackles" | "Silent chest" | "Full field crackles" | "Inspiratory stridor" | "Normal"
+- rsa.rhythm: one of — "Regular and even" | "Slightly prolonged expiratory phase" | "Prolonged expiratory phase" | "Kussmaul breathing" | "Cheyne-Stokes respiration" | "Agonal breathing"
+- rsa.wob: one of — "Normal, no increased effort" | "Mild increase in effort" | "Moderate increase in effort" | "Accessory muscle use" | "Moderate increase in effort, accessory muscle use" | "Severe/maximal effort — accessory muscle use, intercostal retraction, tracheal tugging" | "Poor respiratory effort"
+For non-respiratory presentations, use normal/near-normal values unless vitals or context suggest otherwise (e.g. a shocked trauma patient may have tachypnoea and increased WoB even without primary respiratory pathology).
+For the "subtitle" field: always use the format "48yo Female — Chest pain and diaphoresis" (age + gender + em dash + brief clinical description). Age must match the patient demographics exactly. Gender should be Male or Female (capitalised). The clinical description after the em dash should be concise (5–8 words) and match the provisional diagnosis.
 Return ONLY a valid JSON object:
 ${SCENARIO_JSON_TEMPLATE.replace('CAT', category).replace('SUB', subcategory)}`;
 
@@ -5022,7 +5244,7 @@ function renderManageModal() {
   const { uuid, name } = getIdentity();
   const adminBadge = isAdmin() ? ' 🔑 Admin' : '';
   const adminLink = isAdmin()
-    ? `<span style="color:var(--grey)"> · <a href="#" onclick="adminLogout();return false;" style="color:var(--grey);text-decoration:underline;font-size:11px">Logout admin</a> · <a href="#" onclick="openDevNotesBanner();return false;" style="color:var(--grey);text-decoration:underline;font-size:11px">Dev Notes</a></span>`
+    ? `<span style="color:var(--grey)"> · <a href="#" onclick="adminLogout();return false;" style="color:var(--grey);text-decoration:underline;font-size:11px">Logout admin</a> · <a href="#" onclick="openDevNotesBanner();return false;" style="color:var(--grey);text-decoration:underline;font-size:11px">Dev Notes</a> · <a href="#" onclick="openCorrectionsModal();return false;" style="color:var(--red);text-decoration:underline;font-size:11px;font-weight:700">🚩 Corrections Log</a></span>`
     : `<span style="color:var(--grey)"> · <a href="#" onclick="adminLogin();return false;" style="color:var(--grey);text-decoration:none;font-size:11px">···</a></span>`;
   const cloudBanner = `<div style="background:#E8F8F5;border:1px solid #A2D9CE;border-radius:8px;padding:8px 12px;font-size:12px;color:#1E8449;margin-bottom:12px">☁️ <strong>Supabase sync active</strong> — scenarios shared with all users.${adminBadge ? `<span style="color:var(--amber);font-weight:700"> ${adminBadge}</span>` : ''}<br><span style="color:var(--grey)">You: ${name || 'Anonymous'}</span>${adminLink}</div>`;
 
@@ -5119,9 +5341,26 @@ function showStickyBar(s) {
   const nav = document.getElementById('scenario-nav');
   if (nav) { nav.style.top = '100px'; nav.style.height = 'calc(100vh - 100px)'; }
 
-  // Title
-  document.getElementById('sticky-title-name').textContent = s.title || '—';
-  document.getElementById('sticky-title-sub').textContent = s.subtitle || s.category || '';
+  // Title — show age+gender on top line, provisional diagnosis below
+  const subtitle = s.subtitle || '';
+  const dispatch = s.dispatch || '';
+  // Try subtitle first, fall back to dispatch for age/gender
+  const searchText = subtitle + ' ' + dispatch;
+  const ageMatch = searchText.match(/(\d+(?:\.\d+)?)\s*(?:yo\b|yr\b|year|-year|mo\b|\/12|months?)/i);
+  const genderMatch = searchText.match(/\b(male|female|boy|girl)\b/i);
+  let demogStr = '';
+  if (ageMatch) {
+    const rawAge = parseFloat(ageMatch[1]);
+    const isMo = /mo\b|\/12|months?/i.test(ageMatch[0]);
+    demogStr = isMo ? `${Math.round(rawAge)}mo` : `${Math.round(rawAge)}yo`;
+  }
+  if (genderMatch) {
+    const g = genderMatch[1].toLowerCase();
+    const abbr = (g === 'female' || g === 'girl') ? 'F' : 'M';
+    demogStr = demogStr ? `${demogStr} ${abbr}` : abbr;
+  }
+  document.getElementById('sticky-title-demog').textContent = demogStr || '—';
+  document.getElementById('sticky-title-sub').textContent = s.provisional || s.subcategory || s.category || '';
 
   // Vitals
   const vitalsEl = document.getElementById('sticky-vitals');
@@ -5149,20 +5388,6 @@ function showStickyBar(s) {
   const el = document.getElementById('sticky-timer-display');
   if (el) el.textContent = `${String(m).padStart(2,'0')}:${String(ss).padStart(2,'0')}`;
 
-  // ECG button — show only if scenario has a matching ECG
-  const ecgBtn = document.getElementById('sticky-ecg-btn');
-  if (ecgBtn) {
-    const ecgData = getECGImage(s.vitals && s.vitals.Rhythm);
-    if (ecgData) {
-      ecgBtn.classList.add('visible');
-      ecgBtn._ecgSrc = ecgData.url;
-      ecgBtn._ecgLabel = ecgData.label;
-    } else {
-      ecgBtn.classList.remove('visible');
-      ecgBtn._ecgSrc = null;
-      ecgBtn._ecgLabel = null;
-    }
-  }
 }
 
 // ============================================================
@@ -5360,7 +5585,7 @@ let _pendingRevealKey = null;   // vital to auto-reveal once session starts
 let _sessionRevealed = {};      // local cache of revealed state
 
 function generateSessionCode() {
-  return Math.floor(1000 + Math.random() * 9000).toString();
+  return Math.floor(100000 + Math.random() * 900000).toString();
 }
 
 // Called by inline reveal buttons throughout the scenario
@@ -5400,6 +5625,16 @@ async function openPatientSessionModal() {
     _sessionRevealed = {};
 
     const { uuid } = getIdentity();
+
+    // Clean up sessions older than 24 hours before creating a new one
+    try {
+      const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+      await sbFetch(`active_sessions?created_at=lt.${cutoff}`, {
+        method: 'DELETE',
+        prefer: 'return=minimal'
+      });
+    } catch(e) { console.warn('Session cleanup failed:', e); }
+
     await sbFetch('active_sessions', {
       method: 'POST',
       prefer: 'return=minimal',
@@ -5483,9 +5718,32 @@ function closePatientSessionModal() {
   // Session stays alive — don't clear _patientSessionCode
 }
 
-const _psm = document.getElementById('patient-session-modal');
-if (_psm) _psm.addEventListener('click', e => {
-  if (e.target === document.getElementById('patient-session-modal')) closePatientSessionModal();
+async function sendLeadIIToMonitor(event) {
+  if (event) event.stopPropagation();
+  if (!_patientSessionCode) { _pendingRevealKey = 'LeadII'; await openPatientSessionModal(); return; }
+  const isRevealed = !!_sessionRevealed['LeadII'];
+  await toggleReveal('LeadII', !isRevealed);
+  const btn = document.getElementById('rb-LeadII');
+  if (btn) { btn.style.background = _sessionRevealed['LeadII'] ? 'var(--navy)' : 'white'; btn.style.color = _sessionRevealed['LeadII'] ? 'white' : 'var(--navy)'; }
+}
+
+async function send12LeadToMonitor(event) {
+  if (event) event.stopPropagation();
+  if (!_patientSessionCode) { _pendingRevealKey = 'ECG'; await openPatientSessionModal(); return; }
+  const isRevealed = !!_sessionRevealed['ECG'];
+  await toggleReveal('ECG', !isRevealed);
+  if (!isRevealed && !_sessionRevealed['LeadII']) {
+    await toggleReveal('LeadII', true);
+    const lb = document.getElementById('rb-LeadII');
+    if (lb) { lb.style.background = 'var(--navy)'; lb.style.color = 'white'; }
+  }
+  const btn = document.getElementById('rb-ECG');
+  if (btn) { btn.style.background = _sessionRevealed['ECG'] ? 'var(--navy)' : 'white'; btn.style.color = _sessionRevealed['ECG'] ? 'white' : 'var(--navy)'; }
+}
+
+const _psmEl = document.getElementById('patient-session-modal');
+if (_psmEl) _psmEl.addEventListener('click', e => {
+  if (e.target === _psmEl) closePatientSessionModal();
 });
 
 
@@ -5741,12 +5999,12 @@ function updatePaedAge(ageVal) {
 
 
 const PAED_VITALS_RANGES = [
-  { label: 'Neonate (0–1mo)',   ageMin:0,   ageMax:0.08, HR:[100,160], RR:[40,60], sBP:[60,80],  wt:3.5 },
-  { label: 'Infant (1–12mo)',   ageMin:0.08,ageMax:1,    HR:[100,160], RR:[30,50], sBP:[70,95],  wt:6   },
-  { label: 'Toddler (1–2yr)',   ageMin:1,   ageMax:2,    HR:[90,150],  RR:[24,40], sBP:[80,100], wt:12  },
-  { label: 'Preschool (2–5yr)', ageMin:2,   ageMax:5,    HR:[80,130],  RR:[22,34], sBP:[85,100], wt:16  },
-  { label: 'School (5–12yr)',   ageMin:5,   ageMax:12,   HR:[70,120],  RR:[18,25], sBP:[90,110], wt:20  },
-  { label: 'Adolescent (12+)',  ageMin:12,  ageMax:18,   HR:[60,100],  RR:[12,20], sBP:[100,120],wt:50  },
+  { label: 'Newborn (0–24hrs)',      ageMin:0,    ageMax:0.003, HR:[110,170], RR:[25,60], sBP:[60,80],  wt:3.5 },
+  { label: 'Small Infant (<3mo)',    ageMin:0.003,ageMax:0.25,  HR:[110,170], RR:[25,60], sBP:[60,80],  wt:5   },
+  { label: 'Large Infant (3–12mo)',  ageMin:0.25, ageMax:1,     HR:[105,165], RR:[25,55], sBP:[65,90],  wt:8   },
+  { label: 'Small Child (1–4yr)',    ageMin:1,    ageMax:5,     HR:[85,150],  RR:[20,40], sBP:[70,100], wt:16  },
+  { label: 'Medium Child (5–11yr)',  ageMin:5,    ageMax:12,    HR:[70,135],  RR:[16,34], sBP:[80,110], wt:25  },
+  { label: 'Adolescent (12–15yr)',   ageMin:12,   ageMax:16,    HR:[60,120],  RR:[14,26], sBP:[90,120], wt:50  },
 ];
 
 function getPaedRange(age) {
@@ -5960,16 +6218,13 @@ function closeECGLightbox() {
   document.getElementById('ecg-lightbox').classList.remove('open');
 }
 
-function openStickyECG() {
-  const btn = document.getElementById('sticky-ecg-btn');
-  if (btn && btn._ecgSrc) openECGLightbox(btn._ecgSrc, btn._ecgLabel);
-}
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closeECGLightbox(); });
 
 // ── Live ECG Engine (assessor side) ──────────────────────────────────
 let _assessorStrip = null;
 let _assessorLead  = null;
 let _assessorRhythmKey = null;
+
 
 function initAssessorECG(rhythmStr, hr) {
   if (!rhythmStr) return;
@@ -5986,6 +6241,7 @@ function initAssessorECG(rhythmStr, hr) {
     stripEl.style.height = '110px';
     _assessorStrip = new ECGEngine(stripEl, { mode: 'strip', theme: 'paper' });
     _assessorStrip.setRhythm(mapped.key, mapped.bpm, mapped.bbbMode);
+
   }
 
   // 12-lead — paper theme
@@ -5994,6 +6250,7 @@ function initAssessorECG(rhythmStr, hr) {
     if (_assessorLead) _assessorLead.destroy();
     _assessorLead = new ECGEngine(leadEl, { mode: '12lead', theme: 'paper' });
     _assessorLead.setRhythm(mapped.key, mapped.bpm, mapped.bbbMode);
+
   }
 
   // Show real ECG link
@@ -6041,6 +6298,510 @@ function _tryInitECGFromScenario() {
 // Also expose so it can be called directly when a scenario opens
 window.initAssessorECG = initAssessorECG;
 
+// ============================================================
+// ERROR CORRECTION SYSTEM
+// ============================================================
+
+// In-memory cache of corrections for the current scenario
+let _corrections = []; // array of correction objects from Supabase
+let _flagModeActive = false;
+let _popoverState = null; // { fieldKey, fieldLabel, originalValue, correctionId|null, anchorEl }
+
+// Correction field definitions — what can be flagged and how
+const CORRECTABLE_FIELDS = {
+  // Vitals
+  'vital_RR':         { label: 'Respiratory Rate (RR)',        getter: s => String((s.vitals||{}).RR||'') },
+  'vital_HR':         { label: 'Heart Rate (HR)',               getter: s => String((s.vitals||{}).HR||'') },
+  'vital_BP':         { label: 'Blood Pressure (BP)',           getter: s => String((s.vitals||{}).BP||'') },
+  'vital_SpO2':       { label: 'SpO₂',                         getter: s => String((s.vitals||{}).SpO2||'') },
+  'vital_Temp':       { label: 'Temperature',                   getter: s => String((s.vitals||{}).Temp||'') },
+  'vital_BGL':        { label: 'BGL',                           getter: s => String((s.vitals||{}).BGL||'') },
+  'vital_GCS':        { label: 'GCS',                           getter: s => { const g=(s.vitals||{}).GCS; return g&&typeof g==='object'?`${g.total} (E${g.E}V${g.V}M${g.M})`:String(g||''); } },
+  'vital_Rhythm':     { label: 'Rhythm',                        getter: s => String((s.vitals||{}).Rhythm||'') },
+  'vital_EtCO2':      { label: 'EtCO₂',                        getter: s => String((s.vitals||{}).EtCO2||'') },
+  'vital_Weight':     { label: 'Weight',                        getter: s => String((s.vitals||{}).Weight||'') },
+  'vital_Ketones':    { label: 'Ketones',                       getter: s => String((s.vitals||{}).Ketones||'') },
+  // Scenario header
+  'field_title':      { label: 'Scenario Title',                getter: s => s.title||'' },
+  'field_subtitle':   { label: 'Subtitle / Demographics',       getter: s => s.subtitle||'' },
+  'field_cpg':        { label: 'CPG Code',                      getter: s => s.cpg||'' },
+  // Dispatch / history
+  'field_dispatch':   { label: 'Dispatch / Presentation',       getter: s => s.dispatch||'' },
+  'field_key_hx':     { label: 'Key History',                   getter: s => s.key_hx||'' },
+  // Hx detail hints
+  'field_hx_timeline':  { label: 'Hx — Timeline',              getter: s => (s.hx||{}).timeline||'' },
+  'field_hx_nature':    { label: 'Hx — Nature',                getter: s => (s.hx||{}).nature||'' },
+  'field_hx_prodromal': { label: 'Hx — Prodromal symptoms',    getter: s => (s.hx||{}).prodromal||'' },
+  'field_hx_aggreliev': { label: 'Hx — Aggravating/Relieving', getter: s => (s.hx||{}).aggreliev||'' },
+  'field_hx_assoc':     { label: 'Hx — Associated circumstances',getter: s => (s.hx||{}).assoc||'' },
+  'field_hx_similar':   { label: 'Hx — Similar episodes',      getter: s => (s.hx||{}).similar||'' },
+  // PMHx
+  'field_medications':  { label: 'Medications',                 getter: s => (s.medications||[]).join(', ') },
+  'field_allergies':    { label: 'Allergies',                   getter: s => s.allergies||'' },
+  'field_social':       { label: 'Social & Environmental',      getter: s => s.social||'' },
+  // Rapid assessment hints
+  'field_ra_wob':       { label: 'RA — Work of Breathing',      getter: s => (s.ra||{}).wob||'' },
+  'field_ra_skin':      { label: 'RA — Skin',                   getter: s => (s.ra||{}).skin||'' },
+  'field_ps_exposure':  { label: 'PS Exposure',                 getter: s => s.ps_exposure||'' },
+  // RSA hints
+  'field_rsa_appearance':  { label: 'RSA — Appearance',        getter: s => (s.rsa||{}).appearance||'' },
+  'field_rsa_speech':      { label: 'RSA — Speech',            getter: s => (s.rsa||{}).speech||'' },
+  'field_rsa_breath':      { label: 'RSA — Breath Sounds',     getter: s => (s.rsa||{}).breath_sounds||'' },
+  'field_rsa_rhythm':      { label: 'RSA — Respiratory Rhythm',getter: s => (s.rsa||{}).rhythm||'' },
+  'field_rsa_wob':         { label: 'RSA — Work of Breathing', getter: s => (s.rsa||{}).wob||'' },
+  // Diagnosis
+  'field_provisional':  { label: 'Provisional Diagnosis',       getter: s => s.provisional||'' },
+};
+
+// Apply active corrections to a scenario object before rendering
+function applyCorrectionsToScenario(s) {
+  if (!_corrections || !_corrections.length) return s;
+  const patched = JSON.parse(JSON.stringify(s));
+  for (const c of _corrections) {
+    if (c.status !== 'active') continue;
+    const fk = c.field_key;
+    const cv = c.corrected_value;
+
+    if (fk.startsWith('vital_')) {
+      const vk = fk.replace('vital_', '');
+      if (!patched.vitals) patched.vitals = {};
+      patched.vitals[vk] = cv;
+
+    } else if (fk === 'field_dispatch')    { patched.dispatch = cv;
+    } else if (fk === 'field_key_hx')      { patched.key_hx = cv;
+    } else if (fk === 'field_provisional') { patched.provisional = cv;
+    } else if (fk === 'field_title')       { patched.title = cv;
+    } else if (fk === 'field_subtitle')    { patched.subtitle = cv;
+    } else if (fk === 'field_cpg')         { patched.cpg = cv;
+    } else if (fk === 'field_medications') { patched.medications = cv.split(',').map(x=>x.trim());
+    } else if (fk === 'field_allergies')   { patched.allergies = cv;
+    } else if (fk === 'field_social')      { patched.social = cv;
+    } else if (fk === 'field_ps_exposure') { patched.ps_exposure = cv;
+
+    } else if (fk.startsWith('field_hx_')) {
+      const hxk = fk.replace('field_hx_', '');
+      if (!patched.hx) patched.hx = {};
+      patched.hx[hxk] = cv;
+
+    } else if (fk.startsWith('field_ra_')) {
+      const rak = fk.replace('field_ra_', '');
+      if (!patched.ra) patched.ra = {};
+      patched.ra[rak] = cv;
+
+    } else if (fk.startsWith('field_rsa_')) {
+      const rsak = fk.replace('field_rsa_', '');
+      if (!patched.rsa) patched.rsa = {};
+      patched.rsa[rsak] = cv;
+
+    } else if (fk.startsWith('flag_')) {
+      const i = parseInt(fk.replace('flag_', ''));
+      if (!isNaN(i) && patched.flags) patched.flags[i] = cv;
+
+    } else if (fk.startsWith('ddx_')) {
+      const i = parseInt(fk.replace('ddx_', ''));
+      if (!isNaN(i) && patched.ddx) patched.ddx[i] = cv;
+
+    } else if (fk.startsWith('lt_')) {
+      const i = parseInt(fk.replace('lt_', ''));
+      if (!isNaN(i) && patched.life_threats) patched.life_threats[i] = cv;
+
+    } else if (fk.startsWith('disc_')) {
+      const i = parseInt(fk.replace('disc_', ''));
+      if (!isNaN(i) && patched.discussion) patched.discussion[i] = cv;
+
+    } else if (fk.startsWith('kq_q_')) {
+      const i = parseInt(fk.replace('kq_q_', ''));
+      if (!isNaN(i) && patched.kq && patched.kq[i]) patched.kq[i].q = cv;
+
+    } else if (fk.startsWith('kq_a_')) {
+      const i = parseInt(fk.replace('kq_a_', ''));
+      if (!isNaN(i) && patched.kq && patched.kq[i]) patched.kq[i].answer = cv;
+    }
+    // mgmt_ corrections are display-only (CPG-sourced, not in scenario object)
+  }
+  return patched;
+}
+
+// Load corrections for current scenario from Supabase
+async function loadCorrectionsForScenario(scenarioId) {
+  _corrections = [];
+  if (!scenarioId) return;
+  try {
+    const res = await sbFetch(`scenario_corrections?scenario_id=eq.${encodeURIComponent(scenarioId)}&order=timestamp.desc`);
+    _corrections = Array.isArray(res) ? res : [];
+  } catch(e) {
+    console.warn('Could not load corrections:', e);
+    _corrections = [];
+  }
+}
+
+// Inject flag interactions into the rendered scenario DOM (post-render pass)
+function injectFlagButtons() {
+  if (!currentScenario) return;
+  const s = currentScenario;
+
+  const getCorr = (fk) => _corrections.find(c => c.field_key === fk && c.status === 'active');
+
+  // Make an element flaggable: adds dotted outline in flag mode, (edited) label if corrected
+  const makeFlaggable = (el, fieldKey, fieldLabel, origValue) => {
+    if (!el || el.dataset.fk) return;
+    const corr = getCorr(fieldKey);
+    el.dataset.fk = fieldKey;
+    el.classList.add('flaggable');
+    if (corr) el.classList.add('has-correction');
+
+    el.addEventListener('click', (e) => {
+      if (_flagModeActive || corr) {
+        e.stopPropagation();
+        openCorrectionPopover(fieldKey, fieldLabel, origValue, el, corr || null);
+      }
+    });
+
+    if (corr) {
+      const lbl = document.createElement('span');
+      lbl.className = 'correction-edited-label';
+      lbl.title = `Corrected by ${corr.corrected_by_name}${corr.comment ? ': "'+corr.comment+'"' : ''} — click to view`;
+      lbl.textContent = '(edited)';
+      lbl.onclick = (e) => { e.stopPropagation(); openCorrectionPopover(fieldKey, fieldLabel, origValue, el, corr); };
+      el.appendChild(lbl);
+    }
+  };
+
+  // 1. DISPATCH CARD VITALS
+  document.querySelectorAll('.vitals-grid .vital-item').forEach(item => {
+    const label = item.querySelector('.vl');
+    if (!label) return;
+    const fk = 'vital_' + label.textContent.trim();
+    if (!CORRECTABLE_FIELDS[fk]) return;
+    makeFlaggable(item, fk, CORRECTABLE_FIELDS[fk].label, CORRECTABLE_FIELDS[fk].getter(s));
+  });
+
+  // 2. VSS VITAL HINT BADGES
+  const vssRowMap = { rr:'vital_RR', hr:'vital_HR', bp:'vital_BP', spo2:'vital_SpO2',
+    temp:'vital_Temp', bgl:'vital_BGL', gcstotal:'vital_GCS', vrhythm:'vital_Rhythm',
+    etco2:'vital_EtCO2', weight:'vital_Weight', ketones:'vital_Ketones' };
+  document.querySelectorAll('tr[data-row-id]').forEach(tr => {
+    const fk = vssRowMap[tr.dataset.rowId];
+    if (!fk) return;
+    const hint = tr.querySelector('.vital-hint');
+    if (hint) makeFlaggable(hint, fk, CORRECTABLE_FIELDS[fk].label, CORRECTABLE_FIELDS[fk].getter(s));
+  });
+
+  // 3. INFO HINT BOXES
+  const infoRowMap = {
+    hxtimeline:'field_hx_timeline', hxnature:'field_hx_nature',
+    hxprodromal:'field_hx_prodromal', hxaggreliev:'field_hx_aggreliev',
+    hxassoc:'field_hx_assoc', hxsimilar:'field_hx_similar',
+    phmeds:'field_medications', phallergies:'field_allergies', phsocial:'field_social',
+    wob1:'field_ra_wob', skin1:'field_ra_skin',
+    appearance:'field_rsa_appearance', speech:'field_rsa_speech',
+    breathsounds:'field_rsa_breath', rrrhythm:'field_rsa_rhythm', wob2:'field_rsa_wob',
+  };
+  document.querySelectorAll('tr[data-row-id]').forEach(tr => {
+    const fk = infoRowMap[tr.dataset.rowId];
+    if (!fk || !CORRECTABLE_FIELDS[fk]) return;
+    const hint = tr.querySelector('.vital-hint');
+    if (hint) makeFlaggable(hint, fk, CORRECTABLE_FIELDS[fk].label, CORRECTABLE_FIELDS[fk].getter(s));
+  });
+
+  // 4. DISPATCH TEXT & KEY HISTORY
+  document.querySelectorAll('.dispatch-card .dc-text').forEach((el, i) => {
+    const fk = i === 0 ? 'field_dispatch' : 'field_key_hx';
+    const lbl = i === 0 ? 'Dispatch / Presentation' : 'Key History';
+    makeFlaggable(el, fk, lbl, i === 0 ? (s.dispatch||'') : (s.key_hx||''));
+  });
+
+  // 5. CLINICAL FLAGS
+  document.querySelectorAll('.flag-item').forEach((item, i) => {
+    makeFlaggable(item, `flag_${i}`, `Clinical Flag ${i+1}`, (s.flags||[])[i]||'');
+  });
+
+  // 6. DDx + PROVISIONAL
+  const ddxInfo = document.querySelector('.ddx-info');
+  if (ddxInfo) makeFlaggable(ddxInfo, 'field_provisional', 'Provisional Diagnosis', s.provisional||'');
+
+  // 7. LIFE THREATS
+  document.querySelectorAll('tr[data-row-id^="lt"]').forEach((tr, i) => {
+    const label = tr.querySelector('.elem-label');
+    if (label) makeFlaggable(label, `lt_${i}`, `Life Threat ${i+1}`, (s.life_threats||[])[i]||label.textContent.trim());
+  });
+
+  // 8. MANAGEMENT STEPS
+  document.querySelectorAll('.treatment-box li, .treatment-mica-box li, .cpg-typed-step').forEach((li, i) => {
+    makeFlaggable(li, `mgmt_${i}`, `Management Step ${i+1}`, li.textContent.replace(/\(edited\)/g,'').trim());
+  });
+
+  // 9. KNOWLEDGE QUESTIONS + ANSWERS
+  document.querySelectorAll('.kq-block').forEach((block, i) => {
+    const qEl = block.querySelector('.kq-question div:last-child');
+    if (qEl) makeFlaggable(qEl, `kq_q_${i}`, `Knowledge Question ${i+1}`, (s.kq||[])[i]?.q||'');
+    const aEl = block.querySelector('.kq-answer');
+    if (aEl) makeFlaggable(aEl, `kq_a_${i}`, `KQ ${i+1} Answer`, (s.kq||[])[i]?.answer||'');
+  });
+
+  // 10. DISCUSSION PROMPTS
+  document.querySelectorAll('.discussion-box li').forEach((li, i) => {
+    makeFlaggable(li, `disc_${i}`, `Discussion Prompt ${i+1}`, (s.discussion||[])[i]||li.textContent.replace(/\(edited\)/g,'').trim());
+  });
+
+  // 11. SCENARIO HEADER
+  const titleEl = document.querySelector('.scenario-header h2');
+  if (titleEl) makeFlaggable(titleEl, 'field_title', 'Scenario Title', s.title||'');
+  const subtitleEl = document.getElementById('sh-subtitle-display');
+  if (subtitleEl) makeFlaggable(subtitleEl, 'field_subtitle', 'Subtitle / Demographics', s.subtitle||'');
+}
+
+// Re-initialise ECG after a scenario re-render (e.g. after correction saved)
+function reInitECGAfterRender(scenarioId, rhythm) {
+  const ecgImg = document.getElementById('ecg-img-' + scenarioId);
+  if (ecgImg) { const ecg = getECGImage(rhythm); if (ecg) embedECGImage(ecgImg, ecg.url); }
+  setTimeout(() => {
+    if (typeof ECGEngine === 'undefined') return;
+    document.querySelectorAll('[id^="assessor-12lead-"]').forEach(le => {
+      if (le._ecgInit) return; le._ecgInit = true;
+      const r = le.dataset.rhythm; const hr = parseInt(le.dataset.hr)||72;
+      if (!r) return;
+      le.style.display = 'block'; le.style.overflow = 'hidden';
+      const w = le.getBoundingClientRect().width || le.clientWidth || 700;
+      le.style.width = Math.floor(w) + 'px';
+      const mapped = ECGEngine.mapRhythm(r, hr);
+      try { const _ei = new ECGEngine(le,{mode:'12lead',theme:'paper'}); _ei.setRhythm(mapped.key,mapped.bpm,mapped.bbbMode); } catch(e){console.warn('ECG re-init:',e);}
+    });
+  }, 300);
+}
+
+// Toggle flag mode on/off
+function toggleFlagMode(forceOff = false) {
+  const btn = document.getElementById('flag-error-btn');
+  if (forceOff || _flagModeActive) {
+    _flagModeActive = false;
+    document.body.classList.remove('flag-mode-active');
+    if (btn) { btn.classList.remove('active'); btn.innerHTML = '🚩 Flag Error'; }
+    closeCorrectionPopover();
+  } else {
+    _flagModeActive = true;
+    document.body.classList.add('flag-mode-active');
+    if (btn) { btn.classList.add('active'); btn.innerHTML = '✕ Done Flagging'; }
+    showToast('🚩 Flag mode on — tap ⚑ next to any field to correct it');
+  }
+}
+
+// Open the correction popover
+function openCorrectionPopover(fieldKey, fieldLabel, originalValue, anchorEl, existingCorr) {
+  _popoverState = { fieldKey, fieldLabel, originalValue, correctionId: existingCorr ? existingCorr.id : null, anchorEl };
+  const pop = document.getElementById('correction-popover');
+  const id = getIdentity();
+
+  document.getElementById('cp-field-label').textContent = fieldLabel;
+  document.getElementById('cp-orig-val').textContent = originalValue || '(empty)';
+  document.getElementById('cp-by-label').textContent = `Submitting as: ${id.name || 'Unknown'} (${id.svcNum || 'no ID'})`;
+
+  const editSec = document.getElementById('cp-edit-section');
+  const viewSec = document.getElementById('cp-view-section');
+  const saveBtn = document.getElementById('cp-save-btn');
+
+  if (existingCorr) {
+    // Viewing an existing correction — show both edit and revert options
+    document.getElementById('cp-title').textContent = '✏️ Edit Correction';
+    document.getElementById('cp-new-val').value = existingCorr.corrected_value;
+    document.getElementById('cp-comment').value = existingCorr.comment || '';
+    document.getElementById('cp-view-by').textContent = `${existingCorr.corrected_by_name} (${existingCorr.corrected_by_svcnum})`;
+    editSec.style.display = 'block';
+    viewSec.style.display = 'block';
+    saveBtn.textContent = '💾 Update Correction';
+  } else {
+    document.getElementById('cp-title').textContent = '🚩 Flag an Error';
+    document.getElementById('cp-new-val').value = originalValue || '';
+    document.getElementById('cp-comment').value = '';
+    editSec.style.display = 'block';
+    viewSec.style.display = 'none';
+    saveBtn.textContent = '💾 Save Correction';
+  }
+
+  // Position popover near anchor — popover is position:fixed so use raw viewport coords
+  pop.classList.add('open');
+  const rect = anchorEl.getBoundingClientRect();
+  const popW = 340;
+  const popH = 320; // approximate
+  // Prefer below anchor; flip above if too close to bottom
+  let top = rect.bottom + 8;
+  if (top + popH > window.innerHeight - 16) top = Math.max(8, rect.top - popH - 8);
+  // Prefer left-aligned to anchor; shift left if overflows right edge
+  let left = rect.left;
+  if (left + popW > window.innerWidth - 16) left = window.innerWidth - popW - 16;
+  left = Math.max(8, left);
+  pop.style.left = left + 'px';
+  pop.style.top = top + 'px';
+
+  setTimeout(() => document.getElementById('cp-new-val').focus(), 50);
+}
+
+function closeCorrectionPopover() {
+  document.getElementById('correction-popover').classList.remove('open');
+  _popoverState = null;
+}
+
+// Save a correction to Supabase
+async function saveCorrection() {
+  if (!_popoverState || !currentScenario) return;
+  const { fieldKey, fieldLabel, originalValue, correctionId } = _popoverState;
+  const newVal = document.getElementById('cp-new-val').value.trim();
+  const comment = document.getElementById('cp-comment').value.trim();
+  if (!newVal) { showToast('⚠️ Please enter a corrected value'); return; }
+  const id = getIdentity();
+  const saveBtn = document.getElementById('cp-save-btn');
+  saveBtn.disabled = true; saveBtn.textContent = 'Saving…';
+
+  try {
+    const payload = {
+      scenario_id: String(currentScenario.id),
+      field_key: fieldKey,
+      field_label: fieldLabel,
+      original_value: originalValue,
+      corrected_value: newVal,
+      comment: comment || null,
+      corrected_by_name: id.name || 'Unknown',
+      corrected_by_svcnum: id.svcNum || '',
+      corrected_by_uuid: id.uuid,
+      status: 'active'
+    };
+
+    if (correctionId) {
+      // Update existing
+      await sbFetch(`scenario_corrections?id=eq.${correctionId}`, {
+        method: 'PATCH',
+        prefer: 'return=representation',
+        body: JSON.stringify({ corrected_value: newVal, comment: comment || null, corrected_by_name: id.name||'Unknown', corrected_by_svcnum: id.svcNum||'', timestamp: new Date().toISOString() })
+      });
+    } else {
+      await sbFetch('scenario_corrections', { method: 'POST', prefer: 'return=representation', body: JSON.stringify(payload) });
+    }
+
+    closeCorrectionPopover();
+    showToast('✓ Correction saved');
+    // Reload corrections and re-render with full restore
+    await loadCorrectionsForScenario(currentScenario.id);
+    const patched = applyCorrectionsToScenario(currentScenario);
+    document.getElementById('scenario-view').innerHTML = renderScenario(patched);
+    ['sec-dispatch','sec-flags','sec-patient-assessment','sec-diagnosis','sec-implement'].forEach(sid => {
+      const b = document.getElementById(sid); const h = b && b.previousElementSibling;
+      if (b) b.classList.add('open'); if (h) h.classList.add('open');
+    });
+    updateScoreSheet(); showStickyBar(patched); applyLevel(currentLevel);
+    injectFlagButtons();
+    if (_flagModeActive) document.body.classList.add('flag-mode-active');
+    reInitECGAfterRender(currentScenario.id, (patched.vitals||{}).Rhythm);
+  } finally {
+    saveBtn.disabled = false; saveBtn.textContent = '💾 Save Correction';
+  }
+}
+
+// Revert a correction back to original
+async function revertCorrection() {
+  if (!_popoverState || !_popoverState.correctionId) return;
+  if (!confirm('Revert this correction? The original value will be shown again.')) return;
+  const saveBtn = document.getElementById('cp-save-btn');
+  saveBtn.disabled = true;
+  try {
+    await sbFetch(`scenario_corrections?id=eq.${_popoverState.correctionId}`, {
+      method: 'PATCH',
+      prefer: 'return=representation',
+      body: JSON.stringify({ status: 'reverted' })
+    });
+    closeCorrectionPopover();
+    showToast('↩ Reverted to original');
+    await loadCorrectionsForScenario(currentScenario.id);
+    const patched2 = applyCorrectionsToScenario(currentScenario);
+    document.getElementById('scenario-view').innerHTML = renderScenario(patched2);
+    ['sec-dispatch','sec-flags','sec-patient-assessment','sec-diagnosis','sec-implement'].forEach(sid => {
+      const b = document.getElementById(sid); const h = b && b.previousElementSibling;
+      if (b) b.classList.add('open'); if (h) h.classList.add('open');
+    });
+    updateScoreSheet(); showStickyBar(patched2); applyLevel(currentLevel);
+    injectFlagButtons();
+    if (_flagModeActive) document.body.classList.add('flag-mode-active');
+    reInitECGAfterRender(currentScenario.id, (patched2.vitals||{}).Rhythm);
+  } finally {
+    saveBtn.disabled = false;
+  }
+}
+
+// Close popover on outside click
+document.addEventListener('click', (e) => {
+  const pop = document.getElementById('correction-popover');
+  if (pop && pop.classList.contains('open') && !pop.contains(e.target) && !e.target.classList.contains('row-flag-btn')) {
+    closeCorrectionPopover();
+  }
+});
+
+// ============================================================
+// CORRECTIONS ADMIN MODAL
+// ============================================================
+let _allCorrections = [];
+let _corrFilter = 'all';
+let _allScenarios = [];
+
+async function openCorrectionsModal() {
+  document.getElementById('corrections-modal').classList.add('open');
+  document.getElementById('corrections-list').innerHTML = '<p style="color:var(--grey);font-size:13px">Loading…</p>';
+  try {
+    const res = await sbFetch('scenario_corrections?order=timestamp.desc&limit=200');
+    _allCorrections = Array.isArray(res) ? res : [];
+    _allScenarios = getAllScenarios();
+    renderCorrectionsList();
+  } catch(e) {
+    document.getElementById('corrections-list').innerHTML = `<p style="color:var(--red);font-size:13px">⚠️ Could not load: ${e.message}</p>`;
+  }
+}
+
+function closeCorrectionsModal() {
+  document.getElementById('corrections-modal').classList.remove('open');
+}
+document.getElementById('corrections-modal').addEventListener('click', e => {
+  if (e.target === document.getElementById('corrections-modal')) closeCorrectionsModal();
+});
+
+function filterCorrections(filter) {
+  _corrFilter = filter;
+  document.querySelectorAll('.corr-filter-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('cf-' + filter).classList.add('active');
+  renderCorrectionsList();
+}
+
+function renderCorrectionsList() {
+  const list = document.getElementById('corrections-list');
+  const filtered = _corrFilter === 'all' ? _allCorrections : _allCorrections.filter(c => c.status === _corrFilter);
+  if (!filtered.length) {
+    list.innerHTML = '<p style="color:var(--grey);font-size:13px;text-align:center;padding:20px 0">No corrections found.</p>';
+    return;
+  }
+  list.innerHTML = filtered.map(c => {
+    const scen = _allScenarios.find(s => String(s.id) === String(c.scenario_id));
+    const scenTitle = scen ? scen.title : `Scenario ${c.scenario_id}`;
+    const dt = c.timestamp ? new Date(c.timestamp).toLocaleDateString('en-AU', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }) : '—';
+    const statusClass = c.status === 'active' ? 'active' : 'reverted';
+    const statusLabel = c.status === 'active' ? 'Active' : 'Reverted';
+    return `<div class="corr-item">
+      <div class="corr-item-header">
+        <div>
+          <div class="corr-scenario-title">${scenTitle}</div>
+          <div class="corr-field-label">${c.field_label}</div>
+        </div>
+        <span class="corr-status-badge ${statusClass}">${statusLabel}</span>
+      </div>
+      <div class="corr-values">
+        <span class="corr-orig-val">${c.original_value||'(empty)'}</span>
+        <span class="corr-arrow">→</span>
+        <span class="corr-new-val">${c.corrected_value}</span>
+      </div>
+      ${c.comment ? `<div class="corr-comment">"${c.comment}"</div>` : ''}
+      <div class="corr-meta">By ${c.corrected_by_name} (${c.corrected_by_svcnum||'no ID'}) · ${dt}</div>
+    </div>`;
+  }).join('');
+}
+
+
+
 
 </script>
 <!-- Sticky scenario bar: timer + vitals — placed last in body for reliable fixed positioning across all browsers -->
@@ -6054,11 +6815,10 @@ window.initAssessorECG = initAssessorECG;
       <button class="sticky-timer-btn" onclick="resetTimer()">↺</button>
     </div>
     <div id="sticky-title">
-      <div class="st-name" id="sticky-title-name">—</div>
+      <div class="st-demog" id="sticky-title-demog">—</div>
       <div class="st-sub" id="sticky-title-sub">—</div>
     </div>
     <div id="sticky-vitals"></div>
-    <button id="sticky-ecg-btn" onclick="openStickyECG()">📈 ECG</button>
   </div>
 </div>
 
