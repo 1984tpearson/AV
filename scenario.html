@@ -84,8 +84,8 @@ body.snav-active #content { padding-left: 60px; }
 /* ============================================================ SCORE PANEL — bottom sheet on iPad */
 #score-panel { display: none; }
 #score-panel.visible { display: block; }
-#score-panel-toggle { position: fixed; bottom: 16px; right: 16px; z-index: 50; width: 60px; height: 60px; border-radius: 50%; background: var(--navy); color: white; border: none; font-size: 22px; cursor: pointer; box-shadow: 0 4px 16px rgba(0,0,0,0.25); display: none; align-items: center; justify-content: center; }
-#score-panel-toggle.visible { display: flex; }
+#score-panel-toggle { display: none !important; }
+#score-panel-toggle.visible { display: none !important; }
 #score-panel-toggle:active { background: var(--navy-dark); }
 #score-sheet { position: fixed; bottom: 0; left: 0; right: 0; z-index: 80; background: white; border-radius: 20px 20px 0 0; box-shadow: 0 -4px 24px rgba(0,0,0,0.18); transform: translateY(100%); transition: transform 0.3s cubic-bezier(0.4,0,0.2,1); max-height: 75vh; overflow-y: auto; padding-bottom: env(safe-area-inset-bottom); }
 #score-sheet.open { transform: translateY(0); }
@@ -607,6 +607,16 @@ body.snav-active #content { padding-left: 60px; }
 #flag-error-btn.active { background: #922B21; box-shadow: 0 4px 20px rgba(192,57,43,0.55); animation: flagPulse 2s infinite; }
 @keyframes flagPulse { 0%,100%{box-shadow:0 4px 20px rgba(192,57,43,0.55)} 50%{box-shadow:0 4px 28px rgba(192,57,43,0.9)} }
 #flag-error-btn:active { opacity: 0.85; }
+/* Key History FAB */
+#keyhx-fab { position: fixed; bottom: 148px; right: 16px; z-index: 50; background: var(--navy); color: white; border: none; border-radius: 28px; padding: 0 18px; height: 48px; font-size: 13px; font-weight: 700; cursor: pointer; box-shadow: 0 4px 16px rgba(28,58,110,0.3); display: none; align-items: center; gap: 8px; white-space: nowrap; }
+#keyhx-fab.visible { display: flex; }
+#keyhx-fab:active { opacity: 0.85; }
+#keyhx-panel { position: fixed; bottom: 208px; right: 16px; z-index: 49; width: 320px; max-width: calc(100vw - 32px); background: white; border: 1px solid var(--border); border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.18); display: none; flex-direction: column; overflow: hidden; }
+#keyhx-panel.open { display: flex; }
+#keyhx-panel-header { background: var(--navy); color: white; padding: 9px 14px; font-size: 12px; font-weight: 700; letter-spacing: 0.3px; }
+#keyhx-panel-body { padding: 12px 14px; font-size: 13px; line-height: 1.55; color: var(--text); }
+.khx-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.8px; color: var(--grey); margin-bottom: 3px; }
+.khx-label + .khx-label, .khx-text + .khx-label { margin-top: 10px; }
 /* ── FLAG MODE: dotted outline on flaggable elements ── */
 .row-flag-btn { display: none; background: none; border: none; cursor: pointer; padding: 0; margin: 0; font-size: 0; width: 0; height: 0; position: absolute; }
 /* Persistent edited indicator — always visible, no flag mode needed */
@@ -660,12 +670,12 @@ body.flag-mode-active .flaggable.has-correction:hover { outline: 2px solid var(-
 
 /* ============================================================ PRINT */
 @media print {
-  #topbar, #sidebar, #sidebar-overlay, .modal-overlay, .action-bar, .timer-controls, .sidebar-bottom, #score-panel-toggle, #score-sheet, #score-sheet-overlay, #sticky-bar, .sticky-bar-offset { display: none !important; }
+  #topbar, #sidebar, #sidebar-overlay, .modal-overlay, .action-bar, .timer-controls, .sidebar-bottom, #score-panel-toggle, #score-sheet, #score-sheet-overlay, #sticky-bar, .sticky-bar-offset, #flag-error-btn, #keyhx-fab, #keyhx-panel { display: none !important; }
   /* If summary is open, print ONLY the summary */
   #summary-overlay.open { position: static !important; display: block !important; overflow: visible !important; }
   body:has(#summary-overlay.open) #main-wrapper { display: none !important; }
   body:has(#summary-overlay.open) #site-footer { display: none !important; }
-  body:has(#summary-overlay.open) #score-panel-toggle { display: none !important; }
+  body:has(#summary-overlay.open) #score-panel-toggle, body:has(#summary-overlay.open) #keyhx-fab, body:has(#summary-overlay.open) #keyhx-panel { display: none !important; }
   #summary-inner { padding: 0 !important; }
   .sum-topbar-actions { display: none !important; }
   .sum-btn { display: none !important; }
@@ -895,6 +905,13 @@ body.flag-mode-active .flaggable.has-correction:hover { outline: 2px solid var(-
 
 <!-- Flag Error FAB -->
 <button id="flag-error-btn" onclick="toggleFlagMode()">🚩 Flag Error</button>
+
+<!-- Key History FAB -->
+<button id="keyhx-fab" onclick="toggleKeyHxPanel()">📋 Key History</button>
+<div id="keyhx-panel">
+  <div id="keyhx-panel-header">📋 Key History</div>
+  <div id="keyhx-panel-body"></div>
+</div>
 
 <!-- Correction Popover -->
 <div id="correction-popover">
@@ -1979,9 +1996,12 @@ function showScreen(name) {
   if (fab) fab.classList.toggle('visible', name === 'scenario-view');
   const flagBtn = document.getElementById('flag-error-btn');
   if (flagBtn) flagBtn.classList.toggle('visible', name === 'scenario-view');
+  const khxFab = document.getElementById('keyhx-fab');
+  if (khxFab) khxFab.classList.toggle('visible', name === 'scenario-view');
   if (name !== 'scenario-view') {
     hideStickyBar(); hideScenarioNav();
     if (document.body.classList.contains('flag-mode-active')) toggleFlagMode(true);
+    document.getElementById('keyhx-panel')?.classList.remove('open');
   }
   else { setTimeout(buildScenarioNav, 100); }
   window.scrollTo(0, 0);
@@ -3866,6 +3886,30 @@ function toggleScoreSheet() {
 function closeScoreSheet() {
   document.getElementById('score-sheet').classList.remove('open');
   document.getElementById('score-sheet-overlay').classList.remove('open');
+}
+
+function toggleKeyHxPanel() {
+  const panel = document.getElementById('keyhx-panel');
+  const body = document.getElementById('keyhx-panel-body');
+  const isOpen = panel.classList.contains('open');
+  if (isOpen) {
+    panel.classList.remove('open');
+  } else {
+    // Populate content from current scenario
+    const s = currentScenario;
+    if (!s) return;
+    let html = '';
+    if (s.caller_hx || s.arrival_hx) {
+      html += `<div class="khx-label">Caller Reports</div><div class="khx-text">${s.caller_hx||'—'}</div>`;
+      html += `<div class="khx-label" style="margin-top:10px">On Arrival</div><div class="khx-text">${s.arrival_hx||'—'}</div>`;
+    } else if (s.key_hx) {
+      html += `<div class="khx-label">Key History</div><div class="khx-text">${s.key_hx}</div>`;
+    } else {
+      html = '<div style="color:var(--grey);font-style:italic">No key history recorded.</div>';
+    }
+    body.innerHTML = html;
+    panel.classList.add('open');
+  }
 }
 
 function updateScoreSheet() {
