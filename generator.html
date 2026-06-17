@@ -377,8 +377,15 @@ async function saveAndNavigate(scenario){
 function showStatus(elId,type,msg){
   const el=document.getElementById(elId);if(!el)return;
   el.className='gen-status '+type;
-  el.style.display=type==='loading'?'flex':'block';
-  el.innerHTML=type==='loading'?`<div class="gen-spinner"></div><span>${msg}</span>`:msg;
+  el.style.display=type==='loading'?'block':'block';
+  if(type==='loading'){
+    // Preserve stream card if present, just update/add the spinner line
+    let spinner = el.querySelector('.status-spinner-row');
+    if(!spinner){ spinner=document.createElement('div'); spinner.className='status-spinner-row'; spinner.style.cssText='display:flex;align-items:center;gap:12px;margin-bottom:8px'; el.prepend(spinner); }
+    spinner.innerHTML=`<div class="gen-spinner"></div><span>${msg}</span>`;
+  } else {
+    el.innerHTML=msg;
+  }
 }
 
 // ── CATEGORY LOOKUP (from scenario.html) ─────────────────────────────────────
@@ -789,6 +796,11 @@ async function generateAIScenario() {
   lastAIScenario = null;
   showStatus('quick-status','loading','✦ Generating — usually 15–20 seconds…');
   showStatus('custom-status','loading','✦ Generating — usually 15–20 seconds…');
+  // Pre-show stream cards
+  ['quick-stream-card','custom-stream-card'].forEach(id=>{
+    const c=document.getElementById(id);
+    if(c){c.style.display='block';c.innerHTML=_streamCardHTML();}
+  });
 
   // Guard: check CPG package data is loaded
   if (typeof CPG_PACKAGES === 'undefined') {
