@@ -1,0 +1,911 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AV Scenario Generator</title>
+<script src="cpg_packages_combined.js"></script>
+<style>
+:root {
+  --navy:#1C3A6E;--navy-dark:#122849;--navy-light:#2A4F8F;
+  --amber:#E8921A;--amber-light:#FEF5E7;
+  --green:#27833A;--green-light:#EAFAF1;
+  --red:#C0392B;--red-light:#FDEDEC;
+  --blue:#2E86C1;--blue-light:#EBF5FB;
+  --purple:#7D3C98;--purple-light:#F5EEF8;
+  --grey:#6C7A89;--light:#F4F6F9;--white:#FFFFFF;
+  --text:#1A1A2E;--border:#D5D8DC;
+  --shadow:0 2px 8px rgba(28,58,110,0.10);
+  --tap:48px;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:var(--light);color:var(--text);min-height:100vh;display:flex;flex-direction:column}
+
+/* HEADER */
+.topbar{background:var(--navy-dark);color:white;display:flex;align-items:center;gap:12px;padding:0 16px;height:52px;flex-shrink:0;box-shadow:0 2px 6px rgba(0,0,0,0.25)}
+.topbar-logo{width:28px;height:28px;background:var(--amber);border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:900;color:white;flex-shrink:0}
+.topbar-title{font-size:15px;font-weight:700;letter-spacing:.2px}
+.topbar-sub{font-size:12px;opacity:.6;margin-left:4px}
+.topbar-back{margin-left:auto;background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);color:white;padding:7px 13px;border-radius:7px;font-size:12px;font-weight:600;cursor:pointer;text-decoration:none;display:flex;align-items:center;gap:5px}
+.topbar-back:active{background:rgba(255,255,255,.3)}
+
+/* TAB BAR */
+.tab-bar{background:var(--navy);display:flex;padding:0 16px;gap:2px;flex-shrink:0}
+.tab-btn{padding:12px 18px;font-size:13px;font-weight:600;color:rgba(255,255,255,.55);background:none;border:none;border-bottom:3px solid transparent;cursor:pointer;transition:all .15s;white-space:nowrap}
+.tab-btn:hover{color:rgba(255,255,255,.85)}
+.tab-btn.active{color:white;border-bottom-color:var(--amber)}
+
+/* CONTENT */
+.content{flex:1;display:flex;flex-direction:column;min-height:0}
+.tab-panel{display:none}
+.tab-panel.active{display:flex;flex-direction:column;flex:1;min-height:0}
+.tab-panel-scroll{flex:1;overflow-y:auto;padding:16px;max-width:680px;margin:0 auto;width:100%}
+
+/* QUICK GEN BAR */
+.quick-gen-bar{background:white;border-bottom:1px solid var(--border);padding:10px 16px;display:flex;align-items:center;gap:10px;flex-shrink:0;box-shadow:0 2px 4px rgba(28,58,110,.07);max-width:100%}
+.quick-gen-label{font-size:13px;font-weight:600;color:var(--text);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.quick-gen-label.placeholder{color:var(--grey);font-weight:400}
+
+/* CAT ACCORDION */
+.cat-accordion{background:white;border:1px solid var(--border);border-radius:10px;overflow:hidden;margin-bottom:14px;box-shadow:var(--shadow)}
+.cat-accordion-row{display:flex;align-items:center;gap:10px;padding:11px 14px;cursor:pointer;border-bottom:1px solid #f0f2f5;transition:background .12s;user-select:none;min-height:var(--tap)}
+.cat-accordion-row:last-child{border-bottom:none}
+.cat-accordion-row:active{background:var(--light)}
+.cat-accordion-row.expanded{background:#f7f9fc}
+.car-stripe{width:3px;height:20px;border-radius:2px;flex-shrink:0}
+.car-icon{font-size:16px;width:24px;text-align:center;flex-shrink:0}
+.car-name{font-size:13px;font-weight:700;color:var(--text);flex:1}
+.car-count{font-size:11px;color:var(--grey);font-weight:600;flex-shrink:0;margin-right:6px}
+.car-chevron{font-size:11px;color:var(--grey);flex-shrink:0;transition:transform .2s}
+.car-chevron.open{transform:rotate(90deg)}
+.cat-accordion-body{display:none;background:#f7f9fc;border-top:1px solid #eaedf0}
+.cat-accordion-body.open{display:block}
+
+/* SUBCAT ACCORDION (second level) */
+.subcat-row{display:flex;align-items:center;gap:8px;padding:8px 14px;cursor:pointer;border-bottom:1px solid #eaedf0;background:#f0f3f7;user-select:none;min-height:38px;transition:background .12s}
+.subcat-row:active{background:#e4e8ef}
+.subcat-label{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.7px;color:var(--navy);flex:1}
+.subcat-chevron{font-size:11px;color:var(--grey);transition:transform .18s}
+.subcat-chevron.open{transform:rotate(90deg)}
+.subcat-body{display:none}
+.subcat-body.open{display:block}
+
+/* CONDITION ROWS */
+.cat-subrow{display:flex;align-items:center;gap:8px;padding:9px 14px 9px 44px;cursor:pointer;border-bottom:1px solid #eef0f3;transition:background .12s;min-height:40px}
+.cat-subrow:active{background:#e8ecf2}
+.cat-subrow.selected{background:#e8f0f9}
+.csr-name{font-size:13px;color:var(--text);flex:1}
+.csr-tick{font-size:14px;color:var(--navy);font-weight:700;opacity:0;transition:opacity .12s}
+.cat-subrow.selected .csr-tick{opacity:1}
+
+/* CUSTOM CONDITION PICKER */
+.cond-picker-accordion{border:1px solid var(--border);border-radius:8px;overflow:hidden;margin-top:2px}
+.cpa-cat-row{display:flex;align-items:center;gap:8px;padding:10px 12px;cursor:pointer;border-bottom:1px solid var(--border);background:white;user-select:none;min-height:42px;transition:background .12s}
+.cpa-cat-row:last-child{border-bottom:none}
+.cpa-cat-row.expanded{background:#f7f9fc}
+.cpa-stripe{width:3px;height:16px;border-radius:2px;flex-shrink:0}
+.cpa-icon{font-size:14px;width:20px;text-align:center;flex-shrink:0}
+.cpa-name{font-size:13px;font-weight:700;color:var(--text);flex:1}
+.cpa-count{font-size:11px;font-weight:700;color:var(--navy);margin-right:4px}
+.cpa-chevron{font-size:11px;color:var(--grey);transition:transform .18s}
+.cpa-chevron.open{transform:rotate(90deg)}
+.cpa-cat-body{display:none;border-bottom:1px solid var(--border);background:#f7f9fc}
+.cpa-cat-body.open{display:block}
+.cpa-subcat-row{display:flex;align-items:center;gap:8px;padding:7px 12px;cursor:pointer;border-bottom:1px solid #eaedf0;background:#f0f3f7;user-select:none;transition:background .12s}
+.cpa-subcat-row:active{background:#e4e8ef}
+.cpa-subcat-label{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:var(--navy);flex:1}
+.cpa-subcat-chevron{font-size:11px;color:var(--grey);transition:transform .18s}
+.cpa-subcat-chevron.open{transform:rotate(90deg)}
+.cpa-subcat-body{display:none}
+.cpa-subcat-body.open{display:block}
+.cpa-cond-row{display:flex;align-items:center;padding:9px 12px 9px 28px;border-bottom:1px solid #eef0f3;cursor:pointer;background:white;transition:background .12s;min-height:40px}
+.cpa-cond-row:last-child{border-bottom:none}
+.cpa-cond-row:active{background:#e8ecf2}
+.cpa-cond-row.selected{background:#e8f0f9}
+.cpa-cond-name{font-size:13px;color:var(--text);flex:1}
+.cpa-cond-tick{font-size:14px;color:var(--navy);font-weight:700;opacity:0;transition:opacity .12s}
+.cpa-cond-row.selected .cpa-cond-tick{opacity:1}
+
+/* CONDITION TAGS */
+.condition-tags{display:flex;flex-wrap:wrap;gap:6px;min-height:38px;padding:6px;border:1px solid var(--border);border-radius:8px;background:#fafbfc;margin-bottom:10px}
+.condition-tag{display:flex;align-items:center;gap:5px;padding:4px 10px;background:var(--navy);color:white;border-radius:20px;font-size:12px;font-weight:600}
+.condition-tag .remove-tag{cursor:pointer;opacity:.7;font-size:14px;line-height:1;padding:0 2px}
+.condition-tag .remove-tag:hover{opacity:1}
+.empty-tags{font-size:13px;color:var(--grey);align-self:center;padding-left:4px}
+
+/* FORM */
+label{display:block;font-size:12px;font-weight:700;color:var(--grey);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px}
+input[type=text],input[type=number],input[type=time],select,textarea{width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-size:14px;font-family:inherit;background:white;color:var(--text);outline:none;transition:border-color .15s;min-height:42px}
+input:focus,select:focus,textarea:focus{border-color:var(--navy-light);box-shadow:0 0 0 3px rgba(28,58,110,.08)}
+textarea{resize:vertical;min-height:72px;line-height:1.5}
+.field-hint{font-size:12px;color:var(--grey);margin-top:5px}
+.form-row{display:grid;gap:12px;margin-bottom:14px}
+.form-row.cols-2{grid-template-columns:1fr 1fr}
+.form-row.cols-3{grid-template-columns:1fr 1fr 1fr}
+.form-row.cols-1{grid-template-columns:1fr}
+
+/* TOGGLE CHIPS */
+.toggle-group{display:flex;flex-wrap:wrap;gap:7px}
+.toggle-chip{padding:7px 13px;border:1.5px solid var(--border);border-radius:20px;font-size:13px;font-weight:500;background:white;color:var(--text);cursor:pointer;transition:all .12s;user-select:none}
+.toggle-chip:hover{border-color:var(--navy-light)}
+.toggle-chip.on{background:var(--navy);border-color:var(--navy);color:white;font-weight:600}
+
+/* BUTTONS */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;padding:12px 20px;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;border:none;transition:all .15s;min-height:46px;letter-spacing:.2px}
+.btn-primary{background:var(--amber);color:white;font-size:15px}
+.btn-primary:hover{background:#d4820f}
+.btn-primary:disabled{background:var(--grey);cursor:not-allowed;opacity:.6}
+.btn-secondary{background:white;color:var(--navy);border:1.5px solid var(--navy)}
+.btn-secondary:hover{background:#f0f4fa}
+.btn-sm{padding:7px 13px;font-size:13px;min-height:34px;border-radius:6px}
+.btn-full{width:100%}
+
+/* CARDS */
+.card{background:white;border:1px solid var(--border);border-radius:10px;margin-bottom:14px;box-shadow:var(--shadow);overflow:hidden}
+.card-header{background:var(--navy);color:white;padding:11px 15px;font-size:13px;font-weight:700;display:flex;align-items:center;gap:8px;letter-spacing:.3px}
+
+/* INFO BANNERS */
+.info-banner{background:var(--blue-light);border:1px solid #b3d4f0;border-radius:8px;padding:10px 14px;font-size:13px;color:#1a5276;margin-bottom:16px;display:flex;gap:8px;align-items:flex-start;line-height:1.5}
+.amber-banner{background:var(--amber-light);border-color:#f5cba7;color:#784212}
+
+/* STATUS BOX */
+.gen-status{border-radius:8px;padding:14px 16px;font-size:14px;font-weight:600;display:none;align-items:center;gap:12px;margin-top:14px}
+.gen-status.loading{background:var(--blue-light);color:var(--blue);display:flex;border:1px solid var(--blue)}
+.gen-status.error{background:var(--red-light);color:var(--red);display:block;border:1px solid var(--red)}
+.gen-status.success{background:var(--green-light);color:var(--green);display:block;border:1px solid var(--green)}
+.gen-spinner{width:22px;height:22px;border:3px solid rgba(46,134,193,.25);border-top-color:var(--blue);border-radius:50%;animation:spin .8s linear infinite;flex-shrink:0}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes dotPulse{0%,80%,100%{opacity:0}40%{opacity:1}}
+.dot-pulse span{animation:dotPulse 1.4s infinite ease-in-out both}
+.dot-pulse span:nth-child(2){animation-delay:.2s}
+.dot-pulse span:nth-child(3){animation-delay:.4s}
+
+/* USAGE */
+.usage-bar{background:var(--green-light);border:1px solid #a9dfbf;border-radius:8px;padding:10px 14px;font-size:13px;color:var(--green);margin-bottom:14px;display:flex;align-items:center;gap:8px}
+.usage-bar.warn{background:var(--amber-light);border-color:#f5cba7;color:#784212}
+.usage-bar.maxed{background:var(--red-light);border-color:#f5b7b1;color:var(--red)}
+
+/* DIVIDER */
+.divider{border:none;border-top:1px solid var(--border);margin:16px 0}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="topbar">
+  <div class="topbar-logo">AV</div>
+  <div>
+    <span class="topbar-title">Scenario Generator</span>
+    <span class="topbar-sub">ALS</span>
+  </div>
+  <a class="topbar-back" href="scenario.html">← Scenario Tool</a>
+</div>
+
+<!-- TAB BAR -->
+<div class="tab-bar">
+  <button class="tab-btn active" onclick="switchTab('quick',this)">⚡ Quick Build</button>
+  <button class="tab-btn" onclick="switchTab('custom',this)">🎭 Custom Build</button>
+  <button class="tab-btn" onclick="switchTab('manual',this)">✏️ Manual</button>
+</div>
+
+<div class="content">
+
+  <!-- ══ QUICK BUILD ══ -->
+  <div id="tab-quick" class="tab-panel active">
+    <div class="quick-gen-bar">
+      <span class="quick-gen-label placeholder" id="quick-gen-label">No condition selected</span>
+      <button class="btn btn-primary btn-sm" id="quick-gen-btn" style="flex:none;padding:10px 18px;font-size:13px;min-height:40px" disabled onclick="handleQuickGenerate()">
+        ⚡ Generate
+      </button>
+    </div>
+    <div class="tab-panel-scroll">
+      <div id="usage-display" class="usage-bar" style="display:none"></div>
+      <div class="cat-accordion" id="quick-accordion"></div>
+    </div>
+  </div>
+
+  <!-- ══ CUSTOM BUILD ══ -->
+  <div id="tab-custom" class="tab-panel">
+  <div class="tab-panel-scroll">
+    <div id="usage-display-custom" class="usage-bar" style="display:none"></div>
+    <div class="info-banner amber-banner">
+      <span>🎭</span>
+      <span>Build your patient from scratch. Only fill in what you want to control — everything else will be randomised by the AI.</span>
+    </div>
+
+    <!-- CONDITIONS -->
+    <div class="card">
+      <div class="card-header">📌 Conditions <span style="font-weight:400;opacity:.7;font-size:11px;margin-left:6px">— select 1 or more</span></div>
+      <div style="padding:12px 14px 14px">
+        <div class="condition-tags" id="selected-conditions">
+          <span class="empty-tags">No conditions selected — AI will choose based on your other inputs</span>
+        </div>
+        <div class="cond-picker-accordion" id="cond-picker-accordion"></div>
+      </div>
+    </div>
+
+    <!-- PATIENT -->
+    <div class="card">
+      <div class="card-header">🧑 Patient</div>
+      <div style="padding:16px">
+        <div class="form-row cols-3">
+          <div><label>Age</label><input type="number" id="c-age" placeholder="e.g. 58" min="1" max="120"></div>
+          <div><label>Gender</label>
+            <select id="c-gender">
+              <option value="">— Random —</option>
+              <option>Male</option><option>Female</option>
+              <option>Non-binary</option><option>Not specified</option>
+            </select>
+          </div>
+          <div><label>Weight (kg)</label><input type="number" id="c-weight" placeholder="e.g. 82" min="1" max="300"></div>
+        </div>
+        <div>
+          <label>Time of Day <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--grey);font-size:11px">— leave blank to randomise</span></label>
+          <div style="display:flex;align-items:center;gap:10px">
+            <input type="time" id="c-time" style="width:auto;min-width:130px;font-size:15px;padding:9px 12px">
+            <button class="btn btn-sm btn-secondary" onclick="document.getElementById('c-time').value=''">Clear</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- HISTORY -->
+    <div class="card">
+      <div class="card-header">📋 History</div>
+      <div style="padding:16px">
+        <div class="form-row cols-1">
+          <div><label>Past Medical History</label><textarea id="c-pmhx" placeholder="e.g. Type 2 diabetes, hypertension, previous MI…"></textarea></div>
+        </div>
+        <div class="form-row cols-2">
+          <div><label>Regular Medications</label><textarea id="c-meds" placeholder="e.g. Metformin, Ramipril, Aspirin…" style="min-height:60px"></textarea></div>
+          <div><label>Allergies</label><textarea id="c-allergies" placeholder="e.g. Penicillin — rash" style="min-height:60px"></textarea></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PRESENTATION -->
+    <div class="card">
+      <div class="card-header">🚑 Presentation</div>
+      <div style="padding:16px">
+        <div class="form-row cols-1">
+          <div>
+            <label>Presenting Complaint / Scene Details</label>
+            <textarea id="c-complaint" placeholder="Describe anything — scene, complaint, specific requirements, comorbidities…" style="min-height:90px"></textarea>
+            <div class="field-hint">Leave blank for fully random.</div>
+          </div>
+        </div>
+        <div>
+          <label>Complexity</label>
+          <div class="toggle-group" id="c-complexity">
+            <span class="toggle-chip on" onclick="toggleSingle(this)">Standard</span>
+            <span class="toggle-chip" onclick="toggleSingle(this)">Simple</span>
+            <span class="toggle-chip" onclick="toggleSingle(this)">Complex</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="custom-status" class="gen-status"></div>
+    <button class="btn btn-primary btn-full" id="custom-gen-btn" onclick="handleCustomGenerate()" style="margin-top:4px">🎭 Generate Scenario</button>
+  </div></div>
+
+  <!-- ══ MANUAL ══ -->
+  <div id="tab-manual" class="tab-panel">
+  <div class="tab-panel-scroll">
+    <div style="padding:40px 20px;text-align:center;color:var(--grey)">
+      <div style="font-size:36px;margin-bottom:12px">🚧</div>
+      <div style="font-size:14px;font-weight:600;margin-bottom:6px">Coming soon</div>
+      <div style="font-size:13px">Manual builder will be linked here.</div>
+    </div>
+  </div></div>
+
+</div><!-- /content -->
+
+<!-- QUICK STATUS OVERLAY -->
+<div id="quick-status" class="gen-status" style="position:fixed;bottom:80px;left:50%;transform:translateX(-50%);width:calc(100% - 32px);max-width:640px;z-index:100"></div>
+
+<script>
+// ── SUPABASE CONFIG (same as scenario.html) ──────────────────────────────────
+const SUPABASE_URL  = 'https://befsjenbaruxqrntuhpn.supabase.co';
+const SUPABASE_KEY  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJlZnNqZW5iYXJ1eHFybnR1aHBuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI2MjA5MjAsImV4cCI6MjA4ODE5NjkyMH0.hOFFbIvd1wAgu-QyghupQ-7ttSpg7sxz_UsJbXyXztA';
+const ADMIN_UUID    = 'fe1f2d3f-2139-44ec-bbe0-14ad6bb748ac';
+
+async function sbFetch(path, opts={}) {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
+    ...opts,
+    headers: {
+      'apikey': SUPABASE_KEY,
+      'Authorization': `Bearer ${SUPABASE_KEY}`,
+      'Content-Type': 'application/json',
+      'Prefer': opts.prefer || 'return=representation',
+      ...(opts.headers||{})
+    }
+  });
+  if (!res.ok) { const e=await res.json().catch(()=>({})); throw new Error(e.message||`Supabase error ${res.status}`); }
+  const text = await res.text();
+  return text ? JSON.parse(text) : [];
+}
+
+// ── IDENTITY ─────────────────────────────────────────────────────────────────
+function getIdentity() {
+  let uuid = localStorage.getItem('av_user_uuid');
+  if (!uuid) { uuid = crypto.randomUUID(); localStorage.setItem('av_user_uuid', uuid); }
+  const firstName = localStorage.getItem('av_ci_firstname')||'';
+  const lastName  = localStorage.getItem('av_ci_lastname')||'';
+  const svcNum    = localStorage.getItem('av_ci_svcnum')||'';
+  const name = (firstName||lastName) ? [firstName,lastName].filter(Boolean).join(' ') : (localStorage.getItem('av_user_name')||'');
+  return { uuid, name, firstName, lastName, svcNum };
+}
+function isAdmin() { return getIdentity().uuid === ADMIN_UUID; }
+
+// ── DAILY USAGE ───────────────────────────────────────────────────────────────
+const MAX_DAILY = 5;
+function getDailyCount() {
+  const today = new Date().toISOString().slice(0,10);
+  const storedDate = localStorage.getItem('av_ai_daily_date');
+  const storedCount = parseInt(localStorage.getItem('av_ai_daily_count')||'0');
+  return storedDate === today ? storedCount : 0;
+}
+function incrementDailyCount() {
+  const today = new Date().toISOString().slice(0,10);
+  const count = getDailyCount();
+  localStorage.setItem('av_ai_daily_date', today);
+  localStorage.setItem('av_ai_daily_count', String(count+1));
+}
+function updateUsageDisplay() {
+  if (isAdmin()) {
+    ['usage-display','usage-display-custom'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) { el.style.display='flex'; el.innerHTML='🔑 Admin — unlimited uses'; el.className='usage-bar'; }
+    });
+    return;
+  }
+  const count = getDailyCount();
+  const remaining = MAX_DAILY - count;
+  ['usage-display','usage-display-custom'].forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.style.display = 'flex';
+    if (remaining <= 0) {
+      el.className = 'usage-bar maxed';
+      el.innerHTML = '⚠️ Daily limit reached (5/5). Resets at midnight.';
+    } else if (remaining <= 2) {
+      el.className = 'usage-bar warn';
+      el.innerHTML = `⚡ ${remaining} AI generation${remaining!==1?'s':''} remaining today`;
+    } else {
+      el.className = 'usage-bar';
+      el.innerHTML = `✅ AI generation ready — ${remaining} of ${MAX_DAILY} uses remaining today`;
+    }
+  });
+}
+
+// ── API KEY ───────────────────────────────────────────────────────────────────
+let _cachedKey = null;
+async function getAnthropicKey() {
+  if (_cachedKey) return _cachedKey;
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/app_config?key=eq.anthropic_api_key&select=value`, {
+    headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
+  });
+  if (!res.ok) throw new Error('Could not fetch API key');
+  const data = await res.json();
+  if (!data || !data[0] || !data[0].value) throw new Error('API key not configured');
+  _cachedKey = data[0].value;
+  return _cachedKey;
+}
+
+// ── SAVE SCENARIO ─────────────────────────────────────────────────────────────
+function toRow(s) {
+  const id = getIdentity();
+  return {
+    id:           String(s.id),
+    title:        s.title||'',
+    subtitle:     s.subtitle||'',
+    category:     s.category||'Custom',
+    subcategory:  s.subcategory||'',
+    scenario_type:s.scenario_type||null,
+    type:         s.type||'medical',
+    cpg:          s.cpg||'',
+    level:        s.level||'C/D',
+    dispatch:     s.dispatch||'',
+    vitals:       s.vitals||{},
+    caller_hx:    s.caller_hx||'',
+    arrival_hx:   s.arrival_hx||'',
+    key_hx:       s.key_hx||'',
+    hx:           s.hx||{},
+    medical_conditions: s.medical_conditions||[],
+    medications:  s.medications||[],
+    allergies:    s.allergies||'',
+    rsa:          s.rsa||{},
+    ra:           s.ra||{},
+    ps_exposure:  s.ps_exposure||'',
+    social:       s.social||'',
+    flags:        s.flags||[],
+    ddx:          s.ddx||[],
+    provisional:  s.provisional||'',
+    treatment_als:s.treatment_als||s.treatment||[],
+    treatment_mica:s.treatment_mica||[],
+    life_threats: s.life_threats||[],
+    kq:           s.kq||[],
+    discussion:   s.discussion||[],
+    creator_uuid: s.creator_uuid||id.uuid,
+    creator_name: s.creator_name||id.name||'Anonymous',
+    ai_generated: !!s.ai_generated,
+    is_builtin:   false,
+  };
+}
+
+async function saveAndNavigate(scenario) {
+  const row = toRow(scenario);
+  await sbFetch('scenarios', {
+    method:'POST',
+    prefer:'return=minimal',
+    body: JSON.stringify(row)
+  });
+  window.location.href = `scenario.html?id=${encodeURIComponent(String(scenario.id))}`;
+}
+
+// ── JSON PARSER ───────────────────────────────────────────────────────────────
+function parseFirstJSON(text) {
+  const s = text.indexOf('{');
+  const e = text.lastIndexOf('}');
+  if (s<0||e<0) throw new Error('No JSON found in response');
+  return JSON.parse(text.slice(s, e+1));
+}
+
+// ── GCS NORMALISE ─────────────────────────────────────────────────────────────
+function normaliseGCS(scenario) {
+  if (!scenario.vitals) return;
+  const rawGCS = scenario.vitals.GCS;
+  if (rawGCS && typeof rawGCS==='object' && 'E' in rawGCS) {
+    const e=parseInt(rawGCS.E)||0, v=parseInt(rawGCS.V)||0, m=parseInt(rawGCS.M)||0;
+    const computed = e+v+m;
+    scenario.vitals.GCS = { E:e, V:v, M:m, total:computed, description:rawGCS.description||'' };
+  } else if (rawGCS && typeof rawGCS!=='object') {
+    const n = parseFloat(String(rawGCS))||15;
+    scenario.vitals.GCS = { E:0, V:0, M:0, total:n, description:'' };
+  }
+}
+
+// ── STATUS HELPERS ────────────────────────────────────────────────────────────
+function showStatus(elId, type, html) {
+  const el = document.getElementById(elId);
+  if (!el) return;
+  el.className = 'gen-status ' + type;
+  el.style.display = type==='loading' ? 'flex' : 'block';
+  if (type==='loading') {
+    el.innerHTML = `<div class="gen-spinner"></div><span>${html}</span>`;
+  } else {
+    el.innerHTML = html;
+  }
+}
+function hideStatus(elId) {
+  const el = document.getElementById(elId);
+  if (el) el.style.display = 'none';
+}
+
+// ── BUILD PROMPT ──────────────────────────────────────────────────────────────
+function buildCPGContext(catKey, catKey2) {
+  if (typeof CPG_PACKAGES === 'undefined') return null;
+  // catKey format: "Adult|Cardiac" — look up packages matching this category
+  const getPkgs = (key) => {
+    if (!key) return [];
+    const catKeys = Object.keys(CPG_PACKAGES);
+    // Try direct match first, then category|subcat match
+    const direct = catKeys.filter(k => k === key);
+    if (direct.length) return direct.map(k => CPG_PACKAGES[k]);
+    // key might be "Adult|Cardiac Arrest" format from CATEGORIES data
+    const [cat, sub] = key.includes('::') ? key.split('::') : key.includes('|') ? key.split('|') : [key, key];
+    const catSubKey = `${cat}|${sub}`;
+    const pkgKeys = (typeof CATEGORY_TO_CPG !== 'undefined' && CATEGORY_TO_CPG[catSubKey]) || [];
+    return pkgKeys.map(k => CPG_PACKAGES[k]).filter(Boolean);
+  };
+  const pkgs = [...getPkgs(catKey), ...(catKey2 ? getPkgs(catKey2) : [])];
+  if (!pkgs.length) return null;
+  return pkgs.map(p => `\n--- CPG: ${p.title} (${p.cpg}) ---\n${JSON.stringify(p.steps||p.content||p,null,2).slice(0,3000)}`).join('\n');
+}
+
+const SCENARIO_JSON_TEMPLATE = `{"title":"","subtitle":"","category":"CAT","subcategory":"SUB","cpg":"","dispatch":"","caller_hx":"","arrival_hx":"","vitals":{"GCS":{},"SpO2":"","RR":"","HR":"","BP":"","Temp":"","BGL":"","Ketones":"","EtCO2":"","Weight":"","Rhythm":""},"flags":[],"medical_conditions":[],"medications":[],"allergies":"","provisional":"","ddx":[],"kq":[],"life_threats":[],"hx":{"timeline":"","nature":"","prodromal":"","aggreliev":"","assoc":"","similar":""},"rsa":{"appearance":"","speech":"","breath_sounds":"","rhythm":"","wob":""},"ra":{"wob":"","skin":""},"ps_exposure":"","social":"","discussion":[]}`;
+
+async function callAnthropicAPI(systemPrompt, userPrompt) {
+  const apiKey = await getAnthropicKey();
+  const response = await fetch('https://api.anthropic.com/v1/messages', {
+    method:'POST',
+    headers:{
+      'Content-Type':'application/json',
+      'x-api-key':apiKey,
+      'anthropic-version':'2023-06-01',
+      'anthropic-dangerous-direct-browser-access':'true'
+    },
+    body:JSON.stringify({
+      model:'claude-sonnet-4-6',
+      max_tokens:4000,
+      system:systemPrompt,
+      messages:[{role:'user',content:userPrompt}]
+    })
+  });
+  if (!response.ok) {
+    const e = await response.json().catch(()=>({}));
+    throw new Error(e.error?.message||`Anthropic API error ${response.status}`);
+  }
+  const data = await response.json();
+  const raw = data.content.map(c=>c.text||'').join('');
+  return parseFirstJSON(raw);
+}
+
+// ── CORE GENERATE FUNCTION ────────────────────────────────────────────────────
+async function generateScenario(params, statusElId, btnEl) {
+  // Daily limit check
+  if (!isAdmin()) {
+    if (getDailyCount() >= MAX_DAILY) {
+      showStatus(statusElId, 'error', '⚠️ Daily limit reached (5 uses). Resets at midnight.');
+      return;
+    }
+  }
+
+  const { conditions, category, subcategory, complaint, complexity, age, gender, weight, timeOfDay, pmhx, meds, allergies } = params;
+
+  // Determine category/subcategory for CPG lookup
+  // conditions may be ["Adult::ACS / STEMI"] or from Quick Build a simple name
+  let catForCPG = category || 'Adult';
+  let subForCPG = subcategory || '';
+  if (conditions && conditions.length) {
+    const first = conditions[0];
+    if (first.includes('::')) {
+      const [cat, sub] = first.split('::');
+      catForCPG = cat; subForCPG = sub;
+    }
+  }
+
+  const catLabel = subForCPG ? `${catForCPG} — ${subForCPG}` : catForCPG;
+  const catKey = subForCPG ? `${catForCPG}|${subForCPG}` : catForCPG;
+  const cpgContext = buildCPGContext(catKey, null);
+
+  // Patient demographics
+  const ageStr = age ? `${age}yo` : 'age not specified (choose appropriate)';
+  const genderStr = gender || 'random (choose appropriate)';
+  const weightStr = weight ? `${weight}kg` : 'choose appropriate weight';
+  const timeStr = timeOfDay || 'random';
+
+  // Build complaint line
+  const conditionsList = conditions && conditions.length
+    ? conditions.map(c => c.includes('::') ? c.split('::')[1] : c).join(' + ')
+    : null;
+
+  const seedParts = [];
+  if (age) seedParts.push(`Age: ${ageStr}`);
+  if (gender) seedParts.push(`Gender: ${genderStr}`);
+  if (weight) seedParts.push(`Weight: ${weightStr}`);
+  if (timeOfDay) seedParts.push(`Time: ${timeOfDay}`);
+  if (pmhx) seedParts.push(`PMHx: ${pmhx}`);
+  if (meds) seedParts.push(`Medications: ${meds}`);
+  if (allergies) seedParts.push(`Allergies: ${allergies}`);
+  if (conditionsList) seedParts.push(`Condition(s): ${conditionsList}`);
+  if (complaint) seedParts.push(`Scene/Complaint: ${complaint}`);
+
+  const complaintLine = seedParts.length
+    ? `SCENARIO SEED — honour ALL of these details:\n${seedParts.join('\n')}`
+    : `Choose a realistic and educationally valuable ${catLabel} presentation.`;
+
+  const complexityNote = {
+    Standard: 'Standard, core presentation with typical management.',
+    Simple: 'Simple, straightforward presentation suitable for early assessment.',
+    Complex: 'Include a complicating factor — comorbidity, atypical feature, or medication interaction.',
+  }[complexity] || 'Standard, core presentation.';
+
+  const cpgInstruction = cpgContext
+    ? `You MUST use the exact drug doses, thresholds, and management steps from the CPG content provided below. Do not invent doses or deviate from the provided protocol.${cpgContext}`
+    : 'Use your knowledge of AV CPGs to generate an accurate scenario.';
+
+  const systemPrompt = `You are a clinical scenario writer for Ambulance Victoria (AV) paramedic education. Write accurate ALS (Level C/D) verbal assessment scenarios based strictly on AV Clinical Practice Guidelines v3.13.1 (December 2025). Respond with valid JSON only — no markdown, no preamble. CRITICAL: All clinical content must be drawn exclusively from AV CPG content provided. GCS FORMAT: vitals.GCS must always be a JSON object {E, V, M, total, description}. A fully alert patient is E4 V5 M6 total 15. AUSTRALIAN TERMINOLOGY throughout. ${cpgInstruction}`;
+
+  const userPrompt = `Generate an ALS (Level C/D) verbal scenario for Ambulance Victoria.
+Category: ${catLabel}
+${complaintLine}
+${complexityNote}
+Patient demographics — if not specified in seed above, choose appropriate: age=${ageStr}, gender=${genderStr}, weight=${weightStr}, time of day=${timeStr}.
+
+Do NOT generate treatment_als or treatment_mica — these come from CPG data. Focus on accurate vitals, flags, ddx, provisional diagnosis, and knowledge questions.
+
+Return ONLY valid JSON matching this template:
+${SCENARIO_JSON_TEMPLATE.replace('CAT', catForCPG).replace('SUB', subForCPG)}`;
+
+  if (btnEl) { btnEl.disabled = true; }
+  showStatus(statusElId, 'loading', `Generating<span class="dot-pulse"><span>.</span><span>.</span><span>.</span></span> — usually 15–20 seconds`);
+
+  try {
+    const scenario = await callAnthropicAPI(systemPrompt, userPrompt);
+    scenario.id = 'ai_' + Date.now();
+    scenario.ai_generated = true;
+    scenario.created_at = new Date().toISOString();
+    scenario.category = scenario.category || catForCPG;
+    scenario.subcategory = scenario.subcategory || subForCPG;
+    scenario.level = scenario.level || 'C/D';
+    if (!Array.isArray(scenario.discussion)) scenario.discussion = [];
+    normaliseGCS(scenario);
+    if (!isAdmin()) incrementDailyCount();
+    updateUsageDisplay();
+    showStatus(statusElId, 'success', '✅ Scenario generated — saving and loading…');
+    await saveAndNavigate(scenario);
+  } catch(e) {
+    showStatus(statusElId, 'error', `⚠️ Error: ${e.message}`);
+    if (btnEl) { btnEl.disabled = false; }
+  }
+}
+
+// ── CATEGORY DATA ─────────────────────────────────────────────────────────────
+const CATEGORIES = [
+  {key:'Adult',icon:'🧑',color:'var(--navy)',subcats:{'Cardiac Arrest':['Medical Cardiac Arrest','Traumatic Cardiac Arrest','ROSC Management','Withholding or Ceasing Resuscitation'],'Airway Management':['Essential Airway Management','Endotracheal Intubation (RSI)','Difficult Airway Guideline','Upper Airway Obstruction'],'Cardiac':['ACS / STEMI','Bradycardia','Narrow Complex Tachycardia (SVT/AF)','Broad Complex Tachycardia (VT)','Cardiogenic Pulmonary Oedema','Inadequate Perfusion (Cardiogenic)','STEMI Management','Hypertension'],'Pain Relief':['Pain Relief','Headache'],'Respiratory':['Asthma','COPD Exacerbation','Undifferentiated Dyspnoea','Pulmonary Embolism'],'Medical':['Seizures / Status Epilepticus','Hypoglycaemia','Hyperglycaemia / DKA / HHS','Suspected Stroke / TIA','Anaphylaxis','Shock','Hyperkalaemia','Adrenal Insufficiency / Crisis','Nausea and Vomiting','Syncope'],'Infection':['Sepsis','Meningococcal Septicaemia'],'Mental Health':['Acute Behavioural Disturbance','Mental Health Conditions'],'Palliative Care':['Palliative Care'],'Trauma':['Major Trauma','Traumatic Head Injury','Chest Injury','Spinal Injury','Burns'],'Environment':['Hypothermia','Heat Stress / Heat Stroke'],'Toxicology':['Opioid Toxicity','Tricyclic Antidepressant (TCA) Overdose','Beta-Blocker Toxicity','Calcium Channel Blocker Toxicity','Organophosphate / Pesticide Toxicity','Drug-Induced Hyperthermia / Stimulant Toxidrome','Quetiapine (Antipsychotic) Toxicity','Cyanide Toxicity','Acute Alcohol Intoxication','Alcohol Withdrawal Syndrome']}},
+  {key:'Paediatric',icon:'🧒',color:'var(--blue)',subcats:{'Cardiac Arrest':['Medical Cardiac Arrest','Traumatic Cardiac Arrest','ROSC Management','Withholding or Ceasing Resuscitation'],'Airway Management':['Essential Airway Management','Endotracheal Intubation (RSI)','Difficult Airway Guideline','Upper Airway Obstruction'],'Pain Relief':['Pain Relief'],'Respiratory':['Asthma','Croup'],'Medical':['Seizures / Status Epilepticus','Hypoglycaemia','Anaphylaxis','Hyperglycaemia / DKA / HHS'],'Infection':['Sepsis'],'Trauma':['Major Trauma','Traumatic Head Injury','Chest Injury','Burns'],'Environment':['Hypothermia','Heat Stress / Heat Stroke'],'Toxicology':['Opioid Toxicity','Tricyclic Antidepressant (TCA) Overdose','Acute Alcohol Intoxication','Organophosphate / Pesticide Toxicity','Drug-Induced Hyperthermia / Stimulant Toxidrome']}},
+  {key:'Maternity',icon:'🤰',color:'var(--purple)',subcats:{'Antepartum Haemorrhage':['Antepartum Haemorrhage'],'Pre-eclampsia / Eclampsia':['Pre-eclampsia / Eclampsia'],'Normal Birth':['Normal Birth'],'Breech / Compound':['Breech / Compound Presentation'],'Preterm Labour':['Preterm Labour'],'Cord Prolapse':['Cord Prolapse'],'Shoulder Dystocia':['Shoulder Dystocia'],'Primary Postpartum Haemorrhage':['Primary Postpartum Haemorrhage'],'Miscarriage':['Miscarriage']}},
+  {key:'Newborn',icon:'👶',color:'var(--green)',subcats:{'Newborn Resuscitation':['Newborn Resuscitation','Newborn Assessment']}},
+  {key:'Treat and Refer',icon:'🩹',color:'#6D4C41',subcats:{'Treat and Refer':['Epistaxis','Minor Burns']}},
+];
+
+// ── QUICK BUILD ACCORDION ─────────────────────────────────────────────────────
+function buildAccordion() {
+  const accordion = document.getElementById('quick-accordion');
+  accordion.innerHTML = '';
+  CATEGORIES.forEach((cat, ci) => {
+    const subcatKeys = Object.keys(cat.subcats);
+    const useSubcats = subcatKeys.length > 1;
+
+    const catRow = document.createElement('div');
+    catRow.className = 'cat-accordion-row';
+    catRow.id = `acc-row-${ci}`;
+    catRow.innerHTML = `<div class="car-stripe" style="background:${cat.color}"></div><div class="car-icon">${cat.icon}</div><div class="car-name">${cat.key}</div><div class="car-count" id="acc-count-${ci}"></div><div class="car-chevron" id="acc-chev-${ci}">›</div>`;
+    catRow.addEventListener('click', () => toggleCatRow(ci));
+    accordion.appendChild(catRow);
+
+    const catBody = document.createElement('div');
+    catBody.className = 'cat-accordion-body';
+    catBody.id = `acc-body-${ci}`;
+
+    subcatKeys.forEach((subcat, si) => {
+      const conditions = cat.subcats[subcat];
+      const sbId = `sub-${ci}-${si}`;
+
+      if (useSubcats) {
+        const subcatRow = document.createElement('div');
+        subcatRow.className = 'subcat-row';
+        subcatRow.innerHTML = `<div class="subcat-label">${subcat}</div><div class="subcat-chevron" id="schev-${sbId}">›</div>`;
+        subcatRow.addEventListener('click', e => { e.stopPropagation(); toggleSubcat(sbId); });
+        catBody.appendChild(subcatRow);
+      }
+
+      const subcatBody = document.createElement('div');
+      subcatBody.className = 'subcat-body' + (useSubcats ? '' : ' open');
+      subcatBody.id = sbId;
+
+      conditions.forEach(cond => {
+        const condRow = document.createElement('div');
+        condRow.className = 'cat-subrow';
+        condRow.innerHTML = `<div class="csr-name">${cond}</div><div class="csr-tick">✓</div>`;
+        condRow.addEventListener('click', () => selectQuick(condRow, cond, cat.key, subcat, ci));
+        subcatBody.appendChild(condRow);
+      });
+
+      catBody.appendChild(subcatBody);
+    });
+
+    accordion.appendChild(catBody);
+  });
+}
+
+function toggleCatRow(ci) {
+  const body = document.getElementById(`acc-body-${ci}`);
+  const chev = document.getElementById(`acc-chev-${ci}`);
+  const row  = document.getElementById(`acc-row-${ci}`);
+  const isOpen = body.classList.contains('open');
+  document.querySelectorAll('.cat-accordion-body').forEach(b=>b.classList.remove('open'));
+  document.querySelectorAll('.car-chevron').forEach(c=>c.classList.remove('open'));
+  document.querySelectorAll('.cat-accordion-row').forEach(r=>r.classList.remove('expanded'));
+  if (!isOpen) { body.classList.add('open'); chev.classList.add('open'); row.classList.add('expanded'); }
+}
+
+function toggleSubcat(id) {
+  const body = document.getElementById(id);
+  const chev = document.getElementById('schev-'+id);
+  const isOpen = body.classList.contains('open');
+  body.classList.toggle('open', !isOpen);
+  if (chev) chev.classList.toggle('open', !isOpen);
+}
+
+// ── QUICK BUILD SELECTION ─────────────────────────────────────────────────────
+let _quickSelected = null; // { condRow, name, category, subcategory, catIdx }
+
+function selectQuick(el, name, category, subcategory, catIdx) {
+  if (_quickSelected) {
+    _quickSelected.condRow.classList.remove('selected');
+    updateAccCount(_quickSelected.catIdx, 0);
+  }
+  if (_quickSelected && _quickSelected.condRow === el) {
+    _quickSelected = null;
+    setGenBar(null);
+    return;
+  }
+  el.classList.add('selected');
+  _quickSelected = { condRow:el, name, category, subcategory, catIdx };
+  updateAccCount(catIdx, 1);
+  setGenBar(name);
+}
+
+function updateAccCount(catIdx, n) {
+  const el = document.getElementById('acc-count-'+catIdx);
+  if (el) el.textContent = n > 0 ? '1 selected' : '';
+}
+
+function setGenBar(name) {
+  const label = document.getElementById('quick-gen-label');
+  const btn   = document.getElementById('quick-gen-btn');
+  if (name) {
+    label.textContent = name; label.classList.remove('placeholder'); btn.disabled = false;
+  } else {
+    label.textContent = 'No condition selected'; label.classList.add('placeholder'); btn.disabled = true;
+  }
+}
+
+function handleQuickGenerate() {
+  if (!_quickSelected) return;
+  generateScenario({
+    conditions: [`${_quickSelected.category}::${_quickSelected.name}`],
+    category: _quickSelected.category,
+    subcategory: _quickSelected.subcategory,
+    complaint: '', complexity: 'Standard',
+  }, 'quick-status', document.getElementById('quick-gen-btn'));
+}
+
+// ── CUSTOM BUILD PICKER ───────────────────────────────────────────────────────
+const selectedConditions = [];
+
+function buildConditionPicker() {
+  const accordion = document.getElementById('cond-picker-accordion');
+  accordion.innerHTML = '';
+  CATEGORIES.forEach((cat, ci) => {
+    const subcatKeys = Object.keys(cat.subcats);
+    const useSubcats = subcatKeys.length > 1;
+
+    const catRow = document.createElement('div');
+    catRow.className = 'cpa-cat-row';
+    catRow.id = `cpa-catrow-${ci}`;
+    catRow.innerHTML = `<div class="cpa-stripe" style="background:${cat.color}"></div><div class="cpa-icon">${cat.icon}</div><div class="cpa-name">${cat.key}</div><div class="cpa-count" id="cpa-count-${ci}"></div><div class="cpa-chevron" id="cpa-chev-${ci}">›</div>`;
+    catRow.addEventListener('click', () => toggleCpaCat(ci));
+    accordion.appendChild(catRow);
+
+    const catBody = document.createElement('div');
+    catBody.className = 'cpa-cat-body';
+    catBody.id = `cpa-cat-${ci}`;
+
+    subcatKeys.forEach((subcat, si) => {
+      const conditions = cat.subcats[subcat];
+      const sbId = `cpa-sb-${ci}-${si}`;
+
+      if (useSubcats) {
+        const subcatRow = document.createElement('div');
+        subcatRow.className = 'cpa-subcat-row';
+        subcatRow.innerHTML = `<div class="cpa-subcat-label">${subcat}</div><div class="cpa-subcat-chevron" id="cpachev-${sbId}">›</div>`;
+        subcatRow.addEventListener('click', e => { e.stopPropagation(); toggleCpaSubcat(sbId); });
+        catBody.appendChild(subcatRow);
+      }
+
+      const subcatBody = document.createElement('div');
+      subcatBody.className = 'cpa-subcat-body' + (useSubcats ? '' : ' open');
+      subcatBody.id = sbId;
+
+      conditions.forEach(cond => {
+        const key = `${cat.key}::${cond}`;
+        const condRow = document.createElement('div');
+        condRow.className = 'cpa-cond-row';
+        condRow.dataset.key = key;
+        condRow.innerHTML = `<div class="cpa-cond-name">${cond}</div><div class="cpa-cond-tick">✓</div>`;
+        condRow.addEventListener('click', e => { e.stopPropagation(); toggleCustomCond(condRow, key); });
+        subcatBody.appendChild(condRow);
+      });
+
+      catBody.appendChild(subcatBody);
+    });
+
+    accordion.appendChild(catBody);
+  });
+}
+
+function toggleCpaCat(ci) {
+  const body=document.getElementById(`cpa-cat-${ci}`), chev=document.getElementById(`cpa-chev-${ci}`), row=document.getElementById(`cpa-catrow-${ci}`);
+  const isOpen=body.classList.contains('open');
+  document.querySelectorAll('.cpa-cat-body').forEach(b=>b.classList.remove('open'));
+  document.querySelectorAll('.cpa-chevron').forEach(c=>c.classList.remove('open'));
+  document.querySelectorAll('.cpa-cat-row').forEach(r=>r.classList.remove('expanded'));
+  if (!isOpen) { body.classList.add('open'); chev.classList.add('open'); row.classList.add('expanded'); }
+}
+function toggleCpaSubcat(id) {
+  const body=document.getElementById(id), chev=document.getElementById('cpachev-'+id);
+  const isOpen=body.classList.contains('open');
+  body.classList.toggle('open',!isOpen);
+  if (chev) chev.classList.toggle('open',!isOpen);
+}
+
+function toggleCustomCond(el, key) {
+  const idx = selectedConditions.indexOf(key);
+  if (idx>-1) { selectedConditions.splice(idx,1); el.classList.remove('selected'); }
+  else { selectedConditions.push(key); el.classList.add('selected'); }
+  renderTags(); updateCpaCount();
+}
+function updateCpaCount() {
+  CATEGORIES.forEach((cat,ci) => {
+    const count = selectedConditions.filter(k=>k.startsWith(cat.key+'::')).length;
+    const el = document.getElementById('cpa-count-'+ci);
+    if (el) el.textContent = count>0 ? count+' selected' : '';
+  });
+}
+function removeCondition(key) {
+  const idx = selectedConditions.indexOf(key);
+  if (idx>-1) selectedConditions.splice(idx,1);
+  document.querySelectorAll('.cpa-cond-row').forEach(row => { if (row.dataset.key===key) row.classList.remove('selected'); });
+  renderTags(); updateCpaCount();
+}
+function renderTags() {
+  const container = document.getElementById('selected-conditions');
+  container.innerHTML = '';
+  if (!selectedConditions.length) {
+    const msg=document.createElement('span'); msg.className='empty-tags';
+    msg.textContent='No conditions selected — AI will choose based on your other inputs';
+    container.appendChild(msg); return;
+  }
+  selectedConditions.forEach(key => {
+    const display = key.includes('::') ? key.split('::')[1] : key;
+    const tag = document.createElement('span'); tag.className='condition-tag';
+    tag.innerHTML = `${display} <span class="remove-tag" onclick="removeCondition(${JSON.stringify(key)})">×</span>`;
+    container.appendChild(tag);
+  });
+}
+
+function handleCustomGenerate() {
+  const firstCond = selectedConditions[0];
+  let category = 'Adult', subcategory = '';
+  if (firstCond && firstCond.includes('::')) {
+    [category] = firstCond.split('::');
+    // Find the subcategory from CATEGORIES data
+    for (const cat of CATEGORIES) {
+      if (cat.key !== category) continue;
+      for (const [sub, conds] of Object.entries(cat.subcats)) {
+        if (conds.includes(firstCond.split('::')[1])) { subcategory = sub; break; }
+      }
+      break;
+    }
+  }
+  const complexity = document.querySelector('#c-complexity .toggle-chip.on')?.textContent || 'Standard';
+  generateScenario({
+    conditions: [...selectedConditions],
+    category, subcategory,
+    complaint: document.getElementById('c-complaint').value.trim(),
+    complexity,
+    age: document.getElementById('c-age').value,
+    gender: document.getElementById('c-gender').value,
+    weight: document.getElementById('c-weight').value,
+    timeOfDay: document.getElementById('c-time').value,
+    pmhx: document.getElementById('c-pmhx').value.trim(),
+    meds: document.getElementById('c-meds').value.trim(),
+    allergies: document.getElementById('c-allergies').value.trim(),
+  }, 'custom-status', document.getElementById('custom-gen-btn'));
+}
+
+// ── TOGGLE CHIPS ──────────────────────────────────────────────────────────────
+function toggleSingle(el) {
+  el.closest('.toggle-group').querySelectorAll('.toggle-chip').forEach(c=>c.classList.remove('on'));
+  el.classList.add('on');
+}
+
+// ── TAB SWITCHING ─────────────────────────────────────────────────────────────
+function switchTab(id, btn) {
+  document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('tab-'+id).classList.add('active');
+  btn.classList.add('active');
+}
+
+// ── INIT ──────────────────────────────────────────────────────────────────────
+buildAccordion();
+buildConditionPicker();
+updateUsageDisplay();
+</script>
+</body>
+</html>

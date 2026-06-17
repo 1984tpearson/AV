@@ -1074,7 +1074,7 @@ body.flag-mode-active .flaggable.has-correction:hover { outline: 2px solid var(-
     </div>
   </div>
   <div class="topbar-actions">
-    <button class="tb-btn" id="ai-toggle-btn" onclick="openAIModal()"><span class="ai-dot"></span>✦ Generate AI Case</button>
+    <a class="tb-btn" id="ai-toggle-btn" href="generator.html"><span class="ai-dot"></span>✦ Generate AI Case</a>
     <button class="tb-btn" onclick="openCreateModal()" style="background:rgba(39,131,58,0.6)">✏️ Create</button>
     <button class="tb-btn" onclick="openFeedbackModal()" style="background:rgba(125,60,152,0.6)" title="Send feedback or suggestion">💬 Feedback</button>
   </div>
@@ -1104,7 +1104,7 @@ body.flag-mode-active .flaggable.has-correction:hover { outline: 2px solid var(-
         <div class="theme-swatch" data-theme="dusk"     title="Dusk"     style="background:linear-gradient(135deg,#2A1E3A 50%,#FF9A6C 50%)" onclick="applyTheme('dusk')"></div>
       </div>
     </div>
-    <button class="sidebar-bottom-btn amber" onclick="closeSidebar();openAIModal()">✦ AI Generator</button>
+    <a class="sidebar-bottom-btn amber" href="generator.html">✦ AI Generator</a>
     <button class="sidebar-bottom-btn green" onclick="closeSidebar();openCreateModal()">✏️ Create Manually</button>
     <button class="sidebar-bottom-btn purple" onclick="closeSidebar();openManageModal()">⚙ Manage Custom</button>
   </div>
@@ -1121,7 +1121,7 @@ body.flag-mode-active .flaggable.has-correction:hover { outline: 2px solid var(-
       </div>
 
       <div class="home-actions">
-        <button class="home-ai-btn" onclick="openAIModal()">✦ AI Generator</button>
+        <a class="home-ai-btn" href="generator.html">✦ AI Generator</a>
         <div class="home-secondary-actions">
           <button class="home-create-btn" onclick="openCreateModal()">✏️ Create manually</button>
         </div>
@@ -2068,6 +2068,33 @@ async function initApp() {
       hb.addEventListener('animationend', () => hb.classList.remove('pulse'), { once: true });
     }
   }, 800);
+
+  // Handle ?id= URL parameter — load scenario directly (used by generator.html)
+  const urlParams = new URLSearchParams(window.location.search);
+  const urlId = urlParams.get('id');
+  if (urlId) {
+    // Try from already-loaded cloud scenarios first; if not found, fetch from Supabase
+    const all = getAllScenarios();
+    const found = all.find(x => String(x.id) === String(urlId));
+    if (found) {
+      loadScenario(found.id);
+    } else {
+      // Fetch directly from Supabase by ID
+      sbFetch(`scenarios?id=eq.${encodeURIComponent(urlId)}&select=*`)
+        .then(rows => {
+          if (rows && rows[0]) {
+            const s = fromRow(rows[0]);
+            if (window._cloudScenarios) window._cloudScenarios.push(s);
+            else customScenarios.push(s);
+            loadScenario(s.id);
+          } else {
+            showToast('⚠️ Scenario not found — it may still be saving');
+          }
+        })
+        .catch(e => showToast('⚠️ Could not load scenario: ' + e.message));
+    }
+    return;
+  }
 
   // Restore last open scenario only if this is a same-tab refresh
   // (sessionStorage is cleared on new tab/hyperlink, localStorage persists across both)
@@ -4877,6 +4904,8 @@ function emailSummary() {
 // ============================================================
 
 function openAIModal() {
+  window.location.href = 'generator.html';
+  return;
   document.getElementById('ai-modal').classList.add('open');
   const s = document.getElementById('ai-status');
   s.className = '';
@@ -5851,7 +5880,7 @@ function renderManageModal() {
       <p>No custom scenarios yet.</p>
       <p style="margin-top:6px">Use the AI Generator or Create Manually to add scenarios.</p>
       <div style="display:flex;gap:10px;justify-content:center;margin-top:16px">
-        <button class="modal-submit-btn amber" style="flex:1" onclick="closeManageModal();openAIModal()">✦ AI Generator</button>
+        <a class="modal-submit-btn amber" style="flex:1;text-decoration:none;text-align:center" href="generator.html">✦ AI Generator</a>
         <button class="modal-submit-btn green" style="flex:1" onclick="closeManageModal();openCreateModal()">✏️ Create</button>
       </div>
     </div>`;
