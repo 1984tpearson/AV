@@ -764,13 +764,13 @@ async function generateAIScenario() {
   const origLabel = btn.textContent;
   btn.innerHTML = 'Generating<span class="dot-pulse"><span>.</span><span>.</span><span>.</span></span>';
   lastAIScenario = null;
-  showStatus('gen-status-quick','loading','✦ Generating — usually 15–20 seconds…');
-  showStatus('gen-status-custom','loading','✦ Generating — usually 15–20 seconds…');
+  showStatus('quick-status','loading','✦ Generating — usually 15–20 seconds…');
+  showStatus('custom-status','loading','✦ Generating — usually 15–20 seconds…');
 
   // Guard: check CPG package data is loaded
   if (typeof CPG_PACKAGES === 'undefined') {
-    showStatus('gen-status-quick','error','✕ CPG data not loaded.');
-    showStatus('gen-status-custom','error','✕ CPG data not loaded.');
+    showStatus('quick-status','error','✕ CPG data not loaded.');
+    showStatus('custom-status','error','✕ CPG data not loaded.');
     btn.textContent = origLabel;
     btn.disabled = false;
     return;
@@ -900,8 +900,8 @@ ${SCENARIO_JSON_TEMPLATE.replace('CAT', category).replace('SUB', subcategory)}`;
     const storedCount = parseInt(localStorage.getItem('av_ai_daily_count') || '0');
     const count = storedDate === today ? storedCount : 0;
     if (count >= 5) {
-      showStatus('gen-status-quick','error','⚠️ Daily limit reached.');
-      showStatus('gen-status-custom','error','⚠️ Daily limit reached.');
+      showStatus('quick-status','error','⚠️ Daily limit reached.');
+      showStatus('custom-status','error','⚠️ Daily limit reached.');
       btn.innerHTML = origLabel; btn.disabled = false; return;
     }
   }
@@ -953,12 +953,12 @@ ${SCENARIO_JSON_TEMPLATE.replace('CAT', category).replace('SUB', subcategory)}`;
     btn.innerHTML = origLabel;
     btn.disabled = false;
     // Rebuild sidebar so the scenario is findable, then auto-load and auto-save
-    showStatus('gen-status-quick','success','✅ Saved — loading scenario…');
-    showStatus('gen-status-custom','success','✅ Saved — loading scenario…');
+    showStatus('quick-status','success','✅ Saved — loading scenario…');
+    showStatus('custom-status','success','✅ Saved — loading scenario…');
     await saveAndNavigate(scenario);
   } catch(e) {
-    showStatus('gen-status-quick','error','✕ Error: '+e.message);
-    showStatus('gen-status-custom','error','✕ Error: '+e.message);
+    showStatus('quick-status','error','✕ Error: '+e.message);
+    showStatus('custom-status','error','✕ Error: '+e.message);
     btn.innerHTML=origLabel; btn.disabled=false;
   }
 }
