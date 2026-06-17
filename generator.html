@@ -470,9 +470,9 @@ const CATEGORY_TO_CPG = {
   'Adult|Cardiac Arrest':    ['cardiac_arrest_medical', 'cardiac_arrest_traumatic', 'rosc_management', 'withholding_resuscitation'],
   'Adult|Airway Management': ['essential_airway', 'endotracheal_intubation', 'difficult_airway', 'upper_airway_obstruction'],
   'Adult|Cardiac':           ['acs', 'bradycardia', 'tachycardia_narrow', 'tachycardia_broad', 'pulmonary_oedema', 'inadequate_perfusion_cardiogenic', 'stemi_management', 'hypertension'],
-  'Adult|Pain Relief':       ['pain_relief'],
+  'Adult|Pain Relief':       ['pain_relief', 'headache'],
   'Adult|Respiratory':       ['asthma', 'copd', 'upper_airway_obstruction', 'dyspnoea', 'pulmonary_embolism'],
-  'Adult|Medical':           ['seizures', 'hypoglycaemia', 'stroke', 'anaphylaxis', 'hyperkalaemia', 'hyperglycaemia', 'adrenal_insufficiency', 'headache', 'nausea_vomiting'],
+  'Adult|Medical':           ['seizures', 'hypoglycaemia', 'stroke', 'anaphylaxis', 'hyperkalaemia', 'hyperglycaemia', 'adrenal_insufficiency', 'headache', 'nausea_vomiting', 'shock', 'syncope'],
   'Adult|Infection':         ['sepsis', 'meningococcal'],
   'Adult|Mental Health':     ['acute_behavioural_disturbance', 'mental_health_conditions'],
   'Adult|Palliative Care':   ['palliative_care'],
@@ -502,6 +502,7 @@ const CATEGORY_TO_CPG = {
   'Maternity|Miscarriage':                       ['maternity_patient'],
   // Other
   'Newborn|Newborn Resuscitation': ['newborn_resuscitation', 'the_newborn'],
+  'Treat and Refer|Treat and Refer': ['burns', 'epistaxis'],
   'Treat and Refer|Epistaxis':     [],
   'Treat and Refer|Minor Burns':   ['burns'],
 };
@@ -583,6 +584,7 @@ const CPG_SUBTYPE_LABELS = {
   // Palliative / Syncope
   palliative_care:          'Palliative Care',
   syncope:                  'Syncope',
+  epistaxis:                'Epistaxis (Treat and Refer)',
 };
 
 const CATEGORY_SCENARIO_CPGS = {
@@ -737,16 +739,18 @@ function buildCPGContext(catVal1, catVal2) {
 
   // For single-category calls: use override key if set, otherwise DOM select, otherwise random
   let selectedKeys1 = keys1;
-  if (keys1.length > 1) {
+  {
     const overrideKey = _overrideSubtypeKey;
     const subtypeEl = document.getElementById('gen-cpg-subtype');
     const domChosen = subtypeEl && subtypeEl.value !== '__random__' ? subtypeEl.value : null;
     const chosen = (overrideKey && keys1.includes(overrideKey)) ? overrideKey
                  : (domChosen && keys1.includes(domChosen)) ? domChosen
                  : null;
-    selectedKeys1 = chosen
-      ? [chosen]
-      : [scenarioPool1[Math.floor(Math.random() * scenarioPool1.length)]];
+    if (keys1.length > 1 || chosen) {
+      selectedKeys1 = chosen
+        ? [chosen]
+        : [scenarioPool1[Math.floor(Math.random() * scenarioPool1.length)]];
+    }
   }
 
   // For secondary category: use selected subtype-2 if set, otherwise random from scenario pool
@@ -1120,7 +1124,7 @@ function _streamCardHTML(final = false) {
     <div class="stream-field"><div class="stream-label">Patient</div><div class="stream-value sf-subtitle">${cursor}</div></div>
     <div class="stream-field"><div class="stream-label">Provisional Dx</div><div class="stream-value prov sf-provisional">${cursor}</div></div>
     <div class="stream-field"><div class="stream-label">On Arrival</div><div class="stream-value sf-arrival">${cursor}</div></div>
-    <div class="stream-field"><div class="stream-label">Flags</div><div class="stream-value flag sf-flags">${cursor}</div></div>
+    <div class="stream-field"><div class="stream-label">Vitals</div><div class="stream-value flag sf-vitals" style="font-family:monospace;font-size:12px">${cursor}</div></div>
   `;
 }
 
@@ -1169,15 +1173,25 @@ function _updateStreamCard(card, json) {
   const subtitle    = extract('subtitle');
   const provisional = extract('provisional');
   const arrival     = extract('arrival_hx');
-  const flag1       = extractFirst('flags');
+  // Vitals — extract key values as they appear
+  const hr    = extract('HR');
+  const bp    = extract('BP');
+  const spo2  = extract('SpO2');
+  const rr    = extract('RR');
+  const gcs   = extractFirst('GCS') || extract('total'); // GCS is nested
 
-  const isPartial = (v) => v !== null && json.indexOf('"' + v + '"') === -1;
+  const vitalParts = [];
+  if (hr)   vitalParts.push('HR ' + hr);
+  if (bp)   vitalParts.push('BP ' + bp);
+  if (spo2) vitalParts.push('SpO₂ ' + spo2);
+  if (rr)   vitalParts.push('RR ' + rr);
+  const vitalsStr = vitalParts.join('  ·  ');
 
   if (dispatch)    set('sf-dispatch',    dispatch,    !json.includes('"' + dispatch + '"'));
   if (subtitle)    set('sf-subtitle',    subtitle,    !json.includes('"' + subtitle + '"'));
   if (provisional) set('sf-provisional', provisional, !json.includes('"' + provisional + '"'));
   if (arrival)     set('sf-arrival',     arrival,     !json.includes('"' + arrival + '"'));
-  if (flag1)       set('sf-flags',       '• ' + flag1, !json.includes('"' + flag1 + '"'));
+  if (vitalsStr)   set('sf-vitals',      vitalsStr,   !hr || !bp || !spo2);
 }
 
 let _cachedAnthropicKey = null;
@@ -1286,7 +1300,7 @@ const COND_TO_CPG_KEY = {
   'Newborn Resuscitation':               'newborn_resuscitation',
   'Newborn Assessment':                  'the_newborn',
   // Treat & Refer
-  'Epistaxis':                           null,
+  'Epistaxis':                           'epistaxis',
   'Minor Burns':                         'burns',
 };
 
@@ -1323,7 +1337,8 @@ function handleQuickGenerate() {
   const catKey = `${_quickSelected.category}|${_quickSelected.subcategory}`;
   _overrideCatVal = catKey;
   _overrideSubtypeKey = COND_TO_CPG_KEY[_quickSelected.name] || null;
-  document.getElementById('gen-complaint').value = '';
+  // Always pass the specific condition as a complaint seed so AI generates exactly that
+  document.getElementById('gen-complaint').value = `Specific presentation required: ${_quickSelected.name}. Generate a scenario for this exact condition.`;
   document.getElementById('gen-complexity').value = 'standard';
   _activeGenBtn = 'quick-gen-btn';
   const sel = document.getElementById('gen-category');
