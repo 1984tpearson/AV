@@ -229,14 +229,17 @@ textarea{resize:vertical;min-height:72px;line-height:1.5}
 .amb-track{position:relative;height:44px;margin:8px 0 0;background:transparent;overflow:visible}
 .amb-img{position:absolute;bottom:0;width:48px;image-rendering:pixelated;cursor:pointer;
   animation:amb-bounce .3s ease-in-out infinite alternate}
-.amb-img.rainbow{animation:amb-bounce .3s ease-in-out infinite alternate, amb-rainbow .15s linear infinite}
+.amb-img.rainbow{animation:amb-bounce .3s ease-in-out infinite alternate, amb-rainbow .6s linear infinite}
 @keyframes amb-bounce{
   0%   {transform:translateY(0) rotate(-.5deg)}
   100% {transform:translateY(-3px) rotate(.5deg)}
 }
 @keyframes amb-rainbow{
-  0%   {filter:hue-rotate(0deg) saturate(3) brightness(1.2)}
-  100% {filter:hue-rotate(360deg) saturate(3) brightness(1.2)}
+  0%   {filter:hue-rotate(0deg)   saturate(5) brightness(1.4) contrast(1.2)}
+  25%  {filter:hue-rotate(90deg)  saturate(5) brightness(1.5) contrast(1.2)}
+  50%  {filter:hue-rotate(180deg) saturate(5) brightness(1.4) contrast(1.2)}
+  75%  {filter:hue-rotate(270deg) saturate(5) brightness(1.5) contrast(1.2)}
+  100% {filter:hue-rotate(360deg) saturate(5) brightness(1.4) contrast(1.2)}
 }
 /* ── PROGRESS BAR ── */
 .gen-progress-wrap{padding:0 20px 16px;background:white}
