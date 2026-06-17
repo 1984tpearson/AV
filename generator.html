@@ -223,6 +223,12 @@ textarea{resize:vertical;min-height:72px;line-height:1.5}
 .stream-value.flag{color:#fcd34d}
 .stream-cursor{display:inline-block;width:2px;height:13px;background:#93c5fd;margin-left:2px;vertical-align:middle;animation:blink .7s step-end infinite}
 @keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
+
+/* ── PROGRESS BAR ── */
+.gen-progress-wrap{padding:0 20px 16px;background:white}
+.gen-progress-track{height:4px;background:#e2e8f0;border-radius:2px;overflow:hidden}
+.gen-progress-fill{height:100%;background:var(--amber);border-radius:2px;transition:width .4s ease;width:0%}
+.gen-progress-label{font-size:11px;color:var(--grey);margin-bottom:6px;font-weight:600;letter-spacing:.2px}
 </style>
 </head>
 <body>
@@ -261,27 +267,30 @@ textarea{resize:vertical;min-height:72px;line-height:1.5}
 
   <!-- ══ QUICK BUILD ══ -->
   <div id="tab-quick" class="tab-panel active">
-    <div class="quick-gen-bar">
-      <div style="flex:1;min-width:0">
-        <div class="quick-gen-label placeholder" id="quick-gen-label">No condition selected</div>
-        <div id="quick-multi-tags" style="display:none;flex-wrap:wrap;gap:4px;margin-top:4px"></div>
-      </div>
-      <button class="btn btn-primary btn-sm" id="quick-gen-btn" style="padding:10px 18px;font-size:13px;min-height:40px;flex-shrink:0" disabled onclick="handleQuickGenerate()">
-        ⚡ Generate
-      </button>
-    </div>
     <div class="tab-panel-scroll">
       <div id="usage-display" class="usage-bar" style="display:none"></div>
-      <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 2px;margin-bottom:6px">
-        <span style="font-size:12px;font-weight:600;color:var(--grey)">Multiple conditions</span>
-        <div class="toggle-switch-wrap" onclick="toggleMultiMode()" title="Generate a multi-condition scenario">
-          <div class="toggle-switch" id="multi-toggle-btn"><div class="toggle-switch-thumb"></div></div>
+
+      <!-- Selected condition(s) card -->
+      <div class="card" style="margin-bottom:14px">
+        <div class="card-header">⚡ Selected Condition <span style="font-weight:400;opacity:.7;font-size:11px;margin-left:6px" id="quick-multi-hint">— tap a condition below</span></div>
+        <div style="padding:12px 14px 14px">
+          <div class="condition-tags" id="quick-selected-tags">
+            <span class="empty-tags">No condition selected</span>
+          </div>
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-top:10px;padding-top:10px;border-top:1px solid var(--border)">
+            <span style="font-size:12px;font-weight:600;color:var(--grey)">Multiple conditions</span>
+            <div class="toggle-switch-wrap" onclick="toggleMultiMode()" title="Generate a multi-condition scenario">
+              <div class="toggle-switch" id="multi-toggle-btn"><div class="toggle-switch-thumb"></div></div>
+            </div>
+          </div>
         </div>
       </div>
+
       <div id="quick-status" class="gen-status" style="margin-bottom:14px">
         <div id="quick-stream-card" class="stream-card" style="display:none"></div>
       </div>
       <div class="cat-accordion" id="quick-accordion"></div>
+      <button class="btn btn-primary btn-full" id="quick-gen-btn" onclick="handleQuickGenerate()" style="margin-top:14px" disabled>⚡ Generate Scenario</button>
     </div>
   </div>
 
@@ -461,6 +470,12 @@ function showStatus(elId,type,msg){
     // Move stream card inside inner if it exists as sibling
     const card=document.getElementById(elId==='quick-status'?'quick-stream-card':'custom-stream-card');
     if(card&&card.parentElement!==inner) inner.appendChild(card);
+    // Add progress bar if not present
+    if(!inner.querySelector('.gen-progress-wrap')){
+      const pw=document.createElement('div');pw.className='gen-progress-wrap';
+      pw.innerHTML=`<div class="gen-progress-label">Building scenario…</div><div class="gen-progress-track"><div class="gen-progress-fill"></div></div>`;
+      inner.appendChild(pw);
+    }
   } else {
     el.innerHTML=`<div class="gen-status-inner"><div class="status-msg">${msg}</div></div>`;
   }
@@ -1069,6 +1084,10 @@ ${SCENARIO_JSON_TEMPLATE.replace('CAT', category).replace('SUB', subcategory)}`;
     btn.disabled = false;
     // Rebuild sidebar so the scenario is findable, then auto-load and auto-save
     _overrideCatVal = null; _overrideSubtypeKey = null;
+    // Snap progress to 100% before navigating
+    document.querySelectorAll('.gen-progress-fill').forEach(b=>b.style.width='100%');
+    document.querySelectorAll('.gen-progress-label').forEach(l=>l.textContent='Complete!');
+    await new Promise(r=>setTimeout(r,400));
     showStatus('quick-status','success','✅ Saved — loading scenario…');
     showStatus('custom-status','success','✅ Saved — loading scenario…');
     await saveAndNavigate(scenario);
@@ -1115,7 +1134,11 @@ async function generateWithAnthropic(apiKey, systemPrompt, userPrompt) {
     }
   }
 
-  if (card) card.innerHTML = _streamCardHTML(true); // remove cursor
+  if (card) {
+    card.innerHTML = _streamCardHTML(true); // remove cursor
+    const inner = card.closest('.gen-status-inner');
+    _updateProgress(inner, accumulated, true); // snap to saving state
+  }
   return parseFirstJSON(accumulated);
 }
 
@@ -1128,6 +1151,42 @@ function _streamCardHTML(final = false) {
     <div class="stream-field"><div class="stream-label">On Arrival</div><div class="stream-value sf-arrival">${cursor}</div></div>
     <div class="stream-field"><div class="stream-label">Vitals</div><div class="stream-value flag sf-vitals" style="font-family:monospace;font-size:12px">${cursor}</div></div>
   `;
+}
+
+// Progress milestones — ordered list of [json_key, label, percent]
+const PROGRESS_MILESTONES = [
+  ['dispatch',   'Dispatch',        10],
+  ['subtitle',   'Patient',         20],
+  ['vitals',     'Vital signs',     35],
+  ['hx',         'History',         50],
+  ['provisional','Provisional Dx',  65],
+  ['ddx',        'Differentials',   75],
+  ['kq',         'Knowledge Qs',    85],
+  ['life_threats','Life threats',   90],
+];
+
+function _updateProgress(inner, json, final = false) {
+  if (!inner) return;
+  let bar = inner.querySelector('.gen-progress-fill');
+  let label = inner.querySelector('.gen-progress-label');
+  if (!bar) return;
+  if (final) {
+    label.textContent = 'Saving…';
+    bar.style.width = '95%';
+    return;
+  }
+  let reached = 0;
+  let reachedLabel = 'Building scenario…';
+  for (const [key, lbl, pct] of PROGRESS_MILESTONES) {
+    if (json.includes('"' + key + '"')) {
+      reached = pct;
+      reachedLabel = lbl + '…';
+    }
+  }
+  if (reached > 0) {
+    bar.style.width = reached + '%';
+    label.textContent = reachedLabel;
+  }
 }
 
 function _updateStreamCard(card, json) {
@@ -1194,6 +1253,8 @@ function _updateStreamCard(card, json) {
   if (provisional) set('sf-provisional', provisional, !json.includes('"' + provisional + '"'));
   if (arrival)     set('sf-arrival',     arrival,     !json.includes('"' + arrival + '"'));
   if (vitalsStr)   set('sf-vitals',      vitalsStr,   !hr || !bp || !spo2);
+  // Update progress bar
+  _updateProgress(card.closest('.gen-status-inner'), json);
 }
 
 let _cachedAnthropicKey = null;
