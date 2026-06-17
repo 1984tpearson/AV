@@ -625,7 +625,15 @@ function randomAustralianPatient(category) {
 
 
 // ── CPG CONTEXT + PROMPT + GENERATION ────────────────────────────────────────
+
+// ── CPG OVERRIDE — set by handleQuickGenerate/handleCustomGenerate ────────────
+let _overrideCatVal = null;
+let _overrideSubtypeKey = null;
+
 function buildCPGContext(catVal1, catVal2) {
+  // Use overrides set by generator UI if available
+  if (_overrideCatVal) catVal1 = _overrideCatVal;
+
   const keys1 = CATEGORY_TO_CPG[catVal1] || [];
   const keys2 = catVal2 ? (CATEGORY_TO_CPG[catVal2] || []) : [];
 
@@ -633,12 +641,16 @@ function buildCPGContext(catVal1, catVal2) {
   const scenarioPool1 = CATEGORY_SCENARIO_CPGS[catVal1] || keys1;
   const scenarioPool2 = catVal2 ? (CATEGORY_SCENARIO_CPGS[catVal2] || keys2) : keys2;
 
-  // For single-category calls: use selected subtype if set, otherwise random from scenario pool
+  // For single-category calls: use override key if set, otherwise DOM select, otherwise random
   let selectedKeys1 = keys1;
   if (keys1.length > 1) {
+    const overrideKey = _overrideSubtypeKey;
     const subtypeEl = document.getElementById('gen-cpg-subtype');
-    const chosen = subtypeEl && subtypeEl.value !== '__random__' ? subtypeEl.value : null;
-    selectedKeys1 = chosen && keys1.includes(chosen)
+    const domChosen = subtypeEl && subtypeEl.value !== '__random__' ? subtypeEl.value : null;
+    const chosen = (overrideKey && keys1.includes(overrideKey)) ? overrideKey
+                 : (domChosen && keys1.includes(domChosen)) ? domChosen
+                 : null;
+    selectedKeys1 = chosen
       ? [chosen]
       : [scenarioPool1[Math.floor(Math.random() * scenarioPool1.length)]];
   }
@@ -953,6 +965,7 @@ ${SCENARIO_JSON_TEMPLATE.replace('CAT', category).replace('SUB', subcategory)}`;
     btn.innerHTML = origLabel;
     btn.disabled = false;
     // Rebuild sidebar so the scenario is findable, then auto-load and auto-save
+    _overrideCatVal = null; _overrideSubtypeKey = null;
     showStatus('quick-status','success','✅ Saved — loading scenario…');
     showStatus('custom-status','success','✅ Saved — loading scenario…');
     await saveAndNavigate(scenario);
@@ -1099,14 +1112,14 @@ function _setGenCategory(catKey) {
 function handleQuickGenerate() {
   if (!_quickSelected) return;
   const catKey = `${_quickSelected.category}|${_quickSelected.subcategory}`;
-  _setGenCategory(catKey);
-  // Set the specific CPG subtype so buildCPGContext picks exactly the right package
-  const cpgKey = COND_TO_CPG_KEY[_quickSelected.name] || '__random__';
-  const subSel = document.getElementById('gen-cpg-subtype');
-  if (subSel) subSel.value = cpgKey;
+  _overrideCatVal = catKey;
+  _overrideSubtypeKey = COND_TO_CPG_KEY[_quickSelected.name] || null;
   document.getElementById('gen-complaint').value = '';
   document.getElementById('gen-complexity').value = 'standard';
   _activeGenBtn = 'quick-gen-btn';
+  // Also set gen-category for generateAIScenario's category label
+  const sel = document.getElementById('gen-category');
+  if (sel) { const opt = document.createElement('option'); opt.value = catKey; sel.appendChild(opt); sel.value = catKey; }
   generateAIScenario();
 }
 
@@ -1150,11 +1163,12 @@ function handleCustomGenerate() {
   const complexityMap = { Standard:'standard', Simple:'standard', Complex:'complex' };
   document.getElementById('gen-complexity').value = complexityMap[complexity] || 'standard';
 
-  // Set subtype for first condition if we have an exact CPG key
+  // Set override CPG key for first condition
   const firstCondName = selectedConditions[0] ? (selectedConditions[0].includes('::') ? selectedConditions[0].split('::')[1] : selectedConditions[0]) : null;
-  const cpgKey = firstCondName ? (COND_TO_CPG_KEY[firstCondName] || '__random__') : '__random__';
-  const subSel = document.getElementById('gen-cpg-subtype');
-  if (subSel) subSel.value = cpgKey;
+  _overrideCatVal = catKey;
+  _overrideSubtypeKey = firstCondName ? (COND_TO_CPG_KEY[firstCondName] || null) : null;
+  const sel = document.getElementById('gen-category');
+  if (sel) { const opt = document.createElement('option'); opt.value = catKey; sel.appendChild(opt); sel.value = catKey; }
   _activeGenBtn = 'custom-gen-btn';
   generateAIScenario();
 }
