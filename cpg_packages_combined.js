@@ -2079,6 +2079,42 @@ const CPG_PACKAGES = {
       { type: "mica", text: "ETT sizes: Extremely preterm < 1 kg (< 28 wks) – 2.5 mm, lip length 6–7 cm, laryngoscope 00 straight Miller blade. Moderately preterm 1–3 kg (28–34 wks) – 3.0 mm, lip length 7–9 cm, laryngoscope 0 or 1 straight Miller blade, i-Gel size 1.0 for > 2 kg. Term/near term > 3 kg (≥ 35 wks) – 3.5 mm, lip length 9–10 cm, laryngoscope 0 or 1 straight Miller blade, i-Gel size 1.0 for > 2 kg" },
     ],
     notes: "Ventilation and warmth = highest priorities. HR rise = best indicator of adequate ventilation. 3:1 CPR ratio. PPV within 60 seconds. PIPER early. Do not resuscitate < 22 weeks. EMMA infant adaptor essential for MICA intubation."
+  },
+
+  // -----------------------------------------------------------
+  // P0601 Croup
+  // -----------------------------------------------------------
+  croup: {
+    cpg: "P0601-1",
+    title: "Croup",
+    careObjectives: [
+      "Identify severity of croup",
+      "Administer dexamethasone for all cases",
+      "Administer adrenaline for severe cases",
+      "Identify appropriate disposition: Mild — self care; Moderate — VED referral +/- transport to ED; Severe — AV transport to ED"
+    ],
+    management: [
+      { type: "note", items: ["Patients aged < 16 years with croup"] },
+      { type: "stop", text: "Minimise distress — distress worsens upper airway obstruction. Keep child with carers as much as possible" },
+      { type: "stop", text: "RAT should NOT be administered, especially in severe cases" },
+      { type: "assess", items: [
+        "Severity: Behaviour, Stridor (none/intermittent/persistent at rest/decreasing), RR (normal/increased/marked increase/decreasing — late sign), Accessory muscle use, SpO₂",
+        "Risk factors for severe croup: Age < 6 months, pre-existing airway narrowing/abnormality (e.g. tracheomalacia, subglottic stenosis), past Hx of severe croup",
+        "Differential diagnosis: Foreign body airway obstruction, Epiglottitis (drooling, difficulty swallowing — do NOT inspect airway), Anaphylaxis"
+      ]},
+      { type: "subheader", text: "Mild — Normal behaviour, stridor only when active, normal RR, SpO₂ ≥ 96%" },
+      { type: "action", text: "Dexamethasone 150 mcg/kg Oral (max 12 mg)" },
+      { type: "action", text: "Self-care advice and safety netting — provide RCH Croup Factsheet" },
+      { type: "action", text: "Disposition: Self-care" },
+      { type: "subheader", text: "Moderate — Intermittent mild agitation, stridor at rest, increased RR, moderate chest wall retraction, SpO₂ ≥ 96%" },
+      { type: "action", text: "Dexamethasone 150 mcg/kg Oral (max 12 mg)" },
+      { type: "action", text: "Disposition: VED Ambulance Referral — consult VED regarding most appropriate disposition. If VED not available, transport to ED" },
+      { type: "subheader", text: "Severe — Increasing agitation/drowsiness, persistent stridor at rest (or decreasing — late sign), marked increased RR (or decreasing — late sign), marked chest wall retraction, SpO₂ < 96% (late sign)" },
+      { type: "action", text: "Adrenaline 5 mg (5 mL, 1:1000) nebulised at 5 minute intervals until improvement" },
+      { type: "action", text: "Dexamethasone 600 mcg/kg Oral (high dose, max 12 mg)" },
+      { type: "action", text: "Disposition: Transport to ED" }
+    ],
+    notes: "Croup most common 6 months to 3 years. Viral illness — barking cough, inspiratory stridor, hoarse voice, increased WoB, symptoms worse at night. Do NOT use RAT. Do NOT inspect airway if epiglottitis suspected. Intermittent stridor is NOT a red flag if mild/moderate croup has been treated with dexamethasone and meets self-care/VED criteria."
   }
 
 };
