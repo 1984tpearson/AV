@@ -178,6 +178,34 @@ textarea{resize:vertical;min-height:72px;line-height:1.5}
 .stream-cursor{display:inline-block;width:2px;height:14px;background:#58a6ff;margin-left:2px;vertical-align:middle;animation:blink-cursor .7s step-end infinite}
 @keyframes blink-cursor{0%,100%{opacity:1}50%{opacity:0}}
 
+
+/* ── MODE TILES ── */
+.mode-tile{background:white;border:2px solid var(--border);border-radius:12px;padding:14px 10px;cursor:pointer;text-align:center;transition:all .15s;display:flex;flex-direction:column;align-items:center;gap:4px}
+.mode-tile:active{transform:scale(.97)}
+.mode-tile.active{border-color:var(--navy);background:#f0f4fa;box-shadow:0 0 0 3px rgba(28,58,110,.1)}
+.mode-tile-icon{font-size:26px;line-height:1}
+.mode-tile-title{font-size:13px;font-weight:800;color:var(--navy)}
+.mode-tile.active .mode-tile-title{color:var(--navy)}
+.mode-tile-desc{font-size:11px;color:var(--grey);line-height:1.3}
+
+/* ── MULTI TOGGLE ── */
+.multi-toggle{background:white;border:1.5px solid var(--border);border-radius:7px;padding:7px 11px;font-size:12px;font-weight:700;color:var(--grey);cursor:pointer;transition:all .15s;white-space:nowrap}
+.multi-toggle:hover{border-color:var(--navy);color:var(--navy)}
+.multi-toggle.on{background:var(--navy);border-color:var(--navy);color:white}
+.quick-multi-tag{display:inline-flex;align-items:center;gap:4px;padding:3px 8px;background:var(--navy);color:white;border-radius:12px;font-size:11px;font-weight:600}
+.quick-multi-tag .rtag{cursor:pointer;opacity:.7;margin-left:2px}
+.quick-multi-tag .rtag:hover{opacity:1}
+
+/* ── STREAM CARD ── */
+.stream-card{background:#0d1117;border:1px solid #30363d;border-radius:8px;padding:14px 16px;font-size:13px;line-height:1.7}
+.stream-field{margin-bottom:8px}
+.stream-label{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.7px;color:#484f58;margin-bottom:2px}
+.stream-value{color:#c9d1d9;font-size:13px;min-height:18px}
+.stream-value.pager{font-family:monospace;color:#79c0ff;font-size:12px}
+.stream-value.prov{color:#7ee787;font-weight:600}
+.stream-value.flag{color:#ffa657}
+.stream-cursor{display:inline-block;width:2px;height:13px;background:#58a6ff;margin-left:2px;vertical-align:middle;animation:blink .7s step-end infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
 </style>
 </head>
 <body>
@@ -193,10 +221,23 @@ textarea{resize:vertical;min-height:72px;line-height:1.5}
 </div>
 
 <!-- TAB BAR -->
-<div class="tab-bar">
-  <button class="tab-btn active" onclick="switchTab('quick',this)">⚡ Quick Build</button>
-  <button class="tab-btn" onclick="switchTab('custom',this)">🎭 Custom Build</button>
-  <button class="tab-btn" onclick="switchTab('manual',this)">✏️ Manual</button>
+<!-- MODE TILES -->
+<div style="padding:14px 16px;background:var(--light);border-bottom:1px solid var(--border);display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;flex-shrink:0">
+  <button class="mode-tile active" id="tile-quick" onclick="switchTab('quick',this)">
+    <div class="mode-tile-icon">⚡</div>
+    <div class="mode-tile-title">Quick Build</div>
+    <div class="mode-tile-desc">Pick a condition, generate instantly</div>
+  </button>
+  <button class="mode-tile" id="tile-custom" onclick="switchTab('custom',this)">
+    <div class="mode-tile-icon">🎭</div>
+    <div class="mode-tile-title">Custom Build</div>
+    <div class="mode-tile-desc">Build your patient from scratch</div>
+  </button>
+  <button class="mode-tile" id="tile-manual" onclick="switchTab('manual',this)">
+    <div class="mode-tile-icon">✏️</div>
+    <div class="mode-tile-title">Manual</div>
+    <div class="mode-tile-desc">Create without AI</div>
+  </button>
 </div>
 
 <div class="content">
@@ -204,13 +245,24 @@ textarea{resize:vertical;min-height:72px;line-height:1.5}
   <!-- ══ QUICK BUILD ══ -->
   <div id="tab-quick" class="tab-panel active">
     <div class="quick-gen-bar">
-      <span class="quick-gen-label placeholder" id="quick-gen-label">No condition selected</span>
-      <button class="btn btn-primary btn-sm" id="quick-gen-btn" style="flex:none;padding:10px 18px;font-size:13px;min-height:40px" disabled onclick="handleQuickGenerate()">
-        ⚡ Generate
-      </button>
+      <div style="flex:1;min-width:0">
+        <div class="quick-gen-label placeholder" id="quick-gen-label">No condition selected</div>
+        <div id="quick-multi-tags" style="display:none;flex-wrap:wrap;gap:4px;margin-top:4px"></div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;flex-shrink:0">
+        <button class="multi-toggle" id="multi-toggle-btn" onclick="toggleMultiMode()" title="Add multiple conditions">
+          <span id="multi-toggle-icon">＋</span> Multi
+        </button>
+        <button class="btn btn-primary btn-sm" id="quick-gen-btn" style="padding:10px 18px;font-size:13px;min-height:40px" disabled onclick="handleQuickGenerate()">
+          ⚡ Generate
+        </button>
+      </div>
     </div>
     <div class="tab-panel-scroll">
       <div id="usage-display" class="usage-bar" style="display:none"></div>
+      <div id="quick-status" class="gen-status" style="margin-bottom:14px">
+        <div id="quick-stream-card" class="stream-card" style="display:none"></div>
+      </div>
       <div class="cat-accordion" id="quick-accordion"></div>
     </div>
   </div>
@@ -296,7 +348,9 @@ textarea{resize:vertical;min-height:72px;line-height:1.5}
       </div>
     </div>
 
-    <div id="custom-status" class="gen-status"></div>
+    <div id="custom-status" class="gen-status" style="margin-bottom:8px">
+      <div id="custom-stream-card" class="stream-card" style="display:none"></div>
+    </div>
     <button class="btn btn-primary btn-full" id="custom-gen-btn" onclick="handleCustomGenerate()" style="margin-top:4px">🎭 Generate Scenario</button>
   </div></div>
 
@@ -312,8 +366,7 @@ textarea{resize:vertical;min-height:72px;line-height:1.5}
 
 </div><!-- /content -->
 
-<!-- QUICK STATUS OVERLAY -->
-<div id="quick-status" class="gen-status" style="position:fixed;bottom:80px;left:50%;transform:translateX(-50%);width:calc(100% - 32px);max-width:640px;z-index:100"></div>
+
 
 <script>
 // ── SUPABASE CONFIG (same as scenario.html) ──────────────────────────────────
@@ -796,11 +849,9 @@ async function generateAIScenario() {
   lastAIScenario = null;
   showStatus('quick-status','loading','✦ Generating — usually 15–20 seconds…');
   showStatus('custom-status','loading','✦ Generating — usually 15–20 seconds…');
-  // Pre-show stream cards
-  ['quick-stream-card','custom-stream-card'].forEach(id=>{
-    const c=document.getElementById(id);
-    if(c){c.style.display='block';c.innerHTML=_streamCardHTML();}
-  });
+  // Pre-show the active stream card
+  const _activeCard = document.getElementById(_activeGenBtn === 'quick-gen-btn' ? 'quick-stream-card' : 'custom-stream-card');
+  if (_activeCard) { _activeCard.style.display='block'; _activeCard.innerHTML=_streamCardHTML(); }
 
   // Guard: check CPG package data is loaded
   if (typeof CPG_PACKAGES === 'undefined') {
@@ -1007,15 +1058,9 @@ async function generateWithAnthropic(apiKey, systemPrompt, userPrompt) {
   });
   if (!response.ok) { const e=await response.json().catch(()=>({})); throw new Error(e.error?.message||`Anthropic API error ${response.status}`); }
 
-  // Determine which stream card to use
-  const isQuick = _activeGenBtn === 'quick-gen-btn';
-  const cardId = isQuick ? 'quick-stream-card' : 'custom-stream-card';
-  const statusId = isQuick ? 'quick-status' : 'custom-status';
-  const card = document.getElementById(cardId);
-  if (card) {
-    card.style.display = 'block';
-    card.innerHTML = _streamCardHTML();
-  }
+  // Show stream cards in both status divs
+  const card = document.getElementById(_activeGenBtn === 'quick-gen-btn' ? 'quick-stream-card' : 'custom-stream-card');
+  if (card) { card.style.display = 'block'; card.innerHTML = _streamCardHTML(); }
 
   // Read the stream
   const reader = response.body.getReader();
@@ -1213,6 +1258,23 @@ function _setGenCategory(catKey) {
 }
 
 function handleQuickGenerate() {
+  if (_multiMode) {
+    if (!_quickMultiSelected.length) return;
+    // Use first condition for CPG context, pass all as complaint seed
+    const first = _quickMultiSelected[0];
+    const catKey = `${first.category}|${first.subcategory}`;
+    _overrideCatVal = catKey;
+    _overrideSubtypeKey = COND_TO_CPG_KEY[first.name] || null;
+    // Build complaint from all conditions
+    const condList = _quickMultiSelected.map(s => s.name).join(' + ');
+    document.getElementById('gen-complaint').value = `Multi-condition scenario: ${condList}`;
+    document.getElementById('gen-complexity').value = 'standard';
+    _activeGenBtn = 'quick-gen-btn';
+    const sel = document.getElementById('gen-category');
+    if (sel) { const opt = document.createElement('option'); opt.value = catKey; sel.appendChild(opt); sel.value = catKey; }
+    generateAIScenario();
+    return;
+  }
   if (!_quickSelected) return;
   const catKey = `${_quickSelected.category}|${_quickSelected.subcategory}`;
   _overrideCatVal = catKey;
@@ -1220,7 +1282,6 @@ function handleQuickGenerate() {
   document.getElementById('gen-complaint').value = '';
   document.getElementById('gen-complexity').value = 'standard';
   _activeGenBtn = 'quick-gen-btn';
-  // Also set gen-category for generateAIScenario's category label
   const sel = document.getElementById('gen-category');
   if (sel) { const opt = document.createElement('option'); opt.value = catKey; sel.appendChild(opt); sel.value = catKey; }
   generateAIScenario();
@@ -1354,10 +1415,98 @@ function toggleSubcat(id) {
   if (chev) chev.classList.toggle('open', !isOpen);
 }
 
+
+// ── QUICK BUILD MULTI-MODE ────────────────────────────────────────────────────
+let _multiMode = false;
+let _quickMultiSelected = []; // [{name, category, subcategory, el}]
+
+function toggleMultiMode() {
+  _multiMode = !_multiMode;
+  const btn = document.getElementById('multi-toggle-btn');
+  const tagsEl = document.getElementById('quick-multi-tags');
+  btn.classList.toggle('on', _multiMode);
+  document.getElementById('multi-toggle-icon').textContent = _multiMode ? '✕' : '＋';
+  if (!_multiMode) {
+    // Revert to single-select mode — keep first selection if any
+    _quickMultiSelected.forEach(s => s.el && s.el.classList.remove('selected'));
+    _quickMultiSelected = [];
+    tagsEl.style.display = 'none';
+    tagsEl.innerHTML = '';
+    // Re-apply single selection if exists
+    if (_quickSelected) _quickSelected.condRow.classList.add('selected');
+    setGenBar(_quickSelected ? _quickSelected.name : null);
+  } else {
+    // Switching to multi — seed with current single selection
+    if (_quickSelected) {
+      _quickMultiSelected = [{ name: _quickSelected.name, category: _quickSelected.category, subcategory: _quickSelected.subcategory, el: _quickSelected.condRow }];
+      tagsEl.style.display = 'flex';
+      renderQuickMultiTags();
+    }
+  }
+  updateGenBar();
+}
+
+function renderQuickMultiTags() {
+  const tagsEl = document.getElementById('quick-multi-tags');
+  if (!tagsEl) return;
+  tagsEl.innerHTML = _quickMultiSelected.map((s,i) =>
+    `<span class="quick-multi-tag">${s.name} <span class="rtag" onclick="removeQuickMulti(${i})">×</span></span>`
+  ).join('');
+}
+
+function removeQuickMulti(idx) {
+  const removed = _quickMultiSelected.splice(idx, 1)[0];
+  if (removed.el) removed.el.classList.remove('selected');
+  renderQuickMultiTags();
+  updateGenBar();
+}
+
+function updateGenBar() {
+  const label = document.getElementById('quick-gen-label');
+  const btn = document.getElementById('quick-gen-btn');
+  const tagsEl = document.getElementById('quick-multi-tags');
+  if (_multiMode) {
+    const count = _quickMultiSelected.length;
+    if (count === 0) {
+      label.textContent = 'No conditions selected';
+      label.classList.add('placeholder');
+      btn.disabled = true;
+      tagsEl.style.display = 'none';
+    } else {
+      label.textContent = `${count} condition${count>1?'s':''} selected`;
+      label.classList.remove('placeholder');
+      btn.disabled = false;
+      tagsEl.style.display = 'flex';
+    }
+  } else {
+    setGenBar(_quickSelected ? _quickSelected.name : null);
+  }
+}
+
 // ── QUICK BUILD SELECTION ─────────────────────────────────────────────────────
 let _quickSelected = null; // { condRow, name, category, subcategory, catIdx }
 
 function selectQuick(el, name, category, subcategory, catIdx) {
+  if (_multiMode) {
+    // Multi-mode: toggle this condition in/out of the list
+    const existingIdx = _quickMultiSelected.findIndex(s => s.name === name && s.category === category);
+    if (existingIdx > -1) {
+      _quickMultiSelected.splice(existingIdx, 1);
+      el.classList.remove('selected');
+    } else {
+      _quickMultiSelected.push({ name, category, subcategory, el });
+      el.classList.add('selected');
+    }
+    const tagsEl = document.getElementById('quick-multi-tags');
+    if (tagsEl) tagsEl.style.display = _quickMultiSelected.length ? 'flex' : 'none';
+    renderQuickMultiTags();
+    // Update category badge
+    const count = _quickMultiSelected.filter(s => s.catIdx === catIdx).length;
+    updateAccCount(catIdx, count);
+    updateGenBar();
+    return;
+  }
+  // Single mode
   if (_quickSelected) {
     _quickSelected.condRow.classList.remove('selected');
     updateAccCount(_quickSelected.catIdx, 0);
@@ -1505,7 +1654,7 @@ function toggleSingle(el) {
 // ── TAB SWITCHING ─────────────────────────────────────────────────────────────
 function switchTab(id, btn) {
   document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
-  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.mode-tile').forEach(b=>b.classList.remove('active'));
   document.getElementById('tab-'+id).classList.add('active');
   btn.classList.add('active');
 }
