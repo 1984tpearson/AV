@@ -149,10 +149,17 @@ textarea{resize:vertical;min-height:72px;line-height:1.5}
 .amber-banner{background:var(--amber-light);border-color:#f5cba7;color:#784212}
 
 /* STATUS BOX */
-.gen-status{border-radius:8px;padding:14px 16px;font-size:14px;font-weight:600;display:none;align-items:center;gap:12px;margin-top:14px}
-.gen-status.loading{background:var(--blue-light);color:var(--blue);display:flex;border:1px solid var(--blue)}
-.gen-status.error{background:var(--red-light);color:var(--red);display:block;border:1px solid var(--red)}
-.gen-status.success{background:var(--green-light);color:var(--green);display:block;border:1px solid var(--green)}
+.gen-status{display:none}
+.gen-status.loading,.gen-status.error,.gen-status.success{display:block;position:fixed;inset:0;z-index:200;background:rgba(0,0,0,0)}
+/* Blur backdrop */
+.gen-status::before{content:'';position:fixed;inset:0;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);background:rgba(15,23,42,0.5);z-index:0}
+/* Floating card */
+.gen-status-inner{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:1;width:calc(100% - 40px);max-width:560px;background:white;border-radius:14px;box-shadow:0 24px 60px rgba(0,0,0,0.3);overflow:hidden}
+.status-spinner-row{display:flex;align-items:center;gap:12px;padding:16px 20px;background:var(--navy);color:white;font-size:14px;font-weight:600}
+.gen-status.error .gen-status-inner{border-top:4px solid var(--red)}
+.gen-status.error .status-msg{padding:16px 20px;font-size:14px;font-weight:600;color:var(--red)}
+.gen-status.success .gen-status-inner{border-top:4px solid var(--green)}
+.gen-status.success .status-msg{padding:16px 20px;font-size:14px;font-weight:600;color:var(--green)}
 .gen-spinner{width:22px;height:22px;border:3px solid rgba(46,134,193,.25);border-top-color:var(--blue);border-radius:50%;animation:spin .8s linear infinite;flex-shrink:0}
 @keyframes spin{to{transform:rotate(360deg)}}
 @keyframes dotPulse{0%,80%,100%{opacity:0}40%{opacity:1}}
@@ -205,14 +212,14 @@ textarea{resize:vertical;min-height:72px;line-height:1.5}
 .quick-multi-tag .rtag:hover{opacity:1}
 
 /* ── STREAM CARD ── */
-.stream-card{background:#0d1117;border:1px solid #30363d;border-radius:8px;padding:14px 16px;font-size:13px;line-height:1.7}
-.stream-field{margin-bottom:8px}
-.stream-label{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.7px;color:#484f58;margin-bottom:2px}
-.stream-value{color:#c9d1d9;font-size:13px;min-height:18px}
-.stream-value.pager{font-family:monospace;color:#79c0ff;font-size:12px}
-.stream-value.prov{color:#7ee787;font-weight:600}
-.stream-value.flag{color:#ffa657}
-.stream-cursor{display:inline-block;width:2px;height:13px;background:#58a6ff;margin-left:2px;vertical-align:middle;animation:blink .7s step-end infinite}
+.stream-card{background:#1e2530;border:1px solid #2d3748;border-radius:10px;padding:16px 18px;font-size:13px;line-height:1.7}
+.stream-field{margin-bottom:10px}
+.stream-label{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.7px;color:#64748b;margin-bottom:3px}
+.stream-value{color:#cbd5e1;font-size:13px;min-height:18px}
+.stream-value.pager{font-family:monospace;color:#93c5fd;font-size:12px}
+.stream-value.prov{color:#86efac;font-weight:600}
+.stream-value.flag{color:#fcd34d}
+.stream-cursor{display:inline-block;width:2px;height:13px;background:#93c5fd;margin-left:2px;vertical-align:middle;animation:blink .7s step-end infinite}
 @keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
 </style>
 </head>
@@ -257,20 +264,18 @@ textarea{resize:vertical;min-height:72px;line-height:1.5}
         <div class="quick-gen-label placeholder" id="quick-gen-label">No condition selected</div>
         <div id="quick-multi-tags" style="display:none;flex-wrap:wrap;gap:4px;margin-top:4px"></div>
       </div>
-      <div style="display:flex;gap:8px;align-items:center;flex-shrink:0">
-        <div class="toggle-switch-wrap" onclick="toggleMultiMode()" title="Add multiple conditions">
-          <span class="toggle-switch-label">Multi</span>
-          <div class="toggle-switch" id="multi-toggle-btn">
-            <div class="toggle-switch-thumb"></div>
-          </div>
-        </div>
-        <button class="btn btn-primary btn-sm" id="quick-gen-btn" style="padding:10px 18px;font-size:13px;min-height:40px" disabled onclick="handleQuickGenerate()">
-          ⚡ Generate
-        </button>
-      </div>
+      <button class="btn btn-primary btn-sm" id="quick-gen-btn" style="padding:10px 18px;font-size:13px;min-height:40px;flex-shrink:0" disabled onclick="handleQuickGenerate()">
+        ⚡ Generate
+      </button>
     </div>
     <div class="tab-panel-scroll">
       <div id="usage-display" class="usage-bar" style="display:none"></div>
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 2px;margin-bottom:6px">
+        <span style="font-size:12px;font-weight:600;color:var(--grey)">Multiple conditions</span>
+        <div class="toggle-switch-wrap" onclick="toggleMultiMode()" title="Generate a multi-condition scenario">
+          <div class="toggle-switch" id="multi-toggle-btn"><div class="toggle-switch-thumb"></div></div>
+        </div>
+      </div>
       <div id="quick-status" class="gen-status" style="margin-bottom:14px">
         <div id="quick-stream-card" class="stream-card" style="display:none"></div>
       </div>
@@ -441,14 +446,21 @@ async function saveAndNavigate(scenario){
 function showStatus(elId,type,msg){
   const el=document.getElementById(elId);if(!el)return;
   el.className='gen-status '+type;
-  el.style.display=type==='loading'?'block':'block';
   if(type==='loading'){
-    // Preserve stream card if present, just update/add the spinner line
-    let spinner = el.querySelector('.status-spinner-row');
-    if(!spinner){ spinner=document.createElement('div'); spinner.className='status-spinner-row'; spinner.style.cssText='display:flex;align-items:center;gap:12px;margin-bottom:8px'; el.prepend(spinner); }
+    // Build inner structure if not already present
+    let inner=el.querySelector('.gen-status-inner');
+    if(!inner){
+      inner=document.createElement('div');inner.className='gen-status-inner';
+      el.appendChild(inner);
+    }
+    let spinner=inner.querySelector('.status-spinner-row');
+    if(!spinner){spinner=document.createElement('div');spinner.className='status-spinner-row';inner.prepend(spinner);}
     spinner.innerHTML=`<div class="gen-spinner"></div><span>${msg}</span>`;
+    // Move stream card inside inner if it exists as sibling
+    const card=document.getElementById(elId==='quick-status'?'quick-stream-card':'custom-stream-card');
+    if(card&&card.parentElement!==inner) inner.appendChild(card);
   } else {
-    el.innerHTML=msg;
+    el.innerHTML=`<div class="gen-status-inner"><div class="status-msg">${msg}</div></div>`;
   }
 }
 
