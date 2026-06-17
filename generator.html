@@ -224,6 +224,20 @@ textarea{resize:vertical;min-height:72px;line-height:1.5}
 .stream-cursor{display:inline-block;width:2px;height:13px;background:#93c5fd;margin-left:2px;vertical-align:middle;animation:blink .7s step-end infinite}
 @keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
 
+
+/* ── AMBULANCE ANIMATION ── */
+.amb-track{position:relative;height:36px;overflow:hidden;margin:0 20px 14px;background:transparent}
+.amb-road{position:absolute;bottom:4px;left:0;right:0;height:2px;background:#e2e8f0;border-radius:1px}
+.amb-img{position:absolute;bottom:6px;left:-60px;width:52px;image-rendering:pixelated;
+  animation:amb-drive 3s linear infinite, amb-bounce .25s ease-in-out infinite alternate}
+@keyframes amb-drive{
+  0%   {left:-60px}
+  100% {left:calc(100% + 10px)}
+}
+@keyframes amb-bounce{
+  0%   {bottom:6px; transform:rotate(-.5deg)}
+  100% {bottom:10px; transform:rotate(.5deg)}
+}
 /* ── PROGRESS BAR ── */
 .gen-progress-wrap{padding:0 20px 16px;background:white}
 .gen-progress-track{height:4px;background:#e2e8f0;border-radius:2px;overflow:hidden}
@@ -473,7 +487,7 @@ function showStatus(elId,type,msg){
     // Add progress bar if not present
     if(!inner.querySelector('.gen-progress-wrap')){
       const pw=document.createElement('div');pw.className='gen-progress-wrap';
-      pw.innerHTML=`<div class="gen-progress-label">Building scenario…</div><div class="gen-progress-track"><div class="gen-progress-fill"></div></div>`;
+      pw.innerHTML=`<div class="gen-progress-label">Building scenario…</div><div class="gen-progress-track"><div class="gen-progress-fill"></div></div><div class="amb-track"><div class="amb-road"></div><img class="amb-img" src="data:image/png;base64,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"></div>`;
       inner.appendChild(pw);
     }
   } else {
