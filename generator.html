@@ -226,17 +226,12 @@ textarea{resize:vertical;min-height:72px;line-height:1.5}
 
 
 /* ── AMBULANCE ANIMATION ── */
-.amb-track{position:relative;height:36px;overflow:hidden;margin:0 20px 14px;background:transparent}
-.amb-road{position:absolute;bottom:4px;left:0;right:0;height:2px;background:#e2e8f0;border-radius:1px}
-.amb-img{position:absolute;bottom:6px;left:-60px;width:52px;image-rendering:pixelated;
-  animation:amb-drive 3s linear infinite, amb-bounce .25s ease-in-out infinite alternate}
-@keyframes amb-drive{
-  0%   {left:-60px}
-  100% {left:calc(100% + 10px)}
-}
+.amb-track{position:relative;height:44px;margin:8px 0 0;background:transparent;overflow:visible}
+.amb-img{position:absolute;bottom:0;width:48px;image-rendering:pixelated;transition:left .4s ease;
+  animation:amb-bounce .3s ease-in-out infinite alternate}
 @keyframes amb-bounce{
-  0%   {bottom:6px; transform:rotate(-.5deg)}
-  100% {bottom:10px; transform:rotate(.5deg)}
+  0%   {transform:translateY(0) rotate(-.5deg)}
+  100% {transform:translateY(-3px) rotate(.5deg)}
 }
 /* ── PROGRESS BAR ── */
 .gen-progress-wrap{padding:0 20px 16px;background:white}
@@ -487,7 +482,7 @@ function showStatus(elId,type,msg){
     // Add progress bar if not present
     if(!inner.querySelector('.gen-progress-wrap')){
       const pw=document.createElement('div');pw.className='gen-progress-wrap';
-      pw.innerHTML=`<div class="gen-progress-label">Building scenario…</div><div class="gen-progress-track"><div class="gen-progress-fill"></div></div><div class="amb-track"><div class="amb-road"></div><img class="amb-img" src="data:image/png;base64,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"></div>`;
+      pw.innerHTML=`<div class="gen-progress-label">Building scenario…</div><div class="gen-progress-track"><div class="gen-progress-fill"></div></div><div class="amb-track"><img class="amb-img" id="amb-img" src="data:image/png;base64,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"></div>`;
       inner.appendChild(pw);
     }
   } else {
@@ -1181,25 +1176,34 @@ const PROGRESS_MILESTONES = [
 
 function _updateProgress(inner, json, final = false) {
   if (!inner) return;
-  let bar = inner.querySelector('.gen-progress-fill');
-  let label = inner.querySelector('.gen-progress-label');
+  const bar   = inner.querySelector('.gen-progress-fill');
+  const label = inner.querySelector('.gen-progress-label');
+  const track = inner.querySelector('.gen-progress-track');
+  const amb   = inner.querySelector('.amb-img');
   if (!bar) return;
-  if (final) {
-    label.textContent = 'Saving…';
-    bar.style.width = '95%';
-    return;
-  }
-  let reached = 0;
+
+  let pct = 0;
   let reachedLabel = 'Building scenario…';
-  for (const [key, lbl, pct] of PROGRESS_MILESTONES) {
-    if (json.includes('"' + key + '"')) {
-      reached = pct;
-      reachedLabel = lbl + '…';
+
+  if (final) {
+    pct = 95;
+    reachedLabel = 'Saving…';
+  } else {
+    for (const [key, lbl, p] of PROGRESS_MILESTONES) {
+      if (json.includes('"' + key + '"')) { pct = p; reachedLabel = lbl + '…'; }
     }
   }
-  if (reached > 0) {
-    bar.style.width = reached + '%';
-    label.textContent = reachedLabel;
+
+  if (pct > 0 || final) {
+    bar.style.width = pct + '%';
+    if (label) label.textContent = reachedLabel;
+    // Move ambulance to sit at the leading edge of the fill
+    if (amb && track) {
+      const trackW = track.offsetWidth || 300;
+      const ambW = 48;
+      const pos = Math.min((pct / 100) * trackW - ambW / 2, trackW - ambW);
+      amb.style.left = Math.max(0, pos) + 'px';
+    }
   }
 }
 
