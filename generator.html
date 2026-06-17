@@ -949,7 +949,7 @@ ${SCENARIO_JSON_TEMPLATE.replace('CAT', category).replace('SUB', subcategory)}`;
       localStorage.setItem('av_ai_daily_date', today);
       localStorage.setItem('av_ai_daily_count', String(count + 1));
     }
-    updateAIUsageIndicator();
+    updateUsageDisplay();
     btn.innerHTML = origLabel;
     btn.disabled = false;
     // Rebuild sidebar so the scenario is findable, then auto-load and auto-save
