@@ -1000,11 +1000,7 @@ let _activeGenBtn = 'quick-gen-btn';
 
 function _setGenCategory(catKey) {
   const sel = document.getElementById('gen-category');
-  if (sel) {
-    for (const opt of sel.options) {
-      if (opt.value === catKey) { sel.value = catKey; break; }
-    }
-  }
+  if (sel) sel.value = catKey;
   const sel2 = document.getElementById('gen-category-2');
   if (sel2) sel2.value = '__none__';
   const sub = document.getElementById('gen-cpg-subtype');
@@ -1320,5 +1316,19 @@ updateUsageDisplay();
 populateCategorySelect('gen-category');
 populateCategorySelect('gen-category-2', '— None (single scenario) —');
 </script>
+
+<!-- Hidden fields read by generateAIScenario() -->
+<div style="display:none">
+  <select id="gen-category"></select>
+  <select id="gen-category-2"><option value="__none__">None</option></select>
+  <select id="gen-cpg-subtype"><option value="__random__">Random</option></select>
+  <select id="gen-cpg-subtype-2"><option value="__random__">Random</option></select>
+  <input type="text" id="gen-complaint">
+  <select id="gen-complexity">
+    <option value="standard">Standard</option>
+    <option value="complex">Complex</option>
+    <option value="high-acuity">High acuity</option>
+  </select>
+</div>
 </body>
 </html>
