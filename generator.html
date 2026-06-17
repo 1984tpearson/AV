@@ -188,6 +188,14 @@ textarea{resize:vertical;min-height:72px;line-height:1.5}
 .mode-tile.active .mode-tile-title{color:var(--navy)}
 .mode-tile-desc{font-size:11px;color:var(--grey);line-height:1.3}
 
+
+/* ── iOS TOGGLE SWITCH ── */
+.toggle-switch-wrap{display:flex;align-items:center;gap:7px;cursor:pointer;user-select:none;flex-shrink:0}
+.toggle-switch-label{font-size:12px;font-weight:700;color:var(--grey)}
+.toggle-switch{width:44px;height:26px;border-radius:13px;background:#d1d5db;border:none;position:relative;transition:background .2s;flex-shrink:0}
+.toggle-switch.on{background:#27833A}
+.toggle-switch-thumb{width:20px;height:20px;border-radius:50%;background:white;position:absolute;top:3px;left:3px;transition:transform .2s;box-shadow:0 1px 4px rgba(0,0,0,.25)}
+.toggle-switch.on .toggle-switch-thumb{transform:translateX(18px)}
 /* ── MULTI TOGGLE ── */
 .multi-toggle{background:white;border:1.5px solid var(--border);border-radius:7px;padding:7px 11px;font-size:12px;font-weight:700;color:var(--grey);cursor:pointer;transition:all .15s;white-space:nowrap}
 .multi-toggle:hover{border-color:var(--navy);color:var(--navy)}
@@ -250,9 +258,12 @@ textarea{resize:vertical;min-height:72px;line-height:1.5}
         <div id="quick-multi-tags" style="display:none;flex-wrap:wrap;gap:4px;margin-top:4px"></div>
       </div>
       <div style="display:flex;gap:8px;align-items:center;flex-shrink:0">
-        <button class="multi-toggle" id="multi-toggle-btn" onclick="toggleMultiMode()" title="Add multiple conditions">
-          <span id="multi-toggle-icon">＋</span> Multi
-        </button>
+        <div class="toggle-switch-wrap" onclick="toggleMultiMode()" title="Add multiple conditions">
+          <span class="toggle-switch-label">Multi</span>
+          <div class="toggle-switch" id="multi-toggle-btn">
+            <div class="toggle-switch-thumb"></div>
+          </div>
+        </div>
         <button class="btn btn-primary btn-sm" id="quick-gen-btn" style="padding:10px 18px;font-size:13px;min-height:40px" disabled onclick="handleQuickGenerate()">
           ⚡ Generate
         </button>
@@ -1093,47 +1104,68 @@ async function generateWithAnthropic(apiKey, systemPrompt, userPrompt) {
 function _streamCardHTML(final = false) {
   const cursor = final ? '' : '<span class="stream-cursor"></span>';
   return `
-    <div class="stream-field"><div class="stream-label">Dispatch</div><div class="stream-value pager" id="sf-dispatch">${cursor}</div></div>
-    <div class="stream-field"><div class="stream-label">Patient</div><div class="stream-value" id="sf-subtitle">${cursor}</div></div>
-    <div class="stream-field"><div class="stream-label">Provisional Dx</div><div class="stream-value provisional-val" id="sf-provisional">${cursor}</div></div>
-    <div class="stream-field"><div class="stream-label">On Arrival</div><div class="stream-value" id="sf-arrival">${cursor}</div></div>
-    <div class="stream-field"><div class="stream-label">Flags</div><div class="stream-value flag-val" id="sf-flags">${cursor}</div></div>
+    <div class="stream-field"><div class="stream-label">Dispatch</div><div class="stream-value pager sf-dispatch">${cursor}</div></div>
+    <div class="stream-field"><div class="stream-label">Patient</div><div class="stream-value sf-subtitle">${cursor}</div></div>
+    <div class="stream-field"><div class="stream-label">Provisional Dx</div><div class="stream-value prov sf-provisional">${cursor}</div></div>
+    <div class="stream-field"><div class="stream-label">On Arrival</div><div class="stream-value sf-arrival">${cursor}</div></div>
+    <div class="stream-field"><div class="stream-label">Flags</div><div class="stream-value flag sf-flags">${cursor}</div></div>
   `;
 }
 
 function _updateStreamCard(card, json) {
   if (!card) return;
-  // Extract fields as they appear using regex — works on partial JSON
-  const extract = (key) => {
-    // Match "key": "value" — value may be partial (no closing quote yet)
-    const re = new RegExp(`"${key}"\s*:\s*"([^"]*)"?`);
-    const m = json.match(re);
-    return m ? m[1] : null;
-  };
-  const extractArr = (key) => {
-    // Match first string element of an array
-    const re = new RegExp(`"${key}"\s*:\s*\[\s*"([^"]*)"?`);
-    const m = json.match(re);
-    return m ? m[1] : null;
-  };
-
-  const set = (id, val, suffix='') => {
-    const el = document.getElementById(id);
-    if (el && val !== null) el.innerHTML = val + suffix;
-  };
-
   const cursor = '<span class="stream-cursor"></span>';
-  const dispatch   = extract('dispatch');
-  const subtitle   = extract('subtitle');
-  const provisional= extract('provisional');
-  const arrival    = extract('arrival_hx');
-  const flag1      = extractArr('flags');
 
-  if (dispatch)    set('sf-dispatch',    dispatch,    dispatch.endsWith('"') ? '' : cursor);
-  if (subtitle)    set('sf-subtitle',    subtitle,    subtitle.endsWith('"') ? '' : cursor);
-  if (provisional) set('sf-provisional', provisional, provisional.endsWith('"') ? '' : cursor);
-  if (arrival)     set('sf-arrival',     arrival,     arrival.endsWith('"') ? '' : cursor);
-  if (flag1)       set('sf-flags',       '• ' + flag1, flag1.endsWith('"') ? '' : cursor);
+  // Helper: extract a string value for a key from partial JSON
+  // Handles both complete ("key": "value") and partial ("key": "val...)
+  function extract(key) {
+    const idx = json.indexOf('"' + key + '"');
+    if (idx === -1) return null;
+    const rest = json.slice(idx + key.length + 2);
+    const colon = rest.indexOf(':');
+    if (colon === -1) return null;
+    const afterColon = rest.slice(colon + 1).trimStart();
+    if (!afterColon.startsWith('"')) return null;
+    const inner = afterColon.slice(1);
+    const end = inner.indexOf('"');
+    // Return partial if no closing quote yet, full value if complete
+    return end === -1 ? inner : inner.slice(0, end);
+  }
+
+  function extractFirst(key) {
+    const idx = json.indexOf('"' + key + '"');
+    if (idx === -1) return null;
+    const rest = json.slice(idx + key.length + 2);
+    const arrStart = rest.indexOf('[');
+    if (arrStart === -1) return null;
+    const afterBracket = rest.slice(arrStart + 1).trimStart();
+    if (!afterBracket.startsWith('"')) return null;
+    const inner = afterBracket.slice(1);
+    const end = inner.indexOf('"');
+    return end === -1 ? inner : inner.slice(0, end);
+  }
+
+  // Set field by querying WITHIN the card (not document-wide)
+  function set(cls, val, partial) {
+    const el = card.querySelector('.' + cls);
+    if (el && val !== null && val !== '') {
+      el.innerHTML = val + (partial ? cursor : '');
+    }
+  }
+
+  const dispatch    = extract('dispatch');
+  const subtitle    = extract('subtitle');
+  const provisional = extract('provisional');
+  const arrival     = extract('arrival_hx');
+  const flag1       = extractFirst('flags');
+
+  const isPartial = (v) => v !== null && json.indexOf('"' + v + '"') === -1;
+
+  if (dispatch)    set('sf-dispatch',    dispatch,    !json.includes('"' + dispatch + '"'));
+  if (subtitle)    set('sf-subtitle',    subtitle,    !json.includes('"' + subtitle + '"'));
+  if (provisional) set('sf-provisional', provisional, !json.includes('"' + provisional + '"'));
+  if (arrival)     set('sf-arrival',     arrival,     !json.includes('"' + arrival + '"'));
+  if (flag1)       set('sf-flags',       '• ' + flag1, !json.includes('"' + flag1 + '"'));
 }
 
 let _cachedAnthropicKey = null;
@@ -1425,7 +1457,6 @@ function toggleMultiMode() {
   const btn = document.getElementById('multi-toggle-btn');
   const tagsEl = document.getElementById('quick-multi-tags');
   btn.classList.toggle('on', _multiMode);
-  document.getElementById('multi-toggle-icon').textContent = _multiMode ? '✕' : '＋';
   if (!_multiMode) {
     // Revert to single-select mode — keep first selection if any
     _quickMultiSelected.forEach(s => s.el && s.el.classList.remove('selected'));
