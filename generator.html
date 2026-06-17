@@ -227,11 +227,16 @@ textarea{resize:vertical;min-height:72px;line-height:1.5}
 
 /* ── AMBULANCE ANIMATION ── */
 .amb-track{position:relative;height:44px;margin:8px 0 0;background:transparent;overflow:visible}
-.amb-img{position:absolute;bottom:0;width:48px;image-rendering:pixelated;transition:left .4s ease;
+.amb-img{position:absolute;bottom:0;width:48px;image-rendering:pixelated;cursor:pointer;
   animation:amb-bounce .3s ease-in-out infinite alternate}
+.amb-img.rainbow{animation:amb-bounce .3s ease-in-out infinite alternate, amb-rainbow .15s linear infinite}
 @keyframes amb-bounce{
   0%   {transform:translateY(0) rotate(-.5deg)}
   100% {transform:translateY(-3px) rotate(.5deg)}
+}
+@keyframes amb-rainbow{
+  0%   {filter:hue-rotate(0deg) saturate(3) brightness(1.2)}
+  100% {filter:hue-rotate(360deg) saturate(3) brightness(1.2)}
 }
 /* ── PROGRESS BAR ── */
 .gen-progress-wrap{padding:0 20px 16px;background:white}
@@ -482,7 +487,7 @@ function showStatus(elId,type,msg){
     // Add progress bar if not present
     if(!inner.querySelector('.gen-progress-wrap')){
       const pw=document.createElement('div');pw.className='gen-progress-wrap';
-      pw.innerHTML=`<div class="gen-progress-label">Building scenario…</div><div class="gen-progress-track"><div class="gen-progress-fill"></div></div><div class="amb-track"><img class="amb-img" id="amb-img" src="data:image/png;base64,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"></div>`;
+      pw.innerHTML=`<div class="gen-progress-label">Building scenario…</div><div class="gen-progress-track"><div class="gen-progress-fill"></div></div><div class="amb-track"><img class="amb-img" id="amb-img" onclick="this.classList.toggle('rainbow')" src="data:image/png;base64,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"></div>`;
       inner.appendChild(pw);
     }
   } else {
@@ -1096,7 +1101,10 @@ ${SCENARIO_JSON_TEMPLATE.replace('CAT', category).replace('SUB', subcategory)}`;
     // Snap progress to 100% before navigating
     document.querySelectorAll('.gen-progress-fill').forEach(b=>b.style.width='100%');
     document.querySelectorAll('.gen-progress-label').forEach(l=>l.textContent='Complete!');
-    await new Promise(r=>setTimeout(r,400));
+    // Drive ambulance to 100%
+    const _snapTrack = document.querySelector('.gen-progress-track');
+    if (_snapTrack) _ambSetTarget(100, _snapTrack.offsetWidth || 300);
+    await new Promise(r=>setTimeout(r,600));
     showStatus('quick-status','success','✅ Saved — loading scenario…');
     showStatus('custom-status','success','✅ Saved — loading scenario…');
     await saveAndNavigate(scenario);
@@ -1174,12 +1182,41 @@ const PROGRESS_MILESTONES = [
   ['life_threats','Life threats',   90],
 ];
 
+// Ambulance smooth drive state
+const _amb = { targetX: 0, currentX: 0, rafId: null, speed: 120 }; // px per second
+
+function _ambDrive() {
+  const diff = _amb.targetX - _amb.currentX;
+  if (Math.abs(diff) < 0.5) {
+    _amb.currentX = _amb.targetX;
+    _amb.rafId = null;
+    _ambApplyPos();
+    return;
+  }
+  // Move toward target at fixed speed
+  const step = Math.sign(diff) * Math.min(Math.abs(diff), _amb.speed / 60);
+  _amb.currentX += step;
+  _ambApplyPos();
+  _amb.rafId = requestAnimationFrame(_ambDrive);
+}
+
+function _ambApplyPos() {
+  const amb = document.querySelector('.amb-img');
+  if (amb) amb.style.left = _amb.currentX + 'px';
+}
+
+function _ambSetTarget(pct, trackW) {
+  const ambW = 48;
+  const pos = Math.max(0, Math.min((pct / 100) * trackW - ambW / 2, trackW - ambW));
+  _amb.targetX = pos;
+  if (!_amb.rafId) _amb.rafId = requestAnimationFrame(_ambDrive);
+}
+
 function _updateProgress(inner, json, final = false) {
   if (!inner) return;
   const bar   = inner.querySelector('.gen-progress-fill');
   const label = inner.querySelector('.gen-progress-label');
   const track = inner.querySelector('.gen-progress-track');
-  const amb   = inner.querySelector('.amb-img');
   if (!bar) return;
 
   let pct = 0;
@@ -1197,13 +1234,8 @@ function _updateProgress(inner, json, final = false) {
   if (pct > 0 || final) {
     bar.style.width = pct + '%';
     if (label) label.textContent = reachedLabel;
-    // Move ambulance to sit at the leading edge of the fill
-    if (amb && track) {
-      const trackW = track.offsetWidth || 300;
-      const ambW = 48;
-      const pos = Math.min((pct / 100) * trackW - ambW / 2, trackW - ambW);
-      amb.style.left = Math.max(0, pos) + 'px';
-    }
+    const trackW = track ? (track.offsetWidth || 300) : 300;
+    _ambSetTarget(pct, trackW);
   }
 }
 
