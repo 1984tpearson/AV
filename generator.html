@@ -207,6 +207,7 @@ textarea{resize:vertical;min-height:72px;line-height:1.5}
   <!-- ══ CUSTOM BUILD ══ -->
   <div id="tab-custom" class="tab-panel">
   <div class="tab-panel-scroll">
+    <div id="gen-status-custom" class="gen-status" style="margin-bottom:14px"></div>
     <div id="usage-display-custom" class="usage-bar" style="display:none"></div>
     <div class="info-banner amber-banner">
       <span>🎭</span>
@@ -306,9 +307,10 @@ textarea{resize:vertical;min-height:72px;line-height:1.5}
 
 <script>
 // ── SUPABASE CONFIG (same as scenario.html) ──────────────────────────────────
-const SUPABASE_URL  = 'https://befsjenbaruxqrntuhpn.supabase.co';
-const SUPABASE_KEY  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJlZnNqZW5iYXJ1eHFybnR1aHBuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI2MjA5MjAsImV4cCI6MjA4ODE5NjkyMH0.hOFFbIvd1wAgu-QyghupQ-7ttSpg7sxz_UsJbXyXztA';
-const ADMIN_UUID    = 'fe1f2d3f-2139-44ec-bbe0-14ad6bb748ac';
+// ── SUPABASE ──────────────────────────────────────────────────────────────────
+const SUPABASE_URL = 'https://befsjenbaruxqrntuhpn.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJlZnNqZW5iYXJ1eHFybnR1aHBuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI2MjA5MjAsImV4cCI6MjA4ODE5NjkyMH0.hOFFbIvd1wAgu-QyghupQ-7ttSpg7sxz_UsJbXyXztA';
+const ADMIN_UUID   = 'fe1f2d3f-2139-44ec-bbe0-14ad6bb748ac';
 
 async function sbFetch(path, opts={}) {
   const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
@@ -326,7 +328,7 @@ async function sbFetch(path, opts={}) {
   return text ? JSON.parse(text) : [];
 }
 
-// ── IDENTITY ─────────────────────────────────────────────────────────────────
+// ── IDENTITY ──────────────────────────────────────────────────────────────────
 function getIdentity() {
   let uuid = localStorage.getItem('av_user_uuid');
   if (!uuid) { uuid = crypto.randomUUID(); localStorage.setItem('av_user_uuid', uuid); }
@@ -338,34 +340,22 @@ function getIdentity() {
 }
 function isAdmin() { return getIdentity().uuid === ADMIN_UUID; }
 
-// ── DAILY USAGE ───────────────────────────────────────────────────────────────
-const MAX_DAILY = 5;
-function getDailyCount() {
-  const today = new Date().toISOString().slice(0,10);
-  const storedDate = localStorage.getItem('av_ai_daily_date');
-  const storedCount = parseInt(localStorage.getItem('av_ai_daily_count')||'0');
-  return storedDate === today ? storedCount : 0;
-}
-function incrementDailyCount() {
-  const today = new Date().toISOString().slice(0,10);
-  const count = getDailyCount();
-  localStorage.setItem('av_ai_daily_date', today);
-  localStorage.setItem('av_ai_daily_count', String(count+1));
-}
+// ── USAGE DISPLAY ─────────────────────────────────────────────────────────────
 function updateUsageDisplay() {
-  if (isAdmin()) {
-    ['usage-display','usage-display-custom'].forEach(id => {
-      const el = document.getElementById(id);
-      if (el) { el.style.display='flex'; el.innerHTML='🔑 Admin — unlimited uses'; el.className='usage-bar'; }
-    });
-    return;
-  }
-  const count = getDailyCount();
-  const remaining = MAX_DAILY - count;
   ['usage-display','usage-display-custom'].forEach(id => {
     const el = document.getElementById(id);
     if (!el) return;
     el.style.display = 'flex';
+    if (isAdmin()) {
+      el.className = 'usage-bar';
+      el.innerHTML = '🔑 Admin — unlimited uses';
+      return;
+    }
+    const today = new Date().toISOString().slice(0,10);
+    const storedDate = localStorage.getItem('av_ai_daily_date');
+    const storedCount = parseInt(localStorage.getItem('av_ai_daily_count')||'0');
+    const used = storedDate === today ? storedCount : 0;
+    const remaining = Math.max(0, 5 - used);
     if (remaining <= 0) {
       el.className = 'usage-bar maxed';
       el.innerHTML = '⚠️ Daily limit reached (5/5). Resets at midnight.';
@@ -374,264 +364,622 @@ function updateUsageDisplay() {
       el.innerHTML = `⚡ ${remaining} AI generation${remaining!==1?'s':''} remaining today`;
     } else {
       el.className = 'usage-bar';
-      el.innerHTML = `✅ AI generation ready — ${remaining} of ${MAX_DAILY} uses remaining today`;
+      el.innerHTML = `✅ AI generation ready — ${remaining} of 5 uses remaining today`;
     }
   });
 }
 
-// ── API KEY ───────────────────────────────────────────────────────────────────
-let _cachedKey = null;
-async function getAnthropicKey() {
-  if (_cachedKey) return _cachedKey;
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/app_config?key=eq.anthropic_api_key&select=value`, {
-    headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
-  });
-  if (!res.ok) throw new Error('Could not fetch API key');
-  const data = await res.json();
-  if (!data || !data[0] || !data[0].value) throw new Error('API key not configured');
-  _cachedKey = data[0].value;
-  return _cachedKey;
-}
-
-// ── SAVE SCENARIO ─────────────────────────────────────────────────────────────
+// ── SAVE & NAVIGATE ───────────────────────────────────────────────────────────
 function toRow(s) {
   const id = getIdentity();
   return {
-    id:           String(s.id),
-    title:        s.title||'',
-    subtitle:     s.subtitle||'',
-    category:     s.category||'Custom',
-    subcategory:  s.subcategory||'',
-    scenario_type:s.scenario_type||null,
-    type:         s.type||'medical',
-    cpg:          s.cpg||'',
-    level:        s.level||'C/D',
-    dispatch:     s.dispatch||'',
-    vitals:       s.vitals||{},
-    caller_hx:    s.caller_hx||'',
-    arrival_hx:   s.arrival_hx||'',
-    key_hx:       s.key_hx||'',
-    hx:           s.hx||{},
-    medical_conditions: s.medical_conditions||[],
-    medications:  s.medications||[],
-    allergies:    s.allergies||'',
-    rsa:          s.rsa||{},
-    ra:           s.ra||{},
-    ps_exposure:  s.ps_exposure||'',
-    social:       s.social||'',
-    flags:        s.flags||[],
-    ddx:          s.ddx||[],
-    provisional:  s.provisional||'',
-    treatment_als:s.treatment_als||s.treatment||[],
-    treatment_mica:s.treatment_mica||[],
-    life_threats: s.life_threats||[],
-    kq:           s.kq||[],
-    discussion:   s.discussion||[],
-    creator_uuid: s.creator_uuid||id.uuid,
-    creator_name: s.creator_name||id.name||'Anonymous',
-    ai_generated: !!s.ai_generated,
-    is_builtin:   false,
+    id: String(s.id), title: s.title||'', subtitle: s.subtitle||'',
+    category: s.category||'Custom', subcategory: s.subcategory||'',
+    scenario_type: s.scenario_type||null, type: s.type||'medical',
+    cpg: s.cpg||'', level: s.level||'C/D', dispatch: s.dispatch||'',
+    vitals: s.vitals||{}, caller_hx: s.caller_hx||'', arrival_hx: s.arrival_hx||'',
+    key_hx: s.key_hx||'', hx: s.hx||{}, medical_conditions: s.medical_conditions||[],
+    medications: s.medications||[], allergies: s.allergies||'',
+    rsa: s.rsa||{}, ra: s.ra||{}, ps_exposure: s.ps_exposure||'', social: s.social||'',
+    flags: s.flags||[], ddx: s.ddx||[], provisional: s.provisional||'',
+    treatment_als: s.treatment_als||[], treatment_mica: s.treatment_mica||[],
+    life_threats: s.life_threats||[], kq: s.kq||[], discussion: s.discussion||[],
+    creator_uuid: s.creator_uuid||id.uuid, creator_name: s.creator_name||id.name||'Anonymous',
+    ai_generated: !!s.ai_generated, is_builtin: false,
   };
 }
 
 async function saveAndNavigate(scenario) {
-  const row = toRow(scenario);
-  await sbFetch('scenarios', {
-    method:'POST',
-    prefer:'return=minimal',
-    body: JSON.stringify(row)
-  });
+  await sbFetch('scenarios', { method:'POST', prefer:'return=minimal', body: JSON.stringify(toRow(scenario)) });
   window.location.href = `scenario.html?id=${encodeURIComponent(String(scenario.id))}`;
 }
 
-// ── JSON PARSER ───────────────────────────────────────────────────────────────
-function parseFirstJSON(text) {
-  const s = text.indexOf('{');
-  const e = text.lastIndexOf('}');
-  if (s<0||e<0) throw new Error('No JSON found in response');
-  return JSON.parse(text.slice(s, e+1));
-}
-
-// ── GCS NORMALISE ─────────────────────────────────────────────────────────────
-function normaliseGCS(scenario) {
-  if (!scenario.vitals) return;
-  const rawGCS = scenario.vitals.GCS;
-  if (rawGCS && typeof rawGCS==='object' && 'E' in rawGCS) {
-    const e=parseInt(rawGCS.E)||0, v=parseInt(rawGCS.V)||0, m=parseInt(rawGCS.M)||0;
-    const computed = e+v+m;
-    scenario.vitals.GCS = { E:e, V:v, M:m, total:computed, description:rawGCS.description||'' };
-  } else if (rawGCS && typeof rawGCS!=='object') {
-    const n = parseFloat(String(rawGCS))||15;
-    scenario.vitals.GCS = { E:0, V:0, M:0, total:n, description:'' };
+// ── PRODUCTION GENERATION CODE (exact copy from scenario.html) ────────────────
+const NAME_POOLS = {
+  anglo: {
+    weight: 58,
+    male:   ['James','William','Oliver','Jack','Noah','Henry','Thomas','Liam','Charlie','George','Patrick','Michael','David','Robert','Andrew','Daniel','Matthew','Ryan','Luke','Nathan','Connor','Ben','Sam','Jake','Ethan'],
+    female: ['Charlotte','Olivia','Amelia','Isla','Mia','Grace','Sophie','Ava','Emma','Lily','Zoe','Chloe','Ruby','Ella','Isabella','Lucy','Hannah','Sarah','Emily','Kate','Jessica','Amy','Georgia','Alice','Holly'],
+    nb:     ['Riley','Avery','Jordan','Sage','Quinn','Rowan','Hayden','Peyton','Morgan','Darcy'],
+    last:   ['Smith','Jones','Williams','Brown','Wilson','Taylor','Johnson','White','Martin','Anderson','Thompson','Walker','Harris','Robinson','Clarke','Mitchell','Campbell','Turner','Hill','Evans','Cooper','Baker','Carter','Morris','Rogers','Murphy','Kelly','Ryan','O\'Brien','McDonald','Fraser','Reid','Scott','Stewart','Cameron','Murray','Graham']
+  },
+  european: {
+    weight: 8,
+    male:   ['Marco','Luca','Giovanni','Antonio','Alessandro','Dimitri','Nikolaos','Stefan','Klaus','Hans','Pierre','Jean','Christoph','Viktor','Andrei','Sergio','Miguel','Carlos','Lorenzo','Federico'],
+    female: ['Sofia','Elena','Valentina','Giulia','Francesca','Maria','Katerina','Ingrid','Helene','Brigitte','Nadia','Vera','Elisa','Rosa','Lucia','Ines','Annika','Petra','Miriam','Clara'],
+    nb:     ['Alex','Sasha','Claude','Luca','Nico'],
+    last:   ['Russo','Ferrari','Esposito','Ricci','Marino','Greco','Costa','Bruno','Papadopoulos','Nikolaou','Georgiou','Müller','Schmidt','Weber','Meyer','Wagner','Becker','Hoffmann','Dubois','Laurent','Martin','Bernard','Thomas','Petit']
+  },
+  chinese: {
+    weight: 5.5,
+    male:   ['Wei','Ming','Jian','Hao','Yang','Fei','Bo','Lei','Tao','Cheng','Kai','Zheng','Jun','Liang','Peng','Xiao','Zhi','Feng','Gang','Hui','Kevin','Jason','Daniel','Andrew','Michael'],
+    female: ['Ling','Mei','Xiu','Yan','Fang','Jing','Na','Ting','Xia','Ying','Hui','Zhen','Amy','Linda','Jennifer','Alice','Helen','Grace','Lily','Vivian'],
+    nb:     ['Xin','Yuan','Jian','Chen','Wei'],
+    last:   ['Wang','Li','Zhang','Liu','Chen','Yang','Huang','Zhao','Wu','Zhou','Xu','Sun','Ma','Zhu','Hu','Lin','Guo','He','Gao','Luo','Zheng','Liang','Tang','Xiao','Dong']
+  },
+  indian: {
+    weight: 4,
+    male:   ['Arjun','Rahul','Vikram','Aditya','Rohit','Sanjay','Raj','Priya','Amit','Suresh','Deepak','Vijay','Kiran','Manoj','Ravi','Sunil','Anand','Nikhil','Akash','Kartik','Naveen','Harish','Mohan','Ajay','Sachin'],
+    female: ['Priya','Anjali','Pooja','Sunita','Rekha','Ananya','Divya','Kavya','Sneha','Meera','Nisha','Riya','Aisha','Simran','Pallavi','Neha','Swati','Tanvi','Ishita','Aarti'],
+    nb:     ['Arya','Kiran','Jyoti','Sasha','Rohan'],
+    last:   ['Sharma','Singh','Kumar','Patel','Gupta','Shah','Mehta','Joshi','Mishra','Rao','Nair','Pillai','Reddy','Iyer','Desai','Verma','Agarwal','Sinha','Malhotra','Bose']
+  },
+  seast_asian: {
+    weight: 3,
+    male:   ['Nguyen','Minh','Duc','Thanh','Quang','Huy','Khoa','Bao','Tuan','Duy','Jose','Juan','Miguel','Angelo','Carlo','Ramon','Eduardo','Romeo','Marlo','Danilo'],
+    female: ['Linh','Huong','Mai','Phuong','Lan','Thi','Ngan','Thuy','Hoa','Yen','Maria','Ana','Rosa','Luz','Lorna','Belen','Marites','Cristina','Rowena','Jasmine'],
+    nb:     ['Kim','Thai','Bui','Tran','Lee'],
+    last:   ['Nguyen','Tran','Le','Pham','Hoang','Ngo','Do','Dao','Duong','Vu','Santos','Reyes','Cruz','Garcia','Dela Cruz','Gonzalez','Ramos','Flores','Torres','Mendoza']
+  },
+  arabic: {
+    weight: 3,
+    male:   ['Ahmed','Mohamed','Ali','Hassan','Omar','Khalid','Ibrahim','Yusuf','Tariq','Karim','Walid','Samir','Fadi','Nader','Ramzi','Adnan','Bilal','Ziad','Samer','Hasan'],
+    female: ['Fatima','Aisha','Mariam','Nour','Sara','Layla','Rania','Dina','Hana','Yasmin','Samira','Nadia','Lina','Mona','Rana','Sana','Ruba','Abeer','Ghada','Iman'],
+    nb:     ['Nour','Sami','Rami','Karim','Majd'],
+    last:   ['Al-Hassan','El-Masri','Khalil','Mansour','Haddad','Nassar','Saleh','Khoury','Azar','Rizk','Ibrahim','Abdallah','Nasser','Yousef','Hamdan','Aoun','Chehab','Awad','Jaber','Shahin']
+  },
+  atsi: {
+    weight: 3.2,
+    male:   ['Jarrah','Bunjil','Tjapaltjarri','Koori','Wiremu','Tane','Matiu','Hemi','Rangi','Piripi','Dale','David','Shane','Jason','Matthew','Wayne','Troy','Kyle','Brett','Darren'],
+    female: ['Kirra','Noongar','Yindi','Bindi','Marlee','Aroha','Hine','Mere','Tui','Roimata','Tracey','Kerry','Michelle','Sandra','Sharon','Donna','Debra','Rebecca','Leanne','Kylie'],
+    nb:     ['Riley','Jamie','Kai','Morgan','Jordan'],
+    last:   ['Briggs','Walker','Johnson','Williams','Murray','Anderson','Thomas','Jackson','Brown','Taylor','Smith','Jones','Davis','Wilson','Harris','White','Thompson','Martin','Lewis','Clarke']
+  },
+  nz_pacific: {
+    weight: 2.5,
+    male:   ['Liam','Ethan','Noah','Jack','William','Sione','Taufa','Peni','Jone','Vili','Fale','Tana','Mose','Sitiveni','Filipo'],
+    female: ['Charlotte','Olivia','Isabella','Amelia','Sophie','Sela','Mele','Litia','Ana','Moana','Tina','Luisa','Sina','Fili','Vai'],
+    nb:     ['Sam','Riley','Jordan','Taylor','Morgan'],
+    last:   ['Tuilagi','Fifita','Taufa','Latu','Fono','Tonga','Soa','Vaka','Fisi','Nuku','Wilson','Brown','Thompson','Walker','Taylor','Davis','Anderson','Harris','Martin','White']
+  },
+  african: {
+    weight: 1.5,
+    male:   ['Kwame','Kofi','Emmanuel','Samuel','Daniel','Joseph','Michael','David','Peter','Paul','Abebe','Tesfaye','Dawit','Yohannes','Bekele','Chidi','Emeka','Obinna','Tunde','Seun'],
+    female: ['Amara','Afia','Ama','Adwoa','Akosua','Fatou','Mariama','Aminata','Kadiatou','Fatoumata','Tigist','Mekdes','Selam','Hiwot','Almaz','Ngozi','Chioma','Adaeze','Blessing','Favour'],
+    nb:     ['Kofi','Amara','Sasha','Jordan','Sam'],
+    last:   ['Mensah','Asante','Owusu','Osei','Boateng','Adjei','Ofori','Appiah','Darko','Amoah','Haile','Bekele','Tadesse','Girma','Tekle','Okafor','Nwosu','Eze','Adeyemi','Afolabi']
   }
+};
+
+function weightedRandomName(gender) {
+  // Build weighted pool
+  const pools = Object.values(NAME_POOLS);
+  const total = pools.reduce((s, p) => s + p.weight, 0);
+  let r = Math.random() * total;
+  let chosen = pools[0];
+  for (const pool of pools) {
+    r -= pool.weight;
+    if (r <= 0) { chosen = pool; break; }
+  }
+  const gKey = gender === 'Male' ? 'male' : gender === 'Female' ? 'female' : 'nb';
+  const firstArr = chosen[gKey] || chosen.male;
+  const first = firstArr[Math.floor(Math.random() * firstArr.length)];
+  const last = chosen.last[Math.floor(Math.random() * chosen.last.length)];
+  return { first, last, full: `${first} ${last}` };
 }
 
-// ── STATUS HELPERS ────────────────────────────────────────────────────────────
-function showStatus(elId, type, html) {
-  const el = document.getElementById(elId);
-  if (!el) return;
-  el.className = 'gen-status ' + type;
-  el.style.display = type==='loading' ? 'flex' : 'block';
-  if (type==='loading') {
-    el.innerHTML = `<div class="gen-spinner"></div><span>${html}</span>`;
+function randomAustralianPatient(category) {
+  // ABS 2021: 49.3% male, 50.7% female; include small non-binary weight for representation
+  const genderRoll = Math.random();
+  let gender, age;
+
+  if (category === 'Paediatric') {
+    // Paediatric: 1 month–15 years. Weighted toward school-age for richer scenarios.
+    gender = Math.random() < 0.5 ? 'Male' : 'Female';
+    const ageRanges = [
+      { min: 0.1, max: 1,  label: 'months', weight: 1 },  // infant
+      { min: 1,   max: 4,  label: 'years',  weight: 2 },  // toddler
+      { min: 5,   max: 11, label: 'years',  weight: 4 },  // school-age
+      { min: 12,  max: 15, label: 'years',  weight: 3 },  // adolescent
+    ];
+    const totalW = ageRanges.reduce((s, r) => s + r.weight, 0);
+    let roll = Math.random() * totalW;
+    let chosen = ageRanges[ageRanges.length - 1];
+    for (const r of ageRanges) { roll -= r.weight; if (roll <= 0) { chosen = r; break; } }
+    if (chosen.label === 'months') {
+      const months = Math.floor(Math.random() * 11) + 1;
+      age = `${months} month${months > 1 ? 's' : ''}`;
+    } else {
+      age = Math.floor(Math.random() * (chosen.max - chosen.min + 1)) + chosen.min;
+    }
+  } else if (category === 'Maternity') {
+    gender = 'Female';
+    age = Math.floor(Math.random() * 22) + 18; // 18–39
+  } else if (category === 'Newborn') {
+    gender = Math.random() < 0.5 ? 'Male' : 'Female';
+    age = 'newborn';
   } else {
-    el.innerHTML = html;
+    // Adult default: 18–87
+    gender = genderRoll < 0.493 ? 'Male' : genderRoll < 0.985 ? 'Female' : 'Non-binary';
+    age = Math.floor(Math.random() * 70) + 18;
   }
-}
-function hideStatus(elId) {
-  const el = document.getElementById(elId);
-  if (el) el.style.display = 'none';
-}
 
-// ── BUILD PROMPT ──────────────────────────────────────────────────────────────
-function buildCPGContext(catKey, catKey2) {
-  if (typeof CPG_PACKAGES === 'undefined') return null;
-  // catKey format: "Adult|Cardiac" — look up packages matching this category
-  const getPkgs = (key) => {
-    if (!key) return [];
-    const catKeys = Object.keys(CPG_PACKAGES);
-    // Try direct match first, then category|subcat match
-    const direct = catKeys.filter(k => k === key);
-    if (direct.length) return direct.map(k => CPG_PACKAGES[k]);
-    // key might be "Adult|Cardiac Arrest" format from CATEGORIES data
-    const [cat, sub] = key.includes('::') ? key.split('::') : key.includes('|') ? key.split('|') : [key, key];
-    const catSubKey = `${cat}|${sub}`;
-    const pkgKeys = (typeof CATEGORY_TO_CPG !== 'undefined' && CATEGORY_TO_CPG[catSubKey]) || [];
-    return pkgKeys.map(k => CPG_PACKAGES[k]).filter(Boolean);
-  };
-  const pkgs = [...getPkgs(catKey), ...(catKey2 ? getPkgs(catKey2) : [])];
-  if (!pkgs.length) return null;
-  return pkgs.map(p => `\n--- CPG: ${p.title} (${p.cpg}) ---\n${JSON.stringify(p.steps||p.content||p,null,2).slice(0,3000)}`).join('\n');
+  const name = weightedRandomName(gender);
+  return { name: name.full, gender, age };
 }
 
-const SCENARIO_JSON_TEMPLATE = `{"title":"","subtitle":"","category":"CAT","subcategory":"SUB","cpg":"","dispatch":"","caller_hx":"","arrival_hx":"","vitals":{"GCS":{},"SpO2":"","RR":"","HR":"","BP":"","Temp":"","BGL":"","Ketones":"","EtCO2":"","Weight":"","Rhythm":""},"flags":[],"medical_conditions":[],"medications":[],"allergies":"","provisional":"","ddx":[],"kq":[],"life_threats":[],"hx":{"timeline":"","nature":"","prodromal":"","aggreliev":"","assoc":"","similar":""},"rsa":{"appearance":"","speech":"","breath_sounds":"","rhythm":"","wob":""},"ra":{"wob":"","skin":""},"ps_exposure":"","social":"","discussion":[]}`;
+function buildCPGContext(catVal1, catVal2) {
+  const keys1 = CATEGORY_TO_CPG[catVal1] || [];
+  const keys2 = catVal2 ? (CATEGORY_TO_CPG[catVal2] || []) : [];
 
-async function callAnthropicAPI(systemPrompt, userPrompt) {
-  const apiKey = await getAnthropicKey();
-  const response = await fetch('https://api.anthropic.com/v1/messages', {
-    method:'POST',
-    headers:{
-      'Content-Type':'application/json',
-      'x-api-key':apiKey,
-      'anthropic-version':'2023-06-01',
-      'anthropic-dangerous-direct-browser-access':'true'
-    },
-    body:JSON.stringify({
-      model:'claude-sonnet-4-6',
-      max_tokens:4000,
-      system:systemPrompt,
-      messages:[{role:'user',content:userPrompt}]
-    })
-  });
-  if (!response.ok) {
-    const e = await response.json().catch(()=>({}));
-    throw new Error(e.error?.message||`Anthropic API error ${response.status}`);
+  // Restrict random pool to scenario-appropriate CPGs where defined
+  const scenarioPool1 = CATEGORY_SCENARIO_CPGS[catVal1] || keys1;
+  const scenarioPool2 = catVal2 ? (CATEGORY_SCENARIO_CPGS[catVal2] || keys2) : keys2;
+
+  // For single-category calls: use selected subtype if set, otherwise random from scenario pool
+  let selectedKeys1 = keys1;
+  if (keys1.length > 1) {
+    const subtypeEl = document.getElementById('gen-cpg-subtype');
+    const chosen = subtypeEl && subtypeEl.value !== '__random__' ? subtypeEl.value : null;
+    selectedKeys1 = chosen && keys1.includes(chosen)
+      ? [chosen]
+      : [scenarioPool1[Math.floor(Math.random() * scenarioPool1.length)]];
   }
-  const data = await response.json();
-  const raw = data.content.map(c=>c.text||'').join('');
-  return parseFirstJSON(raw);
-}
 
-// ── CORE GENERATE FUNCTION ────────────────────────────────────────────────────
-async function generateScenario(params, statusElId, btnEl) {
-  // Daily limit check
-  if (!isAdmin()) {
-    if (getDailyCount() >= MAX_DAILY) {
-      showStatus(statusElId, 'error', '⚠️ Daily limit reached (5 uses). Resets at midnight.');
-      return;
+  // For secondary category: use selected subtype-2 if set, otherwise random from scenario pool
+  let selectedKeys2 = keys2;
+  if (catVal2 && keys2.length > 1) {
+    const subtype2El = document.getElementById('gen-cpg-subtype-2');
+    const chosen2 = subtype2El && subtype2El.value !== '__random__' ? subtype2El.value : null;
+    selectedKeys2 = chosen2 && keys2.includes(chosen2)
+      ? [chosen2]
+      : [scenarioPool2[Math.floor(Math.random() * scenarioPool2.length)]];
+  }
+
+  const allKeys = [...new Set([...selectedKeys1, ...selectedKeys2])];
+
+  if (allKeys.length === 0) return '';
+
+  const packageSections = allKeys.map(k => {
+    const pkg = CPG_PACKAGES[k];
+    if (!pkg) return '';
+    // Render management as readable plain text for AI prompt — handles both typed and legacy formats
+    let mgmtLines = '';
+    if (Array.isArray(pkg.management)) {
+      if (pkg.management.length > 0 && typeof pkg.management[0] === 'object') {
+        // New typed format — flatten to readable text
+        mgmtLines = pkg.management.map(step => {
+          if (!step || !step.type) return '';
+          switch (step.type) {
+            case 'assess': return `  ASSESS: ${(step.items||[]).join(', ')}`;
+            case 'stop':   return `  STOP: ${step.text}`;
+            case 'header': return `  [${step.text}]`;
+            case 'subheader': return `    (${step.text})`;
+            case 'action': return step.items ? `  - ${step.items.join('; ')}` : `  - ${step.text}`;
+            case 'note':   return step.items ? `  NOTE: ${step.items.join('; ')}` : `  NOTE: ${step.text}`;
+            case 'mica':   return step.items ? `  MICA: ${step.items.join('; ')}` : `  MICA: ${step.text}`;
+            default: return '';
+          }
+        }).filter(Boolean).join('\n');
+      } else {
+        // Legacy flat string array
+        mgmtLines = pkg.management.filter(Boolean).map(s => `  - ${s}`).join('\n');
+      }
+    } else if (pkg.management && typeof pkg.management === 'object') {
+      mgmtLines = Object.entries(pkg.management).map(([mk, mv]) => `  ${mk}: ${mv}`).join('\n');
+    }
+    const drugLines = Object.entries(pkg.drugs || {}).map(([dk, dv]) => `  ${dk}: ${dv}`).join('\n');
+    return `--- CPG: ${pkg.title} (${pkg.cpg}) ---\n` +
+      `Care objectives: ${pkg.careObjectives?.join('; ')}\n` +
+      `Management:\n${mgmtLines}\n` +
+      (drugLines ? `Drugs:\n${drugLines}\n` : '') +
+      (pkg.pitfalls ? `Pitfalls: ${pkg.pitfalls.join('; ')}\n` : '') +
+      (pkg.highRiskFeatures ? `High-risk features: ${pkg.highRiskFeatures.join(', ')}\n` : '');
+  }).filter(Boolean).join('\n');
+
+  // Check for a combination note
+  const CPG_COMBINATIONS = {}; // Reserved for future use — no predefined combinations
+  let comboNote = '';
+  if (catVal2 && keys1.length && keys2.length) {
+    const comboKey = Object.keys(CPG_COMBINATIONS).find(k => {
+      const combo = CPG_COMBINATIONS[k];
+      return keys1.some(a => combo.cpgs?.some(c => CPG_PACKAGES[a]?.cpg === c)) &&
+             keys2.some(b => combo.cpgs?.some(c => CPG_PACKAGES[b]?.cpg === c));
+    });
+    if (comboKey) {
+      const combo = CPG_COMBINATIONS[comboKey];
+      comboNote = `\n--- COMBINATION GUIDANCE ---\n${combo.note}\nManagement priority: ${combo.priority}\n`;
     }
   }
 
-  const { conditions, category, subcategory, complaint, complexity, age, gender, weight, timeOfDay, pmhx, meds, allergies } = params;
+  return `\n\nRELEVANT AV CPG CONTENT (v3.13.1) — use these exact doses and thresholds:\n${packageSections}${comboNote}`;
+}
 
-  // Determine category/subcategory for CPG lookup
-  // conditions may be ["Adult::ACS / STEMI"] or from Quick Build a simple name
-  let catForCPG = category || 'Adult';
-  let subForCPG = subcategory || '';
-  if (conditions && conditions.length) {
-    const first = conditions[0];
-    if (first.includes('::')) {
-      const [cat, sub] = first.split('::');
-      catForCPG = cat; subForCPG = sub;
-    }
+const SCENARIO_JSON_TEMPLATE = `{"title":"","subtitle":"","category":"CAT","subcategory":"SUB","type":"","cpg":"","level":"C/D","dispatch":"","vitals":{"GCS":{"E":0,"V":0,"M":0,"total":0,"description":""},"SpO2":"","RR":"","HR":"","BP":"","Temp":"","BGL":"","Rhythm":"","Weight":"","Ketones":"","EtCO2":""},"caller_hx":"","arrival_hx":"","hx":{"timeline":"","nature":"","prodromal":"","aggreliev":"","assoc":"","similar":""},"medical_conditions":["","",""],"medications":["","",""],"allergies":"","flags":["","","",""],"ddx":["","","",""],"provisional":"","ra":{"wob":"","skin":""},"ps_exposure":"","social":"","rsa":{"appearance":"","speech":"","breath_sounds":"","rhythm":"","wob":""},"life_threats":["",""],"kq":[{"q":"","max":2,"answer":""},{"q":"","max":2,"answer":""},{"q":"","max":1,"answer":""}],"discussion":[]}`;
+// Note: medical_conditions = short list e.g. ["Asthma (previous ICU admission)", "Type 2 Diabetes", "Hypertension"]
+// medications = short list e.g. ["Metoprolol 50mg daily", "Aspirin 100mg", "Candesartan 8mg"]
+// key_hx = legacy field kept for backwards compat with built-in scenarios; new scenarios use caller_hx + arrival_hx
+
+// Robustly extract the first valid JSON object from an AI response
+function parseFirstJSON(raw) {
+  // Strip markdown fences
+  let s = raw.replace(/```json|```/g, '').trim();
+  // Find first { and matching }
+  const start = s.indexOf('{');
+  if (start === -1) throw new Error('No JSON object found in response');
+  let depth = 0, end = -1;
+  for (let i = start; i < s.length; i++) {
+    if (s[i] === '{') depth++;
+    else if (s[i] === '}') { depth--; if (depth === 0) { end = i; break; } }
+  }
+  if (end === -1) throw new Error('Unterminated JSON object in response');
+  let jsonStr = s.slice(start, end + 1);
+  // First attempt — try parsing as-is
+  try { return JSON.parse(jsonStr); } catch(e1) {}
+  // Second attempt — strip JS-style comments
+  try {
+    const stripped = jsonStr.replace(/\/\/[^\n\r"]*/g, '');
+    return JSON.parse(stripped);
+  } catch(e2) {}
+  // Third attempt — fix trailing commas and single quotes
+  try {
+    const fixed = jsonStr
+      .replace(/([{,\s])'([^']+)'\s*:/g, '$1"$2":')
+      .replace(/:\s*'([^']*)'/g, ': "$1"')
+      .replace(/,\s*}/g, '}')
+      .replace(/,\s*]/g, ']');
+    return JSON.parse(fixed);
+  } catch(e3) {
+    throw new Error('AI returned malformed JSON — please try generating again.');
+  }
+}
+
+async function generateAIScenario() {
+  const catVal = document.getElementById('gen-category').value;
+  const catVal2El = document.getElementById('gen-category-2');
+  const catVal2 = catVal2El && catVal2El.value !== '__none__' ? catVal2El.value : null;
+  const [category, subcategory] = catVal.includes('|') ? catVal.split('|') : [catVal, catVal];
+  const complaint = document.getElementById('gen-complaint').value.trim();
+  const complexity = document.getElementById('gen-complexity').value;
+  const btn = document.getElementById(_activeGenBtn) || document.getElementById('quick-gen-btn');
+  btn.disabled = true;
+  const origLabel = btn.textContent;
+  btn.innerHTML = 'Generating<span class="dot-pulse"><span>.</span><span>.</span><span>.</span></span>';
+  lastAIScenario = null;
+  showStatus('gen-status-quick', 'loading', '✦ Generating — this usually takes 15–20 seconds…');
+  showStatus('gen-status-custom', 'loading', '✦ Generating — this usually takes 15–20 seconds…');
+
+  // Guard: check CPG package data is loaded
+  if (typeof CPG_PACKAGES === 'undefined') {
+    showStatus('gen-status-quick', 'error', '✕ CPG data not loaded.');
+    showStatus('gen-status-custom', 'error', '✕ CPG data not loaded.');
+    btn.textContent = origLabel;
+    btn.disabled = false;
+    return;
   }
 
-  const catLabel = subForCPG ? `${catForCPG} — ${subForCPG}` : catForCPG;
-  const catKey = subForCPG ? `${catForCPG}|${subForCPG}` : catForCPG;
-  const cpgContext = buildCPGContext(catKey, null);
+  // Build CPG context for prompt injection
+  const cpgContext = buildCPGContext(catVal, catVal2);
 
-  // Patient demographics
-  const ageStr = age ? `${age}yo` : 'age not specified (choose appropriate)';
-  const genderStr = gender || 'random (choose appropriate)';
-  const weightStr = weight ? `${weight}kg` : 'choose appropriate weight';
-  const timeStr = timeOfDay || 'random';
+  // Determine effective category label (single or combo)
+  let categoryLabel = `${category} — ${subcategory}`;
+  if (catVal2) {
+    const [cat2, sub2] = catVal2.includes('|') ? catVal2.split('|') : [catVal2, catVal2];
+    categoryLabel += ` + ${cat2} — ${sub2}`;
+  }
 
-  // Build complaint line
-  const conditionsList = conditions && conditions.length
-    ? conditions.map(c => c.includes('::') ? c.split('::')[1] : c).join(' + ')
+  // Name the specific CPG subtype to prevent the AI defaulting to opioids
+  // First check if user explicitly selected a subtype; otherwise infer from injected CPG context
+  const subtypeEl = document.getElementById('gen-cpg-subtype');
+  const explicitSubtype = subtypeEl && subtypeEl.value !== '__random__' ? subtypeEl.value : null;
+  const toxSubtypeHint = (subcategory === 'Toxicology' || explicitSubtype) && cpgContext
+    ? (() => {
+        if (explicitSubtype && CPG_SUBTYPE_LABELS[explicitSubtype]) return CPG_SUBTYPE_LABELS[explicitSubtype];
+        if (cpgContext.includes('Tricyclic Antidepressant')) return 'Tricyclic Antidepressant (TCA) Overdose';
+        if (cpgContext.includes('Beta-Blocker Toxicity')) return 'Beta-Blocker Toxicity';
+        if (cpgContext.includes('Calcium Channel Blocker')) return 'Calcium Channel Blocker (CCB) Toxicity';
+        if (cpgContext.includes('Organophosphate')) return 'Organophosphate Toxicity';
+        if (cpgContext.includes('Drug Induced Hyperthermia')) return 'Drug-Induced Hyperthermia / Stimulant Toxidrome';
+        if (cpgContext.includes('Quetiapine')) return 'Quetiapine Toxicity';
+        if (cpgContext.includes('Acute Alcohol Intoxication')) return 'Acute Alcohol Intoxication';
+        if (cpgContext.includes('Alcohol Withdrawal')) return 'Alcohol Withdrawal Syndrome';
+        if (cpgContext.includes('Cyanide')) return 'Cyanide Toxicity';
+        if (cpgContext.includes('Opioid Toxicity')) return 'Opioid Toxicity';
+        return null;
+      })()
     : null;
 
-  const seedParts = [];
-  if (age) seedParts.push(`Age: ${ageStr}`);
-  if (gender) seedParts.push(`Gender: ${genderStr}`);
-  if (weight) seedParts.push(`Weight: ${weightStr}`);
-  if (timeOfDay) seedParts.push(`Time: ${timeOfDay}`);
-  if (pmhx) seedParts.push(`PMHx: ${pmhx}`);
-  if (meds) seedParts.push(`Medications: ${meds}`);
-  if (allergies) seedParts.push(`Allergies: ${allergies}`);
-  if (conditionsList) seedParts.push(`Condition(s): ${conditionsList}`);
-  if (complaint) seedParts.push(`Scene/Complaint: ${complaint}`);
-
-  const complaintLine = seedParts.length
-    ? `SCENARIO SEED — honour ALL of these details:\n${seedParts.join('\n')}`
-    : `Choose a realistic and educationally valuable ${catLabel} presentation.`;
-
+  const complaintLine = complaint
+    ? `SCENARIO SEED (use as a creative brief — honour these details but build a full, realistic scenario around them with appropriate context, backstory, and clinical depth): ${complaint}. Adapt ALL relevant fields to reflect this — including patient demographics, vitals, medical history, medications, flags, ddx, and any other fields as appropriate. Do not copy the seed text verbatim into the scenario fields.`
+    : toxSubtypeHint
+      ? `The scenario must be a ${toxSubtypeHint} presentation — this is the toxicology type provided in the CPG context. Do NOT default to opioids unless the CPG context specifies opioid toxicity.`
+      : `Choose a realistic and educationally valuable ${categoryLabel} presentation.`;
+  // Use the most specific patient category for age generation
+  // (Paediatric/Newborn/Maternity override Adult if present in combo)
+  const SPECIFIC_CATS = ['Paediatric', 'Newborn', 'Maternity'];
+  const cat2ForPatient = catVal2 ? (catVal2.includes('|') ? catVal2.split('|')[0] : catVal2) : null;
+  const patientCategory = SPECIFIC_CATS.includes(cat2ForPatient) ? cat2ForPatient
+    : SPECIFIC_CATS.includes(category) ? category
+    : category;
+  const patient = randomAustralianPatient(patientCategory);
   const complexityNote = {
-    Standard: 'Standard, core presentation with typical management.',
-    Simple: 'Simple, straightforward presentation suitable for early assessment.',
-    Complex: 'Include a complicating factor — comorbidity, atypical feature, or medication interaction.',
-  }[complexity] || 'Standard, core presentation.';
+    standard:     'Standard, core presentation with typical management.',
+    complex:      'Include a complicating factor — comorbidity, atypical feature, or medication interaction.',
+    'high-acuity':'High acuity, time-critical, multi-system with at least one life-threatening element.'
+  }[complexity];
+  const ageStr = (patientCategory === 'Newborn') ? 'newborn'
+    : (typeof patient.age === 'string' && patient.age.includes('month')) ? `${patient.age} old`
+    : `${patient.age}yo`;
+  const patientNote = complaint
+    ? `Default patient demographics (use only for any details not already specified in the scenario requirements above): ${ageStr} ${patient.gender}, name: ${patient.name}.`
+    : `Patient demographics: ${ageStr} ${patient.gender}, name: ${patient.name}. Use this name and demographics in the dispatch and scenario. Do NOT change the patient age — use exactly ${ageStr}.`;
 
   const cpgInstruction = cpgContext
     ? `You MUST use the exact drug doses, thresholds, and management steps from the CPG content provided below. Do not invent doses or deviate from the provided protocol.${cpgContext}`
     : 'Use your knowledge of AV CPGs to generate an accurate scenario.';
 
-  const systemPrompt = `You are a clinical scenario writer for Ambulance Victoria (AV) paramedic education. Write accurate ALS (Level C/D) verbal assessment scenarios based strictly on AV Clinical Practice Guidelines v3.13.1 (December 2025). Respond with valid JSON only — no markdown, no preamble. CRITICAL: All clinical content must be drawn exclusively from AV CPG content provided. GCS FORMAT: vitals.GCS must always be a JSON object {E, V, M, total, description}. A fully alert patient is E4 V5 M6 total 15. AUSTRALIAN TERMINOLOGY throughout. ${cpgInstruction}`;
+  const systemPrompt = `You are a clinical scenario writer for Ambulance Victoria (AV) paramedic education. Write accurate ALS (Level C/D) verbal assessment scenarios based strictly on AV Clinical Practice Guidelines v3.13.1 (December 2025). Respond with valid JSON only — no markdown, no preamble. CRITICAL RULE: All clinical content (treatment, drug doses, management steps, assessment criteria, key questions and answers) must be drawn exclusively from the AV CPG content provided. Do NOT add management steps, drug doses, or clinical guidance that are not explicitly stated in the CPGs — not even if they are standard clinical practice. The ONLY exceptions are: (1) the "discussion" field, which is intentionally separate and may draw on broader clinical knowledge; and (2) the "life_threats" field, which contains immediate pre-assessment physical actions — these must always be populated and are exempt from the CPG-only rule. GCS FORMAT: vitals.GCS must always be a JSON object with four fields: E (eyes, integer 1–4), V (verbal, integer 1–5), M (motor, integer 1–6), total (integer, must equal E+V+M exactly), and description (a short clinical sentence describing the patient's observable behaviour matching those scores, e.g. "eyes open to pain only, inappropriate words, localising to pain"). A fully alert patient is E4 V5 M6 total 15. Never return GCS as a plain string or number. AUSTRALIAN TERMINOLOGY: Use Australian medical terminology and drug names throughout (e.g. adrenaline not epinephrine, paracetamol not acetaminophen, salbutamol not albuterol). Use mmol/L for BGL. Use Australian English spelling. This is an Ambulance Victoria scenario — do not use US EMS terminology, ACLS protocols, or American drug names anywhere in the output. ${cpgInstruction}`;
+
+  const seedSection = complaint
+    ? `\n== SCENARIO SEED (non-negotiable anchors) ==\n${complaint}\nThese details MUST appear in the scenario. Use them as a creative brief — build a rich, realistic backstory and narrative around them. Any name given must appear in the dispatch and subtitle. Any demographics given (age, gender) must be used exactly. Any clinical details (e.g. choking on watermelon, also septic, patient is blind) must be woven naturally into the relevant fields (dispatch, caller_hx, arrival_hx, medical_conditions, vitals, etc.). Do NOT invent contradictory details. Write a specific, believable scenario grounded in these anchors, not generic placeholder text.\n== END SEED ==\n`
+    : '';
 
   const userPrompt = `Generate an ALS (Level C/D) verbal scenario for Ambulance Victoria.
-Category: ${catLabel}
-${complaintLine}
-${complexityNote}
-Patient demographics — if not specified in seed above, choose appropriate: age=${ageStr}, gender=${genderStr}, weight=${weightStr}, time of day=${timeStr}.
+Category: ${categoryLabel}
+${seedSection}${complaint ? '' : complaintLine + '\n'}${complexityNote}
+${patientNote}
+Do NOT generate treatment or management steps — these are supplied from official CPG data. Leave treatment_als and treatment_mica out of the JSON entirely. Focus on generating an accurate, realistic scenario with correct vitals, flags, ddx, provisional diagnosis, and knowledge questions.
+For the "cpg" field: set this to the CPG code of the PRIMARY guideline for this scenario (e.g. "P0601-1" for Croup, "P0602" for Asthma, "A0603" for Upper Airway Obstruction). The correct code is always shown in the CPG context header above in the format "--- CPG: Title (CODE) ---". Use that code exactly — do NOT invent or guess a CPG code.
+For the "dispatch" field: write a SHORT pager-style dispatch message — the brief alert a paramedic receives before attending. Format: "Priority [1/2/3] — [age]yo [Male/Female] — [chief complaint in 3–5 words]". Do NOT reveal the diagnosis or give clinical detail. Examples: "Priority 1 — 71yo Male — difficulty breathing", "Priority 1 — 34yo Female — unresponsive", "Priority 2 — 58yo Male — chest pain". The patient's name must NOT appear in the dispatch.
+For the "caller_hx" field: write what the caller/bystander reported to dispatch — 1–3 sentences from a layperson's perspective. Include context such as location, onset, and visible symptoms as a bystander would describe them. Do not use clinical terminology. Example: "Caller reports her husband suddenly started having trouble breathing about 30 minutes ago after eating at a restaurant. He is sitting up and looks very distressed. She says his throat looks swollen."
+For the "arrival_hx" field: write the clinical picture found on arrival — 2–4 sentences describing what the paramedic observes and what the patient/bystander reports on scene. Use clinical terminology appropriate for a paramedic assessor. Include patient positioning, behaviour, key symptoms, relevant history from the patient or bystander, and any pertinent negatives. Example: "Patient sitting upright in tripod position, visibly distressed with audible inspiratory stridor. Reports sudden onset throat tightness and difficulty breathing 30 minutes after eating prawns. Wife confirms known shellfish allergy. Denies chest pain or previous similar episodes."
+For life_threats: provide 2–4 brief, immediate management actions a paramedic would perform immediately after the primary survey — BEFORE any history, vital signs, or diagnosis. These are based solely on what is visually apparent (e.g. active haemorrhage, severe respiratory distress, unconsciousness, major trauma mechanism). Actions must be physical and immediate: positioning, airway manoeuvres, adjuncts, oxygen delivery method and rate, haemorrhage control, spinal precautions, BVM ventilation, CPR, defibrillation. Do NOT include drug administration, IV access, monitoring, or any action requiring a diagnosis or vital signs. Use plain clinical language (e.g. "Apply direct pressure and tourniquet to arterial haemorrhage", "Position upright, apply non-rebreather mask 15 L/min", "Manual in-line cervical spine stabilisation"). Return as a flat array of strings. If there is no immediate life threat apparent from the primary survey, return 2 generic RABCDE safety actions appropriate to the presentation.
+For the "hx" field: provide brief, clinically appropriate hint text for each history sub-field. These are shown as info badges to help the CI/assessor know what the patient would say. Leave a field as "" if it is not relevant or not applicable (e.g. a child with no prior episodes, a trauma with no prodrome). Keep each value concise — one short sentence or phrase. Fields:
+- hx.timeline: when symptoms started and how they progressed (e.g. "Onset 2 hours ago, gradually worsening")
+- hx.nature: character/quality of the presenting complaint (e.g. "Tight, crushing chest pain radiating to left arm")
+- hx.prodromal: symptoms preceding the main event, if any (e.g. "Nausea and diaphoresis for 30 minutes prior")
+- hx.aggreliev: what makes it better or worse (e.g. "Worse on exertion, partially relieved by rest")
+- hx.assoc: relevant associated symptoms or circumstances (e.g. "Shortness of breath, no cough or fever")
+- hx.similar: any prior similar episodes (e.g. "One prior episode 6 months ago, self-resolved" or "" if none)
+For medical_conditions: CRITICAL — this must be a concise array of pre-existing medical CONDITIONS ONLY. Do NOT put the history of the current presentation here. Do NOT put narrative text here. Examples of correct format: ["Asthma (diagnosed age 12)", "Type 2 Diabetes", "Hypertension"]. Use empty array [] if the patient has no relevant medical history (e.g. healthy child, young adult with no PMHx). Max 4 items.
+For medications: provide a concise array of medication names with doses — no extra description (e.g. ["Levetiracetam 500mg BD", "Metformin 500mg daily", "Amlodipine 10mg"]). Max 6 items. Use empty array [] if none.
+For allergies: this field must reflect a DOCUMENTED ALLERGY, not a current exposure. For anaphylaxis scenarios — ALWAYS populate this field with the causative allergen (e.g. "Prawns / shellfish", "Bee sting venom", "Penicillin"). For all other scenarios: approximately 25% of patients have a pre-existing allergy — vary the allergen using realistic Australian options: morphine, aspirin, ibuprofen, sulfonamides, latex, bee stings, nuts, shellfish, contrast dye, codeine, tramadol. Return "" if no known allergy.
+For vitals.GCS: always return the structured object {E, V, M, total, description}. Choose component scores appropriate to the clinical presentation — do NOT default every scenario to GCS 15 / E4V5M6. Impaired consciousness should be reflected with realistic component scores. The description must match the scores (e.g. E2 V3 M5 = "eyes open to pain, inappropriate words, localising to pain").
+For vitals.Rhythm: Always include a cardiac rhythm using standard clinical terms (e.g. "Atrial Fibrillation", "Sinus Tachycardia", "Normal Sinus Rhythm"). Rules: (1) Non-cardiac scenarios: default to rate-appropriate sinus rhythm — "Sinus Tachycardia" if HR >100, "Sinus Bradycardia" if HR <60, otherwise "Normal Sinus Rhythm". (2) Consider age-appropriate incidental rhythms that don't affect primary management — e.g. a 78yo with pneumonia may coincidentally be in Atrial Fibrillation; a 72yo trauma patient may have 1st Degree AV Block. This is realistic and encouraged for patients over 65. (3) Cardiac scenarios: use a clinically appropriate rhythm for the presentation. (4) PEA cardiac arrest: use "Pulseless Electrical Activity (PEA)" — do NOT use VF or Asystole for PEA. (5) Never leave Rhythm blank.
+For vitals.Weight: always provide a realistic weight in kg appropriate to the patient's age and presentation (e.g. "82 kg", "14 kg"). For adults use a realistic Australian adult weight. For paediatric patients use an age-appropriate weight. Never leave blank.
+For PAEDIATRIC scenarios: vitals MUST reflect the patient's age using the following AV CPG normal ranges. Generate values appropriate to the clinical context — a sick child should have vitals OUTSIDE these normal ranges in clinically appropriate directions (e.g. tachycardia, tachypnoea, hypoxia, hypotension). Normal ranges by age group:
+- Newborn (Birth–24hrs): HR 110–170, RR 25–60, sBP >60
+- Small Infant (<3mo): HR 110–170, RR 25–60, sBP >60
+- Large Infant (3–12mo): HR 105–165, RR 25–55, sBP >65
+- Small Child (1–4yr): HR 85–150, RR 20–40, sBP >70
+- Medium Child (5–11yr): HR 70–135, RR 16–34, sBP >80
+- Adolescent (12–15yr): HR 60–120, RR 14–26, sBP >90
+Do NOT generate adult-range vitals for paediatric patients (e.g. RR 18 is NOT elevated for a 7-year-old — it is normal). Weight should follow: Newborn ~3.5 kg, Small Infant ~5 kg, Large Infant ~8 kg, Small Child ~14–18 kg, Medium Child ~20–30 kg, Adolescent ~45–60 kg.
+For CROUP scenarios specifically: always generate a child aged 6 months to 5 years (most common age group per CPG P0601). Present with barking cough, inspiratory stridor, hoarse voice, and increased work of breathing. Symptoms worse at night. Classify as mild, moderate, or severe and ensure vitals, behaviour, and RSA findings are consistent with that severity. Provisional diagnosis must be "Croup". CPG field must be "P0601". Do NOT generate epiglottitis or foreign body obstruction as a croup scenario — these are differentials to be considered, not the diagnosis.
+For vitals.Ketones: always provide a realistic blood ketone value in mmol/L (e.g. "0.2 mmol/L"). Use elevated values (>1.5 mmol/L) for DKA, hyperglycaemia, or diabetic emergencies. Use normal/low values (0.1–0.5 mmol/L) for all other presentations. Never leave blank.
+For vitals.EtCO2: always provide a realistic end-tidal CO₂ value in mmHg (e.g. "38 mmHg"). Use low values for hyperventilation or poor perfusion states; high values for hypoventilation, opioid OD, or severe respiratory failure; normal range (35–45 mmHg) for most presentations. Never leave blank.
+For the "discussion" field: provide 2–4 brief bullet points about management or considerations that are BEYOND AV scope — e.g. in-hospital treatment, specialist interventions, or relevant clinical nuance not covered by AV CPGs. These are suggested discussion prompts for the CI to use with the student. They are NOT assessable and NOT part of AV management. Label them clearly as beyond-scope. Return as an array of strings.
+For the "ra" field (Rapid Assessment — what is seen at a glance on approach):
+- ra.wob: brief visual impression of breathing effort — one of: "Adequate" | "Increased effort" | "Decreased effort" | "Agonal" | "Not breathing" | "Laboured" | "Shallow"
+- ra.skin: brief visual impression of skin on approach — concise phrase describing colour, moisture, and temperature (e.g. "Warm, pink, dry" | "Pale, diaphoretic" | "Cyanosed, mottled" | "Flushed, warm" | "Cold, pale, mottled" | "Jaundiced" | "Urticarial rash"). Match to patient's clinical state and ethnicity where relevant.
+For "ps_exposure": a single short sentence describing the patient's clothing/environment in the context of exposure risk — what does the paramedic see on arrival? Focus on clothing appropriateness vs environment (e.g. "Adequately clothed, moderate temperature environment" | "Wearing heavy jumper indoors, room is 35°C" | "Found unclothed in cold backyard, ambient temp ~5°C" | "Wet clothing following submersion, cold evening"). For most scenarios this will be unremarkable — use "Adequately clothed, no environmental exposure concerns" as the default. Leave "" only if genuinely not applicable (e.g. in-hospital transfer).
+For "social": a brief phrase about social/environmental circumstances relevant to ongoing care — living situation, support, home conditions (e.g. "Lives alone, no carer support" | "Well-supported, family present" | "Poor home conditions, evidence of self-neglect" | "Unhoused, sleeping rough" | "Elderly, lives alone in aged care facility"). For most working-age adults and trauma/vehicle scenarios use "" or keep very brief. Increase rate of social complexity for elderly patients, mental health presentations, and chronic illness scenarios.
+For the "rsa" field: populate each sub-field with the clinically appropriate descriptor for this specific patient, chosen from the fixed options below (taken directly from CPG A0103). Each component is assessed independently — do NOT assume all components must come from the same severity column. Choose based on the patient's presentation, vitals, and diagnosis.
+- rsa.appearance: one of — "Calm, quiet" | "Calm or mildly anxious" | "Distressed, anxious" | "Distressed, anxious, fighting to breathe, exhausted" | "Catatonic"
+- rsa.speech: one of — "Clear and steady" | "Sentences" | "Phrases" | "Single words" | "Unable to speak"
+- rsa.breath_sounds: one of — "Normal lung sounds" | "Wheeze" | "Crackles" | "Wheeze and crackles" | "Silent chest" | "Full field crackles" | "Inspiratory stridor" | "Normal"
+- rsa.rhythm: one of — "Regular and even" | "Slightly prolonged expiratory phase" | "Prolonged expiratory phase" | "Kussmaul breathing" | "Cheyne-Stokes respiration" | "Agonal breathing"
+- rsa.wob: one of — "Normal, no increased effort" | "Mild increase in effort" | "Moderate increase in effort" | "Accessory muscle use" | "Moderate increase in effort, accessory muscle use" | "Severe/maximal effort — accessory muscle use, intercostal retraction, tracheal tugging" | "Poor respiratory effort"
+For non-respiratory presentations, use normal/near-normal values unless vitals or context suggest otherwise (e.g. a shocked trauma patient may have tachypnoea and increased WoB even without primary respiratory pathology).
+For the "subtitle" field: always use the format "48yo Female — Chest pain and diaphoresis" (age + gender + em dash + brief clinical description). Age must match the patient demographics exactly. Gender should be Male or Female (capitalised). The clinical description after the em dash should be concise (5–8 words) and match the provisional diagnosis.
+Return ONLY a valid JSON object:
+${SCENARIO_JSON_TEMPLATE.replace('CAT', category).replace('SUB', subcategory)}`;
 
-Do NOT generate treatment_als or treatment_mica — these come from CPG data. Focus on accurate vitals, flags, ddx, provisional diagnosis, and knowledge questions.
-
-Return ONLY valid JSON matching this template:
-${SCENARIO_JSON_TEMPLATE.replace('CAT', catForCPG).replace('SUB', subForCPG)}`;
-
-  if (btnEl) { btnEl.disabled = true; }
-  showStatus(statusElId, 'loading', `Generating<span class="dot-pulse"><span>.</span><span>.</span><span>.</span></span> — usually 15–20 seconds`);
+  // Daily usage limit (skip for admin)
+  if (!isAdmin()) {
+    const today = new Date().toISOString().slice(0,10);
+    const storedDate = localStorage.getItem('av_ai_daily_date');
+    const storedCount = parseInt(localStorage.getItem('av_ai_daily_count') || '0');
+    const count = storedDate === today ? storedCount : 0;
+    if (count >= 5) {
+      showStatus('gen-status-quick', 'error', '⚠️ Daily limit reached. Resets at midnight.');
+      showStatus('gen-status-custom', 'error', '⚠️ Daily limit reached. Resets at midnight.');
+      btn.innerHTML = origLabel; btn.disabled = false; return;
+    }
+  }
 
   try {
-    const scenario = await callAnthropicAPI(systemPrompt, userPrompt);
+    let scenario;
+    const apiKey = await getAnthropicKey();
+    scenario = await generateWithAnthropic(apiKey, systemPrompt, userPrompt);
     scenario.id = 'ai_' + Date.now();
     scenario.ai_generated = true;
     scenario.created_at = new Date().toISOString();
-    scenario.category = scenario.category || catForCPG;
-    scenario.subcategory = scenario.subcategory || subForCPG;
-    scenario.level = scenario.level || 'C/D';
+    scenario.custom = true;
+    if (!scenario.level) scenario.level = 'C/D';
     if (!Array.isArray(scenario.discussion)) scenario.discussion = [];
-    normaliseGCS(scenario);
-    if (!isAdmin()) incrementDailyCount();
-    updateUsageDisplay();
-    showStatus(statusElId, 'success', '✅ Scenario generated — saving and loading…');
+    // Validate and normalise GCS object
+    if (scenario.vitals) {
+      const rawGCS = scenario.vitals.GCS;
+      if (rawGCS && typeof rawGCS === 'object' && 'E' in rawGCS) {
+        const e = parseInt(rawGCS.E) || 0, v = parseInt(rawGCS.V) || 0, m = parseInt(rawGCS.M) || 0;
+        const computedTotal = e + v + m;
+        const claimedTotal = parseInt(rawGCS.total) || 0;
+        if (computedTotal !== claimedTotal) {
+          console.warn(`GCS total mismatch: E${e}+V${v}+M${m}=${computedTotal} but total claimed ${claimedTotal}. Correcting.`);
+          scenario.vitals.GCS = { ...rawGCS, E: e, V: v, M: m, total: computedTotal };
+        } else {
+          scenario.vitals.GCS = { E: e, V: v, M: m, total: computedTotal, description: rawGCS.description || '' };
+        }
+      } else if (rawGCS && typeof rawGCS !== 'object') {
+        // AI returned a string despite instructions — convert to object with unknown components
+        const n = parseFloat(String(rawGCS)) || 15;
+        scenario.vitals.GCS = { E: 0, V: 0, M: 0, total: n, description: '' };
+      }
+    }
+    lastAIScenario = scenario;
+    // Tag scenario_type from the CPG subtype selection
+    const _subtypeEl = document.getElementById('gen-cpg-subtype');
+    const _chosenType = _subtypeEl && _subtypeEl.value !== '__random__' ? _subtypeEl.value : null;
+    if (_chosenType) scenario.scenario_type = _chosenType;
+    // Increment daily usage count
+    if (!isAdmin()) {
+      const today = new Date().toISOString().slice(0,10);
+      const storedDate = localStorage.getItem('av_ai_daily_date');
+      const storedCount = parseInt(localStorage.getItem('av_ai_daily_count') || '0');
+      const count = storedDate === today ? storedCount : 0;
+      localStorage.setItem('av_ai_daily_date', today);
+      localStorage.setItem('av_ai_daily_count', String(count + 1));
+    }
+    updateAIUsageIndicator();
+    btn.innerHTML = origLabel;
+    btn.disabled = false;
+    // Rebuild sidebar so the scenario is findable, then auto-load and auto-save
+    showStatus('gen-status-quick', 'success', '✅ Saved — loading scenario…');
+    showStatus('gen-status-custom', 'success', '✅ Saved — loading scenario…');
     await saveAndNavigate(scenario);
   } catch(e) {
-    showStatus(statusElId, 'error', `⚠️ Error: ${e.message}`);
-    if (btnEl) { btnEl.disabled = false; }
+    showStatus('gen-status-quick', 'error', '✕ Error: ' + e.message);
+    showStatus('gen-status-custom', 'error', '✕ Error: ' + e.message);
+    btn.innerHTML = origLabel; btn.disabled = false;
   }
 }
 
+async function generateWithAnthropic(apiKey, systemPrompt, userPrompt) {
+  const response = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' },
+    body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 4000, system: systemPrompt, messages: [{ role: 'user', content: userPrompt }] })
+  });
+  if (!response.ok) { const e=await response.json().catch(()=>({})); throw new Error(e.error?.message||`Anthropic API error ${response.status}`); }
+  const data = await response.json();
+  const raw = data.content.map(c=>c.text||'').join('');
+  return parseFirstJSON(raw);
+}
+
+let _cachedAnthropicKey = null;
+async function getAnthropicKey() {
+  if (_cachedAnthropicKey) return _cachedAnthropicKey;
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/app_config?key=eq.anthropic_api_key&select=value`, {
+      headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
+    });
+    if (res.ok) {
+      const data = await res.json();
+      if (data && data[0] && data[0].value) {
+        _cachedAnthropicKey = data[0].value;
+        return _cachedAnthropicKey;
+      }
+    }
+  } catch(e) { /* fall through */ }
+  throw new Error('AI generation is temporarily unavailable. Please contact the administrator.');
+}
+
+
+// ── STATUS HELPER (replaces showAIStatus from scenario.html) ─────────────────
+function showStatus(elId, type, msg) {
+  const el = document.getElementById(elId);
+  if (!el) return;
+  el.className = 'gen-status ' + type;
+  el.style.display = type === 'loading' ? 'flex' : 'block';
+  el.innerHTML = type === 'loading'
+    ? `<div class="gen-spinner"></div><span>${msg}</span>`
+    : msg;
+}
+
+// ── QUICK/CUSTOM WRAPPERS ─────────────────────────────────────────────────────
+// These wire the UI into generateAIScenario() by pre-populating the hidden fields
+// that generateAIScenario() reads from the DOM.
+
+let _activeGenBtn = 'quick-gen-btn';
+
+function handleQuickGenerate() {
+  if (!_quickSelected) return;
+  // Populate the gen-category dropdown (required by generateAIScenario)
+  const catKey = `${_quickSelected.category}|${_quickSelected.subcategory}`;
+  _setGenCategory(catKey, _quickSelected.name);
+  _activeGenBtn = 'quick-gen-btn';
+  document.getElementById('gen-complaint').value = '';
+  document.getElementById('gen-complexity').value = 'standard';
+  generateAIScenario();
+}
+
+function handleCustomGenerate() {
+  // Determine primary category from first selected condition
+  const firstCond = selectedConditions[0];
+  let catKey = 'Adult|Medical';
+  let condHint = '';
+  if (firstCond && firstCond.includes('::')) {
+    const [cat, cond] = firstCond.split('::');
+    for (const c of CATEGORIES) {
+      if (c.key !== cat) continue;
+      for (const [sub, conds] of Object.entries(c.subcats)) {
+        if (conds.includes(cond)) { catKey = `${cat}|${sub}`; break; }
+      }
+      break;
+    }
+    // Build a combined condition hint for the complaint field
+    condHint = selectedConditions.map(k => k.includes('::') ? k.split('::')[1] : k).join(' + ');
+  }
+
+  _setGenCategory(catKey, '');
+
+  // Build complaint from custom fields + selected conditions
+  const parts = [];
+  if (condHint) parts.push(`Condition(s): ${condHint}`);
+  const age = document.getElementById('c-age').value;
+  const gender = document.getElementById('c-gender').value;
+  const weight = document.getElementById('c-weight').value;
+  const time = document.getElementById('c-time').value;
+  const pmhx = document.getElementById('c-pmhx').value.trim();
+  const meds = document.getElementById('c-meds').value.trim();
+  const allergies = document.getElementById('c-allergies').value.trim();
+  const complaint = document.getElementById('c-complaint').value.trim();
+  if (age) parts.push(`Age: ${age}yo`);
+  if (gender) parts.push(`Gender: ${gender}`);
+  if (weight) parts.push(`Weight: ${weight}kg`);
+  if (time) parts.push(`Time of day: ${time}`);
+  if (pmhx) parts.push(`PMHx: ${pmhx}`);
+  if (meds) parts.push(`Medications: ${meds}`);
+  if (allergies) parts.push(`Allergies: ${allergies}`);
+  if (complaint) parts.push(`Scene/Complaint: ${complaint}`);
+
+  document.getElementById('gen-complaint').value = parts.join('. ');
+
+  const complexity = document.querySelector('#c-complexity .toggle-chip.on')?.textContent || 'Standard';
+  const complexityMap = { 'Standard':'standard', 'Simple':'standard', 'Complex':'complex' };
+  document.getElementById('gen-complexity').value = complexityMap[complexity] || 'standard';
+
+  _activeGenBtn = 'custom-gen-btn';
+  generateAIScenario();
+}
+
+// Sets gen-category select to the right value, and also secondary to none
+function _setGenCategory(catKey, subtypeHint) {
+  const sel = document.getElementById('gen-category');
+  if (sel) {
+    // Find matching option
+    for (const opt of sel.options) {
+      if (opt.value === catKey) { sel.value = catKey; break; }
+    }
+  }
+  // Clear secondary
+  const sel2 = document.getElementById('gen-category-2');
+  if (sel2) sel2.value = '__none__';
+  // Set subtype to random
+  const subSel = document.getElementById('gen-cpg-subtype');
+  if (subSel) subSel.value = '__random__';
+}
 // ── CATEGORY DATA ─────────────────────────────────────────────────────────────
 const CATEGORIES = [
   {key:'Adult',icon:'🧑',color:'var(--navy)',subcats:{'Cardiac Arrest':['Medical Cardiac Arrest','Traumatic Cardiac Arrest','ROSC Management','Withholding or Ceasing Resuscitation'],'Airway Management':['Essential Airway Management','Endotracheal Intubation (RSI)','Difficult Airway Guideline','Upper Airway Obstruction'],'Cardiac':['ACS / STEMI','Bradycardia','Narrow Complex Tachycardia (SVT/AF)','Broad Complex Tachycardia (VT)','Cardiogenic Pulmonary Oedema','Inadequate Perfusion (Cardiogenic)','STEMI Management','Hypertension'],'Pain Relief':['Pain Relief','Headache'],'Respiratory':['Asthma','COPD Exacerbation','Undifferentiated Dyspnoea','Pulmonary Embolism'],'Medical':['Seizures / Status Epilepticus','Hypoglycaemia','Hyperglycaemia / DKA / HHS','Suspected Stroke / TIA','Anaphylaxis','Shock','Hyperkalaemia','Adrenal Insufficiency / Crisis','Nausea and Vomiting','Syncope'],'Infection':['Sepsis','Meningococcal Septicaemia'],'Mental Health':['Acute Behavioural Disturbance','Mental Health Conditions'],'Palliative Care':['Palliative Care'],'Trauma':['Major Trauma','Traumatic Head Injury','Chest Injury','Spinal Injury','Burns'],'Environment':['Hypothermia','Heat Stress / Heat Stroke'],'Toxicology':['Opioid Toxicity','Tricyclic Antidepressant (TCA) Overdose','Beta-Blocker Toxicity','Calcium Channel Blocker Toxicity','Organophosphate / Pesticide Toxicity','Drug-Induced Hyperthermia / Stimulant Toxidrome','Quetiapine (Antipsychotic) Toxicity','Cyanide Toxicity','Acute Alcohol Intoxication','Alcohol Withdrawal Syndrome']}},
@@ -858,35 +1206,7 @@ function renderTags() {
   });
 }
 
-function handleCustomGenerate() {
-  const firstCond = selectedConditions[0];
-  let category = 'Adult', subcategory = '';
-  if (firstCond && firstCond.includes('::')) {
-    [category] = firstCond.split('::');
-    // Find the subcategory from CATEGORIES data
-    for (const cat of CATEGORIES) {
-      if (cat.key !== category) continue;
-      for (const [sub, conds] of Object.entries(cat.subcats)) {
-        if (conds.includes(firstCond.split('::')[1])) { subcategory = sub; break; }
-      }
-      break;
-    }
-  }
-  const complexity = document.querySelector('#c-complexity .toggle-chip.on')?.textContent || 'Standard';
-  generateScenario({
-    conditions: [...selectedConditions],
-    category, subcategory,
-    complaint: document.getElementById('c-complaint').value.trim(),
-    complexity,
-    age: document.getElementById('c-age').value,
-    gender: document.getElementById('c-gender').value,
-    weight: document.getElementById('c-weight').value,
-    timeOfDay: document.getElementById('c-time').value,
-    pmhx: document.getElementById('c-pmhx').value.trim(),
-    meds: document.getElementById('c-meds').value.trim(),
-    allergies: document.getElementById('c-allergies').value.trim(),
-  }, 'custom-status', document.getElementById('custom-gen-btn'));
-}
+// handleCustomGenerate defined above in generation section
 
 // ── TOGGLE CHIPS ──────────────────────────────────────────────────────────────
 function toggleSingle(el) {
@@ -902,10 +1222,43 @@ function switchTab(id, btn) {
   btn.classList.add('active');
 }
 
+
+// populateCategorySelect — needed by generateAIScenario to read gen-category
+function populateCategorySelect(selectId, prefixOption) {
+  const el = document.getElementById(selectId);
+  if (!el) return;
+  let html = '';
+  if (prefixOption) html += `<option value="__none__">${prefixOption}</option>`;
+  CATEGORIES.forEach(cat => {
+    const subs = Object.keys(cat.subcats);
+    html += `<optgroup label="${cat.key}">`;
+    subs.forEach(sub => { html += `<option value="${cat.key}|${sub}">${cat.key} — ${sub}</option>`; });
+    html += '</optgroup>';
+  });
+  el.innerHTML = html;
+}
+
 // ── INIT ──────────────────────────────────────────────────────────────────────
 buildAccordion();
 buildConditionPicker();
 updateUsageDisplay();
+// Populate hidden gen-category select (needed by generateAIScenario)
+populateCategorySelect('gen-category');
+populateCategorySelect('gen-category-2', '— None (single scenario) —');
 </script>
+
+<!-- Hidden fields required by generateAIScenario() from scenario.html -->
+<div style="display:none">
+  <select id="gen-category"></select>
+  <select id="gen-category-2"><option value="__none__">None</option></select>
+  <select id="gen-cpg-subtype"><option value="__random__">Random</option></select>
+  <select id="gen-cpg-subtype-2"><option value="__random__">Random</option></select>
+  <input type="text" id="gen-complaint">
+  <select id="gen-complexity">
+    <option value="standard">Standard</option>
+    <option value="complex">Complex</option>
+    <option value="high-acuity">High acuity</option>
+  </select>
+</div>
 </body>
 </html>
