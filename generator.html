@@ -1583,21 +1583,21 @@ function removeQuickMulti(idx) {
 }
 
 function updateGenBar() {
-  const label = document.getElementById('quick-gen-label');
   const btn = document.getElementById('quick-gen-btn');
-  const tagsEl = document.getElementById('quick-multi-tags');
+  const tagsEl = document.getElementById('quick-selected-tags');
+  const hint = document.getElementById('quick-multi-hint');
   if (_multiMode) {
     const count = _quickMultiSelected.length;
     if (count === 0) {
-      label.textContent = 'No conditions selected';
-      label.classList.add('placeholder');
-      btn.disabled = true;
-      tagsEl.style.display = 'none';
+      tagsEl.innerHTML = '<span class="empty-tags">No conditions selected</span>';
+      if (btn) btn.disabled = true;
+      if (hint) hint.textContent = '— tap conditions below';
     } else {
-      label.textContent = `${count} condition${count>1?'s':''} selected`;
-      label.classList.remove('placeholder');
-      btn.disabled = false;
-      tagsEl.style.display = 'flex';
+      tagsEl.innerHTML = _quickMultiSelected.map((s,i) =>
+        `<span class="condition-tag">${s.name} <span class="remove-tag" onclick="removeQuickMulti(${i})">×</span></span>`
+      ).join('');
+      if (btn) btn.disabled = false;
+      if (hint) hint.textContent = `— ${count} condition${count>1?'s':''} selected`;
     }
   } else {
     setGenBar(_quickSelected ? _quickSelected.name : null);
@@ -1649,12 +1649,17 @@ function updateAccCount(catIdx, n) {
 }
 
 function setGenBar(name) {
-  const label = document.getElementById('quick-gen-label');
-  const btn   = document.getElementById('quick-gen-btn');
+  const tagsEl = document.getElementById('quick-selected-tags');
+  const btn    = document.getElementById('quick-gen-btn');
+  const hint   = document.getElementById('quick-multi-hint');
   if (name) {
-    label.textContent = name; label.classList.remove('placeholder'); btn.disabled = false;
+    tagsEl.innerHTML = `<span class="condition-tag">${name}</span>`;
+    if (btn) btn.disabled = false;
+    if (hint) hint.textContent = '— tap to change';
   } else {
-    label.textContent = 'No condition selected'; label.classList.add('placeholder'); btn.disabled = true;
+    tagsEl.innerHTML = '<span class="empty-tags">No condition selected</span>';
+    if (btn) btn.disabled = true;
+    if (hint) hint.textContent = '— tap a condition below';
   }
 }
 
