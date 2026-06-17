@@ -1092,15 +1092,7 @@ function setGenBar(name) {
   }
 }
 
-function handleQuickGenerate() {
-  if (!_quickSelected) return;
-  generateScenario({
-    conditions: [`${_quickSelected.category}::${_quickSelected.name}`],
-    category: _quickSelected.category,
-    subcategory: _quickSelected.subcategory,
-    complaint: '', complexity: 'Standard',
-  }, 'quick-status', document.getElementById('quick-gen-btn'));
-}
+// handleQuickGenerate defined above
 
 // ── CUSTOM BUILD PICKER ───────────────────────────────────────────────────────
 const selectedConditions = [];
