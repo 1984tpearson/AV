@@ -167,6 +167,17 @@ textarea{resize:vertical;min-height:72px;line-height:1.5}
 
 /* DIVIDER */
 .divider{border:none;border-top:1px solid var(--border);margin:16px 0}
+/* ── STREAMING DISPLAY ── */
+.stream-card{background:#0d1117;border:1px solid #30363d;border-radius:8px;padding:14px 16px;margin-top:10px;font-size:13px;line-height:1.7;min-height:60px}
+.stream-field{margin-bottom:8px}
+.stream-label{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.7px;color:#484f58;margin-bottom:2px}
+.stream-value{color:#c9d1d9;font-size:13px;min-height:18px}
+.stream-value.pager{font-family:monospace;color:#79c0ff;font-size:12px}
+.stream-value.provisional-val{color:#7ee787;font-weight:600}
+.stream-value.flag-val{color:#ffa657}
+.stream-cursor{display:inline-block;width:2px;height:14px;background:#58a6ff;margin-left:2px;vertical-align:middle;animation:blink-cursor .7s step-end infinite}
+@keyframes blink-cursor{0%,100%{opacity:1}50%{opacity:0}}
+
 </style>
 </head>
 <body>
@@ -980,12 +991,92 @@ async function generateWithAnthropic(apiKey, systemPrompt, userPrompt) {
   const response = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' },
-    body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 4000, system: systemPrompt, messages: [{ role: 'user', content: userPrompt }] })
+    body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 4000, stream: true, system: systemPrompt, messages: [{ role: 'user', content: userPrompt }] })
   });
   if (!response.ok) { const e=await response.json().catch(()=>({})); throw new Error(e.error?.message||`Anthropic API error ${response.status}`); }
-  const data = await response.json();
-  const raw = data.content.map(c=>c.text||'').join('');
-  return parseFirstJSON(raw);
+
+  // Determine which stream card to use
+  const isQuick = _activeGenBtn === 'quick-gen-btn';
+  const cardId = isQuick ? 'quick-stream-card' : 'custom-stream-card';
+  const statusId = isQuick ? 'quick-status' : 'custom-status';
+  const card = document.getElementById(cardId);
+  if (card) {
+    card.style.display = 'block';
+    card.innerHTML = _streamCardHTML();
+  }
+
+  // Read the stream
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let accumulated = '';
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    const chunk = decoder.decode(value, { stream: true });
+    // SSE lines
+    for (const line of chunk.split('\n')) {
+      if (!line.startsWith('data:')) continue;
+      const data = line.slice(5).trim();
+      if (data === '[DONE]') continue;
+      try {
+        const evt = JSON.parse(data);
+        if (evt.type === 'content_block_delta' && evt.delta?.type === 'text_delta') {
+          accumulated += evt.delta.text;
+          _updateStreamCard(card, accumulated);
+        }
+      } catch(e) { /* ignore parse errors on partial lines */ }
+    }
+  }
+
+  if (card) card.innerHTML = _streamCardHTML(true); // remove cursor
+  return parseFirstJSON(accumulated);
+}
+
+function _streamCardHTML(final = false) {
+  const cursor = final ? '' : '<span class="stream-cursor"></span>';
+  return `
+    <div class="stream-field"><div class="stream-label">Dispatch</div><div class="stream-value pager" id="sf-dispatch">${cursor}</div></div>
+    <div class="stream-field"><div class="stream-label">Patient</div><div class="stream-value" id="sf-subtitle">${cursor}</div></div>
+    <div class="stream-field"><div class="stream-label">Provisional Dx</div><div class="stream-value provisional-val" id="sf-provisional">${cursor}</div></div>
+    <div class="stream-field"><div class="stream-label">On Arrival</div><div class="stream-value" id="sf-arrival">${cursor}</div></div>
+    <div class="stream-field"><div class="stream-label">Flags</div><div class="stream-value flag-val" id="sf-flags">${cursor}</div></div>
+  `;
+}
+
+function _updateStreamCard(card, json) {
+  if (!card) return;
+  // Extract fields as they appear using regex — works on partial JSON
+  const extract = (key) => {
+    // Match "key": "value" — value may be partial (no closing quote yet)
+    const re = new RegExp(`"${key}"\s*:\s*"([^"]*)"?`);
+    const m = json.match(re);
+    return m ? m[1] : null;
+  };
+  const extractArr = (key) => {
+    // Match first string element of an array
+    const re = new RegExp(`"${key}"\s*:\s*\[\s*"([^"]*)"?`);
+    const m = json.match(re);
+    return m ? m[1] : null;
+  };
+
+  const set = (id, val, suffix='') => {
+    const el = document.getElementById(id);
+    if (el && val !== null) el.innerHTML = val + suffix;
+  };
+
+  const cursor = '<span class="stream-cursor"></span>';
+  const dispatch   = extract('dispatch');
+  const subtitle   = extract('subtitle');
+  const provisional= extract('provisional');
+  const arrival    = extract('arrival_hx');
+  const flag1      = extractArr('flags');
+
+  if (dispatch)    set('sf-dispatch',    dispatch,    dispatch.endsWith('"') ? '' : cursor);
+  if (subtitle)    set('sf-subtitle',    subtitle,    subtitle.endsWith('"') ? '' : cursor);
+  if (provisional) set('sf-provisional', provisional, provisional.endsWith('"') ? '' : cursor);
+  if (arrival)     set('sf-arrival',     arrival,     arrival.endsWith('"') ? '' : cursor);
+  if (flag1)       set('sf-flags',       '• ' + flag1, flag1.endsWith('"') ? '' : cursor);
 }
 
 let _cachedAnthropicKey = null;
