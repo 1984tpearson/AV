@@ -207,7 +207,6 @@ textarea{resize:vertical;min-height:72px;line-height:1.5}
   <!-- ══ CUSTOM BUILD ══ -->
   <div id="tab-custom" class="tab-panel">
   <div class="tab-panel-scroll">
-    <div id="gen-status-custom" class="gen-status" style="margin-bottom:14px"></div>
     <div id="usage-display-custom" class="usage-bar" style="display:none"></div>
     <div class="info-banner amber-banner">
       <span>🎭</span>
@@ -316,10 +315,8 @@ async function sbFetch(path, opts={}) {
   const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
     ...opts,
     headers: {
-      'apikey': SUPABASE_KEY,
-      'Authorization': `Bearer ${SUPABASE_KEY}`,
-      'Content-Type': 'application/json',
-      'Prefer': opts.prefer || 'return=representation',
+      'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`,
+      'Content-Type': 'application/json', 'Prefer': opts.prefer||'return=representation',
       ...(opts.headers||{})
     }
   });
@@ -327,74 +324,182 @@ async function sbFetch(path, opts={}) {
   const text = await res.text();
   return text ? JSON.parse(text) : [];
 }
-
-// ── IDENTITY ──────────────────────────────────────────────────────────────────
 function getIdentity() {
-  let uuid = localStorage.getItem('av_user_uuid');
-  if (!uuid) { uuid = crypto.randomUUID(); localStorage.setItem('av_user_uuid', uuid); }
-  const firstName = localStorage.getItem('av_ci_firstname')||'';
-  const lastName  = localStorage.getItem('av_ci_lastname')||'';
-  const svcNum    = localStorage.getItem('av_ci_svcnum')||'';
-  const name = (firstName||lastName) ? [firstName,lastName].filter(Boolean).join(' ') : (localStorage.getItem('av_user_name')||'');
-  return { uuid, name, firstName, lastName, svcNum };
+  let uuid=localStorage.getItem('av_user_uuid');
+  if(!uuid){uuid=crypto.randomUUID();localStorage.setItem('av_user_uuid',uuid);}
+  const fn=localStorage.getItem('av_ci_firstname')||'', ln=localStorage.getItem('av_ci_lastname')||'';
+  const svcNum=localStorage.getItem('av_ci_svcnum')||'';
+  const name=(fn||ln)?[fn,ln].filter(Boolean).join(' '):(localStorage.getItem('av_user_name')||'');
+  return{uuid,name,firstName:fn,lastName:ln,svcNum};
 }
-function isAdmin() { return getIdentity().uuid === ADMIN_UUID; }
-
-// ── USAGE DISPLAY ─────────────────────────────────────────────────────────────
-function updateUsageDisplay() {
-  ['usage-display','usage-display-custom'].forEach(id => {
-    const el = document.getElementById(id);
-    if (!el) return;
-    el.style.display = 'flex';
-    if (isAdmin()) {
-      el.className = 'usage-bar';
-      el.innerHTML = '🔑 Admin — unlimited uses';
-      return;
-    }
-    const today = new Date().toISOString().slice(0,10);
-    const storedDate = localStorage.getItem('av_ai_daily_date');
-    const storedCount = parseInt(localStorage.getItem('av_ai_daily_count')||'0');
-    const used = storedDate === today ? storedCount : 0;
-    const remaining = Math.max(0, 5 - used);
-    if (remaining <= 0) {
-      el.className = 'usage-bar maxed';
-      el.innerHTML = '⚠️ Daily limit reached (5/5). Resets at midnight.';
-    } else if (remaining <= 2) {
-      el.className = 'usage-bar warn';
-      el.innerHTML = `⚡ ${remaining} AI generation${remaining!==1?'s':''} remaining today`;
-    } else {
-      el.className = 'usage-bar';
-      el.innerHTML = `✅ AI generation ready — ${remaining} of 5 uses remaining today`;
-    }
+function isAdmin(){return getIdentity().uuid===ADMIN_UUID;}
+function updateUsageDisplay(){
+  ['usage-display','usage-display-custom'].forEach(id=>{
+    const el=document.getElementById(id);if(!el)return;el.style.display='flex';
+    if(isAdmin()){el.className='usage-bar';el.innerHTML='🔑 Admin — unlimited uses';return;}
+    const today=new Date().toISOString().slice(0,10);
+    const used=localStorage.getItem('av_ai_daily_date')===today?parseInt(localStorage.getItem('av_ai_daily_count')||'0'):0;
+    const rem=Math.max(0,5-used);
+    if(rem<=0){el.className='usage-bar maxed';el.innerHTML='⚠️ Daily limit reached. Resets at midnight.';}
+    else if(rem<=2){el.className='usage-bar warn';el.innerHTML=`⚡ ${rem} generation${rem!==1?'s':''} remaining today`;}
+    else{el.className='usage-bar';el.innerHTML=`✅ AI generation ready — ${rem} of 5 uses remaining today`;}
   });
 }
-
-// ── SAVE & NAVIGATE ───────────────────────────────────────────────────────────
-function toRow(s) {
-  const id = getIdentity();
-  return {
-    id: String(s.id), title: s.title||'', subtitle: s.subtitle||'',
-    category: s.category||'Custom', subcategory: s.subcategory||'',
-    scenario_type: s.scenario_type||null, type: s.type||'medical',
-    cpg: s.cpg||'', level: s.level||'C/D', dispatch: s.dispatch||'',
-    vitals: s.vitals||{}, caller_hx: s.caller_hx||'', arrival_hx: s.arrival_hx||'',
-    key_hx: s.key_hx||'', hx: s.hx||{}, medical_conditions: s.medical_conditions||[],
-    medications: s.medications||[], allergies: s.allergies||'',
-    rsa: s.rsa||{}, ra: s.ra||{}, ps_exposure: s.ps_exposure||'', social: s.social||'',
-    flags: s.flags||[], ddx: s.ddx||[], provisional: s.provisional||'',
-    treatment_als: s.treatment_als||[], treatment_mica: s.treatment_mica||[],
-    life_threats: s.life_threats||[], kq: s.kq||[], discussion: s.discussion||[],
-    creator_uuid: s.creator_uuid||id.uuid, creator_name: s.creator_name||id.name||'Anonymous',
-    ai_generated: !!s.ai_generated, is_builtin: false,
-  };
+function toRow(s){
+  const id=getIdentity();
+  return{id:String(s.id),title:s.title||'',subtitle:s.subtitle||'',category:s.category||'Custom',
+    subcategory:s.subcategory||'',scenario_type:s.scenario_type||null,type:s.type||'medical',
+    cpg:s.cpg||'',level:s.level||'C/D',dispatch:s.dispatch||'',vitals:s.vitals||{},
+    caller_hx:s.caller_hx||'',arrival_hx:s.arrival_hx||'',key_hx:s.key_hx||'',hx:s.hx||{},
+    medical_conditions:s.medical_conditions||[],medications:s.medications||[],allergies:s.allergies||'',
+    rsa:s.rsa||{},ra:s.ra||{},ps_exposure:s.ps_exposure||'',social:s.social||'',
+    flags:s.flags||[],ddx:s.ddx||[],provisional:s.provisional||'',
+    treatment_als:s.treatment_als||[],treatment_mica:s.treatment_mica||[],
+    life_threats:s.life_threats||[],kq:s.kq||[],discussion:s.discussion||[],
+    creator_uuid:s.creator_uuid||id.uuid,creator_name:s.creator_name||id.name||'Anonymous',
+    ai_generated:!!s.ai_generated,is_builtin:false};
+}
+async function saveAndNavigate(scenario){
+  await sbFetch('scenarios',{method:'POST',prefer:'return=minimal',body:JSON.stringify(toRow(scenario))});
+  window.location.href=`scenario.html?id=${encodeURIComponent(String(scenario.id))}`;
+}
+function showStatus(elId,type,msg){
+  const el=document.getElementById(elId);if(!el)return;
+  el.className='gen-status '+type;
+  el.style.display=type==='loading'?'flex':'block';
+  el.innerHTML=type==='loading'?`<div class="gen-spinner"></div><span>${msg}</span>`:msg;
 }
 
-async function saveAndNavigate(scenario) {
-  await sbFetch('scenarios', { method:'POST', prefer:'return=minimal', body: JSON.stringify(toRow(scenario)) });
-  window.location.href = `scenario.html?id=${encodeURIComponent(String(scenario.id))}`;
-}
+// ── CATEGORY LOOKUP (from scenario.html) ─────────────────────────────────────
+const CATEGORY_TO_CPG = {
+  // Adult
+  'Adult|Cardiac Arrest':    ['cardiac_arrest_medical', 'cardiac_arrest_traumatic', 'rosc_management', 'withholding_resuscitation'],
+  'Adult|Airway Management': ['essential_airway', 'endotracheal_intubation', 'difficult_airway', 'upper_airway_obstruction'],
+  'Adult|Cardiac':           ['acs', 'bradycardia', 'tachycardia_narrow', 'tachycardia_broad', 'pulmonary_oedema', 'inadequate_perfusion_cardiogenic', 'stemi_management', 'hypertension'],
+  'Adult|Pain Relief':       ['pain_relief'],
+  'Adult|Respiratory':       ['asthma', 'copd', 'upper_airway_obstruction', 'dyspnoea', 'pulmonary_embolism'],
+  'Adult|Medical':           ['seizures', 'hypoglycaemia', 'stroke', 'anaphylaxis', 'hyperkalaemia', 'hyperglycaemia', 'adrenal_insufficiency', 'headache', 'nausea_vomiting'],
+  'Adult|Infection':         ['sepsis', 'meningococcal'],
+  'Adult|Mental Health':     ['acute_behavioural_disturbance', 'mental_health_conditions'],
+  'Adult|Palliative Care':   ['palliative_care'],
+  'Adult|Syncope':           ['syncope'],
+  'Adult|Trauma':            ['major_trauma', 'head_injury', 'chest_injury', 'spinal_injury', 'burns'],
+  'Adult|Environment':       ['hypothermia', 'hyperthermia_environmental'],
+  'Adult|Toxicology':        ['opioid_toxicity', 'tca_toxicity', 'beta_blocker_toxicity', 'ccb_toxicity', 'organophosphate_toxicity', 'drug_induced_hyperthermia', 'quetiapine_toxicity', 'alcohol_intoxication', 'alcohol_withdrawal', 'cyanide_toxicity'],
+  // Paediatric
+  'Paediatric|Cardiac Arrest':    ['cardiac_arrest_medical', 'cardiac_arrest_traumatic', 'rosc_management', 'withholding_resuscitation'],
+  'Paediatric|Airway Management': ['essential_airway', 'endotracheal_intubation', 'difficult_airway', 'upper_airway_obstruction'],
+  'Paediatric|Pain Relief':       ['pain_relief'],
+  'Paediatric|Respiratory':       ['asthma', 'croup'],
+  'Paediatric|Medical':           ['seizures', 'hypoglycaemia', 'anaphylaxis', 'hyperglycaemia'],
+  'Paediatric|Infection':         ['sepsis'],
+  'Paediatric|Trauma':            ['major_trauma', 'head_injury', 'chest_injury', 'burns'],
+  'Paediatric|Environment':       ['hypothermia', 'hyperthermia_environmental'],
+  'Paediatric|Toxicology':        ['opioid_toxicity', 'tca_toxicity', 'alcohol_intoxication', 'organophosphate_toxicity', 'drug_induced_hyperthermia'],
+  // Maternity
+  'Maternity|Antepartum Haemorrhage':           ['shock', 'maternity_patient'],
+  'Maternity|Pre-eclampsia / Eclampsia':        ['preeclampsia_eclampsia', 'seizures'],
+  'Maternity|Normal Birth':                      ['normal_birth', 'maternity_patient', 'the_newborn'],
+  'Maternity|Breech / Compound':                 ['breech_birth', 'maternity_patient', 'the_newborn'],
+  'Maternity|Preterm Labour':                    ['maternity_patient', 'the_newborn'],
+  'Maternity|Cord Prolapse':                     ['cord_prolapse', 'maternity_patient'],
+  'Maternity|Shoulder Dystocia':                 ['shoulder_dystocia', 'maternity_patient'],
+  'Maternity|Primary Postpartum Haemorrhage':    ['shock', 'maternity_patient'],
+  'Maternity|Miscarriage':                       ['maternity_patient'],
+  // Other
+  'Newborn|Newborn Resuscitation': ['newborn_resuscitation', 'the_newborn'],
+  'Treat and Refer|Epistaxis':     [],
+  'Treat and Refer|Minor Burns':   ['burns'],
+};
 
-// ── PRODUCTION GENERATION CODE (exact copy from scenario.html) ────────────────
+// ── CPG subtype labels for the presentation-type dropdown ──────────────────
+const CPG_SUBTYPE_LABELS = {
+  // Cardiac Arrest / Resuscitation
+  cardiac_arrest_medical:   'Medical Cardiac Arrest',
+  cardiac_arrest_traumatic: 'Traumatic Cardiac Arrest',
+  rosc_management:          'ROSC Management',
+  withholding_resuscitation:'Withholding or Ceasing Resuscitation',
+  // Airway
+  essential_airway:         'Essential Airway Management',
+  endotracheal_intubation:  'Endotracheal Intubation (RSI)',
+  difficult_airway:         'Difficult Airway Guideline',
+  // Toxicology
+  opioid_toxicity:          'Opioid Toxicity',
+  tca_toxicity:             'Tricyclic Antidepressant (TCA) Overdose',
+  beta_blocker_toxicity:    'Beta-Blocker Toxicity',
+  ccb_toxicity:             'Calcium Channel Blocker Toxicity',
+  organophosphate_toxicity: 'Organophosphate / Pesticide Toxicity',
+  drug_induced_hyperthermia:'Drug-Induced Hyperthermia / Stimulant Toxidrome',
+  quetiapine_toxicity:      'Quetiapine (Antipsychotic) Toxicity',
+  alcohol_intoxication:     'Acute Alcohol Intoxication',
+  alcohol_withdrawal:       'Alcohol Withdrawal Syndrome',
+  cyanide_toxicity:         'Cyanide Toxicity',
+  // Cardiac
+  acs:                          'ACS / STEMI',
+  bradycardia:                  'Bradycardia',
+  tachycardia_narrow:           'Narrow Complex Tachycardia (SVT/AF)',
+  tachycardia_broad:            'Broad Complex Tachycardia (VT)',
+  pulmonary_oedema:             'Cardiogenic Pulmonary Oedema',
+  inadequate_perfusion_cardiogenic: 'Inadequate Perfusion (Cardiogenic)',
+  stemi_management:             'STEMI Management',
+  hypertension:                 'Hypertension',
+  // Medical
+  seizures:                 'Seizures / Status Epilepticus',
+  hypoglycaemia:            'Hypoglycaemia',
+  stroke:                   'Suspected Stroke / TIA',
+  anaphylaxis:              'Anaphylaxis',
+  hyperkalaemia:            'Hyperkalaemia',
+  adrenal_insufficiency:    'Adrenal Insufficiency / Crisis',
+  hyperglycaemia:           'Hyperglycaemia / DKA / HHS',
+  headache:                 'Headache',
+  nausea_vomiting:          'Nausea and Vomiting',
+  // Respiratory
+  asthma:                   'Asthma',
+  copd:                     'COPD Exacerbation',
+  upper_airway_obstruction: 'Upper Airway Obstruction',
+  croup:                    'Croup',
+  dyspnoea:                 'Undifferentiated Dyspnoea',
+  pulmonary_embolism:       'Pulmonary Embolism',
+  // Mental Health
+  acute_behavioural_disturbance: 'Acute Behavioural Disturbance',
+  mental_health_conditions: 'Mental Health Conditions',
+  // Trauma
+  major_trauma:             'Major Trauma',
+  head_injury:              'Traumatic Head Injury',
+  chest_injury:             'Chest Injury',
+  spinal_injury:            'Spinal Injury',
+  burns:                    'Burns',
+  shock:                    'Shock',
+  // Environment
+  hypothermia:              'Hypothermia',
+  hyperthermia_environmental: 'Heat Stress / Heat Stroke',
+  // Maternity
+  maternity_patient:        'General Maternity Assessment',
+  preeclampsia_eclampsia:   'Pre-eclampsia / Eclampsia',
+  normal_birth:             'Normal Birth',
+  breech_birth:             'Breech / Compound Presentation',
+  cord_prolapse:            'Cord Prolapse',
+  shoulder_dystocia:        'Shoulder Dystocia',
+  // Newborn
+  newborn_resuscitation:    'Newborn Resuscitation',
+  the_newborn:              'Newborn Assessment',
+  // Infection
+  sepsis:                   'Sepsis',
+  meningococcal:            'Meningococcal Septicaemia',
+  // Palliative / Syncope
+  palliative_care:          'Palliative Care',
+  syncope:                  'Syncope',
+};
+
+const CATEGORY_SCENARIO_CPGS = {
+  'Adult|Cardiac Arrest':      ['cardiac_arrest_medical', 'cardiac_arrest_traumatic'],
+  'Paediatric|Cardiac Arrest': ['cardiac_arrest_medical', 'cardiac_arrest_traumatic'],
+  'Adult|Airway Management':   ['upper_airway_obstruction'],
+  'Paediatric|Airway Management': ['upper_airway_obstruction'],
+};
+
+
+// ── NAME POOLS + PATIENT GENERATOR ───────────────────────────────────────────
 const NAME_POOLS = {
   anglo: {
     weight: 58,
@@ -518,6 +623,8 @@ function randomAustralianPatient(category) {
   return { name: name.full, gender, age };
 }
 
+
+// ── CPG CONTEXT + PROMPT + GENERATION ────────────────────────────────────────
 function buildCPGContext(catVal1, catVal2) {
   const keys1 = CATEGORY_TO_CPG[catVal1] || [];
   const keys2 = catVal2 ? (CATEGORY_TO_CPG[catVal2] || []) : [];
@@ -644,6 +751,7 @@ function parseFirstJSON(raw) {
   }
 }
 
+
 async function generateAIScenario() {
   const catVal = document.getElementById('gen-category').value;
   const catVal2El = document.getElementById('gen-category-2');
@@ -651,18 +759,18 @@ async function generateAIScenario() {
   const [category, subcategory] = catVal.includes('|') ? catVal.split('|') : [catVal, catVal];
   const complaint = document.getElementById('gen-complaint').value.trim();
   const complexity = document.getElementById('gen-complexity').value;
-  const btn = document.getElementById(_activeGenBtn) || document.getElementById('quick-gen-btn');
+  const btn = document.getElementById(_activeGenBtn)||document.getElementById('quick-gen-btn');
   btn.disabled = true;
   const origLabel = btn.textContent;
   btn.innerHTML = 'Generating<span class="dot-pulse"><span>.</span><span>.</span><span>.</span></span>';
   lastAIScenario = null;
-  showStatus('gen-status-quick', 'loading', '✦ Generating — this usually takes 15–20 seconds…');
-  showStatus('gen-status-custom', 'loading', '✦ Generating — this usually takes 15–20 seconds…');
+  showStatus('gen-status-quick','loading','✦ Generating — usually 15–20 seconds…');
+  showStatus('gen-status-custom','loading','✦ Generating — usually 15–20 seconds…');
 
   // Guard: check CPG package data is loaded
   if (typeof CPG_PACKAGES === 'undefined') {
-    showStatus('gen-status-quick', 'error', '✕ CPG data not loaded.');
-    showStatus('gen-status-custom', 'error', '✕ CPG data not loaded.');
+    showStatus('gen-status-quick','error','✕ CPG data not loaded.');
+    showStatus('gen-status-custom','error','✕ CPG data not loaded.');
     btn.textContent = origLabel;
     btn.disabled = false;
     return;
@@ -792,8 +900,8 @@ ${SCENARIO_JSON_TEMPLATE.replace('CAT', category).replace('SUB', subcategory)}`;
     const storedCount = parseInt(localStorage.getItem('av_ai_daily_count') || '0');
     const count = storedDate === today ? storedCount : 0;
     if (count >= 5) {
-      showStatus('gen-status-quick', 'error', '⚠️ Daily limit reached. Resets at midnight.');
-      showStatus('gen-status-custom', 'error', '⚠️ Daily limit reached. Resets at midnight.');
+      showStatus('gen-status-quick','error','⚠️ Daily limit reached.');
+      showStatus('gen-status-custom','error','⚠️ Daily limit reached.');
       btn.innerHTML = origLabel; btn.disabled = false; return;
     }
   }
@@ -845,13 +953,13 @@ ${SCENARIO_JSON_TEMPLATE.replace('CAT', category).replace('SUB', subcategory)}`;
     btn.innerHTML = origLabel;
     btn.disabled = false;
     // Rebuild sidebar so the scenario is findable, then auto-load and auto-save
-    showStatus('gen-status-quick', 'success', '✅ Saved — loading scenario…');
-    showStatus('gen-status-custom', 'success', '✅ Saved — loading scenario…');
+    showStatus('gen-status-quick','success','✅ Saved — loading scenario…');
+    showStatus('gen-status-custom','success','✅ Saved — loading scenario…');
     await saveAndNavigate(scenario);
   } catch(e) {
-    showStatus('gen-status-quick', 'error', '✕ Error: ' + e.message);
-    showStatus('gen-status-custom', 'error', '✕ Error: ' + e.message);
-    btn.innerHTML = origLabel; btn.disabled = false;
+    showStatus('gen-status-quick','error','✕ Error: '+e.message);
+    showStatus('gen-status-custom','error','✕ Error: '+e.message);
+    btn.innerHTML=origLabel; btn.disabled=false;
   }
 }
 
@@ -886,100 +994,6 @@ async function getAnthropicKey() {
 }
 
 
-// ── STATUS HELPER (replaces showAIStatus from scenario.html) ─────────────────
-function showStatus(elId, type, msg) {
-  const el = document.getElementById(elId);
-  if (!el) return;
-  el.className = 'gen-status ' + type;
-  el.style.display = type === 'loading' ? 'flex' : 'block';
-  el.innerHTML = type === 'loading'
-    ? `<div class="gen-spinner"></div><span>${msg}</span>`
-    : msg;
-}
-
-// ── QUICK/CUSTOM WRAPPERS ─────────────────────────────────────────────────────
-// These wire the UI into generateAIScenario() by pre-populating the hidden fields
-// that generateAIScenario() reads from the DOM.
-
-let _activeGenBtn = 'quick-gen-btn';
-
-function handleQuickGenerate() {
-  if (!_quickSelected) return;
-  // Populate the gen-category dropdown (required by generateAIScenario)
-  const catKey = `${_quickSelected.category}|${_quickSelected.subcategory}`;
-  _setGenCategory(catKey, _quickSelected.name);
-  _activeGenBtn = 'quick-gen-btn';
-  document.getElementById('gen-complaint').value = '';
-  document.getElementById('gen-complexity').value = 'standard';
-  generateAIScenario();
-}
-
-function handleCustomGenerate() {
-  // Determine primary category from first selected condition
-  const firstCond = selectedConditions[0];
-  let catKey = 'Adult|Medical';
-  let condHint = '';
-  if (firstCond && firstCond.includes('::')) {
-    const [cat, cond] = firstCond.split('::');
-    for (const c of CATEGORIES) {
-      if (c.key !== cat) continue;
-      for (const [sub, conds] of Object.entries(c.subcats)) {
-        if (conds.includes(cond)) { catKey = `${cat}|${sub}`; break; }
-      }
-      break;
-    }
-    // Build a combined condition hint for the complaint field
-    condHint = selectedConditions.map(k => k.includes('::') ? k.split('::')[1] : k).join(' + ');
-  }
-
-  _setGenCategory(catKey, '');
-
-  // Build complaint from custom fields + selected conditions
-  const parts = [];
-  if (condHint) parts.push(`Condition(s): ${condHint}`);
-  const age = document.getElementById('c-age').value;
-  const gender = document.getElementById('c-gender').value;
-  const weight = document.getElementById('c-weight').value;
-  const time = document.getElementById('c-time').value;
-  const pmhx = document.getElementById('c-pmhx').value.trim();
-  const meds = document.getElementById('c-meds').value.trim();
-  const allergies = document.getElementById('c-allergies').value.trim();
-  const complaint = document.getElementById('c-complaint').value.trim();
-  if (age) parts.push(`Age: ${age}yo`);
-  if (gender) parts.push(`Gender: ${gender}`);
-  if (weight) parts.push(`Weight: ${weight}kg`);
-  if (time) parts.push(`Time of day: ${time}`);
-  if (pmhx) parts.push(`PMHx: ${pmhx}`);
-  if (meds) parts.push(`Medications: ${meds}`);
-  if (allergies) parts.push(`Allergies: ${allergies}`);
-  if (complaint) parts.push(`Scene/Complaint: ${complaint}`);
-
-  document.getElementById('gen-complaint').value = parts.join('. ');
-
-  const complexity = document.querySelector('#c-complexity .toggle-chip.on')?.textContent || 'Standard';
-  const complexityMap = { 'Standard':'standard', 'Simple':'standard', 'Complex':'complex' };
-  document.getElementById('gen-complexity').value = complexityMap[complexity] || 'standard';
-
-  _activeGenBtn = 'custom-gen-btn';
-  generateAIScenario();
-}
-
-// Sets gen-category select to the right value, and also secondary to none
-function _setGenCategory(catKey, subtypeHint) {
-  const sel = document.getElementById('gen-category');
-  if (sel) {
-    // Find matching option
-    for (const opt of sel.options) {
-      if (opt.value === catKey) { sel.value = catKey; break; }
-    }
-  }
-  // Clear secondary
-  const sel2 = document.getElementById('gen-category-2');
-  if (sel2) sel2.value = '__none__';
-  // Set subtype to random
-  const subSel = document.getElementById('gen-cpg-subtype');
-  if (subSel) subSel.value = '__random__';
-}
 // ── CATEGORY DATA ─────────────────────────────────────────────────────────────
 const CATEGORIES = [
   {key:'Adult',icon:'🧑',color:'var(--navy)',subcats:{'Cardiac Arrest':['Medical Cardiac Arrest','Traumatic Cardiac Arrest','ROSC Management','Withholding or Ceasing Resuscitation'],'Airway Management':['Essential Airway Management','Endotracheal Intubation (RSI)','Difficult Airway Guideline','Upper Airway Obstruction'],'Cardiac':['ACS / STEMI','Bradycardia','Narrow Complex Tachycardia (SVT/AF)','Broad Complex Tachycardia (VT)','Cardiogenic Pulmonary Oedema','Inadequate Perfusion (Cardiogenic)','STEMI Management','Hypertension'],'Pain Relief':['Pain Relief','Headache'],'Respiratory':['Asthma','COPD Exacerbation','Undifferentiated Dyspnoea','Pulmonary Embolism'],'Medical':['Seizures / Status Epilepticus','Hypoglycaemia','Hyperglycaemia / DKA / HHS','Suspected Stroke / TIA','Anaphylaxis','Shock','Hyperkalaemia','Adrenal Insufficiency / Crisis','Nausea and Vomiting','Syncope'],'Infection':['Sepsis','Meningococcal Septicaemia'],'Mental Health':['Acute Behavioural Disturbance','Mental Health Conditions'],'Palliative Care':['Palliative Care'],'Trauma':['Major Trauma','Traumatic Head Injury','Chest Injury','Spinal Injury','Burns'],'Environment':['Hypothermia','Heat Stress / Heat Stroke'],'Toxicology':['Opioid Toxicity','Tricyclic Antidepressant (TCA) Overdose','Beta-Blocker Toxicity','Calcium Channel Blocker Toxicity','Organophosphate / Pesticide Toxicity','Drug-Induced Hyperthermia / Stimulant Toxidrome','Quetiapine (Antipsychotic) Toxicity','Cyanide Toxicity','Acute Alcohol Intoxication','Alcohol Withdrawal Syndrome']}},
@@ -1198,7 +1212,7 @@ function renderTags() {
   });
 }
 
-// handleCustomGenerate defined above in generation section
+// handleCustomGenerate defined above
 
 // ── TOGGLE CHIPS ──────────────────────────────────────────────────────────────
 function toggleSingle(el) {
@@ -1215,7 +1229,6 @@ function switchTab(id, btn) {
 }
 
 
-// populateCategorySelect — needed by generateAIScenario to read gen-category
 function populateCategorySelect(selectId, prefixOption) {
   const el = document.getElementById(selectId);
   if (!el) return;
@@ -1229,28 +1242,12 @@ function populateCategorySelect(selectId, prefixOption) {
   });
   el.innerHTML = html;
 }
-
 // ── INIT ──────────────────────────────────────────────────────────────────────
 buildAccordion();
 buildConditionPicker();
 updateUsageDisplay();
-// Populate hidden gen-category select (needed by generateAIScenario)
 populateCategorySelect('gen-category');
 populateCategorySelect('gen-category-2', '— None (single scenario) —');
 </script>
-
-<!-- Hidden fields required by generateAIScenario() from scenario.html -->
-<div style="display:none">
-  <select id="gen-category"></select>
-  <select id="gen-category-2"><option value="__none__">None</option></select>
-  <select id="gen-cpg-subtype"><option value="__random__">Random</option></select>
-  <select id="gen-cpg-subtype-2"><option value="__random__">Random</option></select>
-  <input type="text" id="gen-complaint">
-  <select id="gen-complexity">
-    <option value="standard">Standard</option>
-    <option value="complex">Complex</option>
-    <option value="high-acuity">High acuity</option>
-  </select>
-</div>
 </body>
 </html>
