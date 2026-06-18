@@ -2306,11 +2306,11 @@ const CPG_PACKAGES = {
         "Signs of pulmonary oedema (crackles)"
       ]},
       { type: "header", text: "Crackles present" },
-      { type: "action", text: "Adrenaline infusion as per Inadequate or extremely poor perfusion pathway" },
+      { type: "mica", text: "Adrenaline infusion as per Inadequate or extremely poor perfusion pathway" },
       { type: "header", text: "No crackles" },
-      { type: "action", text: "Normal Saline 250 mL IV \u2014 repeat 250 mL IV if chest clear and inadequate or extremely poor perfusion persists" },
+      { type: "mica", text: "Normal Saline 250 mL IV \u2014 repeat 250 mL IV if chest clear and inadequate or extremely poor perfusion persists" },
       { type: "header", text: "Inadequate or extremely poor perfusion persists" },
-      { type: "action", text: "Adrenaline infusion (3 mg/50 mL D5W or Normal Saline) commencing @ 5 mcg/min (5 mL/hr)" },
+      { type: "mica", text: "Adrenaline infusion (3 mg/50 mL D5W or Normal Saline) commencing @ 5 mcg/min (5 mL/hr)" },
       { type: "note", items: [
         "Titrate to achieve systolic BP 100 mmHg (max 250 mcg/min)",
         "Reassess patient and delivery system prior to increasing rate beyond 50 mcg/min"
