@@ -512,7 +512,7 @@ const CATEGORY_TO_CPG = {
   'Adult|Cardiac':           ['acs', 'bradycardia', 'tachycardia_narrow', 'tachycardia_broad', 'pulmonary_oedema', 'inadequate_perfusion_cardiogenic', 'stemi_management', 'hypertension'],
   'Adult|Pain Relief':       ['pain_relief', 'headache'],
   'Adult|Respiratory':       ['asthma', 'copd', 'upper_airway_obstruction', 'dyspnoea', 'pulmonary_embolism'],
-  'Adult|Medical':           ['seizures', 'hypoglycaemia', 'stroke', 'anaphylaxis', 'hyperkalaemia', 'hyperglycaemia', 'adrenal_insufficiency', 'headache', 'nausea_vomiting', 'shock', 'syncope'],
+  'Adult|Medical':           ['seizures', 'hypoglycaemia', 'stroke', 'anaphylaxis', 'hyperkalaemia', 'hyperglycaemia', 'adrenal_insufficiency', 'nausea_vomiting', 'shock'],
   'Adult|Infection':         ['sepsis', 'meningococcal'],
   'Adult|Mental Health':     ['acute_behavioural_disturbance', 'mental_health_conditions'],
   'Adult|Palliative Care':   ['palliative_care'],
@@ -543,8 +543,8 @@ const CATEGORY_TO_CPG = {
   // Other
   'Newborn|Newborn Resuscitation': ['newborn_resuscitation', 'the_newborn'],
   'Treat and Refer|Treat and Refer': ['burns', 'epistaxis'],
-  'Treat and Refer|Epistaxis':     [],
-  'Treat and Refer|Minor Burns':   ['burns'],
+  'Treat and Refer|Epistaxis':     ['epistaxis'],
+  'Treat and Refer|Minor Burns':   ['minor_burns'],
 };
 
 // ── CPG subtype labels for the presentation-type dropdown ──────────────────
@@ -630,10 +630,32 @@ const CPG_SUBTYPE_LABELS = {
 };
 
 const CATEGORY_SCENARIO_CPGS = {
+  // Cardiac Arrest — exclude rosc_management and withholding_resuscitation from random
   'Adult|Cardiac Arrest':      ['cardiac_arrest_medical', 'cardiac_arrest_traumatic'],
   'Paediatric|Cardiac Arrest': ['cardiac_arrest_medical', 'cardiac_arrest_traumatic'],
-  'Adult|Airway Management':   ['upper_airway_obstruction'],
-  'Paediatric|Airway Management': ['upper_airway_obstruction'],
+  // Airway — exclude ETI and difficult airway from random (too niche without context)
+  'Adult|Airway Management':      ['upper_airway_obstruction', 'essential_airway'],
+  'Paediatric|Airway Management': ['upper_airway_obstruction', 'essential_airway'],
+  // Cardiac — exclude hypertension from random (low acuity, rarely a primary scenario)
+  'Adult|Cardiac': ['acs', 'bradycardia', 'tachycardia_narrow', 'tachycardia_broad', 'pulmonary_oedema', 'inadequate_perfusion_cardiogenic', 'stemi_management'],
+  // Respiratory — all valid for random
+  'Adult|Respiratory':       ['asthma', 'copd', 'dyspnoea', 'pulmonary_embolism'],
+  'Paediatric|Respiratory':  ['asthma', 'croup'],
+  // Medical — exclude shock from random (context-dependent)
+  'Adult|Medical': ['seizures', 'hypoglycaemia', 'stroke', 'anaphylaxis', 'hyperkalaemia', 'hyperglycaemia', 'adrenal_insufficiency', 'nausea_vomiting'],
+  // Trauma — all valid for random
+  'Adult|Trauma':      ['major_trauma', 'head_injury', 'chest_injury', 'spinal_injury', 'burns'],
+  'Paediatric|Trauma': ['major_trauma', 'head_injury', 'chest_injury', 'burns'],
+  // Toxicology — exclude cyanide from random (rare, niche)
+  'Adult|Toxicology':      ['opioid_toxicity', 'tca_toxicity', 'beta_blocker_toxicity', 'ccb_toxicity', 'organophosphate_toxicity', 'drug_induced_hyperthermia', 'quetiapine_toxicity', 'alcohol_intoxication', 'alcohol_withdrawal'],
+  'Paediatric|Toxicology': ['opioid_toxicity', 'tca_toxicity', 'alcohol_intoxication', 'organophosphate_toxicity', 'drug_induced_hyperthermia'],
+  // Environment — all valid for random
+  'Adult|Environment':      ['hypothermia', 'hyperthermia_environmental'],
+  'Paediatric|Environment': ['hypothermia', 'hyperthermia_environmental'],
+  // Mental Health — all valid for random
+  'Adult|Mental Health': ['acute_behavioural_disturbance', 'mental_health_conditions'],
+  // Paediatric Medical — all valid
+  'Paediatric|Medical': ['seizures', 'hypoglycaemia', 'anaphylaxis', 'hyperglycaemia'],
 };
 
 
@@ -998,7 +1020,7 @@ Category: ${categoryLabel}
 ${seedSection}${complaint ? '' : complaintLine + '\n'}${complexityNote}
 ${patientNote}
 Do NOT generate treatment or management steps — these are supplied from official CPG data. Leave treatment_als and treatment_mica out of the JSON entirely. Focus on generating an accurate, realistic scenario with correct vitals, flags, ddx, provisional diagnosis, and knowledge questions.
-For the "cpg" field: set this to the CPG code of the PRIMARY guideline for this scenario (e.g. "P0601-1" for Croup, "P0602" for Asthma, "A0603" for Upper Airway Obstruction). The correct code is always shown in the CPG context header above in the format "--- CPG: Title (CODE) ---". Use that code exactly — do NOT invent or guess a CPG code.
+For the "cpg" field: set this to the CPG code(s) for this scenario. If multiple CPGs were provided in the context above, list all of them comma-separated (e.g. "A0401, A0408"). The correct codes are always shown in the CPG context headers in the format "--- CPG: Title (CODE) ---". Use those codes exactly — do NOT invent or guess CPG codes.
 For the "dispatch" field: write a SHORT pager-style dispatch message — the brief alert a paramedic receives before attending. Format: "Priority [1/2/3] — [age]yo [Male/Female] — [chief complaint in 3–5 words]". Do NOT reveal the diagnosis or give clinical detail. Examples: "Priority 1 — 71yo Male — difficulty breathing", "Priority 1 — 34yo Female — unresponsive", "Priority 2 — 58yo Male — chest pain". The patient's name must NOT appear in the dispatch.
 For the "caller_hx" field: write what the caller/bystander reported to dispatch — 1–3 sentences from a layperson's perspective. Include context such as location, onset, and visible symptoms as a bystander would describe them. Do not use clinical terminology. Example: "Caller reports her husband suddenly started having trouble breathing about 30 minutes ago after eating at a restaurant. He is sitting up and looks very distressed. She says his throat looks swollen."
 For the "arrival_hx" field: write the clinical picture found on arrival — 2–4 sentences describing what the paramedic observes and what the patient/bystander reports on scene. Use clinical terminology appropriate for a paramedic assessor. Include patient positioning, behaviour, key symptoms, relevant history from the patient or bystander, and any pertinent negatives. Example: "Patient sitting upright in tripod position, visibly distressed with audible inspiratory stridor. Reports sudden onset throat tightness and difficulty breathing 30 minutes after eating prawns. Wife confirms known shellfish allergy. Denies chest pain or previous similar episodes."
@@ -1085,6 +1107,15 @@ ${SCENARIO_JSON_TEMPLATE.replace('CAT', category).replace('SUB', subcategory)}`;
         const n = parseFloat(String(rawGCS)) || 15;
         scenario.vitals.GCS = { E: 0, V: 0, M: 0, total: n, description: '' };
       }
+    }
+    // Merge all injected CPG codes into scenario.cpg for multi-condition scenarios
+    if (_overrideSubtypeKeys.length > 1) {
+      const injectedCodes = _overrideSubtypeKeys
+        .map(k => CPG_PACKAGES[k]?.cpg)
+        .filter(Boolean);
+      const aiCodes = (scenario.cpg || '').split(/[,/]/).map(c => c.trim()).filter(Boolean);
+      const merged = [...new Set([...aiCodes, ...injectedCodes])];
+      scenario.cpg = merged.join(', ');
     }
     lastAIScenario = scenario;
     // Tag scenario_type from the CPG subtype selection
