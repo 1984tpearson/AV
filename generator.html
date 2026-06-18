@@ -765,6 +765,7 @@ function randomAustralianPatient(category) {
 // ── CPG OVERRIDE — set by handleQuickGenerate/handleCustomGenerate ────────────
 let _overrideCatVal = null;
 let _overrideSubtypeKey = null;
+let _overrideSubtypeKeys = []; // all CPG keys for multi-condition
 
 function buildCPGContext(catVal1, catVal2) {
   // Use overrides set by generator UI if available
@@ -780,30 +781,25 @@ function buildCPGContext(catVal1, catVal2) {
   // For single-category calls: use override key if set, otherwise DOM select, otherwise random
   let selectedKeys1 = keys1;
   {
-    const overrideKey = _overrideSubtypeKey;
-    const subtypeEl = document.getElementById('gen-cpg-subtype');
-    const domChosen = subtypeEl && subtypeEl.value !== '__random__' ? subtypeEl.value : null;
-    const chosen = (overrideKey && keys1.includes(overrideKey)) ? overrideKey
-                 : (domChosen && keys1.includes(domChosen)) ? domChosen
-                 : null;
-    if (keys1.length > 1 || chosen) {
-      selectedKeys1 = chosen
-        ? [chosen]
-        : [scenarioPool1[Math.floor(Math.random() * scenarioPool1.length)]];
+    // Multi-condition: if we have explicit keys for all conditions, use them all
+    if (_overrideSubtypeKeys.length > 0) {
+      selectedKeys1 = _overrideSubtypeKeys;
+    } else {
+      const overrideKey = _overrideSubtypeKey;
+      const subtypeEl = document.getElementById('gen-cpg-subtype');
+      const domChosen = subtypeEl && subtypeEl.value !== '__random__' ? subtypeEl.value : null;
+      const chosen = (overrideKey && keys1.includes(overrideKey)) ? overrideKey
+                   : (domChosen && keys1.includes(domChosen)) ? domChosen
+                   : null;
+      if (keys1.length > 1 || chosen) {
+        selectedKeys1 = chosen
+          ? [chosen]
+          : [scenarioPool1[Math.floor(Math.random() * scenarioPool1.length)]];
+      }
     }
   }
 
-  // For secondary category: use selected subtype-2 if set, otherwise random from scenario pool
-  let selectedKeys2 = keys2;
-  if (catVal2 && keys2.length > 1) {
-    const subtype2El = document.getElementById('gen-cpg-subtype-2');
-    const chosen2 = subtype2El && subtype2El.value !== '__random__' ? subtype2El.value : null;
-    selectedKeys2 = chosen2 && keys2.includes(chosen2)
-      ? [chosen2]
-      : [scenarioPool2[Math.floor(Math.random() * scenarioPool2.length)]];
-  }
-
-  const allKeys = [...new Set([...selectedKeys1, ...selectedKeys2])];
+  const allKeys = [...new Set([...selectedKeys1])];
 
   if (allKeys.length === 0) return '';
 
@@ -1106,7 +1102,7 @@ ${SCENARIO_JSON_TEMPLATE.replace('CAT', category).replace('SUB', subcategory)}`;
     btn.innerHTML = origLabel;
     btn.disabled = false;
     // Rebuild sidebar so the scenario is findable, then auto-load and auto-save
-    _overrideCatVal = null; _overrideSubtypeKey = null;
+    _overrideCatVal = null; _overrideSubtypeKey = null; _overrideSubtypeKeys = [];
     // Snap progress to 100% before navigating
     document.querySelectorAll('.gen-progress-fill').forEach(b=>b.style.width='100%');
     document.querySelectorAll('.gen-progress-label').forEach(l=>l.textContent='Complete!');
@@ -1461,6 +1457,9 @@ function handleQuickGenerate() {
     const catKey = `${first.category}|${first.subcategory}`;
     _overrideCatVal = catKey;
     _overrideSubtypeKey = COND_TO_CPG_KEY[first.name] || null;
+    // Collect ALL CPG keys for all selected conditions
+    _overrideSubtypeKeys = _quickMultiSelected
+      .map(s => COND_TO_CPG_KEY[s.name]).filter(Boolean);
     // Build complaint from all conditions
     const condList = _quickMultiSelected.map(s => s.name).join(' + ');
     document.getElementById('gen-complaint').value = `Multi-condition scenario: ${condList}`;
@@ -1528,6 +1527,10 @@ function handleCustomGenerate() {
   const firstCondName = selectedConditions[0] ? (selectedConditions[0].includes('::') ? selectedConditions[0].split('::')[1] : selectedConditions[0]) : null;
   _overrideCatVal = catKey;
   _overrideSubtypeKey = firstCondName ? (COND_TO_CPG_KEY[firstCondName] || null) : null;
+  // Collect ALL CPG keys for all selected conditions
+  _overrideSubtypeKeys = selectedConditions
+    .map(k => { const n = k.includes('::') ? k.split('::')[1] : k; return COND_TO_CPG_KEY[n]; })
+    .filter(Boolean);
   const sel = document.getElementById('gen-category');
   if (sel) { const opt = document.createElement('option'); opt.value = catKey; sel.appendChild(opt); sel.value = catKey; }
   _activeGenBtn = 'custom-gen-btn';
