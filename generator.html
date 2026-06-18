@@ -229,8 +229,8 @@ textarea{resize:vertical;min-height:72px;line-height:1.5}
 /* ── SCENE PATIENT ── */
 .scene-patient{position:absolute;right:0;bottom:0;width:64px;image-rendering:pixelated;opacity:1}
 /* ── AMBULANCE ANIMATION ── */
-.amb-track{position:relative;height:80px;margin:8px 0 0;background:transparent;overflow:visible}
-.amb-img{position:absolute;bottom:0;width:96px;image-rendering:pixelated;cursor:pointer;
+.amb-track{position:relative;height:72px;margin:8px 0 0;background:transparent;overflow:visible}
+.amb-img{position:absolute;bottom:0;width:64px;image-rendering:pixelated;cursor:pointer;
   animation:amb-bounce .3s ease-in-out infinite alternate}
 .amb-img.rainbow{animation:amb-bounce .3s ease-in-out infinite alternate, amb-rainbow .6s linear infinite}
 @keyframes amb-bounce{
@@ -1229,7 +1229,7 @@ function _ambApplyPos() {
 }
 
 function _ambSetTarget(pct, trackW) {
-  const ambW = 96;
+  const ambW = 64;
   const patientW = 68; // stop before patient
   const maxX = trackW - ambW - patientW;
   const pos = Math.max(0, Math.min((pct / 100) * trackW - ambW / 2, maxX));
