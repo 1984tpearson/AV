@@ -2348,7 +2348,7 @@ const CPG_PACKAGES = {
       { type: "header", text: "Urgent transport to PCI facility (Time to PCI < 90 min, PHT endorsed paramedic)" },
       { type: "action", text: "Continue Mx as per CPG A0401 Acute Coronary Syndromes" },
       { type: "action", text: "Transport with hospital notification" },
-      { type: "mica", text: "Heparin IV bolus 4000 IU \u2014 Repeat Heparin IV bolus 1000 IU at 1 hour intervals" },
+      { type: "action", text: "Heparin IV bolus 4000 IU \u2014 Repeat Heparin IV bolus 1000 IU at 1 hour intervals" },
       { type: "action", text: "Capture a repeat ECG 30 minutes prior to arrival and transmit to receiving hospital with notification" },
       { type: "header", text: "Prehospital thrombolysis (Time to PCI > 90 min AND all inclusion criteria met AND no exclusion criteria)" },
       { type: "stop", text: "ALS paramedics MUST consult AV Clinician prior to progressing to thrombolysis in all cases. MICA paramedics must consult AV Clinician where any relative C/I are present." },
