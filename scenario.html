@@ -4943,9 +4943,9 @@ const CATEGORY_TO_CPG = {
   'Adult|Cardiac Arrest':    ['cardiac_arrest_medical', 'cardiac_arrest_traumatic', 'rosc_management', 'withholding_resuscitation'],
   'Adult|Airway Management': ['essential_airway', 'endotracheal_intubation', 'difficult_airway', 'upper_airway_obstruction'],
   'Adult|Cardiac':           ['acs', 'bradycardia', 'tachycardia_narrow', 'tachycardia_broad', 'pulmonary_oedema', 'inadequate_perfusion_cardiogenic', 'stemi_management', 'hypertension'],
-  'Adult|Pain Relief':       ['pain_relief'],
+  'Adult|Pain Relief':       ['pain_relief', 'headache'],
   'Adult|Respiratory':       ['asthma', 'copd', 'upper_airway_obstruction', 'dyspnoea', 'pulmonary_embolism'],
-  'Adult|Medical':           ['seizures', 'hypoglycaemia', 'stroke', 'anaphylaxis', 'hyperkalaemia', 'hyperglycaemia', 'adrenal_insufficiency', 'headache', 'nausea_vomiting'],
+  'Adult|Medical':           ['seizures', 'hypoglycaemia', 'stroke', 'anaphylaxis', 'hyperkalaemia', 'hyperglycaemia', 'adrenal_insufficiency', 'nausea_vomiting', 'shock'],
   'Adult|Infection':         ['sepsis', 'meningococcal'],
   'Adult|Mental Health':     ['acute_behavioural_disturbance', 'mental_health_conditions'],
   'Adult|Palliative Care':   ['palliative_care'],
@@ -4956,7 +4956,7 @@ const CATEGORY_TO_CPG = {
   // Paediatric
   'Paediatric|Cardiac Arrest':    ['cardiac_arrest_medical', 'cardiac_arrest_traumatic', 'rosc_management', 'withholding_resuscitation'],
   'Paediatric|Airway Management': ['essential_airway', 'endotracheal_intubation', 'difficult_airway', 'upper_airway_obstruction'],
-  'Paediatric|Pain Relief':       ['pain_relief'],
+  'Paediatric|Pain Relief':       ['pain_relief', 'headache'],
   'Paediatric|Respiratory':       ['asthma', 'croup'],
   'Paediatric|Medical':           ['seizures', 'hypoglycaemia', 'anaphylaxis', 'hyperglycaemia'],
   'Paediatric|Infection':         ['sepsis'],
@@ -4975,8 +4975,8 @@ const CATEGORY_TO_CPG = {
   'Maternity|Miscarriage':                       ['maternity_patient'],
   // Other
   'Newborn|Newborn Resuscitation': ['newborn_resuscitation', 'the_newborn'],
-  'Treat and Refer|Epistaxis':     [],
-  'Treat and Refer|Minor Burns':   ['burns'],
+  'Treat and Refer|Epistaxis':     ['epistaxis'],
+  'Treat and Refer|Minor Burns':   ['minor_burns'],
 };
 
 // ── CPG subtype labels for the presentation-type dropdown ──────────────────
@@ -5295,10 +5295,32 @@ function buildManagementFromCPG(pkgKeys) {
 // random selection so the AI doesn't write a scenario "about" ROSC management or
 // a difficult airway guideline. They remain in CATEGORY_TO_CPG for display lookup.
 const CATEGORY_SCENARIO_CPGS = {
+  // Cardiac Arrest — exclude rosc_management and withholding_resuscitation from random
   'Adult|Cardiac Arrest':      ['cardiac_arrest_medical', 'cardiac_arrest_traumatic'],
   'Paediatric|Cardiac Arrest': ['cardiac_arrest_medical', 'cardiac_arrest_traumatic'],
-  'Adult|Airway Management':   ['upper_airway_obstruction'],
-  'Paediatric|Airway Management': ['upper_airway_obstruction'],
+  // Airway — exclude ETI and difficult airway from random (too niche without context)
+  'Adult|Airway Management':      ['upper_airway_obstruction', 'essential_airway'],
+  'Paediatric|Airway Management': ['upper_airway_obstruction', 'essential_airway'],
+  // Cardiac — exclude hypertension from random (low acuity, rarely a primary scenario)
+  'Adult|Cardiac': ['acs', 'bradycardia', 'tachycardia_narrow', 'tachycardia_broad', 'pulmonary_oedema', 'inadequate_perfusion_cardiogenic', 'stemi_management'],
+  // Respiratory — all valid for random
+  'Adult|Respiratory':       ['asthma', 'copd', 'dyspnoea', 'pulmonary_embolism'],
+  'Paediatric|Respiratory':  ['asthma', 'croup'],
+  // Medical — exclude shock from random (context-dependent)
+  'Adult|Medical': ['seizures', 'hypoglycaemia', 'stroke', 'anaphylaxis', 'hyperkalaemia', 'hyperglycaemia', 'adrenal_insufficiency', 'nausea_vomiting'],
+  // Trauma — all valid for random
+  'Adult|Trauma':      ['major_trauma', 'head_injury', 'chest_injury', 'spinal_injury', 'burns'],
+  'Paediatric|Trauma': ['major_trauma', 'head_injury', 'chest_injury', 'burns'],
+  // Toxicology — exclude cyanide from random (rare, niche)
+  'Adult|Toxicology':      ['opioid_toxicity', 'tca_toxicity', 'beta_blocker_toxicity', 'ccb_toxicity', 'organophosphate_toxicity', 'drug_induced_hyperthermia', 'quetiapine_toxicity', 'alcohol_intoxication', 'alcohol_withdrawal'],
+  'Paediatric|Toxicology': ['opioid_toxicity', 'tca_toxicity', 'alcohol_intoxication', 'organophosphate_toxicity', 'drug_induced_hyperthermia'],
+  // Environment — all valid for random
+  'Adult|Environment':      ['hypothermia', 'hyperthermia_environmental'],
+  'Paediatric|Environment': ['hypothermia', 'hyperthermia_environmental'],
+  // Mental Health — all valid for random
+  'Adult|Mental Health': ['acute_behavioural_disturbance', 'mental_health_conditions'],
+  // Medical paediatric — all valid
+  'Paediatric|Medical': ['seizures', 'hypoglycaemia', 'anaphylaxis', 'hyperglycaemia'],
 };
 
 function buildCPGContext(catVal1, catVal2) {
