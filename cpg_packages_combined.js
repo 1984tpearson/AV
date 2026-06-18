@@ -2393,6 +2393,57 @@ const CPG_PACKAGES = {
       { type: "action", text: "Manage end-organ dysfunction as per relevant CPG: CPG A0401 ACS, CPG A0406 Pulmonary Oedema, CPG A0502 Headache, CPG A0711 Suspected Stroke or TIA" }
     ],
     notes: "Intended for patients \u2265 16 years. Pregnant or immediately post-partum patients excluded \u2014 refer to CPG M0202 Pre-Eclampsia/Eclampsia. If automated BP identifies hypertension, confirm with non-automated measurement. If patient condition allows, repeat BP after 15 minutes of reassurance and rest. Safety netting: call 000 if chest pain, SOB, severe headache, reduced/absent urine, syncope or collapse develop."
+  },
+
+  // -----------------------------------------------------------
+  // TR0201 Epistaxis
+  // -----------------------------------------------------------
+  epistaxis: {
+    cpg: "TR0201",
+    title: "Epistaxis",
+    careObjectives: [
+      "Control bleeding and assess suitability for treat and refer pathway."
+    ],
+    management: [
+      { type: "stop", text: "Do not proceed if: unable to control bleeding after 15 minutes; recent history of facial or head trauma; history of bleeding disorder or anticoagulant therapy" },
+      { type: "assess", items: [
+        "Has bleeding been controlled after 15 minutes of direct pressure application?"
+      ]},
+      { type: "header", text: "Yes \u2014 bleeding controlled" },
+      { type: "action", text: "Provide patient with self-care advice and Health Information Sheet" },
+      { type: "action", text: "Confirm patient understands advice prior to departing scene" },
+      { type: "note", items: ["Refer patient to primary care provider for review within 24 hours if: very minor or intermittent bleeding remains; patient has experienced recurrent episodes of epistaxis; patient is on antiplatelet therapy; BP remains high after resolution of epistaxis"] },
+      { type: "header", text: "No \u2014 bleeding continues" },
+      { type: "action", text: "Transport patient to ED" }
+    ],
+    notes: "General care: position patient upright with slight forward neck flexion; pinch soft part of nose firmly for 15 minutes without releasing pressure; apply cold cloth or compress to forehead if available; encourage breathing through mouth and spitting out any blood; advise patient to avoid blowing or picking nose for at least 12 hours after cessation. Approx 5% of epistaxis originates from the posterior nose and is unlikely to be controlled with manual pressure. Treat and Refer CPGs apply to adult patients only \u2014 not elderly/frail or paediatric."
+  },
+
+  // -----------------------------------------------------------
+  // TR0205 Minor Burns
+  // -----------------------------------------------------------
+  minor_burns: {
+    cpg: "TR0205",
+    title: "Minor Burns",
+    careObjectives: [
+      "Cool the burn, assess suitability for treat and refer pathway, and provide self-care advice."
+    ],
+    management: [
+      { type: "note", items: ["Status: small, isolated, superficial burn with unbroken skin, or sunburn"] },
+      { type: "stop", text: "Do not proceed if: burn involves face, hands, feet, major joints, genitalia or circumferential burns of a limb or chest; partial or full thickness burn; smoke inhalation or potential inhalation injury; chemical, electrical or radiation burn (other than sunburn); suspected non-accidental burn; associated traumatic injuries; pain unable or unlikely to be controlled by oral analgesia; co-morbidities that may impair wound healing (e.g. poor wound healing history, diabetes, immunocompromised, chronic steroid use)" },
+      { type: "assess", items: [
+        "Has pain been controlled after 20 minutes of cooling and is burn superficial and minor?"
+      ]},
+      { type: "header", text: "Yes \u2014 pain controlled, superficial and minor" },
+      { type: "action", text: "If required, clean wound gently with Normal Saline" },
+      { type: "action", text: "Consider applying non-perfumed moisturiser if available (e.g. Vaseline, sorbolene) \u2014 do not apply to burns with broken skin" },
+      { type: "action", text: "Consider Paracetamol as per CPG A0501 Pain Relief" },
+      { type: "action", text: "Refer patient to primary care provider within 24 hours for review" },
+      { type: "action", text: "Provide Health Information Sheet and confirm patient understands advice prior to departing scene" },
+      { type: "header", text: "No \u2014 pain not controlled or burn not minor" },
+      { type: "action", text: "Organise appropriate transport to ED or primary care provider" }
+    ],
+    notes: "Intended for adult patients with minor superficial burns from thermal sources (scald or contact with hot objects). If any doubt exists as to nature, size or depth \u2014 transport and manage as per CPG A0805 Burns. Superficial burns: dry and red, no blisters, skin intact, painful. Cool running water for 20 minutes as per CPG A0805. Epidermal burns generally heal within 7 days without scarring. Sunburn may be appropriate for self-care if patient is otherwise well. Treat and Refer CPGs apply to adult patients only \u2014 not elderly/frail or paediatric."
   }
 
 };
