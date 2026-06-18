@@ -308,11 +308,11 @@ textarea{resize:vertical;min-height:72px;line-height:1.5}
         </div>
       </div>
 
+      <button class="btn btn-primary btn-full" id="quick-gen-btn" onclick="handleQuickGenerate()" style="margin-bottom:14px" disabled>⚡ Generate Scenario</button>
       <div id="quick-status" class="gen-status" style="margin-bottom:14px">
         <div id="quick-stream-card" class="stream-card" style="display:none"></div>
       </div>
       <div class="cat-accordion" id="quick-accordion"></div>
-      <button class="btn btn-primary btn-full" id="quick-gen-btn" onclick="handleQuickGenerate()" style="margin-top:14px" disabled>⚡ Generate Scenario</button>
     </div>
   </div>
 
@@ -1620,7 +1620,7 @@ let _quickMultiSelected = []; // [{name, category, subcategory, el}]
 function toggleMultiMode() {
   _multiMode = !_multiMode;
   const btn = document.getElementById('multi-toggle-btn');
-  const tagsEl = document.getElementById('quick-multi-tags');
+  const tagsEl = document.getElementById('quick-selected-tags');
   btn.classList.toggle('on', _multiMode);
   if (!_multiMode) {
     // Revert to single-select mode — keep first selection if any
@@ -1643,7 +1643,7 @@ function toggleMultiMode() {
 }
 
 function renderQuickMultiTags() {
-  const tagsEl = document.getElementById('quick-multi-tags');
+  const tagsEl = document.getElementById('quick-selected-tags');
   if (!tagsEl) return;
   tagsEl.innerHTML = _quickMultiSelected.map((s,i) =>
     `<span class="quick-multi-tag">${s.name} <span class="rtag" onclick="removeQuickMulti(${i})">×</span></span>`
@@ -1693,7 +1693,7 @@ function selectQuick(el, name, category, subcategory, catIdx) {
       _quickMultiSelected.push({ name, category, subcategory, el });
       el.classList.add('selected');
     }
-    const tagsEl = document.getElementById('quick-multi-tags');
+    const tagsEl = document.getElementById('quick-selected-tags');
     if (tagsEl) tagsEl.style.display = _quickMultiSelected.length ? 'flex' : 'none';
     renderQuickMultiTags();
     // Update category badge
