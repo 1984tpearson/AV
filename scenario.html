@@ -4044,8 +4044,8 @@ function renderSection2(s) {
 
       ${treatCollapsiblesHtml || (_legacyAlsHtml ? `<div class="treatment-box"><h4>✅ ALS Management — ${getCPGLabel(s.cpg)||'Scenario'}</h4><ol>${_legacyAlsHtml}</ol></div>` : '')}
       ${!treatCollapsiblesHtml && _legacyMicaHtml ? `<div class="treatment-mica-box"><h4>🔵 MICA Management</h4><ol>${_legacyMicaHtml}</ol></div>` : ''}
-      ${(s.discussion&&s.discussion.length) ? `<div class="discussion-box"><div class="discussion-header"><span class="discussion-label">💬 Beyond AV Scope — CI Discussion Prompts</span><span class="discussion-note">Not assessable · AI-suggested · not part of AV management</span></div><ul>${s.discussion.map(d=>`<li>${d}</li>`).join('')}</ul></div>` : ''}
       <button class="cpg-browse-all-btn" onclick="openCPGBrowser()">🔍 Browse all CPGs</button>
+      ${(s.discussion&&s.discussion.length) ? `<div class="discussion-box"><div class="discussion-header"><span class="discussion-label">💬 Beyond AV Scope — CI Discussion Prompts</span><span class="discussion-note">Not assessable · AI-suggested · not part of AV management</span></div><ul>${s.discussion.map(d=>`<li>${d}</li>`).join('')}</ul></div>` : ''}
 
       <div style="margin-top:12px">
         <table class="asmt-table">
