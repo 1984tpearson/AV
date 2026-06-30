@@ -628,6 +628,9 @@ body.snav-active #content { padding-left: 60px; }
 .cpg-toggle-btn .cpg-toggle-tag { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px; opacity: 0.75; }
 .cpg-collapsible-content { display: none; margin: 0 0 10px; }
 .cpg-collapsible-content.expanded { display: block; }
+.cpg-group-header { font-size: 10px; font-weight: 800; color: var(--green); text-transform: uppercase; letter-spacing: 0.6px; margin: 14px 0 2px; border-bottom: 1px solid #A9DFBF; padding-bottom: 4px; }
+.cpg-group-header-extra { color: #8a6200; border-bottom-color: #F0A500; }
+.cpg-extra-warning { background: #FEF6E7; border: 1px dashed #F0A500; border-radius: 6px; padding: 6px 10px; font-size: 11px; color: #8a6200; margin: 6px 0; }
 .cpg-step { border-radius: 6px; margin-bottom: 4px; overflow: hidden; font-size: 13px; }
 .cpg-step-assess { background: #FFF3E0; border: 1px solid #FFB74D; }
 .cpg-step-assess .cpg-step-head { background: #E8821A; color: #fff; font-size: 11px; font-weight: 700; padding: 4px 10px; text-transform: uppercase; letter-spacing: 0.5px; }
@@ -3927,6 +3930,8 @@ function renderSection2(s) {
   const _legacyAlsHtml = !_scenPkgKeys.length ? (s.treatment_als||s.treatment||[]).filter(Boolean).map(t=>`<li>${t}</li>`).join('') : '';
   const _legacyMicaHtml = !_scenPkgKeys.length ? (s.treatment_mica||[]).filter(Boolean).map(t=>`<li>${t}</li>`).join('') : '';
   const treatCollapsiblesHtml = renderCPGCollapsibles(_mgmtResult, s.extra_cpgs || []);
+  // Primary CPG codes only — excludes AI-suggested additional CPGs (used for the "Appropriate management" badge)
+  const _primaryCpgStr = (s.cpg || '').split(/[,/]/).map(c => c.trim()).filter(c => c && !(s.extra_cpgs||[]).includes(c)).join(', ');
 
   return `
   <div class="section">
@@ -3988,7 +3993,7 @@ function renderSection2(s) {
       <table class="asmt-table" data-group="impl" data-section="sec2" id="sec-implement">
         <thead><tr><th class="left">Element</th><th>Prompting</th><th>Incomplete</th><th>Complete</th></tr></thead>
         <tbody>
-          ${mkRow('mgmt', `Appropriate management as per CPGs${s.cpg ? hint(s.cpg) : ''}`)}
+          ${mkRow('mgmt', `Appropriate management as per CPGs${_primaryCpgStr ? hint(_primaryCpgStr) : ''}`)}
           ${mkRow('calcs','Calculations correct',true)}
           ${mkRow('transport','Transported to appropriate facility',true)}
           ${mkRow('monitor2','Monitor trends/timeframe/rationale',true)}
@@ -5314,34 +5319,49 @@ function buildManagementFromCPG(pkgKeys) {
   return { packages, typed: anyTyped };
 }
 
-// Render the row of per-CPG toggle buttons + their collapsible content blocks.
-// extraCodes: array of CPG codes (matching pkg.code) that are AI-suggested additions —
-// these render as smaller, visually distinct buttons vs the larger primary ones.
+// Render the per-CPG toggle buttons + collapsible content, grouped under two headers:
+// "Primary CPG(s)" (the guideline(s) this scenario is built on) and "Suggested Further
+// Management" (AI-suggested additional CPGs that may also be relevant — flagged with a warning).
+// extraCodes: array of CPG codes (matching pkg.code) that are AI-suggested additions.
 function renderCPGCollapsibles(mgmtResult, extraCodes) {
   const { packages } = mgmtResult;
   if (!packages.length) return '';
   const extraSet = new Set(extraCodes || []);
+  const primaryPkgs = packages.filter(p => !extraSet.has(p.code));
+  const extraPkgs = packages.filter(p => extraSet.has(p.code));
 
-  let buttonsHtml = '';
-  let contentHtml = '';
-  packages.forEach((pkg, i) => {
-    const isExtra = extraSet.has(pkg.code);
-    const blockId = 'cpg-block-' + Math.random().toString(36).slice(2, 9) + '-' + i;
-    const label = isExtra ? `${pkg.code}` : `${pkg.title} (${pkg.code})`;
-    buttonsHtml += `<button class="cpg-toggle-btn ${isExtra ? 'extra' : 'primary'}" data-target="${blockId}" onclick="toggleCPGBlock('${blockId}', this)">
-      <span class="cpg-toggle-chevron">▶</span>
-      <span>${isExtra ? '+ ' : '📋 '}${label}</span>
-      ${isExtra ? '<span class="cpg-toggle-tag">AI-suggested</span>' : ''}
-    </button>`;
+  function buildGroup(pkgs, isExtra) {
+    let buttonsHtml = '', contentHtml = '';
+    pkgs.forEach((pkg, i) => {
+      const blockId = 'cpg-block-' + Math.random().toString(36).slice(2, 9) + '-' + i;
+      const label = isExtra ? `${pkg.code}` : `${pkg.title} (${pkg.code})`;
+      buttonsHtml += `<button class="cpg-toggle-btn ${isExtra ? 'extra' : 'primary'}" data-target="${blockId}" onclick="toggleCPGBlock('${blockId}', this)">
+        <span class="cpg-toggle-chevron">▶</span>
+        <span>${isExtra ? '+ ' : '📋 '}${label}</span>
+      </button>`;
 
-    const micaBlock = pkg.micaHtml ? `<div class="treatment-mica-box"><h4>🔵 MICA Management</h4><ol>${pkg.micaHtml}</ol></div>` : '';
-    const alsBlock = pkg.typed
-      ? pkg.alsHtml
-      : (pkg.alsHtml ? `<div class="treatment-box"><h4>✅ ALS Management — ${pkg.title} (${pkg.code})</h4>${pkg.alsHtml}</div>` : '');
-    contentHtml += `<div class="cpg-collapsible-content" id="${blockId}">${alsBlock}${micaBlock}</div>`;
-  });
+      const micaBlock = pkg.micaHtml ? `<div class="treatment-mica-box"><h4>🔵 MICA Management</h4><ol>${pkg.micaHtml}</ol></div>` : '';
+      const alsBlock = pkg.typed
+        ? pkg.alsHtml
+        : (pkg.alsHtml ? `<div class="treatment-box"><h4>✅ ALS Management — ${pkg.title} (${pkg.code})</h4>${pkg.alsHtml}</div>` : '');
+      contentHtml += `<div class="cpg-collapsible-content" id="${blockId}">${alsBlock}${micaBlock}</div>`;
+    });
+    return { buttonsHtml, contentHtml };
+  }
 
-  return `<div class="cpg-toggle-row">${buttonsHtml}</div>${contentHtml}`;
+  let out = '';
+  if (primaryPkgs.length) {
+    const { buttonsHtml, contentHtml } = buildGroup(primaryPkgs, false);
+    out += `<div class="cpg-group-header">${primaryPkgs.length > 1 ? 'Primary CPGs' : 'Primary CPG'}</div>
+      <div class="cpg-toggle-row">${buttonsHtml}</div>${contentHtml}`;
+  }
+  if (extraPkgs.length) {
+    const { buttonsHtml, contentHtml } = buildGroup(extraPkgs, true);
+    out += `<div class="cpg-group-header cpg-group-header-extra">Suggested Further Management</div>
+      <div class="cpg-extra-warning">⚠️ AI-suggested — these guidelines were not part of the original scenario selection. Verify clinical relevance before applying.</div>
+      <div class="cpg-toggle-row">${buttonsHtml}</div>${contentHtml}`;
+  }
+  return out;
 }
 
 // Expand/collapse a single CPG management block (called from renderCPGCollapsibles buttons)
