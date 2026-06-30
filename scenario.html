@@ -614,23 +614,25 @@ body.snav-active #content { padding-left: 60px; }
 .cpg-mgmt { margin: 10px 0; }
 .cpg-expand-btn { display: block; width: 100%; margin-top: 6px; padding: 6px 12px; background: #f0f0f0; border: 1px solid #ccc; border-radius: 6px; font-size: 12px; color: #444; cursor: pointer; text-align: center; }
 .cpg-expand-btn:hover { background: #e0e0e0; }
-/* Per-CPG collapsible toggle buttons — primary CPGs large, AI-suggested extras small */
-.cpg-toggle-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: flex-start; margin: 10px 0 6px; padding: 10px 0 0; }
+/* Per-CPG collapsible toggle buttons — primary CPGs large, AI-suggested extras small.
+   Both groups render inside matching bordered cards (same width, same amber header colour). */
+.cpg-group-card { border: 1px solid var(--border); border-radius: 8px; margin-top: 14px; overflow: hidden; }
+.cpg-group-header { background: var(--amber); color: white; padding: 8px 12px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+.cpg-group-body { padding: 12px; background: var(--amber-light); }
+.cpg-toggle-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: flex-start; }
 .cpg-toggle-btn { display: flex; align-items: center; gap: 6px; border-radius: 8px; cursor: pointer; font-weight: 700; text-align: left; transition: background 0.15s; }
 .cpg-toggle-btn .cpg-toggle-chevron { font-size: 10px; transition: transform 0.15s; flex-shrink: 0; }
 .cpg-toggle-btn.expanded .cpg-toggle-chevron { transform: rotate(90deg); }
-.cpg-toggle-btn.primary { background: var(--green-light); border: 1px solid #A9DFBF; color: var(--green); padding: 10px 14px; font-size: 13px; }
-.cpg-toggle-btn.primary:hover { background: #d7f0e0; }
-.cpg-toggle-btn.primary.expanded { background: var(--green); color: #fff; border-color: var(--green); }
-.cpg-toggle-btn.extra { background: #FEF6E7; border: 1px dashed #F0A500; color: #8a6200; padding: 8px 12px; font-size: 12px; }
-.cpg-toggle-btn.extra:hover { background: #fcecc6; }
-.cpg-toggle-btn.extra.expanded { background: #F0A500; color: #fff; border-style: solid; }
+.cpg-toggle-btn.primary { background: #fff; border: 1px solid var(--amber); color: var(--amber); padding: 10px 14px; font-size: 13px; }
+.cpg-toggle-btn.primary:hover { background: var(--amber-light); }
+.cpg-toggle-btn.primary.expanded { background: var(--amber); color: #fff; border-color: var(--amber); }
+.cpg-toggle-btn.extra { background: #fff; border: 1px dashed var(--amber); color: var(--amber); padding: 8px 12px; font-size: 12px; }
+.cpg-toggle-btn.extra:hover { background: var(--amber-light); }
+.cpg-toggle-btn.extra.expanded { background: var(--amber); color: #fff; border-style: solid; }
 .cpg-toggle-btn .cpg-toggle-tag { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px; opacity: 0.75; }
-.cpg-collapsible-content { display: none; margin: 0 0 10px; }
+.cpg-collapsible-content { display: none; margin: 10px 0 0; }
 .cpg-collapsible-content.expanded { display: block; }
-.cpg-group-header { background: var(--green); color: white; padding: 8px 12px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 14px; border-radius: 5px 5px 0 0; }
-.cpg-group-header-extra { background: #F0A500; }
-.cpg-extra-warning { background: #FEF6E7; border: 1px dashed #F0A500; border-radius: 6px; padding: 6px 10px; font-size: 11px; color: #8a6200; margin: 6px 0; }
+.cpg-extra-warning { background: #fff; border: 1px dashed var(--amber); border-radius: 6px; padding: 6px 10px; font-size: 11px; color: var(--amber); margin-bottom: 10px; }
 .cpg-step { border-radius: 6px; margin-bottom: 4px; overflow: hidden; font-size: 13px; }
 .cpg-step-assess { background: #FFF3E0; border: 1px solid #FFB74D; }
 .cpg-step-assess .cpg-step-head { background: #E8821A; color: #fff; font-size: 11px; font-weight: 700; padding: 4px 10px; text-transform: uppercase; letter-spacing: 0.5px; }
@@ -5355,14 +5357,22 @@ function renderCPGCollapsibles(mgmtResult, extraCodes) {
   let out = '';
   if (primaryPkgs.length) {
     const { buttonsHtml, contentHtml } = buildGroup(primaryPkgs, false);
-    out += `<div class="cpg-group-header">${primaryPkgs.length > 1 ? 'Primary CPGs' : 'Primary CPG'}</div>
-      <div class="cpg-toggle-row">${buttonsHtml}</div>${contentHtml}`;
+    out += `<div class="cpg-group-card">
+      <div class="cpg-group-header">${primaryPkgs.length > 1 ? 'Primary CPGs' : 'Primary CPG'}</div>
+      <div class="cpg-group-body">
+        <div class="cpg-toggle-row">${buttonsHtml}</div>${contentHtml}
+      </div>
+    </div>`;
   }
   if (extraPkgs.length) {
     const { buttonsHtml, contentHtml } = buildGroup(extraPkgs, true);
-    out += `<div class="cpg-group-header cpg-group-header-extra">Suggested Further Management</div>
-      <div class="cpg-extra-warning">⚠️ AI-suggested — these guidelines were not part of the original scenario selection. Verify clinical relevance before applying.</div>
-      <div class="cpg-toggle-row">${buttonsHtml}</div>${contentHtml}`;
+    out += `<div class="cpg-group-card">
+      <div class="cpg-group-header">Suggested Further Management</div>
+      <div class="cpg-group-body">
+        <div class="cpg-extra-warning">⚠️ AI-suggested — these guidelines were not part of the original scenario selection. Verify clinical relevance before applying.</div>
+        <div class="cpg-toggle-row">${buttonsHtml}</div>${contentHtml}
+      </div>
+    </div>`;
   }
   return out;
 }
