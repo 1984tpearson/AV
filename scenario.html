@@ -3508,14 +3508,14 @@ function renderSection1(s, isTrauma) {
     <table class="asmt-table" data-group="ss" data-section="sec1">
       <thead><tr><th class="left">Element</th><th>Prompting</th><th>Incomplete</th><th>Complete</th></tr></thead>
       <tbody>
-        ${ssRow('ss-head','head','Head and face (eyes/pupils)')}${ssRow('ss-neck','neck','Neck',true)}${ssRow('ss-chest','chest','Chest',true)}${ssRow('ss-abdomen','abdomen','Abdomen',true)}${ssRow('ss-back','back','Back',true)}${ssRow('ss-pelvis','pelvis','Pelvis',true)}${ssRow('ss-limbs','limbs','Limbs (incl. neurovascular)',true)}${ssRow('ss-other','other','Other/medical consideration',true)}
+        ${ssRow('ss-head','head','Head and face (eyes/pupils)',true)}${ssRow('ss-neck','neck','Neck',true)}${ssRow('ss-chest','chest','Chest',true)}${ssRow('ss-abdomen','abdomen','Abdomen',true)}${ssRow('ss-back','back','Back',true)}${ssRow('ss-pelvis','pelvis','Pelvis',true)}${ssRow('ss-limbs','limbs','Limbs (incl. neurovascular)',true)}${ssRow('ss-other','other','Other/medical consideration',true)}
       </tbody>
     </table>` : `
     <div id="nav-ss" class="snav-anchor"></div><div class="asmt-section-header"><div class="asmt-section-title">Secondary Survey — Body Systems</div><button class="all-complete-btn" onclick="markGroupComplete('ss')">✓ All Complete</button></div>
     <table class="asmt-table" data-group="ss" data-section="sec1">
       <thead><tr><th class="left">Element</th><th>Prompting</th><th>Incomplete</th><th>Complete</th></tr></thead>
       <tbody>
-        ${ssRow('ss-neuro','neuro','Neurological')}${ssRow('ss-cardio','cardio','Cardiovascular',true)}${ssRow('ss-resp','resp','Respiratory',true)}${ssRow('ss-gi','gi','Gastrointestinal',true)}${ssRow('ss-gu','gu','Genitourinary',true)}${ssRow('ss-msk','msk','Musculoskeletal',true)}${ssRow('ss-skin','skin','Integumentary/Skin',true)}${ssRow('ss-other','other','Other/trauma consideration',true)}
+        ${ssRow('ss-neuro','neuro','Neurological',true)}${ssRow('ss-cardio','cardio','Cardiovascular',true)}${ssRow('ss-resp','resp','Respiratory',true)}${ssRow('ss-gi','gi','Gastrointestinal',true)}${ssRow('ss-gu','gu','Genitourinary',true)}${ssRow('ss-msk','msk','Musculoskeletal',true)}${ssRow('ss-skin','skin','Integumentary/Skin',true)}${ssRow('ss-other','other','Other/trauma consideration',true)}
       </tbody>
     </table>`;
 
