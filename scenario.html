@@ -2925,11 +2925,12 @@ function loadScenario(id) {
         const mapped = ECGEngine.mapRhythm(rhythm, hr);
         try { const _ecgInst = new ECGEngine(le,{mode:'12lead',theme:'paper'}); _ecgInst.setRhythm(mapped.key,mapped.bpm,mapped.bbbMode); } catch(e2){console.warn('12-lead ECG:',e2);}
       });
+      // Card is final at this point — safe to arm the fly animation now
+      armDispatchFlyAnimation();
     }, 300);
   });
 
   window.scrollTo(0, 0);
-  setTimeout(armDispatchFlyAnimation, 350);
 }
 
 
@@ -6037,7 +6038,7 @@ function armDispatchFlyAnimation() {
   if (!card || !fab) { _dispatchFlyArmed = false; return; }
 
   let fired = false;
-  _dispatchFlyListener = function() {
+  const check = function() {
     if (fired || !_dispatchFlyArmed) return;
     const cardRect = card.getBoundingClientRect();
     // Trigger once the card has scrolled fully above the viewport top
@@ -6048,7 +6049,13 @@ function armDispatchFlyAnimation() {
       runDispatchFlyAnimation(card, fab);
     }
   };
-  window.addEventListener('scroll', _dispatchFlyListener, { passive: true });
+  _dispatchFlyListener = check;
+
+  // Check immediately in case the page loaded/refreshed already scrolled past
+  // the card (e.g. browser scroll-position restore) — a 'scroll' event won't
+  // fire again in that case since no further movement occurs.
+  check();
+  if (!fired) window.addEventListener('scroll', _dispatchFlyListener, { passive: true });
 }
 
 function runDispatchFlyAnimation(card, fab) {
