@@ -420,6 +420,11 @@ body.snav-active #content { padding-left: 60px; }
 .dc-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.8px; opacity: 0.6; margin-bottom: 4px; }
 .dc-text { font-size: 13px; line-height: 1.5; }
 .vitals-grid { display: grid; grid-template-columns: repeat(2,1fr); gap: 4px; margin-top: 12px; }
+/* Dispatch card -> Key History FAB fly animation */
+.dispatch-flyclone { position: fixed; z-index: 60; background: var(--navy-dark); color: white; border-radius: 10px; overflow: hidden; pointer-events: none; box-shadow: 0 8px 24px rgba(0,0,0,0.25); transition: transform 0.55s cubic-bezier(0.4,0,0.2,1), opacity 0.55s cubic-bezier(0.4,0,0.2,1), border-radius 0.55s ease; }
+.dispatch-flyclone.fly { opacity: 0; }
+@keyframes keyhxFabLand { 0%{box-shadow:0 4px 16px rgba(28,58,110,0.3)} 30%{box-shadow:0 4px 28px rgba(28,58,110,0.9); transform:scale(1.12)} 60%{transform:scale(0.97)} 100%{box-shadow:0 4px 16px rgba(28,58,110,0.3); transform:scale(1)} }
+#keyhx-fab.land { animation: keyhxFabLand 0.6s ease; }
 @media (min-width: 700px) { .vitals-grid { min-width: 210px; margin-top: 0; } }
 .vital-item { background: rgba(255,255,255,0.08); border-radius: 5px; padding: 5px 8px; font-size: 12px; position: relative; }
 .reveal-btn { display: inline-flex; align-items: center; gap: 3px; margin-top: 4px; padding: 2px 6px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.2); background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.7); font-size: 9px; font-weight: 700; cursor: pointer; letter-spacing: 0.3px; white-space: nowrap; transition: all 0.15s; }
@@ -2924,6 +2929,7 @@ function loadScenario(id) {
   });
 
   window.scrollTo(0, 0);
+  setTimeout(armDispatchFlyAnimation, 350);
 }
 
 
@@ -6007,6 +6013,80 @@ function hideStickyBar() {
   if (sv) sv.classList.remove('vitals-sticky');
   const nav = document.getElementById('scenario-nav');
   if (nav) { nav.style.top = '56px'; nav.style.height = 'calc(100vh - 56px)'; }
+}
+
+// ============================================================
+// DISPATCH CARD -> KEY HISTORY FAB FLY ANIMATION
+// Fires once per scenario load: when the Dispatch & Presentation
+// card scrolls out of view (upward), a clone shrinks/flies into
+// the Key History FAB to show the content "went" there.
+// ============================================================
+let _dispatchFlyArmed = false;
+let _dispatchFlyListener = null;
+
+function armDispatchFlyAnimation() {
+  // Disarm any previous listener (new scenario loaded)
+  if (_dispatchFlyListener) {
+    window.removeEventListener('scroll', _dispatchFlyListener);
+    _dispatchFlyListener = null;
+  }
+  _dispatchFlyArmed = true;
+
+  const card = document.querySelector('#sec-dispatch .dispatch-card');
+  const fab = document.getElementById('keyhx-fab');
+  if (!card || !fab) { _dispatchFlyArmed = false; return; }
+
+  let fired = false;
+  _dispatchFlyListener = function() {
+    if (fired || !_dispatchFlyArmed) return;
+    const cardRect = card.getBoundingClientRect();
+    // Trigger once the card has scrolled fully above the viewport top
+    if (cardRect.bottom < 0) {
+      fired = true;
+      window.removeEventListener('scroll', _dispatchFlyListener);
+      _dispatchFlyListener = null;
+      runDispatchFlyAnimation(card, fab);
+    }
+  };
+  window.addEventListener('scroll', _dispatchFlyListener, { passive: true });
+}
+
+function runDispatchFlyAnimation(card, fab) {
+  // The card has just scrolled above the viewport. We pin the clone to where
+  // it last was visible (viewport top) and animate it shrinking into the FAB.
+  const cardRect = card.getBoundingClientRect();
+  const fabRect = fab.getBoundingClientRect();
+  if (!fabRect.width || getComputedStyle(fab).display === 'none') return;
+
+  const startWidth = cardRect.width || card.offsetWidth;
+  const startHeight = card.offsetHeight;
+
+  const clone = card.cloneNode(true);
+  clone.classList.add('dispatch-flyclone');
+  clone.style.left = cardRect.left + 'px';
+  clone.style.top = '0px';
+  clone.style.width = startWidth + 'px';
+  clone.style.height = startHeight + 'px';
+  clone.style.margin = '0';
+  document.body.appendChild(clone);
+
+  // Force layout so the transition has a starting point, then animate to the FAB's box
+  requestAnimationFrame(() => {
+    const scaleX = fabRect.width / startWidth;
+    const scaleY = fabRect.height / startHeight;
+    const translateX = fabRect.left - cardRect.left;
+    const translateY = fabRect.top;
+    clone.style.transformOrigin = 'top left';
+    clone.style.transform = `translate(${translateX}px, ${translateY}px) scale(${scaleX}, ${scaleY})`;
+    clone.style.borderRadius = '28px';
+    clone.classList.add('fly');
+  });
+
+  setTimeout(() => {
+    clone.remove();
+    fab.classList.add('land');
+    setTimeout(() => fab.classList.remove('land'), 650);
+  }, 560);
 }
 
 function showStickyBar(s) {
