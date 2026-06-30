@@ -3493,7 +3493,7 @@ function renderSection1(s, isTrauma) {
     const entry = _ss[key];
     const finding = entry && typeof entry === 'object' ? entry.finding : (entry || '');
     const abn = entry && typeof entry === 'object' ? !!entry.abnormal : false;
-    const badge = finding ? `<span class="vital-hint" style="background:${abn ? 'var(--red)' : 'var(--navy)'}">${finding}</span>` : '';
+    const badge = finding ? `<span class="vital-hint" style="background:${abn ? 'var(--red)' : 'var(--navy)'};max-width:320px;white-space:normal;line-height:1.3;vertical-align:top">${finding}</span>` : '';
     return `
     <tr data-row-id="${id}">
       <td class="elem-label${indent?' indent':''}">${label}${badge}</td>
