@@ -615,8 +615,9 @@ body.snav-active #content { padding-left: 60px; }
 .cpg-expand-btn { display: block; width: 100%; margin-top: 6px; padding: 6px 12px; background: #f0f0f0; border: 1px solid #ccc; border-radius: 6px; font-size: 12px; color: #444; cursor: pointer; text-align: center; }
 .cpg-expand-btn:hover { background: #e0e0e0; }
 /* Per-CPG collapsible toggle buttons — primary CPGs large, AI-suggested extras small.
-   Both groups render inside matching bordered cards (same width, same amber header colour). */
+   Primary and Suggested render as stacked sections inside ONE shared card, divided by a border. */
 .cpg-group-card { border: 1px solid var(--border); border-radius: 8px; margin-top: 14px; overflow: hidden; }
+.cpg-group-section + .cpg-group-section { border-top: 1px solid var(--border); }
 .cpg-group-header { background: var(--amber); color: white; padding: 8px 12px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
 .cpg-group-body { padding: 12px; background: var(--amber-light); }
 .cpg-toggle-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: flex-start; }
@@ -5354,27 +5355,29 @@ function renderCPGCollapsibles(mgmtResult, extraCodes) {
     return { buttonsHtml, contentHtml };
   }
 
-  let out = '';
+  let primarySectionHtml = '';
   if (primaryPkgs.length) {
     const { buttonsHtml, contentHtml } = buildGroup(primaryPkgs, false);
-    out += `<div class="cpg-group-card">
+    primarySectionHtml = `<div class="cpg-group-section">
       <div class="cpg-group-header">${primaryPkgs.length > 1 ? 'Primary CPGs' : 'Primary CPG'}</div>
       <div class="cpg-group-body">
         <div class="cpg-toggle-row">${buttonsHtml}</div>${contentHtml}
       </div>
     </div>`;
   }
+  let extraSectionHtml = '';
   if (extraPkgs.length) {
     const { buttonsHtml, contentHtml } = buildGroup(extraPkgs, true);
-    out += `<div class="cpg-group-card">
+    extraSectionHtml = `<div class="cpg-group-section">
       <div class="cpg-group-header">Suggested Further Management</div>
       <div class="cpg-group-body">
-        <div class="cpg-extra-warning">⚠️ AI-suggested — these guidelines were not part of the original scenario selection. Verify clinical relevance before applying.</div>
         <div class="cpg-toggle-row">${buttonsHtml}</div>${contentHtml}
+        <div class="cpg-extra-warning">⚠️ AI-suggested — these guidelines were not part of the original scenario selection. Verify clinical relevance before applying.</div>
       </div>
     </div>`;
   }
-  return out;
+  if (!primarySectionHtml && !extraSectionHtml) return '';
+  return `<div class="cpg-group-card">${primarySectionHtml}${extraSectionHtml}</div>`;
 }
 
 // Expand/collapse a single CPG management block (called from renderCPGCollapsibles buttons).
