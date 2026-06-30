@@ -6041,8 +6041,8 @@ function armDispatchFlyAnimation() {
   const check = function() {
     if (fired || !_dispatchFlyArmed) return;
     const cardRect = card.getBoundingClientRect();
-    // Trigger once roughly 2/3 of the card has scrolled above the viewport top
-    if (cardRect.bottom < cardRect.height / 3) {
+    // Trigger once the card's top has scrolled 2/3 of its own height above the viewport top
+    if (cardRect.top <= -(cardRect.height * 2 / 3)) {
       fired = true;
       window.removeEventListener('scroll', _dispatchFlyListener);
       _dispatchFlyListener = null;
