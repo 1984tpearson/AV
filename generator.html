@@ -463,6 +463,7 @@ function toRow(s){
   return{id:String(s.id),title:s.title||'',subtitle:s.subtitle||'',category:s.category||'Custom',
     subcategory:s.subcategory||'',scenario_type:s.scenario_type||null,type:s.type||'medical',
     cpg:s.cpg||'',level:s.level||'C/D',dispatch:s.dispatch||'',vitals:s.vitals||{},
+    extra_cpgs:s.extra_cpgs||[],
     caller_hx:s.caller_hx||'',arrival_hx:s.arrival_hx||'',key_hx:s.key_hx||'',hx:s.hx||{},
     medical_conditions:s.medical_conditions||[],medications:s.medications||[],allergies:s.allergies||'',
     rsa:s.rsa||{},ra:s.ra||{},ps_exposure:s.ps_exposure||'',social:s.social||'',
