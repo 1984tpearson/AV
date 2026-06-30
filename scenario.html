@@ -6041,8 +6041,12 @@ function armDispatchFlyAnimation() {
   const check = function() {
     if (fired || !_dispatchFlyArmed) return;
     const cardRect = card.getBoundingClientRect();
-    // Trigger once the card's top has scrolled 2/3 of its own height above the viewport top
-    if (cardRect.top <= -(cardRect.height * 2 / 3)) {
+    // The sticky vitals bar (when visible) covers the top ~100px of the viewport,
+    // so that's the real "card has visually disappeared" line, not y=0.
+    const stickyBar = document.getElementById('sticky-bar');
+    const obscuredLine = (stickyBar && stickyBar.classList.contains('visible')) ? 100 : 0;
+    // Trigger once the card's top has scrolled 2/3 of its own height above that line
+    if (cardRect.top <= obscuredLine - (cardRect.height * 2 / 3)) {
       fired = true;
       window.removeEventListener('scroll', _dispatchFlyListener);
       _dispatchFlyListener = null;
