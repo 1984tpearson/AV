@@ -634,6 +634,21 @@ body.snav-active #content { padding-left: 60px; }
 .cpg-collapsible-content { display: none; margin: 10px 0 0; }
 .cpg-collapsible-content.expanded { display: block; }
 .cpg-extra-warning { background: #fff; border: 1px dashed var(--amber); border-radius: 6px; padding: 6px 10px; font-size: 11px; color: var(--amber); margin-bottom: 10px; }
+.cpg-browse-all-btn { display: block; width: 100%; margin-top: 10px; padding: 10px 14px; background: var(--light); border: 1px solid var(--border); border-radius: 8px; font-size: 13px; font-weight: 600; color: var(--navy); cursor: pointer; text-align: center; }
+.cpg-browse-all-btn:hover { background: #e8ecf2; }
+#cpg-browser-modal .modal-inner { max-width: 720px; }
+#cpg-browser-search { width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 14px; outline: none; margin-bottom: 12px; }
+#cpg-browser-search:focus { border-color: var(--navy); }
+.cpg-browser-list { display: flex; flex-direction: column; gap: 6px; max-height: 60vh; overflow-y: auto; }
+.cpg-browser-item { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; cursor: pointer; background: white; transition: background 0.12s, border-color 0.12s; }
+.cpg-browser-item:hover { background: var(--light); border-color: var(--navy); }
+.cpg-browser-item .cb-code { font-size: 11px; font-weight: 700; color: var(--navy); background: var(--blue-light); padding: 2px 8px; border-radius: 10px; flex-shrink: 0; }
+.cpg-browser-item .cb-title { font-size: 13px; font-weight: 600; flex: 1; }
+.cpg-browser-empty { text-align: center; padding: 24px; color: var(--grey); font-size: 13px; }
+.cpg-browser-back-btn { background: none; border: none; color: var(--navy); font-size: 12px; font-weight: 700; cursor: pointer; padding: 0; margin-bottom: 10px; display: flex; align-items: center; gap: 4px; }
+.cpg-browser-back-btn:hover { text-decoration: underline; }
+.cpg-browser-detail-title { font-size: 15px; font-weight: 800; color: var(--navy); margin-bottom: 4px; }
+.cpg-browser-detail-code { font-size: 11px; font-weight: 700; color: var(--grey); margin-bottom: 12px; }
 .cpg-step { border-radius: 6px; margin-bottom: 4px; overflow: hidden; font-size: 13px; }
 .cpg-step-assess { background: #FFF3E0; border: 1px solid #FFB74D; }
 .cpg-step-assess .cpg-step-head { background: #E8821A; color: #fff; font-size: 11px; font-weight: 700; padding: 4px 10px; text-transform: uppercase; letter-spacing: 0.5px; }
@@ -1306,6 +1321,21 @@ body.flag-mode-active .flaggable.has-correction:hover { outline: 2px solid var(-
       </div>
       <button class="modal-submit-btn navy" id="generate-scenario-btn" onclick="generateAIScenario()">✦ Generate Scenario</button>
       <div id="ai-status"></div>
+    </div>
+  </div>
+</div>
+
+
+<!-- CPG Browser Modal -->
+<div class="modal-overlay" id="cpg-browser-modal">
+  <div class="modal-inner">
+    <div class="modal-header">
+      <h2 id="cpg-browser-title">📚 Browse All CPGs</h2>
+      <button class="modal-close" onclick="closeCPGBrowser()">✕</button>
+    </div>
+    <div class="modal-body" id="cpg-browser-body">
+      <input type="text" id="cpg-browser-search" placeholder="Search by CPG code or title…" oninput="filterCPGBrowserList()">
+      <div class="cpg-browser-list" id="cpg-browser-list"></div>
     </div>
   </div>
 </div>
@@ -4015,6 +4045,7 @@ function renderSection2(s) {
       ${treatCollapsiblesHtml || (_legacyAlsHtml ? `<div class="treatment-box"><h4>✅ ALS Management — ${getCPGLabel(s.cpg)||'Scenario'}</h4><ol>${_legacyAlsHtml}</ol></div>` : '')}
       ${!treatCollapsiblesHtml && _legacyMicaHtml ? `<div class="treatment-mica-box"><h4>🔵 MICA Management</h4><ol>${_legacyMicaHtml}</ol></div>` : ''}
       ${(s.discussion&&s.discussion.length) ? `<div class="discussion-box"><div class="discussion-header"><span class="discussion-label">💬 Beyond AV Scope — CI Discussion Prompts</span><span class="discussion-note">Not assessable · AI-suggested · not part of AV management</span></div><ul>${s.discussion.map(d=>`<li>${d}</li>`).join('')}</ul></div>` : ''}
+      <button class="cpg-browse-all-btn" onclick="openCPGBrowser()">🔍 Browse all CPGs</button>
 
       <div style="margin-top:12px">
         <table class="asmt-table">
@@ -5399,6 +5430,62 @@ function toggleCPGBlock(blockId, btn, groupId) {
     btn.classList.add('expanded');
   }
 }
+
+// ============================================================ CPG BROWSER MODAL
+// Lets an assessor look up ANY CPG package, not just ones tied to the current scenario.
+function getAllCPGEntries() {
+  return Object.keys(CPG_PACKAGES || {})
+    .map(key => ({ key, cpg: CPG_PACKAGES[key].cpg, title: CPG_PACKAGES[key].title }))
+    .filter(e => e.cpg && e.title)
+    .sort((a, b) => a.title.localeCompare(b.title));
+}
+
+function openCPGBrowser() {
+  document.getElementById('cpg-browser-search').value = '';
+  renderCPGBrowserList(getAllCPGEntries());
+  document.getElementById('cpg-browser-modal').classList.add('open');
+  setTimeout(() => document.getElementById('cpg-browser-search').focus(), 50);
+}
+
+function closeCPGBrowser() {
+  document.getElementById('cpg-browser-modal').classList.remove('open');
+}
+
+function renderCPGBrowserList(entries) {
+  const listEl = document.getElementById('cpg-browser-list');
+  document.getElementById('cpg-browser-title').textContent = '📚 Browse All CPGs';
+  if (!entries.length) {
+    listEl.innerHTML = '<div class="cpg-browser-empty">No CPGs match your search.</div>';
+    return;
+  }
+  listEl.innerHTML = entries.map(e =>
+    `<div class="cpg-browser-item" onclick="renderCPGBrowserDetail('${e.key}')"><span class="cb-code">${e.cpg}</span><span class="cb-title">${e.title}</span></div>`
+  ).join('');
+}
+
+function filterCPGBrowserList() {
+  const q = document.getElementById('cpg-browser-search').value.trim().toLowerCase();
+  const all = getAllCPGEntries();
+  if (!q) { renderCPGBrowserList(all); return; }
+  const filtered = all.filter(e => e.cpg.toLowerCase().includes(q) || e.title.toLowerCase().includes(q));
+  renderCPGBrowserList(filtered);
+}
+
+function renderCPGBrowserDetail(key) {
+  const pkg = CPG_PACKAGES[key];
+  if (!pkg) return;
+  document.getElementById('cpg-browser-title').textContent = pkg.cpg + ' — ' + pkg.title;
+  const bodyEl = document.getElementById('cpg-browser-body');
+  const mgmtHtml = renderTypedManagement(pkg);
+  bodyEl.innerHTML = `
+    <button class="cpg-browser-back-btn" onclick="renderCPGBrowserList(getAllCPGEntries()); document.getElementById('cpg-browser-search').value=''; document.getElementById('cpg-browser-title').textContent='📚 Browse All CPGs';">← Back to all CPGs</button>
+    <div class="cpg-browser-detail-code">${pkg.cpg}</div>
+    <div class="cpg-browser-detail-title">${pkg.title}</div>
+    ${mgmtHtml || '<div class="cpg-browser-empty">No management content available for this CPG.</div>'}
+  `;
+}
+
+document.getElementById('cpg-browser-modal').addEventListener('click', e => { if (e.target === document.getElementById('cpg-browser-modal')) closeCPGBrowser(); });
 
 // CPGs eligible as the PRIMARY BASIS for scenario generation (subset of CATEGORY_TO_CPG).
 // Supporting/procedural CPGs (ROSC, Withholding, airway procedures) are excluded from
