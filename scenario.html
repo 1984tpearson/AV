@@ -5250,15 +5250,17 @@ function renderTypedManagement(pkg) {
   });
 
   if (needsCollapse) {
-    // Close the overflow inner wrappers
+    // The outer cpg-mgmt wrapper was already closed mid-loop (just before the cpg-overflow div was opened).
+    // Close only the overflow inner wrappers here — do NOT add another closing div for cpg-mgmt below.
     html += `</div></div>`;
-    // Expand / collapse button
+    // Expand / collapse button (renders as a sibling after the now-closed cpg-mgmt wrapper)
     html += `<button class="cpg-expand-btn" onclick="
       var ov=document.getElementById('${collapseId}');
       var expanded=ov.style.display!=='none';
       ov.style.display=expanded?'none':'';
       this.textContent=expanded?'▼ Show more':'▲ Show less';
     ">▼ Show more</button>`;
+    return html;
   }
 
   html += '</div>';
