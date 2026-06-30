@@ -614,6 +614,20 @@ body.snav-active #content { padding-left: 60px; }
 .cpg-mgmt { margin: 10px 0; }
 .cpg-expand-btn { display: block; width: 100%; margin-top: 6px; padding: 6px 12px; background: #f0f0f0; border: 1px solid #ccc; border-radius: 6px; font-size: 12px; color: #444; cursor: pointer; text-align: center; }
 .cpg-expand-btn:hover { background: #e0e0e0; }
+/* Per-CPG collapsible toggle buttons — primary CPGs large, AI-suggested extras small */
+.cpg-toggle-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: flex-start; margin: 10px 0 6px; }
+.cpg-toggle-btn { display: flex; align-items: center; gap: 6px; border-radius: 8px; cursor: pointer; font-weight: 700; text-align: left; transition: background 0.15s; }
+.cpg-toggle-btn .cpg-toggle-chevron { font-size: 10px; transition: transform 0.15s; flex-shrink: 0; }
+.cpg-toggle-btn.expanded .cpg-toggle-chevron { transform: rotate(90deg); }
+.cpg-toggle-btn.primary { background: var(--green-light); border: 1px solid #A9DFBF; color: var(--green); padding: 10px 14px; font-size: 13px; }
+.cpg-toggle-btn.primary:hover { background: #d7f0e0; }
+.cpg-toggle-btn.primary.expanded { background: var(--green); color: #fff; border-color: var(--green); }
+.cpg-toggle-btn.extra { background: #FEF6E7; border: 1px dashed #F0A500; color: #8a6200; padding: 5px 10px; font-size: 11px; }
+.cpg-toggle-btn.extra:hover { background: #fcecc6; }
+.cpg-toggle-btn.extra.expanded { background: #F0A500; color: #fff; border-style: solid; }
+.cpg-toggle-btn .cpg-toggle-tag { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px; opacity: 0.75; }
+.cpg-collapsible-content { display: none; margin: 0 0 10px; }
+.cpg-collapsible-content.expanded { display: block; }
 .cpg-step { border-radius: 6px; margin-bottom: 4px; overflow: hidden; font-size: 13px; }
 .cpg-step-assess { background: #FFF3E0; border: 1px solid #FFB74D; }
 .cpg-step-assess .cpg-step-head { background: #E8821A; color: #fff; font-size: 11px; font-weight: 700; padding: 4px 10px; text-transform: uppercase; letter-spacing: 0.5px; }
@@ -3909,11 +3923,10 @@ function renderSection2(s) {
   })();
   const _mgmtResult = _scenPkgKeys.length
     ? buildManagementFromCPG(_scenPkgKeys)
-    : { alsHtml: (s.treatment_als||s.treatment||[]).filter(Boolean).map(t=>`<li>${t}</li>`).join(''),
-        micaHtml: (s.treatment_mica||[]).filter(Boolean).map(t=>`<li>${t}</li>`).join('') };
-  const treatAlsHtml = _mgmtResult.alsHtml;
-  const treatMicaHtml = _mgmtResult.micaHtml;
-  const treatIsTyped = !!_mgmtResult.typed;
+    : { packages: [], typed: false };
+  const _legacyAlsHtml = !_scenPkgKeys.length ? (s.treatment_als||s.treatment||[]).filter(Boolean).map(t=>`<li>${t}</li>`).join('') : '';
+  const _legacyMicaHtml = !_scenPkgKeys.length ? (s.treatment_mica||[]).filter(Boolean).map(t=>`<li>${t}</li>`).join('') : '';
+  const treatCollapsiblesHtml = renderCPGCollapsibles(_mgmtResult, s.extra_cpgs || []);
 
   return `
   <div class="section">
@@ -3989,10 +4002,8 @@ function renderSection2(s) {
         </tbody>
       </table>
 
-      ${treatAlsHtml ? (treatIsTyped
-        ? `<div style="margin-top:10px"><div style="font-size:10px;font-weight:700;color:#555;text-transform:uppercase;letter-spacing:0.6px;margin-bottom:6px;">📋 CPG Management — ${getCPGLabel(s.cpg)||'Scenario'}</div>${treatAlsHtml}</div>`
-        : `<div class="treatment-box"><h4>✅ ALS Management — ${getCPGLabel(s.cpg)||'Scenario'}</h4><ol>${treatAlsHtml}</ol></div>`) : ''}
-      ${!treatIsTyped && treatMicaHtml ? `<div class="treatment-mica-box"><h4>🔵 MICA Management</h4><ol>${treatMicaHtml}</ol></div>` : ''}
+      ${treatCollapsiblesHtml || (_legacyAlsHtml ? `<div class="treatment-box"><h4>✅ ALS Management — ${getCPGLabel(s.cpg)||'Scenario'}</h4><ol>${_legacyAlsHtml}</ol></div>` : '')}
+      ${!treatCollapsiblesHtml && _legacyMicaHtml ? `<div class="treatment-mica-box"><h4>🔵 MICA Management</h4><ol>${_legacyMicaHtml}</ol></div>` : ''}
       ${(s.discussion&&s.discussion.length) ? `<div class="discussion-box"><div class="discussion-header"><span class="discussion-label">💬 Beyond AV Scope — CI Discussion Prompts</span><span class="discussion-note">Not assessable · AI-suggested · not part of AV management</span></div><ul>${s.discussion.map(d=>`<li>${d}</li>`).join('')}</ul></div>` : ''}
 
       <div style="margin-top:12px">
@@ -5256,31 +5267,22 @@ function getCPGLabel(cpgCode) {
   }).join(' / ');
 }
 
+// Build per-package management data for collapsible rendering.
+// Returns { packages: [{code, title, alsHtml, micaHtml, typed}], typed }
+// "typed" at the top level is true if ANY package uses the typed format (mixed sets are handled per-package).
 function buildManagementFromCPG(pkgKeys) {
   const pkgs = pkgKeys.map(k => CPG_PACKAGES[k]).filter(Boolean);
-  if (!pkgs.length) return { alsHtml: '', micaHtml: '' };
+  if (!pkgs.length) return { packages: [], typed: false };
 
-  // Check if any package uses new typed format
   const anyTyped = pkgs.some(pkg => pkg.management && pkg.management.length > 0 && typeof pkg.management[0] === 'object');
 
-  if (anyTyped) {
-    // New typed renderer — renders everything in one unified block
-    let html = '';
-    pkgs.forEach(pkg => {
-      if (pkgs.length > 1) {
-        html += `<div style="font-size:10px;font-weight:800;color:#555;text-transform:uppercase;letter-spacing:0.5px;margin:8px 0 4px;border-bottom:1px solid #dde1e7;padding-bottom:3px;">${pkg.title} (${pkg.cpg})</div>`;
-      }
-      html += renderTypedManagement(pkg);
-    });
-    return { alsHtml: html, micaHtml: '', typed: true };
-  }
+  const packages = pkgs.map(pkg => {
+    const isTyped = pkg.management && pkg.management.length > 0 && typeof pkg.management[0] === 'object';
+    if (isTyped) {
+      return { code: pkg.cpg, title: pkg.title, alsHtml: renderTypedManagement(pkg), micaHtml: '', typed: true };
+    }
 
-  // Legacy flat string renderer
-  let alsHtml = '', micaHtml = '';
-  pkgs.forEach(pkg => {
-    const multiCPG = pkgs.length > 1;
-    const labelHdr = multiCPG ? `<div style="font-size:10px;font-weight:800;color:var(--green);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;border-bottom:1px solid #A9DFBF;padding-bottom:4px">${pkg.title} (${pkg.cpg})</div>` : '';
-
+    // Legacy flat string renderer — per package
     const als = [], mica = [], principles = [];
     const SKIP_KEYS = new Set(['cpg','version','title','patientGroup','diagnosis','pitfalls',
       'highRiskFeatures','clinicalFeatures','pathophysiology','notes','note']);
@@ -5301,16 +5303,53 @@ function buildManagementFromCPG(pkgKeys) {
     if (pkg.management) flatten(pkg.management, 0);
     if (pkg.management_mica) pkg.management_mica.forEach(s => mica.push(s));
 
-    if (als.length || principles.length) {
-      let inner = labelHdr;
-      if (als.length) inner += `<ol>${als.map(s=>`<li>${s}</li>`).join('')}</ol>`;
-      if (principles.length) inner += `<ul style="margin-left:16px;font-size:12px;line-height:1.6;color:#2C5F2E">${principles.map(p=>`<li>${p}</li>`).join('')}</ul>`;
-      alsHtml += inner;
-    }
-    if (mica.length) micaHtml += `<ol>${mica.map(s=>`<li>${s}</li>`).join('')}</ol>`;
+    let alsHtml = '';
+    if (als.length) alsHtml += `<ol>${als.map(s=>`<li>${s}</li>`).join('')}</ol>`;
+    if (principles.length) alsHtml += `<ul style="margin-left:16px;font-size:12px;line-height:1.6;color:#2C5F2E">${principles.map(p=>`<li>${p}</li>`).join('')}</ul>`;
+    const micaHtml = mica.length ? `<ol>${mica.map(s=>`<li>${s}</li>`).join('')}</ol>` : '';
+
+    return { code: pkg.cpg, title: pkg.title, alsHtml, micaHtml, typed: false };
+  }).filter(p => p.alsHtml || p.micaHtml);
+
+  return { packages, typed: anyTyped };
+}
+
+// Render the row of per-CPG toggle buttons + their collapsible content blocks.
+// extraCodes: array of CPG codes (matching pkg.code) that are AI-suggested additions —
+// these render as smaller, visually distinct buttons vs the larger primary ones.
+function renderCPGCollapsibles(mgmtResult, extraCodes) {
+  const { packages } = mgmtResult;
+  if (!packages.length) return '';
+  const extraSet = new Set(extraCodes || []);
+
+  let buttonsHtml = '';
+  let contentHtml = '';
+  packages.forEach((pkg, i) => {
+    const isExtra = extraSet.has(pkg.code);
+    const blockId = 'cpg-block-' + Math.random().toString(36).slice(2, 9) + '-' + i;
+    const label = isExtra ? `${pkg.code}` : `${pkg.title} (${pkg.code})`;
+    buttonsHtml += `<button class="cpg-toggle-btn ${isExtra ? 'extra' : 'primary'}" data-target="${blockId}" onclick="toggleCPGBlock('${blockId}', this)">
+      <span class="cpg-toggle-chevron">▶</span>
+      <span>${isExtra ? '+ ' : '📋 '}${label}</span>
+      ${isExtra ? '<span class="cpg-toggle-tag">AI-suggested</span>' : ''}
+    </button>`;
+
+    const micaBlock = pkg.micaHtml ? `<div class="treatment-mica-box"><h4>🔵 MICA Management</h4><ol>${pkg.micaHtml}</ol></div>` : '';
+    const alsBlock = pkg.typed
+      ? pkg.alsHtml
+      : (pkg.alsHtml ? `<div class="treatment-box"><h4>✅ ALS Management — ${pkg.title} (${pkg.code})</h4>${pkg.alsHtml}</div>` : '');
+    contentHtml += `<div class="cpg-collapsible-content" id="${blockId}">${alsBlock}${micaBlock}</div>`;
   });
 
-  return { alsHtml, micaHtml };
+  return `<div class="cpg-toggle-row">${buttonsHtml}</div>${contentHtml}`;
+}
+
+// Expand/collapse a single CPG management block (called from renderCPGCollapsibles buttons)
+function toggleCPGBlock(blockId, btn) {
+  const block = document.getElementById(blockId);
+  if (!block) return;
+  const expanded = block.classList.toggle('expanded');
+  btn.classList.toggle('expanded', expanded);
 }
 
 // CPGs eligible as the PRIMARY BASIS for scenario generation (subset of CATEGORY_TO_CPG).

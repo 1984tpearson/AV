@@ -791,6 +791,7 @@ function randomAustralianPatient(category) {
 let _overrideCatVal = null;
 let _overrideSubtypeKey = null;
 let _overrideSubtypeKeys = []; // all CPG keys for multi-condition
+let _lastPrimaryCPGKeys = []; // set by buildCPGContext — the primary CPG keys actually injected, used to exclude from the additional-CPG catalogue
 
 function buildCPGContext(catVal1, catVal2) {
   // Use overrides set by generator UI if available
@@ -825,6 +826,7 @@ function buildCPGContext(catVal1, catVal2) {
   }
 
   const allKeys = [...new Set([...selectedKeys1])];
+  _lastPrimaryCPGKeys = allKeys;
 
   if (allKeys.length === 0) return '';
 
@@ -883,7 +885,18 @@ function buildCPGContext(catVal1, catVal2) {
   return `\n\nRELEVANT AV CPG CONTENT (v3.13.1) — use these exact doses and thresholds:\n${packageSections}${comboNote}`;
 }
 
-const SCENARIO_JSON_TEMPLATE = `{"title":"","subtitle":"","category":"CAT","subcategory":"SUB","type":"","cpg":"","level":"C/D","dispatch":"","vitals":{"GCS":{"E":0,"V":0,"M":0,"total":0,"description":""},"SpO2":"","RR":"","HR":"","BP":"","Temp":"","BGL":"","Rhythm":"","Weight":"","Ketones":"","EtCO2":""},"caller_hx":"","arrival_hx":"","hx":{"timeline":"","nature":"","prodromal":"","aggreliev":"","assoc":"","similar":""},"medical_conditions":["","",""],"medications":["","",""],"allergies":"","flags":["","","",""],"ddx":["","","",""],"provisional":"","ra":{"wob":"","skin":""},"ps_exposure":"","social":"","rsa":{"appearance":"","speech":"","breath_sounds":"","rhythm":"","wob":""},"secondary_survey":{},"life_threats":["",""],"kq":[{"q":"","max":2,"answer":""},{"q":"","max":2,"answer":""},{"q":"","max":1,"answer":""}],"discussion":[]}`;
+// Build a compact catalogue of all available CPG codes + titles, for the AI to
+// optionally select additional relevant guidelines from (e.g. pain relief for a burns patient).
+// Excludes the primary keys already injected in full via buildCPGContext, to avoid duplicate suggestion.
+function buildAdditionalCPGCatalogue(excludeKeys) {
+  const exclude = new Set(excludeKeys || []);
+  const lines = Object.keys(CPG_PACKAGES)
+    .filter(k => !exclude.has(k) && CPG_PACKAGES[k]?.cpg && CPG_PACKAGES[k]?.title)
+    .map(k => `${CPG_PACKAGES[k].cpg} — ${CPG_PACKAGES[k].title}`);
+  return lines.join('\n');
+}
+
+const SCENARIO_JSON_TEMPLATE = `{"title":"","subtitle":"","category":"CAT","subcategory":"SUB","type":"","cpg":"","additional_cpgs":[],"level":"C/D","dispatch":"","vitals":{"GCS":{"E":0,"V":0,"M":0,"total":0,"description":""},"SpO2":"","RR":"","HR":"","BP":"","Temp":"","BGL":"","Rhythm":"","Weight":"","Ketones":"","EtCO2":""},"caller_hx":"","arrival_hx":"","hx":{"timeline":"","nature":"","prodromal":"","aggreliev":"","assoc":"","similar":""},"medical_conditions":["","",""],"medications":["","",""],"allergies":"","flags":["","","",""],"ddx":["","","",""],"provisional":"","ra":{"wob":"","skin":""},"ps_exposure":"","social":"","rsa":{"appearance":"","speech":"","breath_sounds":"","rhythm":"","wob":""},"secondary_survey":{},"life_threats":["",""],"kq":[{"q":"","max":2,"answer":""},{"q":"","max":2,"answer":""},{"q":"","max":1,"answer":""}],"discussion":[]}`;
 // Note: medical_conditions = short list e.g. ["Asthma (previous ICU admission)", "Type 2 Diabetes", "Hypertension"]
 // medications = short list e.g. ["Metoprolol 50mg daily", "Aspirin 100mg", "Candesartan 8mg"]
 // key_hx = legacy field kept for backwards compat with built-in scenarios; new scenarios use caller_hx + arrival_hx
@@ -1022,6 +1035,8 @@ ${seedSection}${complaint ? '' : complaintLine + '\n'}${complexityNote}
 ${patientNote}
 Do NOT generate treatment or management steps — these are supplied from official CPG data. Leave treatment_als and treatment_mica out of the JSON entirely. Focus on generating an accurate, realistic scenario with correct vitals, flags, ddx, provisional diagnosis, and knowledge questions.
 For the "cpg" field: set this to the CPG code(s) for this scenario. If multiple CPGs were provided in the context above, list all of them comma-separated (e.g. "A0401, A0408"). The correct codes are always shown in the CPG context headers in the format "--- CPG: Title (CODE) ---". Use those codes exactly — do NOT invent or guess CPG codes.
+For the "additional_cpgs" field: return an array of CPG codes (e.g. ["A0301"]) for any OTHER guideline from the catalogue below that a paramedic would genuinely also need to consult for this specific patient — for example, a burns patient would very likely also need Pain Relief. Only include a code if it is clearly and specifically relevant to this patient's presentation, not just generically associated with the category. If nothing else is clearly relevant, return an empty array []. Every code returned must appear exactly as written in this catalogue, do NOT invent a code:
+${buildAdditionalCPGCatalogue(_lastPrimaryCPGKeys)}
 For the "dispatch" field: write a SHORT pager-style dispatch message — the brief alert a paramedic receives before attending. Format: "Priority [1/2/3] — [age]yo [Male/Female] — [chief complaint in 3–5 words]". Do NOT reveal the diagnosis or give clinical detail. Examples: "Priority 1 — 71yo Male — difficulty breathing", "Priority 1 — 34yo Female — unresponsive", "Priority 2 — 58yo Male — chest pain". The patient's name must NOT appear in the dispatch.
 For the "caller_hx" field: write what the caller/bystander reported to dispatch — 1–3 sentences from a layperson's perspective. Include context such as location, onset, and visible symptoms as a bystander would describe them. Do not use clinical terminology. Example: "Caller reports her husband suddenly started having trouble breathing about 30 minutes ago after eating at a restaurant. He is sitting up and looks very distressed. She says his throat looks swollen."
 For the "arrival_hx" field: write the clinical picture found on arrival — 2–4 sentences describing what the paramedic observes and what the patient/bystander reports on scene. Use clinical terminology appropriate for a paramedic assessor. Include patient positioning, behaviour, key symptoms, relevant history from the patient or bystander, and any pertinent negatives. Example: "Patient sitting upright in tripod position, visibly distressed with audible inspiratory stridor. Reports sudden onset throat tightness and difficulty breathing 30 minutes after eating prawns. Wife confirms known shellfish allergy. Denies chest pain or previous similar episodes."
@@ -1091,6 +1106,19 @@ ${SCENARIO_JSON_TEMPLATE.replace('CAT', category).replace('SUB', subcategory)}`;
     scenario.custom = true;
     if (!scenario.level) scenario.level = 'C/D';
     if (!Array.isArray(scenario.discussion)) scenario.discussion = [];
+    // Validate AI-suggested additional CPGs against the real catalogue, merge into scenario.cpg,
+    // and keep a separate validated list (extra_cpgs) so the UI can flag them as AI-suggested.
+    {
+      const primaryCodes = (scenario.cpg || '').split(/[,/]/).map(c => c.trim()).filter(Boolean);
+      const validCodes = new Set(Object.values(CPG_PACKAGES).map(p => p?.cpg).filter(Boolean));
+      const rawExtras = Array.isArray(scenario.additional_cpgs) ? scenario.additional_cpgs : [];
+      const extraCodes = [...new Set(
+        rawExtras.map(c => String(c).trim()).filter(c => c && validCodes.has(c) && !primaryCodes.includes(c))
+      )];
+      scenario.extra_cpgs = extraCodes;
+      if (extraCodes.length) scenario.cpg = [...primaryCodes, ...extraCodes].join(', ');
+      delete scenario.additional_cpgs;
+    }
     // Validate and normalise GCS object
     if (scenario.vitals) {
       const rawGCS = scenario.vitals.GCS;
