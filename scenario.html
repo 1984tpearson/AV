@@ -615,21 +615,21 @@ body.snav-active #content { padding-left: 60px; }
 .cpg-expand-btn { display: block; width: 100%; margin-top: 6px; padding: 6px 12px; background: #f0f0f0; border: 1px solid #ccc; border-radius: 6px; font-size: 12px; color: #444; cursor: pointer; text-align: center; }
 .cpg-expand-btn:hover { background: #e0e0e0; }
 /* Per-CPG collapsible toggle buttons — primary CPGs large, AI-suggested extras small */
-.cpg-toggle-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: flex-start; margin: 10px 0 6px; }
+.cpg-toggle-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: flex-start; margin: 10px 0 6px; padding: 10px 0 0; }
 .cpg-toggle-btn { display: flex; align-items: center; gap: 6px; border-radius: 8px; cursor: pointer; font-weight: 700; text-align: left; transition: background 0.15s; }
 .cpg-toggle-btn .cpg-toggle-chevron { font-size: 10px; transition: transform 0.15s; flex-shrink: 0; }
 .cpg-toggle-btn.expanded .cpg-toggle-chevron { transform: rotate(90deg); }
 .cpg-toggle-btn.primary { background: var(--green-light); border: 1px solid #A9DFBF; color: var(--green); padding: 10px 14px; font-size: 13px; }
 .cpg-toggle-btn.primary:hover { background: #d7f0e0; }
 .cpg-toggle-btn.primary.expanded { background: var(--green); color: #fff; border-color: var(--green); }
-.cpg-toggle-btn.extra { background: #FEF6E7; border: 1px dashed #F0A500; color: #8a6200; padding: 5px 10px; font-size: 11px; }
+.cpg-toggle-btn.extra { background: #FEF6E7; border: 1px dashed #F0A500; color: #8a6200; padding: 8px 12px; font-size: 12px; }
 .cpg-toggle-btn.extra:hover { background: #fcecc6; }
 .cpg-toggle-btn.extra.expanded { background: #F0A500; color: #fff; border-style: solid; }
 .cpg-toggle-btn .cpg-toggle-tag { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px; opacity: 0.75; }
 .cpg-collapsible-content { display: none; margin: 0 0 10px; }
 .cpg-collapsible-content.expanded { display: block; }
-.cpg-group-header { font-size: 10px; font-weight: 800; color: var(--green); text-transform: uppercase; letter-spacing: 0.6px; margin: 14px 0 2px; border-bottom: 1px solid #A9DFBF; padding-bottom: 4px; }
-.cpg-group-header-extra { color: #8a6200; border-bottom-color: #F0A500; }
+.cpg-group-header { background: var(--green); color: white; padding: 8px 12px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 14px; border-radius: 5px 5px 0 0; }
+.cpg-group-header-extra { background: #F0A500; }
 .cpg-extra-warning { background: #FEF6E7; border: 1px dashed #F0A500; border-radius: 6px; padding: 6px 10px; font-size: 11px; color: #8a6200; margin: 6px 0; }
 .cpg-step { border-radius: 6px; margin-bottom: 4px; overflow: hidden; font-size: 13px; }
 .cpg-step-assess { background: #FFF3E0; border: 1px solid #FFB74D; }
@@ -5331,13 +5331,14 @@ function renderCPGCollapsibles(mgmtResult, extraCodes) {
   const extraSet = new Set(extraCodes || []);
   const primaryPkgs = packages.filter(p => !extraSet.has(p.code));
   const extraPkgs = packages.filter(p => extraSet.has(p.code));
+  const groupId = 'cpg-accordion-' + Math.random().toString(36).slice(2, 9);
 
   function buildGroup(pkgs, isExtra) {
     let buttonsHtml = '', contentHtml = '';
     pkgs.forEach((pkg, i) => {
       const blockId = 'cpg-block-' + Math.random().toString(36).slice(2, 9) + '-' + i;
-      const label = isExtra ? `${pkg.code}` : `${pkg.title} (${pkg.code})`;
-      buttonsHtml += `<button class="cpg-toggle-btn ${isExtra ? 'extra' : 'primary'}" data-target="${blockId}" onclick="toggleCPGBlock('${blockId}', this)">
+      const label = `${pkg.title} (${pkg.code})`;
+      buttonsHtml += `<button class="cpg-toggle-btn ${isExtra ? 'extra' : 'primary'}" data-target="${blockId}" data-accordion="${groupId}" onclick="toggleCPGBlock('${blockId}', this, '${groupId}')">
         <span class="cpg-toggle-chevron">▶</span>
         <span>${isExtra ? '+ ' : '📋 '}${label}</span>
       </button>`;
@@ -5346,7 +5347,7 @@ function renderCPGCollapsibles(mgmtResult, extraCodes) {
       const alsBlock = pkg.typed
         ? pkg.alsHtml
         : (pkg.alsHtml ? `<div class="treatment-box"><h4>✅ ALS Management — ${pkg.title} (${pkg.code})</h4>${pkg.alsHtml}</div>` : '');
-      contentHtml += `<div class="cpg-collapsible-content" id="${blockId}">${alsBlock}${micaBlock}</div>`;
+      contentHtml += `<div class="cpg-collapsible-content" data-accordion="${groupId}" id="${blockId}">${alsBlock}${micaBlock}</div>`;
     });
     return { buttonsHtml, contentHtml };
   }
@@ -5366,12 +5367,22 @@ function renderCPGCollapsibles(mgmtResult, extraCodes) {
   return out;
 }
 
-// Expand/collapse a single CPG management block (called from renderCPGCollapsibles buttons)
-function toggleCPGBlock(blockId, btn) {
+// Expand/collapse a single CPG management block (called from renderCPGCollapsibles buttons).
+// Accordion behaviour: expanding one block collapses any other block in the same accordion group.
+function toggleCPGBlock(blockId, btn, groupId) {
   const block = document.getElementById(blockId);
   if (!block) return;
-  const expanded = block.classList.toggle('expanded');
-  btn.classList.toggle('expanded', expanded);
+  const wasExpanded = block.classList.contains('expanded');
+
+  if (groupId) {
+    document.querySelectorAll(`.cpg-collapsible-content[data-accordion="${groupId}"]`).forEach(el => el.classList.remove('expanded'));
+    document.querySelectorAll(`.cpg-toggle-btn[data-accordion="${groupId}"]`).forEach(el => el.classList.remove('expanded'));
+  }
+
+  if (!wasExpanded) {
+    block.classList.add('expanded');
+    btn.classList.add('expanded');
+  }
 }
 
 // CPGs eligible as the PRIMARY BASIS for scenario generation (subset of CATEGORY_TO_CPG).
