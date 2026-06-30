@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CPG Visual Editor</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Segoe UI', system-ui, sans-serif; background: #f0f2f5; color: #1a1a2e; }
+
+/* HEADER */
+.header { background: #122849; color: white; padding: 14px 20px; display: flex; align-items: center; gap: 12px; position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 8px rgba(0,0,0,0.3); }
+.header h1 { font-size: 16px; font-weight: 700; }
+.header p { font-size: 12px; opacity: .6; margin-top: 2px; }
+.badge { background: #E8921A; color: white; font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 4px; margin-left: auto; white-space: nowrap; }
+
+/* CONTROLS */
+.controls { background: white; border-bottom: 1px solid #dde; padding: 10px 20px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.search-box { flex: 1; min-width: 200px; padding: 8px 12px; border: 1px solid #ccc; border-radius: 6px; font-size: 14px; }
+.filter-btn { padding: 7px 13px; border: 1px solid #ccc; background: white; border-radius: 6px; font-size: 12px; cursor: pointer; }
+.filter-btn.active { background: #1C3A6E; color: white; border-color: #1C3A6E; }
+
+/* GRID */
+.grid { padding: 16px 20px; display: flex; flex-direction: column; gap: 10px; }
+
+/* CARD */
+.card { background: white; border-radius: 8px; border: 1px solid #dde; overflow: hidden; }
+.card-header { display: flex; align-items: center; gap: 10px; padding: 12px 16px; cursor: pointer; user-select: none; }
+.card-header:hover { background: #f8f9fc; }
+.cpg-code { font-size: 11px; font-weight: 700; color: white; background: #1C3A6E; padding: 3px 7px; border-radius: 4px; white-space: nowrap; }
+.card-title { font-size: 14px; font-weight: 600; }
+.card-key { font-size: 11px; color: #888; font-family: monospace; }
+.chevron { margin-left: auto; font-size: 12px; color: #aaa; transition: transform .2s; flex-shrink: 0; }
+.card.open .chevron { transform: rotate(180deg); }
+.dirty-dot { width: 8px; height: 8px; border-radius: 50%; background: #E8921A; display: none; flex-shrink: 0; }
+.card.dirty .dirty-dot { display: block; }
+
+/* CARD BODY */
+.card-body { display: none; padding: 0 16px 16px; border-top: 1px solid #eee; }
+.card.open .card-body { display: block; }
+
+/* SECTION LABEL */
+.section-label { font-size: 11px; font-weight: 700; text-transform: uppercase; color: #888; letter-spacing: .5px; margin: 16px 0 6px; display: flex; align-items: center; gap: 8px; }
+.section-label .add-btn { font-size: 11px; padding: 2px 8px; background: #1C3A6E; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 600; text-transform: none; letter-spacing: 0; }
+.section-label .add-btn:hover { background: #2A4F8F; }
+
+/* STEPS */
+.steps-list { display: flex; flex-direction: column; gap: 3px; }
+
+/* STEP ROW */
+.step-row { display: flex; align-items: flex-start; gap: 6px; border-radius: 5px; padding: 2px; transition: background .1s; position: relative; }
+.step-row:hover { background: rgba(0,0,0,.03); }
+.step-row.dragging { opacity: .4; }
+.step-row.drag-over { border-top: 2px solid #1C3A6E; }
+
+/* DRAG HANDLE */
+.drag-handle { cursor: grab; color: #ccc; font-size: 14px; padding: 6px 2px; flex-shrink: 0; line-height: 1; user-select: none; }
+.drag-handle:active { cursor: grabbing; }
+
+/* STEP PILL (type selector) */
+.step-type-btn { font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 3px; border: none; cursor: pointer; flex-shrink: 0; margin-top: 5px; white-space: nowrap; }
+.type-action   { background: #eafaf1; color: #27833A; border: 1px solid #27833A; }
+.type-mica     { background: #EBF5FB; color: #2E86C1; border: 1px solid #2E86C1; }
+.type-header   { background: #e8edf7; color: #1C3A6E; border: 1px solid #1C3A6E; }
+.type-subheader{ background: #f0f0f0; color: #555;    border: 1px solid #aaa; }
+.type-stop     { background: #FDEDEC; color: #C0392B; border: 1px solid #C0392B; }
+.type-note     { background: #FEF5E7; color: #b36200; border: 1px solid #E8921A; }
+.type-assess   { background: #f5eef8; color: #7D3C98; border: 1px solid #7D3C98; }
+
+/* STEP CONTENT (the editable block) */
+.step-content { flex: 1; font-size: 13px; padding: 5px 8px; border-radius: 4px; line-height: 1.5; border: 1px solid transparent; min-height: 30px; word-break: break-word; }
+.step-content[contenteditable="true"] { border-color: #1C3A6E; background: white; outline: none; box-shadow: 0 0 0 2px rgba(28,58,110,.15); }
+.step-content.bg-action   { background: #eafaf1; }
+.step-content.bg-mica     { background: #EBF5FB; }
+.step-content.bg-header   { background: #e8edf7; font-weight: 700; font-size: 11px; text-transform: uppercase; letter-spacing: .4px; }
+.step-content.bg-subheader{ background: #f5f5f5; font-style: italic; }
+.step-content.bg-stop     { background: #FDEDEC; }
+.step-content.bg-note     { background: #FEF5E7; }
+.step-content.bg-assess   { background: #f5eef8; }
+
+/* DELETE BUTTON */
+.del-btn { background: none; border: none; color: #ddd; cursor: pointer; font-size: 16px; padding: 4px 6px; flex-shrink: 0; line-height: 1; border-radius: 4px; margin-top: 2px; }
+.del-btn:hover { color: #C0392B; background: #FDEDEC; }
+
+/* TYPE DROPDOWN POPUP */
+.type-popup { position: absolute; left: 28px; top: 28px; background: white; border: 1px solid #dde; border-radius: 6px; box-shadow: 0 4px 16px rgba(0,0,0,.15); z-index: 200; padding: 4px; display: none; flex-direction: column; gap: 2px; min-width: 140px; }
+.type-popup.open { display: flex; }
+.type-opt { font-size: 12px; font-weight: 600; padding: 5px 10px; border-radius: 4px; cursor: pointer; border: none; text-align: left; }
+.type-opt:hover { opacity: .8; }
+
+/* OBJECTIVES */
+.obj-list { display: flex; flex-direction: column; gap: 3px; }
+.obj-row { display: flex; align-items: flex-start; gap: 6px; }
+.obj-content { flex: 1; font-size: 13px; padding: 5px 8px; border-radius: 4px; border: 1px solid transparent; background: #eef1f7; border-left: 3px solid #1C3A6E; line-height: 1.5; min-height: 30px; word-break: break-word; }
+.obj-content[contenteditable="true"] { border-color: #1C3A6E; background: white; outline: none; box-shadow: 0 0 0 2px rgba(28,58,110,.15); border-left: 3px solid #1C3A6E; }
+
+/* SIMPLE FIELDS (title, cpg, notes) */
+.field-row { display: flex; flex-direction: column; gap: 4px; margin-top: 14px; }
+.field-row label { font-size: 11px; font-weight: 700; text-transform: uppercase; color: #888; letter-spacing: .5px; }
+.field-input { font-size: 13px; padding: 7px 10px; border: 1px solid #dde; border-radius: 5px; font-family: inherit; width: 100%; }
+.field-input:focus { outline: none; border-color: #1C3A6E; box-shadow: 0 0 0 2px rgba(28,58,110,.12); }
+.field-textarea { min-height: 80px; resize: vertical; }
+
+/* SAVE BAR */
+.save-bar { display: flex; gap: 8px; margin-top: 16px; align-items: center; padding-top: 12px; border-top: 1px solid #eee; flex-wrap: wrap; }
+.btn { padding: 8px 16px; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer; border: none; }
+.btn-save   { background: #27833A; color: white; }
+.btn-reset  { background: #eee; color: #333; }
+.btn:hover  { opacity: .85; }
+.save-status { font-size: 12px; color: #888; }
+.save-status.ok  { color: #27833A; font-weight: 600; }
+.save-status.err { color: #C0392B; font-weight: 600; }
+
+/* EMPTY */
+.empty { text-align: center; padding: 40px; color: #aaa; font-size: 14px; }
+
+/* DRUG TABLE */
+.drug-table-editor { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 2px; }
+.drug-table-editor td { padding: 3px 4px; }
+.drug-table-editor input { width: 100%; padding: 4px 7px; border: 1px solid #dde; border-radius: 4px; font-size: 12px; font-family: inherit; }
+.drug-table-editor input:focus { outline: none; border-color: #1C3A6E; }
+.drug-add-btn { font-size: 11px; margin-top: 4px; padding: 3px 8px; background: #1C3A6E; color: white; border: none; border-radius: 4px; cursor: pointer; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div>
+    <h1>CPG Visual Editor</h1>
+    <p>AV ALS-MICA Clinical Practice Guidelines v3.13.1</p>
+  </div>
+  <div class="badge" id="pkg-count">Loading&hellip;</div>
+</div>
+
+<div class="controls">
+  <input class="search-box" type="text" id="search" placeholder="Search by title, CPG code or key&hellip;" oninput="renderCards()">
+  <button class="filter-btn active" onclick="setFilter('all',this)">All</button>
+  <button class="filter-btn" onclick="setFilter('adult',this)">Adult (A)</button>
+  <button class="filter-btn" onclick="setFilter('paed',this)">Paediatric (P)</button>
+  <button class="filter-btn" onclick="setFilter('tr',this)">Treat &amp; Refer (TR)</button>
+</div>
+
+<div class="grid" id="grid"></div>
+
+<script src="cpg_packages_combined.js"></script>
+<script>
+
+// ── STATE ──────────────────────────────────────────────────────
+// Deep-clone original data so we can reset
+const ORIGINAL = JSON.parse(JSON.stringify(CPG_PACKAGES));
+// Working copy — edits go here
+const DATA = JSON.parse(JSON.stringify(CPG_PACKAGES));
+
+let currentFilter = 'all';
+const STEP_TYPES = ['action','mica','header','subheader','stop','note','assess'];
+const TYPE_LABELS = { action:'ALS Action', mica:'MICA', header:'Header', subheader:'Subheader', stop:'Stop', note:'Note', assess:'Assess' };
+
+// ── FILTER / SEARCH ────────────────────────────────────────────
+function setFilter(f, btn) {
+  currentFilter = f;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderCards();
+}
+
+function matchesFilter(key, pkg) {
+  if (currentFilter === 'all') return true;
+  const c = (pkg.cpg||'').toUpperCase();
+  if (currentFilter === 'adult') return c.startsWith('A');
+  if (currentFilter === 'paed') return c.startsWith('P');
+  if (currentFilter === 'tr') return c.startsWith('TR');
+  return true;
+}
+
+function matchesSearch(key, pkg, q) {
+  if (!q) return true;
+  q = q.toLowerCase();
+  return key.toLowerCase().includes(q) || (pkg.title||'').toLowerCase().includes(q) || (pkg.cpg||'').toLowerCase().includes(q);
+}
+
+// ── RENDER ALL CARDS ───────────────────────────────────────────
+function renderCards() {
+  const q = document.getElementById('search').value.trim();
+  const entries = Object.entries(DATA);
+  const filtered = entries.filter(([k,v]) => matchesFilter(k,v) && matchesSearch(k,v,q));
+  document.getElementById('pkg-count').textContent = entries.length + ' packages';
+  const grid = document.getElementById('grid');
+  if (!filtered.length) { grid.innerHTML = '<div class="empty">No packages match.</div>'; return; }
+  grid.innerHTML = filtered.map(([k,v]) => cardHTML(k,v)).join('');
+  // attach drag events after render
+  filtered.forEach(([k]) => attachDrag(k));
+}
+
+// ── CARD HTML ──────────────────────────────────────────────────
+function cardHTML(key, pkg) {
+  return `<div class="card" id="card-${key}">
+  <div class="card-header" onclick="toggleCard('${key}')">
+    <span class="cpg-code">${esc(pkg.cpg||'?')}</span>
+    <div>
+      <div class="card-title">${esc(pkg.title||key)}</div>
+      <div class="card-key">${esc(key)}</div>
+    </div>
+    <span class="dirty-dot"></span>
+    <span class="chevron">&#9660;</span>
+  </div>
+  <div class="card-body" id="body-${key}">
+    ${renderCardBody(key, pkg)}
+  </div>
+</div>`;
+}
+
+function renderCardBody(key, pkg) {
+  return `
+    <!-- Title / CPG -->
+    <div style="display:flex;gap:10px;margin-top:14px;">
+      <div class="field-row" style="flex:1">
+        <label>Title</label>
+        <input class="field-input" value="${esc(pkg.title||'')}" onchange="setField('${key}','title',this.value)">
+      </div>
+      <div class="field-row" style="width:110px">
+        <label>CPG Code</label>
+        <input class="field-input" value="${esc(pkg.cpg||'')}" onchange="setField('${key}','cpg',this.value)">
+      </div>
+    </div>
+
+    <!-- Care Objectives -->
+    <div class="section-label">
+      Care Objectives
+      <button class="add-btn" onclick="addObjective('${key}')">+ Add</button>
+    </div>
+    <div class="obj-list" id="objs-${key}">
+      ${(pkg.careObjectives||[]).map((o,i) => objRowHTML(key,i,o)).join('')}
+    </div>
+
+    <!-- Management (ALS) -->
+    <div class="section-label">
+      Management — ALS
+      <button class="add-btn" onclick="addStep('${key}','management')">+ Add Step</button>
+    </div>
+    <div class="steps-list" id="steps-management-${key}">
+      ${(pkg.management||[]).map((s,i) => stepRowHTML(key,'management',i,s)).join('')}
+    </div>
+
+    <!-- Management MICA -->
+    <div class="section-label" style="color:#2E86C1">
+      Management — MICA only
+      <button class="add-btn" style="background:#2E86C1" onclick="addStep('${key}','management_mica')">+ Add Step</button>
+    </div>
+    <div class="steps-list" id="steps-management_mica-${key}">
+      ${(pkg.management_mica||[]).map((s,i) => stepRowHTML(key,'management_mica',i,s)).join('')}
+    </div>
+
+    <!-- Notes -->
+    <div class="field-row">
+      <label>Notes (AI context only)</label>
+      <textarea class="field-input field-textarea" onchange="setField('${key}','notes',this.value)">${esc(pkg.notes||'')}</textarea>
+    </div>
+
+    <!-- Save bar -->
+    <div class="save-bar">
+      <button class="btn btn-save" onclick="savePkg('${key}')">&#10003; Save to file</button>
+      <button class="btn btn-reset" onclick="resetPkg('${key}')">Reset</button>
+      <span class="save-status" id="status-${key}"></span>
+    </div>
+  `;
+}
+
+// ── STEP ROW ───────────────────────────────────────────────────
+function stepText(step) {
+  if (typeof step === 'string') return step;
+  if (step.items) return step.items.join('\n');
+  return step.text || '';
+}
+
+function stepType(step) {
+  if (typeof step === 'string') return 'action';
+  return step.type || 'action';
+}
+
+function stepRowHTML(key, field, idx, step) {
+  const t = stepType(step);
+  const txt = esc(stepText(step));
+  return `<div class="step-row" draggable="true" id="steprow-${key}-${field}-${idx}" data-key="${key}" data-field="${field}" data-idx="${idx}">
+  <span class="drag-handle" title="Drag to reorder">&#8801;</span>
+  <div style="position:relative">
+    <button class="step-type-btn type-${t}" onclick="openTypePopup('${key}','${field}',${idx},this)" title="Change type">${TYPE_LABELS[t]||t}</button>
+    <div class="type-popup" id="popup-${key}-${field}-${idx}">
+      ${STEP_TYPES.map(tt => `<button class="type-opt type-${tt}" onclick="changeType('${key}','${field}',${idx},'${tt}')">${TYPE_LABELS[tt]}</button>`).join('')}
+    </div>
+  </div>
+  <div class="step-content bg-${t}" contenteditable="false"
+    onclick="startEdit(this)"
+    onblur="commitStep(this,'${key}','${field}',${idx})"
+    data-key="${key}" data-field="${field}" data-idx="${idx}">${txt}</div>
+  <button class="del-btn" onclick="deleteStep('${key}','${field}',${idx})" title="Delete">&#10005;</button>
+</div>`;
+}
+
+// ── OBJ ROW ───────────────────────────────────────────────────
+function objRowHTML(key, idx, text) {
+  return `<div class="obj-row" id="objrow-${key}-${idx}">
+  <div class="obj-content" contenteditable="false"
+    onclick="startEdit(this)"
+    onblur="commitObj(this,'${key}',${idx})"
+    data-key="${key}" data-idx="${idx}">${esc(text)}</div>
+  <button class="del-btn" onclick="deleteObj('${key}',${idx})" title="Delete">&#10005;</button>
+</div>`;
+}
+
+// ── INLINE EDIT ───────────────────────────────────────────────
+function startEdit(el) {
+  el.contentEditable = 'true';
+  el.focus();
+  // move cursor to end
+  const range = document.createRange();
+  const sel = window.getSelection();
+  range.selectNodeContents(el);
+  range.collapse(false);
+  sel.removeAllRanges();
+  sel.addRange(range);
+}
+
+function commitStep(el, key, field, idx) {
+  el.contentEditable = 'false';
+  const newText = el.innerText.trim();
+  const arr = DATA[key][field];
+  const step = arr[idx];
+  if (typeof step === 'string') {
+    arr[idx] = newText;
+  } else if (step.items) {
+    arr[idx] = { ...step, items: newText.split('\n').map(s => s.trim()).filter(Boolean) };
+  } else {
+    arr[idx] = { ...step, text: newText };
+  }
+  markDirty(key);
+}
+
+function commitObj(el, key, idx) {
+  el.contentEditable = 'false';
+  DATA[key].careObjectives[idx] = el.innerText.trim();
+  markDirty(key);
+}
+
+// ── TYPE CHANGE ───────────────────────────────────────────────
+function openTypePopup(key, field, idx, btn) {
+  // close all others
+  document.querySelectorAll('.type-popup.open').forEach(p => p.classList.remove('open'));
+  const popup = document.getElementById('popup-' + key + '-' + field + '-' + idx);
+  popup.classList.toggle('open');
+  // close on outside click
+  setTimeout(() => {
+    document.addEventListener('click', function handler(e) {
+      if (!popup.contains(e.target) && e.target !== btn) {
+        popup.classList.remove('open');
+        document.removeEventListener('click', handler);
+      }
+    });
+  }, 10);
+}
+
+function changeType(key, field, idx, newType) {
+  document.querySelectorAll('.type-popup.open').forEach(p => p.classList.remove('open'));
+  const arr = DATA[key][field];
+  const step = arr[idx];
+  const text = stepText(step);
+  // rebuild as object with new type
+  arr[idx] = newType === 'assess' ? { type: newType, items: text.split('\n').filter(Boolean) }
+           : { type: newType, text: text };
+  markDirty(key);
+  reRenderSteps(key, field);
+}
+
+// ── ADD / DELETE ──────────────────────────────────────────────
+function addStep(key, field) {
+  if (!DATA[key][field]) DATA[key][field] = [];
+  DATA[key][field].push({ type: 'action', text: 'New step' });
+  markDirty(key);
+  reRenderSteps(key, field);
+}
+
+function deleteStep(key, field, idx) {
+  DATA[key][field].splice(idx, 1);
+  markDirty(key);
+  reRenderSteps(key, field);
+}
+
+function addObjective(key) {
+  if (!DATA[key].careObjectives) DATA[key].careObjectives = [];
+  DATA[key].careObjectives.push('New objective');
+  markDirty(key);
+  reRenderObjs(key);
+}
+
+function deleteObj(key, idx) {
+  DATA[key].careObjectives.splice(idx, 1);
+  markDirty(key);
+  reRenderObjs(key);
+}
+
+// ── FIELD EDIT ────────────────────────────────────────────────
+function setField(key, field, value) {
+  DATA[key][field] = value;
+  // update card header if title or cpg changed
+  if (field === 'title') document.querySelector('#card-' + key + ' .card-title').textContent = value;
+  if (field === 'cpg')   document.querySelector('#card-' + key + ' .cpg-code').textContent = value;
+  markDirty(key);
+}
+
+// ── RE-RENDER HELPERS ─────────────────────────────────────────
+function reRenderSteps(key, field) {
+  const container = document.getElementById('steps-' + field + '-' + key);
+  if (!container) return;
+  container.innerHTML = (DATA[key][field]||[]).map((s,i) => stepRowHTML(key,field,i,s)).join('');
+  attachDrag(key);
+}
+
+function reRenderObjs(key) {
+  const container = document.getElementById('objs-' + key);
+  if (!container) return;
+  container.innerHTML = (DATA[key].careObjectives||[]).map((o,i) => objRowHTML(key,i,o)).join('');
+}
+
+// ── DIRTY STATE ───────────────────────────────────────────────
+function markDirty(key) {
+  document.getElementById('card-' + key).classList.add('dirty');
+}
+
+// ── DRAG AND DROP (reorder steps) ─────────────────────────────
+let dragSrc = null;
+
+function attachDrag(key) {
+  ['management','management_mica'].forEach(field => {
+    const container = document.getElementById('steps-' + field + '-' + key);
+    if (!container) return;
+    container.querySelectorAll('.step-row').forEach(row => {
+      row.addEventListener('dragstart', e => {
+        dragSrc = row;
+        row.classList.add('dragging');
+        e.dataTransfer.effectAllowed = 'move';
+      });
+      row.addEventListener('dragend', () => {
+        row.classList.remove('dragging');
+        container.querySelectorAll('.step-row').forEach(r => r.classList.remove('drag-over'));
+      });
+      row.addEventListener('dragover', e => {
+        e.preventDefault();
+        container.querySelectorAll('.step-row').forEach(r => r.classList.remove('drag-over'));
+        if (row !== dragSrc) row.classList.add('drag-over');
+      });
+      row.addEventListener('drop', e => {
+        e.preventDefault();
+        if (!dragSrc || dragSrc === row) return;
+        const srcIdx = parseInt(dragSrc.dataset.idx);
+        const dstIdx = parseInt(row.dataset.idx);
+        const arr = DATA[key][field];
+        const [moved] = arr.splice(srcIdx, 1);
+        arr.splice(dstIdx, 0, moved);
+        markDirty(key);
+        reRenderSteps(key, field);
+      });
+    });
+  });
+}
+
+// ── TOGGLE CARD ───────────────────────────────────────────────
+function toggleCard(key) {
+  document.getElementById('card-' + key).classList.toggle('open');
+}
+
+// ── RESET ─────────────────────────────────────────────────────
+function resetPkg(key) {
+  if (!confirm('Reset "' + (DATA[key].title||key) + '" to original? All unsaved changes will be lost.')) return;
+  DATA[key] = JSON.parse(JSON.stringify(ORIGINAL[key]));
+  document.getElementById('card-' + key).classList.remove('dirty');
+  document.getElementById('body-' + key).innerHTML = renderCardBody(key, DATA[key]);
+  attachDrag(key);
+  setStatus(key, '', '');
+}
+
+// ── SAVE ──────────────────────────────────────────────────────
+async function savePkg(key) {
+  const pkg = DATA[key];
+  const btn = document.querySelector('#card-' + key + ' .btn-save');
+  btn.textContent = 'Saving…'; btn.disabled = true;
+  setStatus(key, '', 'Saving…');
+  try {
+    // Build the JS block for just this package
+    const jsonStr = JSON.stringify(pkg, null, 2)
+      .replace(/\u2014/g, '\\u2014')
+      .replace(/\u2013/g, '\\u2013')
+      .replace(/\u2192/g, '\\u2192')
+      .replace(/\u2265/g, '\\u2265')
+      .replace(/\u2264/g, '\\u2264')
+      .replace(/\u00b2/g, '\\u00b2')
+      .replace(/\u00b0/g, '\\u00b0');
+
+    const res = await fetch('http://localhost:3456/save-package', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ key, pkg: JSON.parse(jsonStr) })
+    });
+    if (!res.ok) throw new Error(await res.text());
+    document.getElementById('card-' + key).classList.remove('dirty');
+    setStatus(key, 'ok', '\u2713 Saved to cpg_packages_combined.js');
+    // update original snapshot
+    ORIGINAL[key] = JSON.parse(JSON.stringify(DATA[key]));
+  } catch(e) {
+    setStatus(key, 'err', 'Save failed: ' + e.message);
+  }
+  btn.textContent = '\u2713 Save to file'; btn.disabled = false;
+}
+
+function setStatus(key, cls, msg) {
+  const el = document.getElementById('status-' + key);
+  el.className = 'save-status' + (cls ? ' ' + cls : '');
+  el.textContent = msg;
+}
+
+// ── UTIL ──────────────────────────────────────────────────────
+function esc(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ── INIT ──────────────────────────────────────────────────────
+renderCards();
+</script>
+</body>
+</html>

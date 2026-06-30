@@ -2079,6 +2079,371 @@ const CPG_PACKAGES = {
       { type: "mica", text: "ETT sizes: Extremely preterm < 1 kg (< 28 wks) – 2.5 mm, lip length 6–7 cm, laryngoscope 00 straight Miller blade. Moderately preterm 1–3 kg (28–34 wks) – 3.0 mm, lip length 7–9 cm, laryngoscope 0 or 1 straight Miller blade, i-Gel size 1.0 for > 2 kg. Term/near term > 3 kg (≥ 35 wks) – 3.5 mm, lip length 9–10 cm, laryngoscope 0 or 1 straight Miller blade, i-Gel size 1.0 for > 2 kg" },
     ],
     notes: "Ventilation and warmth = highest priorities. HR rise = best indicator of adequate ventilation. 3:1 CPR ratio. PPV within 60 seconds. PIPER early. Do not resuscitate < 22 weeks. EMMA infant adaptor essential for MICA intubation."
+  },
+
+  // -----------------------------------------------------------
+  // P0601 Croup
+  // -----------------------------------------------------------
+  croup: {
+    cpg: "P0601-1",
+    title: "Croup",
+    careObjectives: [
+      "Identify severity of croup",
+      "Administer dexamethasone for all cases",
+      "Administer adrenaline for severe cases",
+      "Identify appropriate disposition: Mild — self care; Moderate — VED referral +/- transport to ED; Severe — AV transport to ED"
+    ],
+    management: [
+      { type: "note", items: ["Patients aged < 16 years with croup"] },
+      { type: "stop", text: "Minimise distress — distress worsens upper airway obstruction. Keep child with carers as much as possible" },
+      { type: "stop", text: "RAT should NOT be administered, especially in severe cases" },
+      { type: "assess", items: [
+        "Severity: Behaviour, Stridor (none/intermittent/persistent at rest/decreasing), RR (normal/increased/marked increase/decreasing — late sign), Accessory muscle use, SpO₂",
+        "Risk factors for severe croup: Age < 6 months, pre-existing airway narrowing/abnormality (e.g. tracheomalacia, subglottic stenosis), past Hx of severe croup",
+        "Differential diagnosis: Foreign body airway obstruction, Epiglottitis (drooling, difficulty swallowing — do NOT inspect airway), Anaphylaxis"
+      ]},
+      { type: "subheader", text: "Mild — Normal behaviour, stridor only when active, normal RR, SpO₂ ≥ 96%" },
+      { type: "action", text: "Dexamethasone 150 mcg/kg Oral (max 12 mg)" },
+      { type: "action", text: "Self-care advice and safety netting — provide RCH Croup Factsheet" },
+      { type: "action", text: "Disposition: Self-care" },
+      { type: "subheader", text: "Moderate — Intermittent mild agitation, stridor at rest, increased RR, moderate chest wall retraction, SpO₂ ≥ 96%" },
+      { type: "action", text: "Dexamethasone 150 mcg/kg Oral (max 12 mg)" },
+      { type: "action", text: "Disposition: VED Ambulance Referral — consult VED regarding most appropriate disposition. If VED not available, transport to ED" },
+      { type: "subheader", text: "Severe — Increasing agitation/drowsiness, persistent stridor at rest (or decreasing — late sign), marked increased RR (or decreasing — late sign), marked chest wall retraction, SpO₂ < 96% (late sign)" },
+      { type: "action", text: "Adrenaline 5 mg (5 mL, 1:1000) nebulised at 5 minute intervals until improvement" },
+      { type: "action", text: "Dexamethasone 600 mcg/kg Oral (high dose, max 12 mg)" },
+      { type: "action", text: "Disposition: Transport to ED" }
+    ],
+    notes: "Croup most common 6 months to 3 years. Viral illness — barking cough, inspiratory stridor, hoarse voice, increased WoB, symptoms worse at night. Do NOT use RAT. Do NOT inspect airway if epiglottitis suspected. Intermittent stridor is NOT a red flag if mild/moderate croup has been treated with dexamethasone and meets self-care/VED criteria."
+  },
+
+  // -----------------------------------------------------------
+  // A0401 Acute Coronary Syndromes
+  // -----------------------------------------------------------
+  acs: {
+    cpg: "A0401",
+    title: "Acute Coronary Syndromes",
+    careObjectives: [
+      "Rapid identification of STEMI to facilitate timely reperfusion (PCI or PHT).",
+      "Provision of antiplatelet therapy (aspirin).",
+      "Reduce cardiac workload by treating associated symptoms (e.g. nausea, pain)."
+    ],
+    management: [
+      { type: "assess", items: [
+        "Signs and symptoms",
+        "12-lead ECG (within 10 minutes)",
+        "Medications already administered (e.g. aspirin, GTN)"
+      ]},
+      { type: "stop", text: "Request early MICA / aeromedical support in suspected STEMI and provide early hospital notification" },
+      { type: "header", text: "Antiplatelet Rx" },
+      { type: "action", text: "Aspirin 300 mg oral if not already administered" },
+      { type: "header", text: "Pain Relief" },
+      { type: "action", text: "GTN 600 mcg S/L if SBP > 100 mmHg, OR GTN 300 mcg S/L if no previous admin, borderline BP or small (≤ 60 kg), elderly or frail patient" },
+      { type: "action", text: "Repeat 300 or 600 mcg S/L @ 5 minute intervals titrated to pain or side effects" },
+      { type: "action", text: "GTN patch 50 mg (0.4 mg/hr) upper torso / arms — remove patch if BP falls < 100 mmHg" },
+      { type: "note", items: ["Inadequate response or nitrates C/I: treat with opioids as per CPG A0501 Pain Relief"] },
+      { type: "header", text: "Isolated Hypertension (SBP > 160 or DBP > 100 mmHg)" },
+      { type: "mica", text: "GTN 300 mcg S/L — repeat 300 mcg @ 5 minute intervals if hypertension persists" },
+      { type: "header", text: "STEMI (onset < 12 hours)" },
+      { type: "action", text: "Continue Rx as per CPG A0408 STEMI Management" },
+      { type: "note", items: ["If onset > 12 hours: transmit 12-lead ECG and provide hospital notification", "Notify ARV via clinician where secondary transfer may be required"] },
+      { type: "header", text: "NSTEACS / Unstable Angina" },
+      { type: "action", text: "Transport to appropriate facility" }
+    ],
+    notes: "Not all ACS patients present with pain (e.g. elderly, female, diabetes). Absence of ischaemic ECG changes does not exclude AMI. Hyperoxaemia is detrimental in STEMI — oxygen only as per CPG A0001. GTN S/L can be substituted with buccal if required. Aspirin dose may be supplemented to 300 mg if lower dose already given."
+  },
+
+  // -----------------------------------------------------------
+  // A0402 Bradycardia
+  // -----------------------------------------------------------
+  bradycardia: {
+    cpg: "A0402",
+    title: "Bradycardia",
+    careObjectives: [
+      "To increase heart rate where bradycardia is causing haemodynamic compromise, heart failure or life threatening arrhythmia."
+    ],
+    management: [
+      { type: "assess", items: [
+        "Perfusion status",
+        "Cardiac rhythm",
+        "Heart failure",
+        "Ischaemic chest pain"
+      ]},
+      { type: "header", text: "Unstable bradycardia" },
+      { type: "note", items: [
+        "Less than adequate perfusion (including acute STEMI and ischaemic chest pain)",
+        "Profound bradycardia (HR < 40 bpm) and APO",
+        "Runs of VT or ventricular escape rhythms",
+        "HR < 20 bpm"
+      ]},
+      { type: "mica", text: "Atropine 600 mcg IV" },
+      { type: "mica", text: "Repeat 1200 mcg after 3\u20135 minutes if inadequate response" },
+      { type: "header", text: "Adequate response" },
+      { type: "mica", text: "Continue Atropine 600 mcg IV at 3\u20135 minute intervals as required (max. 3000 mcg)" },
+      { type: "note", items: ["Manage as per Inadequate response if patient deteriorates"] },
+      { type: "header", text: "Inadequate response (after Atropine 1800 mcg IV)" },
+      { type: "mica", text: "Adrenaline infusion 5 mcg/minute \u2014 increase to 10 mcg/minute if required" },
+      { type: "note", items: ["Adrenaline infusion: Adrenaline 3 mg added to make 50 mL with D5W or Normal Saline; 1 mL/hr = 1 mcg/min"] },
+      { type: "header", text: "Extremely poor perfusion (altered conscious state/unconscious AND HR < 50 AND BP < 60)" },
+      { type: "mica", text: "Transthoracic pacing \u2014 Midazolam 1\u20132 mg IV and Fentanyl 50 mcg IV as required; commence pacing at 30 mA and a heart rate of 70/min" }
+    ],
+    notes: "Atropine unlikely to be effective in Mobitz II or complete heart block but should still be given. Max total Atropine 3000 mcg. Titrate Adrenaline to response \u2014 if no HR increase after 10 mcg/min, commence pacing. Atropine ineffective and potentially harmful post cardiac transplant."
+  },
+
+  // -----------------------------------------------------------
+  // A0403 Tachycardia (Narrow Complex)
+  // -----------------------------------------------------------
+  tachycardia_narrow: {
+    cpg: "A0403",
+    title: "Tachycardia (Narrow complex)",
+    careObjectives: [
+      "Rapid termination of life threatening arrhythmias and transport to a facility capable of definitive care.",
+      "Rapid transport to facilitate the treatment of the arrhythmia where treatment is not available in the prehospital environment.",
+      "Early termination of stable SVT where possible, following ECG capture."
+    ],
+    management: [
+      { type: "note", items: ["Status: QRS < 0.12 sec"] },
+      { type: "stop", text: "If patient loses cardiac output at any stage: synchronised cardioversion in addition to CPG A0201 Cardiac Arrest (MICA only). Sinus tachycardia should be directed at the underlying cause and not treated using this CPG." },
+      { type: "header", text: "Stable \u2014 SVT (AVNRT or AVRT) \u2014 Exclude AF and atrial flutter" },
+      { type: "note", items: ["SBP \u2265 90 mmHg: Record 12 lead ECG prior to commencing Mx"] },
+      { type: "action", text: "Modified Valsalva or Standard Valsalva (if manual handling or environmental concern) \u2014 Repeat x2 @ 2 minute intervals (max. 3 attempts)" },
+      { type: "note", items: ["SBP < 90 mmHg or no reversion with Valsalva:"] },
+      { type: "mica", text: "Adenosine 6 mg IV" },
+      { type: "mica", text: "Adenosine 12 mg IV if no reversion after 2 minutes" },
+      { type: "mica", text: "Adenosine 12 mg IV if no reversion after a further 2 minutes" },
+      { type: "header", text: "Stable \u2014 Other rhythms (AF, atrial flutter, multifocal atrial tachycardia)" },
+      { type: "action", text: "Pain relief as per CPG A0501 Pain Relief" },
+      { type: "header", text: "Unstable and rapidly deteriorating" },
+      { type: "mica", text: "Synchronised cardioversion (MICA only): Midazolam 1\u20132 mg IV and Fentanyl 50 mcg IV as required; Cardioversion DCCS 150 J; Repeat once if required; If unsuccessful change pads to anterior-posterior vector and DCCS 200 J" },
+      { type: "header", text: "VVED referral criteria (all of):" },
+      { type: "note", items: [
+        "Reversion to sinus rhythm",
+        "Stable vital signs",
+        "No red flags remain",
+        "No paramedic concern",
+        "Paramedic-initiated VVED referral",
+        "Transmit 12 lead ECG to VVED"
+      ]}
+    ],
+    notes: "Adenosine should be administered rapidly through a large proximal vein (e.g. cubital fossa) followed by a Normal Saline bolus flush. Valsalva manoeuvre reserved for patients with SBP \u2265 90 mmHg. Modified Valsalva preferred \u2014 patient semi-recumbent 45\u00b0, forced expiration, then immediately flat with legs raised 45\u00b0 for 15 seconds. Standard Valsalva: supine, forced expiration."
+  },
+
+  // -----------------------------------------------------------
+  // A0404 Tachycardia (Broad Complex)
+  // -----------------------------------------------------------
+  tachycardia_broad: {
+    cpg: "A0404",
+    title: "Tachycardia (Broad complex)",
+    careObjectives: [
+      "Rapid termination of life threatening arrhythmias and transport to a facility capable of definitive care.",
+      "Rapid transport to facilitate the treatment of the arrhythmia where treatment is not available in the prehospital environment."
+    ],
+    management: [
+      { type: "note", items: ["Status: QRS \u2265 0.12 sec"] },
+      { type: "stop", text: "If patient loses cardiac output at any stage: manage as per CPG A0201 Cardiac Arrest" },
+      { type: "header", text: "Stable: VT or unclear" },
+      { type: "stop", text: "Only dilute Amiodarone with D5W. Do not administer Amiodarone if suspected TCA toxicity \u2014 Mx as per CPG A0723 Tricyclic Antidepressant Toxicity. Do not administer Amiodarone if VT follows Ondansetron administration." },
+      { type: "mica", text: "Amiodarone infusion 5 mg/kg IV (max. 300 mg) over 20 minutes once only" },
+      { type: "note", items: ["Rx as per Unstable and rapidly deteriorating if patient deteriorates"] },
+      { type: "header", text: "Unstable and rapidly deteriorating" },
+      { type: "mica", text: "Synchronised cardioversion: Midazolam 1\u20132 mg IV and Fentanyl 50 mcg IV as required; Cardioversion DCCS 150 J; Repeat once if required; If unsuccessful change pads to anterior-posterior vector and DCCS 200 J" },
+      { type: "header", text: "No reversion OR reversion to narrow complex rhythm" },
+      { type: "mica", text: "Amiodarone infusion per Stable (if not already established)" },
+      { type: "note", items: ["Other rhythms (e.g. slow wide complex): Rx as per appropriate CPG"] }
+    ],
+    notes: "VT requiring management defined as: lasting > 30 seconds, rate > 100, QRS > 0.12 sec, regular (mostly), AV dissociation or absence of P waves. A regular broad complex tachycardia should be treated as VT until proven otherwise. ALS crews should consider time to get MICA support vs time to hospital."
+  },
+
+  // -----------------------------------------------------------
+  // A0406 Cardiogenic Pulmonary Oedema
+  // -----------------------------------------------------------
+  pulmonary_oedema: {
+    cpg: "A0406",
+    title: "Cardiogenic Pulmonary Oedema",
+    careObjectives: [
+      "Oxygen therapy if hypoxic.",
+      "NIV for management of respiratory failure.",
+      "Reduce preload and afterload with nitrates to improve cardiac function and reduce pulmonary congestion.",
+      "Furosemide as second line treatment for management of fluid overload.",
+      "Adrenaline infusion for management of cardiogenic shock."
+    ],
+    management: [
+      { type: "assess", items: [
+        "Acute vs chronic symptoms",
+        "Comorbidities / differential diagnosis",
+        "Identify patients with palliative care needs"
+      ]},
+      { type: "note", items: ["Short of breath and crackles: Oxygen as per CPG A0001 Oxygen Therapy"] },
+      { type: "header", text: "Adequate perfusion / hypertensive" },
+      { type: "action", text: "GTN S/L: 600 mcg if SBP > 100 mmHg, OR 300 mcg if no previous admin, borderline BP or small (\u2264 60 kg) / frail / elderly \u2014 repeat dose at 5 minute intervals titrated to pain or side effects (no max)" },
+      { type: "action", text: "GTN patch 50 mg (0.4 mg/hr) upper torso / arms \u2014 remove if BP < 100 mmHg" },
+      { type: "note", items: ["Request MICA if: severe respiratory distress, OR moderate respiratory distress with limited or no improvement after 2 doses of GTN"] },
+      { type: "mica", text: "Furosemide 20\u201340 mg IV or patient's daily dose IV as single dose (max 80 mg) \u2014 administer en-route to hospital once other treatment established" },
+      { type: "header", text: "Inadequate perfusion / shock" },
+      { type: "action", text: "Request MICA" },
+      { type: "mica", text: "Consider adrenaline infusion as per CPG A0407 Inadequate Perfusion (Cardiogenic)" },
+      { type: "header", text: "Severe APO (severe respiratory distress, full field crackles, persistent hypoxia or no improvement)" },
+      { type: "action", text: "Request MICA" },
+      { type: "action", text: "CPAP 10 cm H\u2082O \u2014 consider initiating CPAP prior to extrication" },
+      { type: "mica", text: "BiPAP NIV (MICA): IPAP 10 cmH\u2082O, EPAP 5 cmH\u2082O, FiO\u2082 1.0 \u2014 increase IPAP to 15 and EPAP to 10 if no improvement \u2014 consult AV Medical Advisor via AV Clinician for further adjustments if no improvement" },
+      { type: "mica", text: "GTN infusion if patient on NIV with BP > 140 mmHg (without vasopressors) and limited/no clinical improvement: Start 10 mcg/min (2 mL/hr), increase 10 mcg/min at 5 min intervals, target SBP 120\u2013140 mmHg, max 200 mcg/min (40 mL/hr), cease if SBP < 100 mmHg" }
+    ],
+    notes: "GTN infusion preparation: Dilute GTN 15 mg (3 mL) to 50 mL with Normal Saline or D5W in a 50 mL syringe; 1 mL = 300 mcg; 2 mL/hr = 10 mcg/min. Wear gloves when preparing GTN infusion. Furosemide not indicated for fluid overload due to other causes (e.g. renal failure) without signs of cardiogenic APO. Avoid salbutamol in cardiogenic APO where possible."
+  },
+
+  // -----------------------------------------------------------
+  // A0407 Inadequate Perfusion (Cardiogenic)
+  // -----------------------------------------------------------
+  inadequate_perfusion_cardiogenic: {
+    cpg: "A0407",
+    title: "Inadequate Perfusion (Cardiogenic)",
+    careObjectives: [
+      "To achieve a perfusion target appropriate to the patient's condition."
+    ],
+    management: [
+      { type: "note", items: ["Stop and consider PANDA enrolment. Use metaraminol while assessing eligibility criteria."] },
+      { type: "assess", items: [
+        "Signs of pulmonary oedema (crackles)"
+      ]},
+      { type: "header", text: "Crackles present" },
+      { type: "mica", text: "Adrenaline infusion as per Inadequate or extremely poor perfusion pathway" },
+      { type: "header", text: "No crackles" },
+      { type: "mica", text: "Normal Saline 250 mL IV \u2014 repeat 250 mL IV if chest clear and inadequate or extremely poor perfusion persists" },
+      { type: "header", text: "Inadequate or extremely poor perfusion persists" },
+      { type: "mica", text: "Adrenaline infusion (3 mg/50 mL D5W or Normal Saline) commencing @ 5 mcg/min (5 mL/hr)" },
+      { type: "note", items: [
+        "Titrate to achieve systolic BP 100 mmHg (max 250 mcg/min)",
+        "Reassess patient and delivery system prior to increasing rate beyond 50 mcg/min"
+      ]},
+      { type: "note", items: ["If syringe pump unavailable: Adrenaline 10 mcg IV as required; if poor response Adrenaline 50\u2013100 mcg IV as required"] },
+      { type: "note", items: ["If chest clear continue Normal Saline 250 mL IV boluses up to 20 mL/kg"] }
+    ],
+    notes: "Any IV infusions must be clearly labelled with drug name, dose and dilution. Adrenaline infusion: Adrenaline 3 mg added to make 50 mL with D5W or Normal Saline; 1 mL/hr = 1 mcg/min. Adrenaline > 100 mcg/min likely harmful \u2014 consider further fluid therapy or accept lower BP. Patients may not have chest pain (e.g. silent MI, cardiomyopathy). Suspected PE with inadequate perfusion should also be managed with this CPG."
+  },
+
+  // -----------------------------------------------------------
+  // A0408 STEMI Management
+  // -----------------------------------------------------------
+  stemi_management: {
+    cpg: "A0408",
+    title: "STEMI Management",
+    careObjectives: [
+      "In STEMI, time from symptom onset to coronary reperfusion correlates to myocardial damage and risk of death. Expedite reperfusion via PCI or PHT. Primary destination is a PCI centre in all cases."
+    ],
+    management: [
+      { type: "assess", items: [
+        "STEMI identified on monitor or by paramedic",
+        "Time to PCI facility",
+        "Inclusion criteria",
+        "Exclusion criteria",
+        "Relative contraindications"
+      ]},
+      { type: "action", text: "Transmit ECG" },
+      { type: "action", text: "Request MICA (ALS)" },
+      { type: "action", text: "Treat as per CPG A0401 Acute Coronary Syndromes" },
+      { type: "action", text: "Apply pads" },
+      { type: "header", text: "Symptoms > 12 hours" },
+      { type: "action", text: "Continue Mx as per CPG A0401 Acute Coronary Syndromes" },
+      { type: "action", text: "Transport with notification" },
+      { type: "header", text: "Urgent transport to PCI facility (Time to PCI < 90 min, PHT endorsed paramedic)" },
+      { type: "action", text: "Continue Mx as per CPG A0401 Acute Coronary Syndromes" },
+      { type: "action", text: "Transport with hospital notification" },
+      { type: "action", text: "Heparin IV bolus 4000 IU \u2014 Repeat Heparin IV bolus 1000 IU at 1 hour intervals" },
+      { type: "action", text: "Capture a repeat ECG 30 minutes prior to arrival and transmit to receiving hospital with notification" },
+      { type: "header", text: "Prehospital thrombolysis (Time to PCI > 90 min AND all inclusion criteria met AND no exclusion criteria)" },
+      { type: "stop", text: "ALS paramedics MUST consult AV Clinician prior to progressing to thrombolysis in all cases. MICA paramedics must consult AV Clinician where any relative C/I are present." },
+      { type: "action", text: "IV access x 2, Normal Saline TKVO" },
+      { type: "action", text: "Complete checklist and read information statement to patient" },
+      { type: "action", text: "Tenecteplase IV bolus (weight-based \u2014 see dose table)" },
+      { type: "action", text: "Heparin IV bolus 4000 IU \u2014 Repeat Heparin IV bolus 1000 IU at 1 hour intervals" },
+      { type: "action", text: "Transport with hospital notification" },
+      { type: "action", text: "Transmit 12-lead ECG to receiving hospital" },
+      { type: "action", text: "Capture repeat ECG 30 minutes prior to arrival and transmit to receiving hospital with notification" }
+    ],
+    notes: "Tenecteplase dose table: < 60 kg \u2192 30 mg (6 mL); 60\u201369 kg \u2192 35 mg (7 mL); 70\u201379 kg \u2192 40 mg (8 mL); 80\u201389 kg \u2192 45 mg (9 mL); \u2265 90 kg \u2192 50 mg (10 mL). Dose MUST be halved for patients \u2265 75 years following consultation. Post-thrombolysis: monitor continuously, record 12-lead ECGs at 15 minute intervals, watch for reperfusion signs (ectopic beats, self-limiting VT, resolving ST segments), monitor all sites for bleeding."
+  },
+
+  // -----------------------------------------------------------
+  // A0410 Hypertension
+  // -----------------------------------------------------------
+  hypertension: {
+    cpg: "A0410",
+    title: "Hypertension",
+    careObjectives: [
+      "Identify patients suffering from hypertension and the severity.",
+      "Symptomatic management as required.",
+      "Plan care pathway appropriate to patient's condition and risk profile."
+    ],
+    management: [
+      { type: "assess", items: [
+        "History and physical examination",
+        "ECG",
+        "Pregnancy / post-partum status",
+        "Competing medical conditions or significant traumatic injury",
+        "Signs and symptoms of end-organ dysfunction: severe headache, altered LOC, seizure, chest pain, ischaemic ECG, dyspnoea, pulmonary oedema, acute renal failure, anuria"
+      ]},
+      { type: "header", text: "Mild to moderate hypertension (asymptomatic, BP < 180/110 mmHg)" },
+      { type: "action", text: "Self-care advice and safety netting" },
+      { type: "action", text: "GP referral when next available (consider PPCC if delays to regular GP)" },
+      { type: "header", text: "Severe hypertension (BP 180\u2013220/110\u2013140 mmHg, may have symptoms but not end-organ dysfunction)" },
+      { type: "action", text: "Symptom relief if required" },
+      { type: "action", text: "VVED referral for potential community management" },
+      { type: "header", text: "Hypertensive emergency (signs/symptoms of end-organ dysfunction, BP generally > 220/140 mmHg)" },
+      { type: "action", text: "Transport \u2014 urgent care in hospital" },
+      { type: "action", text: "Manage end-organ dysfunction as per relevant CPG: CPG A0401 ACS, CPG A0406 Pulmonary Oedema, CPG A0502 Headache, CPG A0711 Suspected Stroke or TIA" }
+    ],
+    notes: "Intended for patients \u2265 16 years. Pregnant or immediately post-partum patients excluded \u2014 refer to CPG M0202 Pre-Eclampsia/Eclampsia. If automated BP identifies hypertension, confirm with non-automated measurement. If patient condition allows, repeat BP after 15 minutes of reassurance and rest. Safety netting: call 000 if chest pain, SOB, severe headache, reduced/absent urine, syncope or collapse develop."
+  },
+
+  // -----------------------------------------------------------
+  // TR0201 Epistaxis
+  // -----------------------------------------------------------
+  epistaxis: {
+    cpg: "TR0201",
+    title: "Epistaxis",
+    careObjectives: [
+      "Control bleeding and assess suitability for treat and refer pathway."
+    ],
+    management: [
+      { type: "stop", text: "Do not proceed if: unable to control bleeding after 15 minutes; recent history of facial or head trauma; history of bleeding disorder or anticoagulant therapy" },
+      { type: "assess", items: [
+        "Has bleeding been controlled after 15 minutes of direct pressure application?"
+      ]},
+      { type: "header", text: "Yes \u2014 bleeding controlled" },
+      { type: "action", text: "Provide patient with self-care advice and Health Information Sheet" },
+      { type: "action", text: "Confirm patient understands advice prior to departing scene" },
+      { type: "note", items: ["Refer patient to primary care provider for review within 24 hours if: very minor or intermittent bleeding remains; patient has experienced recurrent episodes of epistaxis; patient is on antiplatelet therapy; BP remains high after resolution of epistaxis"] },
+      { type: "header", text: "No \u2014 bleeding continues" },
+      { type: "action", text: "Transport patient to ED" }
+    ],
+    notes: "General care: position patient upright with slight forward neck flexion; pinch soft part of nose firmly for 15 minutes without releasing pressure; apply cold cloth or compress to forehead if available; encourage breathing through mouth and spitting out any blood; advise patient to avoid blowing or picking nose for at least 12 hours after cessation. Approx 5% of epistaxis originates from the posterior nose and is unlikely to be controlled with manual pressure. Treat and Refer CPGs apply to adult patients only \u2014 not elderly/frail or paediatric."
+  },
+
+  // -----------------------------------------------------------
+  // TR0205 Minor Burns
+  // -----------------------------------------------------------
+  minor_burns: {
+    cpg: "TR0205",
+    title: "Minor Burns",
+    careObjectives: [
+      "Cool the burn, assess suitability for treat and refer pathway, and provide self-care advice."
+    ],
+    management: [
+      { type: "note", items: ["Status: small, isolated, superficial burn with unbroken skin, or sunburn"] },
+      { type: "stop", text: "Do not proceed if: burn involves face, hands, feet, major joints, genitalia or circumferential burns of a limb or chest; partial or full thickness burn; smoke inhalation or potential inhalation injury; chemical, electrical or radiation burn (other than sunburn); suspected non-accidental burn; associated traumatic injuries; pain unable or unlikely to be controlled by oral analgesia; co-morbidities that may impair wound healing (e.g. poor wound healing history, diabetes, immunocompromised, chronic steroid use)" },
+      { type: "assess", items: [
+        "Has pain been controlled after 20 minutes of cooling and is burn superficial and minor?"
+      ]},
+      { type: "header", text: "Yes \u2014 pain controlled, superficial and minor" },
+      { type: "action", text: "If required, clean wound gently with Normal Saline" },
+      { type: "action", text: "Consider applying non-perfumed moisturiser if available (e.g. Vaseline, sorbolene) \u2014 do not apply to burns with broken skin" },
+      { type: "action", text: "Consider Paracetamol as per CPG A0501 Pain Relief" },
+      { type: "action", text: "Refer patient to primary care provider within 24 hours for review" },
+      { type: "action", text: "Provide Health Information Sheet and confirm patient understands advice prior to departing scene" },
+      { type: "header", text: "No \u2014 pain not controlled or burn not minor" },
+      { type: "action", text: "Organise appropriate transport to ED or primary care provider" }
+    ],
+    notes: "Intended for adult patients with minor superficial burns from thermal sources (scald or contact with hot objects). If any doubt exists as to nature, size or depth \u2014 transport and manage as per CPG A0805 Burns. Superficial burns: dry and red, no blisters, skin intact, painful. Cool running water for 20 minutes as per CPG A0805. Epidermal burns generally heal within 7 days without scarring. Sunburn may be appropriate for self-care if patient is otherwise well. Treat and Refer CPGs apply to adult patients only \u2014 not elderly/frail or paediatric."
   }
 
 };

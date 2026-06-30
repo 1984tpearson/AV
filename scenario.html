@@ -3486,19 +3486,34 @@ function renderSection1(s, isTrauma) {
       + mkRow('lt2', 'Breathing — oxygen therapy as indicated')
       + mkRow('lt3', 'Circulation / Haemorrhage — control as indicated');
 
+  const _ss = s.secondary_survey || {};
+  const ssRow = (id, key, label, indent=false) => {
+    const entry = _ss[key];
+    const finding = entry && typeof entry === 'object' ? entry.finding : (entry || '');
+    const abn = entry && typeof entry === 'object' ? !!entry.abnormal : false;
+    const badge = finding ? `<span class="vital-hint" style="background:${abn ? 'var(--red)' : 'var(--navy)'}">${finding}</span>` : '';
+    return `
+    <tr data-row-id="${id}">
+      <td class="elem-label${indent?' indent':''}">${label}${badge}</td>
+      <td class="tick-col">${mkTick(id,'prompted','Prompting Required')}</td>
+      <td class="tick-col">${mkTick(id,'incomplete','Incomplete/Incorrect')}</td>
+      <td class="tick-col">${mkTick(id,'complete','All Complete')}</td>
+    </tr>`;
+  };
+
   const secondarySurvey = isTrauma ? `
     <div id="nav-ss" class="snav-anchor"></div><div class="asmt-section-header"><div class="asmt-section-title trauma">Secondary Survey — Trauma Head-to-Toe</div><button class="all-complete-btn" onclick="markGroupComplete('ss')">✓ All Complete</button></div>
     <table class="asmt-table" data-group="ss" data-section="sec1">
       <thead><tr><th class="left">Element</th><th>Prompting</th><th>Incomplete</th><th>Complete</th></tr></thead>
       <tbody>
-        ${mkRow('ss-head','Head and face (eyes/pupils)')}${mkRow('ss-neck','Neck',true)}${mkRow('ss-chest','Chest',true)}${mkRow('ss-abdomen','Abdomen',true)}${mkRow('ss-back','Back',true)}${mkRow('ss-pelvis','Pelvis',true)}${mkRow('ss-limbs','Limbs (incl. neurovascular)',true)}${mkRow('ss-other','Other/medical consideration',true)}
+        ${ssRow('ss-head','head','Head and face (eyes/pupils)')}${ssRow('ss-neck','neck','Neck',true)}${ssRow('ss-chest','chest','Chest',true)}${ssRow('ss-abdomen','abdomen','Abdomen',true)}${ssRow('ss-back','back','Back',true)}${ssRow('ss-pelvis','pelvis','Pelvis',true)}${ssRow('ss-limbs','limbs','Limbs (incl. neurovascular)',true)}${ssRow('ss-other','other','Other/medical consideration',true)}
       </tbody>
     </table>` : `
     <div id="nav-ss" class="snav-anchor"></div><div class="asmt-section-header"><div class="asmt-section-title">Secondary Survey — Body Systems</div><button class="all-complete-btn" onclick="markGroupComplete('ss')">✓ All Complete</button></div>
     <table class="asmt-table" data-group="ss" data-section="sec1">
       <thead><tr><th class="left">Element</th><th>Prompting</th><th>Incomplete</th><th>Complete</th></tr></thead>
       <tbody>
-        ${mkRow('ss-neuro','Neurological')}${mkRow('ss-cardio','Cardiovascular',true)}${mkRow('ss-resp','Respiratory',true)}${mkRow('ss-gi','Gastrointestinal',true)}${mkRow('ss-gu','Genitourinary',true)}${mkRow('ss-msk','Musculoskeletal',true)}${mkRow('ss-skin','Integumentary/Skin',true)}${mkRow('ss-other','Other/trauma consideration',true)}
+        ${ssRow('ss-neuro','neuro','Neurological')}${ssRow('ss-cardio','cardio','Cardiovascular',true)}${ssRow('ss-resp','resp','Respiratory',true)}${ssRow('ss-gi','gi','Gastrointestinal',true)}${ssRow('ss-gu','gu','Genitourinary',true)}${ssRow('ss-msk','msk','Musculoskeletal',true)}${ssRow('ss-skin','skin','Integumentary/Skin',true)}${ssRow('ss-other','other','Other/trauma consideration',true)}
       </tbody>
     </table>`;
 
