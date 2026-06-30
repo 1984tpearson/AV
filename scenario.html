@@ -420,8 +420,9 @@ body.snav-active #content { padding-left: 60px; }
 .dc-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.8px; opacity: 0.6; margin-bottom: 4px; }
 .dc-text { font-size: 13px; line-height: 1.5; }
 .vitals-grid { display: grid; grid-template-columns: repeat(2,1fr); gap: 4px; margin-top: 12px; }
-/* Dispatch card -> Key History FAB scroll-scrubbed animation (transform/opacity set per-frame in JS, no CSS transition) */
-.dispatch-flyclone { position: fixed; z-index: 60; background: var(--navy-dark); color: white; overflow: hidden; pointer-events: none; box-shadow: 0 8px 24px rgba(0,0,0,0.25); will-change: transform, opacity; }
+/* Dispatch card -> Key History FAB fly animation */
+.dispatch-flyclone { position: fixed; z-index: 60; background: var(--navy-dark); color: white; border-radius: 10px; overflow: hidden; pointer-events: none; box-shadow: 0 8px 24px rgba(0,0,0,0.25); transition: transform 1.1s cubic-bezier(0.4,0,0.2,1), opacity 0.4s ease 0.7s, border-radius 1.1s ease; }
+.dispatch-flyclone.fly { opacity: 0; }
 @keyframes keyhxFabLand { 0%{box-shadow:0 4px 16px rgba(28,58,110,0.3)} 30%{box-shadow:0 4px 28px rgba(28,58,110,0.9); transform:scale(1.12)} 60%{transform:scale(0.97)} 100%{box-shadow:0 4px 16px rgba(28,58,110,0.3); transform:scale(1)} }
 #keyhx-fab.land { animation: keyhxFabLand 0.6s ease; }
 @media (min-width: 700px) { .vitals-grid { min-width: 210px; margin-top: 0; } }
@@ -6016,110 +6017,83 @@ function hideStickyBar() {
 }
 
 // ============================================================
-// DISPATCH CARD -> KEY HISTORY FAB SCROLL-SCRUBBED ANIMATION
-// As the user scrolls the Dispatch & Presentation card past the
-// top of the viewport, a clone shrinks/moves toward the Key
-// History FAB in lock-step with scroll position (not a timer) —
-// pause scrolling and it pauses; scroll back up and it reverses.
+// DISPATCH CARD -> KEY HISTORY FAB FLY ANIMATION
+// Fires once per scenario load: when the Dispatch & Presentation
+// card has scrolled ~2/3 out of view, a clone shrinks/flies into
+// the Key History FAB to show the content "went" there.
 // ============================================================
-let _dispatchFlyState = null; // { card, fab, clone, cardTop, cardLeft, startW, startH, landed }
+let _dispatchFlyArmed = false;
+let _dispatchFlyListener = null;
 
 function armDispatchFlyAnimation() {
-  // Tear down any previous instance (new scenario loaded)
-  if (_dispatchFlyState) {
-    window.removeEventListener('scroll', _dispatchFlyState.onScroll);
-    if (_dispatchFlyState.clone) _dispatchFlyState.clone.remove();
-    _dispatchFlyState = null;
+  // Disarm any previous listener (new scenario loaded)
+  if (_dispatchFlyListener) {
+    window.removeEventListener('scroll', _dispatchFlyListener);
+    _dispatchFlyListener = null;
   }
+  _dispatchFlyArmed = true;
 
   const card = document.querySelector('#sec-dispatch .dispatch-card');
   const fab = document.getElementById('keyhx-fab');
-  if (!card || !fab) return;
+  if (!card || !fab) { _dispatchFlyArmed = false; return; }
 
-  // Capture the card's natural (unscrolled) position once, as the animation's
-  // 0% reference point. We use the current scrollY + current rect.top to back
-  // out the document-relative position, so this works even if armed mid-scroll.
-  const rect = card.getBoundingClientRect();
-  const docTop = rect.top + window.scrollY;
-  const docLeft = rect.left; // horizontal position doesn't shift with vertical scroll
-
-  const state = {
-    card, fab, clone: null,
-    docTop, docLeft,
-    startW: rect.width, startH: rect.height,
-    landed: false,
-    onScroll: null
+  let fired = false;
+  const check = function() {
+    if (fired || !_dispatchFlyArmed) return;
+    const cardRect = card.getBoundingClientRect();
+    // Trigger once roughly 2/3 of the card has scrolled above the viewport top
+    if (cardRect.bottom < cardRect.height / 3) {
+      fired = true;
+      window.removeEventListener('scroll', _dispatchFlyListener);
+      _dispatchFlyListener = null;
+      runDispatchFlyAnimation(card, fab);
+    }
   };
+  _dispatchFlyListener = check;
 
-  state.onScroll = function() {
-    updateDispatchFlyFrame(state);
-  };
-  _dispatchFlyState = state;
-
-  window.addEventListener('scroll', state.onScroll, { passive: true });
-  // Run once immediately in case we're already mid-scroll on arm (e.g. restored position)
-  updateDispatchFlyFrame(state);
+  // Check immediately in case the page loaded/refreshed already scrolled past
+  // the card (e.g. browser scroll-position restore) — a 'scroll' event won't
+  // fire again in that case since no further movement occurs.
+  check();
+  if (!fired) window.addEventListener('scroll', _dispatchFlyListener, { passive: true });
 }
 
-function updateDispatchFlyFrame(state) {
-  const { card, fab } = state;
-  if (!document.body.contains(card) || !document.body.contains(fab)) {
-    window.removeEventListener('scroll', state.onScroll);
-    if (state.clone) state.clone.remove();
-    if (_dispatchFlyState === state) _dispatchFlyState = null;
-    return;
-  }
-
-  // Distance scrolled past the card's natural top position
-  const scrolledPast = window.scrollY - state.docTop;
-  // Animation range: starts the moment the card's top reaches the viewport top,
-  // completes once 2/3 of the card's height has scrolled past that point.
-  const range = state.startH * (2 / 3);
-  const progress = Math.max(0, Math.min(1, scrolledPast / range));
-
-  if (progress <= 0) {
-    // Fully reversed — remove the clone, nothing to show
-    if (state.clone) { state.clone.remove(); state.clone = null; }
-    state.landed = false;
-    return;
-  }
-
-  // Lazily create the clone the first time progress becomes positive
-  if (!state.clone) {
-    const clone = card.cloneNode(true);
-    clone.classList.add('dispatch-flyclone');
-    clone.style.left = state.docLeft + 'px';
-    clone.style.width = state.startW + 'px';
-    clone.style.height = state.startH + 'px';
-    clone.style.margin = '0';
-    document.body.appendChild(clone);
-    state.clone = clone;
-  }
-
+function runDispatchFlyAnimation(card, fab) {
+  // The card has just scrolled ~2/3 above the viewport. We pin the clone to
+  // where it last was visible (viewport top) and animate it shrinking into the FAB.
+  const cardRect = card.getBoundingClientRect();
   const fabRect = fab.getBoundingClientRect();
   if (!fabRect.width || getComputedStyle(fab).display === 'none') return;
 
-  const scaleX = 1 + (fabRect.width / state.startW - 1) * progress;
-  const scaleY = 1 + (fabRect.height / state.startH - 1) * progress;
-  // Clone's top is fixed at viewport top (0); interpolate toward the FAB's viewport position
-  const translateX = (fabRect.left - state.docLeft) * progress;
-  const translateY = fabRect.top * progress;
-  const borderRadius = 10 + (28 - 10) * progress;
-  const opacity = progress < 0.7 ? 1 : 1 - (progress - 0.7) / 0.3;
+  const startWidth = cardRect.width || card.offsetWidth;
+  const startHeight = card.offsetHeight;
 
-  state.clone.style.top = '0px';
-  state.clone.style.transformOrigin = 'top left';
-  state.clone.style.transform = `translate(${translateX}px, ${translateY}px) scale(${scaleX}, ${scaleY})`;
-  state.clone.style.borderRadius = borderRadius + 'px';
-  state.clone.style.opacity = opacity;
+  const clone = card.cloneNode(true);
+  clone.classList.add('dispatch-flyclone');
+  clone.style.left = cardRect.left + 'px';
+  clone.style.top = '0px';
+  clone.style.width = startWidth + 'px';
+  clone.style.height = startHeight + 'px';
+  clone.style.margin = '0';
+  document.body.appendChild(clone);
 
-  if (progress >= 1 && !state.landed) {
-    state.landed = true;
+  // Force layout so the transition has a starting point, then animate to the FAB's box
+  requestAnimationFrame(() => {
+    const scaleX = fabRect.width / startWidth;
+    const scaleY = fabRect.height / startHeight;
+    const translateX = fabRect.left - cardRect.left;
+    const translateY = fabRect.top;
+    clone.style.transformOrigin = 'top left';
+    clone.style.transform = `translate(${translateX}px, ${translateY}px) scale(${scaleX}, ${scaleY})`;
+    clone.style.borderRadius = '28px';
+    clone.classList.add('fly');
+  });
+
+  setTimeout(() => {
+    clone.remove();
     fab.classList.add('land');
     setTimeout(() => fab.classList.remove('land'), 650);
-  } else if (progress < 1 && state.landed) {
-    state.landed = false; // re-arm the landing pulse for next time it completes
-  }
+  }, 1120);
 }
 
 function showStickyBar(s) {
