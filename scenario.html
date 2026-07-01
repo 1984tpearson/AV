@@ -2134,11 +2134,16 @@ async function initApp() {
     return;
   }
 
-  // Restore last open scenario only if this is a same-tab refresh
-  // (sessionStorage is cleared on new tab/hyperlink, localStorage persists across both)
+  // Restore last open scenario only on an actual page refresh — not on a
+  // fresh navigation (e.g. clicking the "Scenario Viewer" nav link while
+  // already inside a scenario). sessionStorage persists across same-tab
+  // link clicks too, so it alone isn't a reliable "was this a refresh?"
+  // signal — check the Navigation Timing API as well.
   const lastId = localStorage.getItem('av_last_scenario');
   const wasInScenario = sessionStorage.getItem('av_in_scenario');
-  if (lastId && wasInScenario) {
+  const navEntry = performance.getEntriesByType && performance.getEntriesByType('navigation')[0];
+  const isReload = navEntry ? navEntry.type === 'reload' : false;
+  if (lastId && wasInScenario && isReload) {
     const all = getAllScenarios();
     const s = all.find(x => String(x.id) === lastId);
     if (s) loadScenario(lastId);
