@@ -40,14 +40,22 @@
     ['Other', 'Other']
   ];
 
+  var AV_LEVELS = [
+    ['', 'Select level…'],
+    ['MICA', 'MICA'],
+    ['ALS', 'ALS'],
+    ['ACO', 'ACO'],
+    ['CERT', 'CERT']
+  ];
+
   function escapeHtml(s) {
     return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
       return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
     });
   }
 
-  function roleOptionsHtml(selected) {
-    return AV_ROLES.map(function (r) {
+  function optionsHtml(list, selected) {
+    return list.map(function (r) {
       return '<option value="' + r[0] + '"' + (r[0] === (selected || '') ? ' selected' : '') + '>' + escapeHtml(r[1]) + '</option>';
     }).join('');
   }
@@ -87,6 +95,7 @@
       name: (_profile && _profile.display_name) || (_session && _session.user.email) || '',
       svcNum: (_profile && _profile.svc_num) || '',
       avRole: (_profile && _profile.av_role) || '',
+      level: (_profile && _profile.level) || '',
       branch: (_profile && _profile.branch) || '',
       avatarUrl: (_profile && _profile.avatar_url) || ''
     };
@@ -260,14 +269,8 @@
             '<div class="avnav-form-group"><label>Email</label><div id="avnav-settings-email" class="avnav-readonly"></div></div>' +
             '<div class="avnav-form-group"><label>Display Name</label><input type="text" id="avnav-settings-name" maxlength="60"></div>' +
             '<div class="avnav-form-group"><label>Service Number *</label><input type="text" id="avnav-settings-svcnum" maxlength="20"></div>' +
-            '<div class="avnav-form-group"><label>Role *</label><select id="avnav-settings-role">' +
-              '<option value="">Select your role…</option>' +
-              '<option value="CI">Clinical Instructor (CI)</option>' +
-              '<option value="PE">Paramedic Educator (PE)</option>' +
-              '<option value="GAP">Graduate Ambulance Paramedic (GAP)</option>' +
-              '<option value="CSO">Clinical Support Officer (CSO)</option>' +
-              '<option value="Other">Other</option>' +
-            '</select></div>' +
+            '<div class="avnav-form-group"><label>Role *</label><select id="avnav-settings-role">' + optionsHtml(AV_ROLES, '') + '</select></div>' +
+            '<div class="avnav-form-group"><label>Level *</label><select id="avnav-settings-level">' + optionsHtml(AV_LEVELS, '') + '</select></div>' +
             '<div class="avnav-form-group"><label>Branch / Location</label><input type="text" id="avnav-settings-branch" maxlength="60"></div>' +
             '<div class="avnav-form-group"><label>🎨 Theme</label><div class="avnav-theme-swatches" id="avnav-theme-swatches">' + swatchesHtml() + '</div></div>' +
             '<button class="avnav-submit-btn" onclick="AVNav.saveSettings()">💾 Save Changes</button>' +
@@ -323,7 +326,7 @@
     var nameEl = document.getElementById('avnav-user-name-text');
     if (!nameEl) return;
     nameEl.textContent = id.name || 'Unknown';
-    var meta = [id.avRole, id.branch].filter(Boolean).join(' · ') || (id.svcNum ? 'Service #' + id.svcNum : '');
+    var meta = [id.avRole, id.level, id.branch].filter(Boolean).join(' · ') || (id.svcNum ? 'Service #' + id.svcNum : '');
     document.getElementById('avnav-user-meta').textContent = meta;
     var badge = document.getElementById('avnav-admin-badge');
     if (badge) badge.style.display = isAdmin() ? 'inline-block' : 'none';
@@ -338,6 +341,7 @@
     document.getElementById('avnav-settings-name').value = (_profile && _profile.display_name) || '';
     document.getElementById('avnav-settings-svcnum').value = id.svcNum;
     document.getElementById('avnav-settings-role').value = id.avRole;
+    document.getElementById('avnav-settings-level').value = id.level;
     document.getElementById('avnav-settings-branch').value = id.branch;
     renderAvatarInto('avnav-settings-avatar-preview', id);
     updateThemeSwatches();
@@ -352,19 +356,22 @@
     var displayName = (document.getElementById('avnav-settings-name').value || '').trim();
     var svcNum = (document.getElementById('avnav-settings-svcnum').value || '').trim();
     var avRole = (document.getElementById('avnav-settings-role').value || '').trim();
+    var level = (document.getElementById('avnav-settings-level').value || '').trim();
     var branch = (document.getElementById('avnav-settings-branch').value || '').trim();
     if (!svcNum) { alert('Please enter your service number'); return; }
     if (!avRole) { alert('Please select your role'); return; }
+    if (!level) { alert('Please select your level'); return; }
     if (!_session) { alert('No active session — please reload'); return; }
     try {
       await sbFetch('profiles?id=eq.' + _session.user.id, {
         method: 'PATCH',
-        body: JSON.stringify({ display_name: displayName || null, svc_num: svcNum, av_role: avRole, branch: branch || null })
+        body: JSON.stringify({ display_name: displayName || null, svc_num: svcNum, av_role: avRole, level: level, branch: branch || null })
       });
       if (_profile) {
         _profile.display_name = displayName || null;
         _profile.svc_num = svcNum;
         _profile.av_role = avRole;
+        _profile.level = level;
         _profile.branch = branch || null;
       }
       renderUserCard();
@@ -531,7 +538,7 @@
     body.innerHTML = '<p style="text-align:center;color:var(--grey);padding:20px">Loading…</p>';
     modal.classList.add('open');
     try {
-      var profiles = await sbFetch('profiles?select=id,display_name,svc_num,branch,av_role,avatar_url,created_at&order=display_name.asc');
+      var profiles = await sbFetch('profiles?select=id,display_name,svc_num,branch,av_role,level,avatar_url,created_at&order=display_name.asc');
       var scenarios = await sbFetch('scenarios?is_builtin=eq.false&select=id,title,category,creator_uuid,created_at&order=created_at.desc');
       var byUser = {};
       scenarios.forEach(function (s) {
@@ -556,7 +563,7 @@
     }
     body.innerHTML = _adminUsers.map(function (p) {
       var userScenarios = _adminUsersScenarios[p.id] || [];
-      var meta = [p.av_role, p.branch].filter(Boolean).join(' · ');
+      var meta = [p.av_role, p.level, p.branch].filter(Boolean).join(' · ');
       var scenarioListHtml = userScenarios.length
         ? userScenarios.map(function (s) {
             return '<div class="avnav-scenario-item"><div><div class="avnav-scenario-title">' + escapeHtml(s.title) + '</div>' +
@@ -602,7 +609,8 @@
       '</div>' +
       '<div class="avnav-form-group"><label>Display Name</label><input type="text" id="avnav-edit-user-name" maxlength="60" value="' + escapeHtml(p.display_name || '') + '"></div>' +
       '<div class="avnav-form-group"><label>Service Number</label><input type="text" id="avnav-edit-user-svcnum" maxlength="20" value="' + escapeHtml(p.svc_num || '') + '"></div>' +
-      '<div class="avnav-form-group"><label>Role</label><select id="avnav-edit-user-role">' + roleOptionsHtml(p.av_role) + '</select></div>' +
+      '<div class="avnav-form-group"><label>Role</label><select id="avnav-edit-user-role">' + optionsHtml(AV_ROLES, p.av_role) + '</select></div>' +
+      '<div class="avnav-form-group"><label>Level</label><select id="avnav-edit-user-level">' + optionsHtml(AV_LEVELS, p.level) + '</select></div>' +
       '<div class="avnav-form-group"><label>Branch / Location</label><input type="text" id="avnav-edit-user-branch" maxlength="60" value="' + escapeHtml(p.branch || '') + '"></div>' +
       '<button class="avnav-submit-btn" onclick="AVNav.saveEditUser(\'' + p.id + '\')">💾 Save Changes</button>';
     modal.classList.add('open');
@@ -612,17 +620,19 @@
     var displayName = (document.getElementById('avnav-edit-user-name').value || '').trim();
     var svcNum = (document.getElementById('avnav-edit-user-svcnum').value || '').trim();
     var avRole = (document.getElementById('avnav-edit-user-role').value || '').trim();
+    var level = (document.getElementById('avnav-edit-user-level').value || '').trim();
     var branch = (document.getElementById('avnav-edit-user-branch').value || '').trim();
     try {
       await sbFetch('profiles?id=eq.' + encodeURIComponent(userId), {
         method: 'PATCH',
-        body: JSON.stringify({ display_name: displayName || null, svc_num: svcNum || null, av_role: avRole || null, branch: branch || null })
+        body: JSON.stringify({ display_name: displayName || null, svc_num: svcNum || null, av_role: avRole || null, level: level || null, branch: branch || null })
       });
       var p = _adminUsers.filter(function (u) { return u.id === userId; })[0];
       if (p) {
         p.display_name = displayName || null;
         p.svc_num = svcNum || null;
         p.av_role = avRole || null;
+        p.level = level || null;
         p.branch = branch || null;
       }
       document.getElementById('avnav-edit-user-modal').classList.remove('open');
@@ -631,6 +641,7 @@
         _profile.display_name = displayName || null;
         _profile.svc_num = svcNum || null;
         _profile.av_role = avRole || null;
+        _profile.level = level || null;
         _profile.branch = branch || null;
         renderUserCard();
       }
