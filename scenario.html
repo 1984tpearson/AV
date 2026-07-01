@@ -3911,6 +3911,7 @@ function renderSection1(s, isTrauma) {
 // RENDER SECTION 2
 // ============================================================
 function renderSection2(s) {
+  const _primaryCpgStr = (s.cpg || '').split(/[,/]/).map(c => c.trim()).filter(c => c && !(s.extra_cpgs||[]).includes(c)).join(', ');
   const hint = (val, key='') => {
     if (!val) return '';
     const abn = key ? isAbnormal(key, val) : false;
