@@ -7123,8 +7123,8 @@ async function completeSvcNum() {
   const branch  = (document.getElementById('profile-branch-input').value || '').trim();
   if (!svcNum)  { showToast('⚠️ Please enter your service number'); return; }
   if (!avRole)  { showToast('⚠️ Please select your role'); return; }
-  const { uuid } = getIdentity();
-  if (!uuid) return;
+  const uuid = _authSession?.user?.id;
+  if (!uuid) { showToast('⚠️ No active session — please reload'); return; }
   await sbFetch(`profiles?id=eq.${uuid}`, {
     method: 'PATCH',
     body: JSON.stringify({ svc_num: svcNum, av_role: avRole, branch: branch || null }),
