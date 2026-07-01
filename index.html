@@ -4,6 +4,10 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Paramedic Training Tools</title>
+<script>
+// Apply saved theme immediately to prevent flash
+(function(){const t=localStorage.getItem('av_theme');if(t&&t!=='default')document.documentElement.setAttribute('data-theme',t);})();
+</script>
 <style>
   :root {
     --navy: #1C3A6E;
@@ -401,6 +405,7 @@
     <div id="topbar-title">Paramedic Training Tools</div>
   </div>
   <button id="topbar-login-btn" style="margin-left:auto;background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.3);color:white;padding:7px 14px;border-radius:7px;cursor:pointer;font-size:13px;font-weight:600">Sign in</button>
+  <div id="avnav-slot" style="margin-left:8px"></div>
 </div>
 
 <!-- MAIN -->
@@ -552,5 +557,6 @@ const _sb = supabase.createClient(
 })();
 </script>
 
+<script src="nav.js"></script>
 </body>
 </html>

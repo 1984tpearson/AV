@@ -1,0 +1,478 @@
+// ============================================================
+// nav.js — Shared hamburger nav, sidebar, and Settings modal
+// for the Scenario Trainer suite (scenario.html, generator.html,
+// index.html). Self-contained: creates its own Supabase client
+// and reads the session independently of each page's own auth
+// variables, so it behaves identically everywhere it's included.
+//
+// Usage per page:
+//   1. Include the Supabase CDN script BEFORE this file.
+//   2. Add <div id="avnav-slot"></div> somewhere in the topbar.
+//   3. Add <script src="nav.js"></script> before </body>.
+//   4. (Optional but recommended) add the anti-flash theme
+//      snippet in <head> — see scenario.html for the pattern.
+// ============================================================
+(function () {
+  'use strict';
+
+  var SUPABASE_URL = 'https://befsjenbaruxqrntuhpn.supabase.co';
+  var SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJlZnNqZW5iYXJ1eHFybnR1aHBuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI2MjA5MjAsImV4cCI6MjA4ODE5NjkyMH0.hOFFbIvd1wAgu-QyghupQ-7ttSpg7sxz_UsJbXyXztA';
+  var ADMIN_UUID = 'fe1f2d3f-2139-44ec-bbe0-14ad6bb748ac';
+
+  if (typeof supabase === 'undefined') {
+    console.error('nav.js: supabase-js must be loaded before nav.js');
+    return;
+  }
+  var _sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+  var _session = null;
+  var _profile = null;
+
+  function escapeHtml(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+
+  async function sbFetch(path, opts) {
+    opts = opts || {};
+    var token = (_session && _session.access_token) || SUPABASE_KEY;
+    var res = await fetch(SUPABASE_URL + '/rest/v1/' + path, Object.assign({}, opts, {
+      headers: Object.assign({
+        'apikey': SUPABASE_KEY,
+        'Authorization': 'Bearer ' + token,
+        'Content-Type': 'application/json',
+        'Prefer': opts.prefer || 'return=representation'
+      }, opts.headers || {})
+    }));
+    if (!res.ok) {
+      var err = await res.json().catch(function () { return {}; });
+      throw new Error(err.message || ('Supabase error ' + res.status));
+    }
+    var text = await res.text();
+    return text ? JSON.parse(text) : [];
+  }
+
+  function isAdmin() {
+    return (_profile && _profile.role === 'admin') || (_session && _session.user.id === ADMIN_UUID);
+  }
+
+  function identity() {
+    return {
+      uuid: _session ? _session.user.id : '',
+      name: (_profile && _profile.display_name) || (_session && _session.user.email) || '',
+      svcNum: (_profile && _profile.svc_num) || '',
+      avRole: (_profile && _profile.av_role) || '',
+      branch: (_profile && _profile.branch) || '',
+      avatarUrl: (_profile && _profile.avatar_url) || ''
+    };
+  }
+
+  var THEME_CSS = ''
+    + '[data-theme="arctic"]{--navy:#0277BD;--navy-dark:#01579B;--navy-light:#0288D1;--amber:#0288D1;--amber-light:#E1F5FE;--btn-accent:#E87A00;--green:#00897B;--green-light:#E0F2F1;--blue:#1565C0;--blue-light:#E3F2FD;--purple:#6A1B9A;--purple-light:#F3E5F5;--red:#C62828;--red-light:#FFEBEE;--grey:#546E7A;--light:#EEF5FB;--white:#FFFFFF;--text:#0D2137;--border:#B8D4EA;--shadow:0 2px 8px rgba(2,119,189,0.13);}'
+    + '[data-theme="rose"]{--navy:#8B3A52;--navy-dark:#6B2A3E;--navy-light:#A84E68;--amber:#D45C78;--amber-light:#FDEEF2;--btn-accent:#D4A000;--green:#4A7C5A;--green-light:#EBF4EE;--blue:#3D6B9E;--blue-light:#E8F0F8;--purple:#7B4FA0;--purple-light:#F3ECF8;--red:#B71C3C;--red-light:#FDECF0;--grey:#8A6070;--light:#FDF5F7;--white:#FFFFFF;--text:#2A0D18;--border:#E8C8D0;--shadow:0 2px 8px rgba(139,58,82,0.12);}'
+    + '[data-theme="sage"]{--navy:#2D5A3D;--navy-dark:#1E3E2A;--navy-light:#3D7050;--amber:#3D8B5A;--amber-light:#EAF5EE;--btn-accent:#D47A00;--green:#2E7D52;--green-light:#E8F5EE;--blue:#2E6D9E;--blue-light:#E8F0F8;--purple:#5A3D8A;--purple-light:#F0ECF8;--red:#A62828;--red-light:#FDECEC;--grey:#6A8A72;--light:#F2F8F4;--white:#FFFFFF;--text:#0F2218;--border:#C0D9C8;--shadow:0 2px 8px rgba(45,90,61,0.12);}'
+    + '[data-theme="sand"]{--navy:#7C5A2A;--navy-dark:#5A3E18;--navy-light:#9A7038;--amber:#C8882A;--amber-light:#FDF3E3;--btn-accent:#C85A00;--green:#4A6A3A;--green-light:#EDF4E8;--blue:#3A6080;--blue-light:#E8EEF4;--purple:#6A4A7A;--purple-light:#F0ECF8;--red:#A03020;--red-light:#FDECEC;--grey:#8A7258;--light:#FAF6EE;--white:#FFFDF8;--text:#2C1A00;--border:#E0CFA8;--shadow:0 2px 8px rgba(124,90,42,0.12);}'
+    + '[data-theme="mint"]{--navy:#1A6B6B;--navy-dark:#0E4848;--navy-light:#228888;--amber:#00B8A0;--amber-light:#E0FAF6;--btn-accent:#E07000;--green:#1A9060;--green-light:#E0F5EC;--blue:#1A60A0;--blue-light:#E0EEF8;--purple:#5A3A8A;--purple-light:#F0ECF8;--red:#A02828;--red-light:#FDECEC;--grey:#4A8A80;--light:#F0FAF8;--white:#FFFFFF;--text:#082020;--border:#B0DDD8;--shadow:0 2px 8px rgba(26,107,107,0.13);}'
+    + '[data-theme="paper"]{--navy:#1A1A1A;--navy-dark:#000000;--navy-light:#333333;--amber:#333333;--amber-light:#EEECE8;--btn-accent:#1A5BAA;--green:#2A5A2A;--green-light:#E8F4E8;--blue:#1A3A6A;--blue-light:#E8EEF8;--purple:#3A1A6A;--purple-light:#F0ECF8;--red:#8A1A1A;--red-light:#FDECEC;--grey:#6A6A6A;--light:#F5F2ED;--white:#FDFBF7;--text:#111111;--border:#D8D0C4;--shadow:0 2px 8px rgba(0,0,0,0.10);}'
+    + '[data-theme="midnight"]{--navy:#0D1B2A;--navy-dark:#060E18;--navy-light:#162438;--amber:#00E5FF;--amber-light:rgba(0,229,255,0.12);--btn-accent:#00E5FF;--green:#00E676;--green-light:rgba(0,230,118,0.12);--blue:#448AFF;--blue-light:rgba(68,138,255,0.12);--purple:#E040FB;--purple-light:rgba(224,64,251,0.12);--red:#FF5252;--red-light:rgba(255,82,82,0.12);--grey:#7A90A8;--light:#162535;--white:#1E3048;--text:#DDE8F4;--border:#2A4060;--shadow:0 2px 12px rgba(0,0,0,0.6);}'
+    + '[data-theme="forest"]{--navy:#162618;--navy-dark:#0C1A0E;--navy-light:#1F3622;--amber:#FFD600;--amber-light:rgba(255,214,0,0.12);--btn-accent:#FFD600;--green:#69F0AE;--green-light:rgba(105,240,174,0.12);--blue:#40C4FF;--blue-light:rgba(64,196,255,0.12);--purple:#EA80FC;--purple-light:rgba(234,128,252,0.12);--red:#FF6E6E;--red-light:rgba(255,110,110,0.12);--grey:#7A9E80;--light:#1A3020;--white:#223828;--text:#E0EEE2;--border:#2E4A34;--shadow:0 2px 12px rgba(0,0,0,0.5);}'
+    + '[data-theme="ocean"]{--navy:#0A2038;--navy-dark:#061828;--navy-light:#0E2E4E;--amber:#00C8A0;--amber-light:rgba(0,200,160,0.12);--btn-accent:#00C8A0;--green:#00E676;--green-light:rgba(0,230,118,0.12);--blue:#40C4FF;--blue-light:rgba(64,196,255,0.12);--purple:#CE93D8;--purple-light:rgba(206,147,216,0.12);--red:#FF6E6E;--red-light:rgba(255,110,110,0.12);--grey:#5A8898;--light:#112438;--white:#183A54;--text:#CCE8F0;--border:#1E4468;--shadow:0 2px 12px rgba(0,0,0,0.6);}'
+    + '[data-theme="dusk"]{--navy:#2A1E3A;--navy-dark:#1A1228;--navy-light:#362850;--amber:#FF9A6C;--amber-light:rgba(255,154,108,0.12);--btn-accent:#FF9A6C;--green:#80CBC4;--green-light:rgba(128,203,196,0.12);--blue:#82B1FF;--blue-light:rgba(130,177,255,0.12);--purple:#CE93D8;--purple-light:rgba(206,147,216,0.12);--red:#FF8A80;--red-light:rgba(255,138,128,0.12);--grey:#8A7AA8;--light:#221830;--white:#302044;--text:#E8DCF4;--border:#44305E;--shadow:0 2px 12px rgba(0,0,0,0.55);}'
+    + '[data-theme="midnight"],[data-theme="forest"],[data-theme="ocean"],[data-theme="dusk"]{color-scheme:dark;}';
+
+  var THEME_LIST = [
+    ['default','Default','linear-gradient(135deg,#1C3A6E 50%,#E8921A 50%)'],
+    ['arctic','Arctic','linear-gradient(135deg,#0277BD 50%,#EEF5FB 50%)'],
+    ['rose','Rose','linear-gradient(135deg,#8B3A52 50%,#FDF5F7 50%)'],
+    ['sage','Sage','linear-gradient(135deg,#2D5A3D 50%,#F2F8F4 50%)'],
+    ['sand','Sand','linear-gradient(135deg,#7C5A2A 50%,#FAF6EE 50%)'],
+    ['mint','Mint','linear-gradient(135deg,#1A6B6B 50%,#F0FAF8 50%)'],
+    ['paper','Paper','linear-gradient(135deg,#1A1A1A 50%,#F5F2ED 50%)'],
+    ['midnight','Midnight','linear-gradient(135deg,#0D1B2A 50%,#00E5FF 50%)'],
+    ['forest','Forest','linear-gradient(135deg,#162618 50%,#FFD600 50%)'],
+    ['ocean','Ocean','linear-gradient(135deg,#0A2038 50%,#00C8A0 50%)'],
+    ['dusk','Dusk','linear-gradient(135deg,#2A1E3A 50%,#FF9A6C 50%)']
+  ];
+
+  var NAV_CSS = ''
+    + '#avnav-hamburger{background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.3);color:white;width:44px;height:44px;border-radius:8px;cursor:pointer;font-size:18px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}'
+    + '#avnav-hamburger:active{background:rgba(255,255,255,0.3);}'
+    + '#avnav-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:900;}'
+    + '#avnav-overlay.open{display:block;}'
+    + '#avnav-sidebar{width:300px;min-width:300px;background:var(--white);border-right:1px solid var(--border);display:flex;flex-direction:column;position:fixed;top:0;left:0;bottom:0;overflow-y:auto;z-index:901;transform:translateX(-100%);transition:transform 0.28s cubic-bezier(0.4,0,0.2,1);box-shadow:4px 0 20px rgba(0,0,0,0.15);}'
+    + '#avnav-sidebar.open{transform:translateX(0);}'
+    + '.avnav-user-card{display:flex;align-items:center;gap:10px;padding:16px;background:var(--navy);color:white;flex-shrink:0;}'
+    + '.avnav-avatar{width:44px;height:44px;border-radius:50%;background:rgba(255,255,255,0.18);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:16px;flex-shrink:0;overflow:hidden;}'
+    + '.avnav-avatar img{width:100%;height:100%;object-fit:cover;}'
+    + '.avnav-user-info{flex:1;min-width:0;}'
+    + '.avnav-user-name{font-size:14px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}'
+    + '.avnav-user-meta{font-size:11px;opacity:0.75;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px;}'
+    + '.avnav-admin-badge{display:inline-block;background:var(--amber);color:white;font-size:9px;font-weight:700;padding:1px 6px;border-radius:8px;margin-left:6px;vertical-align:middle;}'
+    + '.avnav-settings-btn{background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.3);color:white;width:36px;height:36px;border-radius:8px;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}'
+    + '.avnav-settings-btn:active{background:rgba(255,255,255,0.3);}'
+    + '.avnav-links{padding:6px 0;border-bottom:1px solid var(--border);}'
+    + '.avnav-link{display:flex;align-items:center;gap:10px;padding:12px 16px;font-size:13px;font-weight:600;color:var(--text);text-decoration:none;cursor:pointer;min-height:48px;}'
+    + '.avnav-link:active{background:var(--light);}'
+    + '.avnav-link .avnav-icon{width:20px;text-align:center;flex-shrink:0;}'
+    + '.avnav-bottom{margin-top:auto;padding:12px;border-top:2px solid var(--border);background:var(--light);flex-shrink:0;}'
+    + '.avnav-signout-btn{width:100%;padding:12px;border:none;border-radius:8px;font-weight:700;font-size:13px;cursor:pointer;background:var(--red);color:white;min-height:48px;}'
+    + '.avnav-signout-btn:active{opacity:0.85;}';
+
+  NAV_CSS += ''
+    + '.avnav-modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:950;align-items:center;justify-content:center;padding:16px;}'
+    + '.avnav-modal-overlay.open{display:flex;}'
+    + '.avnav-modal{background:var(--white);border-radius:12px;max-width:420px;width:100%;max-height:90vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,0.3);}'
+    + '.avnav-modal.avnav-modal-wide{max-width:520px;}'
+    + '.avnav-modal-header{background:var(--navy);color:white;padding:16px 20px;display:flex;align-items:center;justify-content:space-between;border-radius:12px 12px 0 0;gap:10px;}'
+    + '.avnav-modal-header h2{font-size:16px;font-weight:700;}'
+    + '.avnav-modal-close{background:rgba(255,255,255,0.15);border:none;color:white;width:28px;height:28px;border-radius:6px;cursor:pointer;font-size:14px;flex-shrink:0;}'
+    + '.avnav-modal-body{padding:20px;color:var(--text);}'
+    + '.avnav-form-group{margin-bottom:14px;}'
+    + '.avnav-form-group label{display:block;font-size:12px;font-weight:600;color:var(--grey);margin-bottom:5px;}'
+    + '.avnav-form-group input,.avnav-form-group select{width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-size:14px;font-family:inherit;background:var(--white);color:var(--text);}'
+    + '.avnav-readonly{font-size:13px;color:var(--grey);padding:6px 0;}'
+    + '.avnav-submit-btn{width:100%;padding:12px;background:var(--navy);color:white;border:none;border-radius:8px;font-weight:700;font-size:14px;cursor:pointer;min-height:44px;}'
+    + '.avnav-submit-btn:active{background:var(--navy-dark);}'
+    + '.avnav-avatar-upload-row{display:flex;align-items:center;gap:14px;margin-bottom:18px;}'
+    + '.avnav-avatar-preview{width:64px;height:64px;border-radius:50%;background:var(--light);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:20px;color:var(--navy);flex-shrink:0;overflow:hidden;}'
+    + '.avnav-avatar-preview img{width:100%;height:100%;object-fit:cover;}'
+    + '.avnav-avatar-upload-btn{background:var(--light);border:1px solid var(--border);color:var(--text);padding:8px 12px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;}'
+    + '.avnav-avatar-upload-btn:active{background:var(--border);}'
+    + '.avnav-avatar-hint{font-size:11px;color:var(--grey);margin-top:6px;}'
+    + '.avnav-theme-swatches{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;}'
+    + '.avnav-theme-swatch{width:100%;aspect-ratio:1;border-radius:8px;cursor:pointer;border:2px solid transparent;}'
+    + '.avnav-theme-swatch.active{border-color:var(--navy);}'
+    + '.avnav-scenario-item{display:flex;align-items:center;gap:8px;padding:10px 0;border-bottom:1px solid var(--border);}'
+    + '.avnav-scenario-title{font-size:13px;font-weight:600;color:var(--text);}'
+    + '.avnav-scenario-sub{font-size:11px;color:var(--grey);margin-top:2px;}'
+    + '.avnav-scenario-load-btn{padding:7px 11px;background:var(--light);color:var(--text);border:1px solid var(--border);border-radius:6px;font-size:12px;font-weight:600;text-decoration:none;flex-shrink:0;}'
+    + '.avnav-scenario-delete-btn{padding:7px 11px;background:var(--red-light);color:var(--red);border:1px solid var(--red);border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;flex-shrink:0;}'
+    + '.avnav-scenario-delete-btn:active{background:var(--red);color:white;}';
+
+  function injectStyle() {
+    var style = document.createElement('style');
+    style.textContent = THEME_CSS + NAV_CSS;
+    document.head.appendChild(style);
+  }
+
+  function swatchesHtml() {
+    return THEME_LIST.map(function (t) {
+      return '<div class="avnav-theme-swatch" data-theme="' + t[0] + '" title="' + t[1] + '" style="background:' + t[2] + '" onclick="AVNav.applyTheme(\'' + t[0] + '\')"></div>';
+    }).join('');
+  }
+
+  function injectMarkup() {
+    var slot = document.getElementById('avnav-slot');
+    if (slot) {
+      slot.innerHTML = '<button id="avnav-hamburger" onclick="AVNav.toggle()" title="Menu">☰</button>';
+    }
+
+    var wrap = document.createElement('div');
+    wrap.innerHTML =
+      '<div id="avnav-overlay" onclick="AVNav.close()"></div>' +
+      '<div id="avnav-sidebar">' +
+        '<div class="avnav-user-card">' +
+          '<div class="avnav-avatar" id="avnav-avatar">?</div>' +
+          '<div class="avnav-user-info">' +
+            '<div class="avnav-user-name"><span id="avnav-user-name-text">—</span><span class="avnav-admin-badge" id="avnav-admin-badge" style="display:none">ADMIN</span></div>' +
+            '<div class="avnav-user-meta" id="avnav-user-meta">—</div>' +
+          '</div>' +
+          '<button class="avnav-settings-btn" onclick="AVNav.openSettings()" title="Settings">⚙</button>' +
+        '</div>' +
+        '<div class="avnav-links">' +
+          '<a class="avnav-link" href="index.html"><span class="avnav-icon">🏠</span> Home</a>' +
+          '<a class="avnav-link" href="scenario.html"><span class="avnav-icon">📋</span> Scenario Viewer</a>' +
+          '<a class="avnav-link" href="generator.html"><span class="avnav-icon">✦</span> Scenario Generator</a>' +
+          '<a class="avnav-link" href="monitor.html" target="_blank"><span class="avnav-icon">🖥</span> Monitor / Second Screen</a>' +
+        '</div>' +
+        '<div class="avnav-links">' +
+          '<div class="avnav-link" onclick="AVNav.openMyScenarios()"><span class="avnav-icon">📁</span> My Scenarios</div>' +
+          '<div class="avnav-link" onclick="AVNav.openManageMine()"><span class="avnav-icon">⚙</span> Manage My Scenarios</div>' +
+        '</div>' +
+        '<div class="avnav-bottom"><button class="avnav-signout-btn" onclick="AVNav.signOut()">⎋ Sign out</button></div>' +
+      '</div>' +
+      '<div class="avnav-modal-overlay" id="avnav-settings-modal">' +
+        '<div class="avnav-modal">' +
+          '<div class="avnav-modal-header"><h2>⚙ Settings</h2><button class="avnav-modal-close" onclick="AVNav.closeSettings()">✕</button></div>' +
+          '<div class="avnav-modal-body">' +
+            '<div class="avnav-avatar-upload-row">' +
+              '<div class="avnav-avatar-preview" id="avnav-settings-avatar-preview">?</div>' +
+              '<div>' +
+                '<button class="avnav-avatar-upload-btn" onclick="document.getElementById(\'avnav-avatar-file-input\').click()">📷 Change Photo</button>' +
+                '<input type="file" id="avnav-avatar-file-input" accept="image/png,image/jpeg,image/webp,image/gif" style="display:none" onchange="AVNav.uploadAvatar(this.files[0])">' +
+                '<div class="avnav-avatar-hint">JPG, PNG, WebP or GIF, up to 2MB</div>' +
+              '</div>' +
+            '</div>' +
+            '<div class="avnav-form-group"><label>Email</label><div id="avnav-settings-email" class="avnav-readonly"></div></div>' +
+            '<div class="avnav-form-group"><label>Display Name</label><input type="text" id="avnav-settings-name" maxlength="60"></div>' +
+            '<div class="avnav-form-group"><label>Service Number *</label><input type="text" id="avnav-settings-svcnum" maxlength="20"></div>' +
+            '<div class="avnav-form-group"><label>Role *</label><select id="avnav-settings-role">' +
+              '<option value="">Select your role…</option>' +
+              '<option value="CI">Clinical Instructor (CI)</option>' +
+              '<option value="PE">Paramedic Educator (PE)</option>' +
+              '<option value="GAP">Graduate Ambulance Paramedic (GAP)</option>' +
+              '<option value="CSO">Clinical Support Officer (CSO)</option>' +
+              '<option value="Other">Other</option>' +
+            '</select></div>' +
+            '<div class="avnav-form-group"><label>Branch / Location</label><input type="text" id="avnav-settings-branch" maxlength="60"></div>' +
+            '<div class="avnav-form-group"><label>🎨 Theme</label><div class="avnav-theme-swatches" id="avnav-theme-swatches">' + swatchesHtml() + '</div></div>' +
+            '<button class="avnav-submit-btn" onclick="AVNav.saveSettings()">💾 Save Changes</button>' +
+          '</div>' +
+        '</div>' +
+      '</div>';
+    document.body.appendChild(wrap);
+
+    document.getElementById('avnav-settings-modal').addEventListener('click', function (e) {
+      if (e.target === e.currentTarget) AVNav.closeSettings();
+    });
+  }
+
+  function toggle() {
+    var sb = document.getElementById('avnav-sidebar');
+    var ov = document.getElementById('avnav-overlay');
+    var open = sb.classList.contains('open');
+    sb.classList.toggle('open', !open);
+    ov.classList.toggle('open', !open);
+  }
+  function close() {
+    document.getElementById('avnav-sidebar').classList.remove('open');
+    document.getElementById('avnav-overlay').classList.remove('open');
+  }
+
+  function applyTheme(theme) {
+    if (theme === 'default') document.documentElement.removeAttribute('data-theme');
+    else document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('av_theme', theme);
+    updateThemeSwatches();
+  }
+  function initTheme() { updateThemeSwatches(); }
+  function updateThemeSwatches() {
+    var active = localStorage.getItem('av_theme') || 'default';
+    document.querySelectorAll('.avnav-theme-swatch').forEach(function (el) {
+      el.classList.toggle('active', el.dataset.theme === active);
+    });
+  }
+
+  function renderAvatarInto(elId, id) {
+    var el = document.getElementById(elId);
+    if (!el) return;
+    if (id.avatarUrl) {
+      el.innerHTML = '<img src="' + id.avatarUrl + '" alt="">';
+    } else {
+      var initials = (id.name || '').split(/\s+/).filter(Boolean).map(function (w) { return w[0]; }).slice(0, 2).join('').toUpperCase() || '?';
+      el.textContent = initials;
+    }
+  }
+
+  function renderUserCard() {
+    var id = identity();
+    var nameEl = document.getElementById('avnav-user-name-text');
+    if (!nameEl) return;
+    nameEl.textContent = id.name || 'Unknown';
+    var meta = [id.avRole, id.branch].filter(Boolean).join(' · ') || (id.svcNum ? 'Service #' + id.svcNum : '');
+    document.getElementById('avnav-user-meta').textContent = meta;
+    var badge = document.getElementById('avnav-admin-badge');
+    if (badge) badge.style.display = isAdmin() ? 'inline-block' : 'none';
+    renderAvatarInto('avnav-avatar', id);
+  }
+
+  function openSettings() {
+    var id = identity();
+    document.getElementById('avnav-settings-email').textContent = (_session && _session.user.email) || '';
+    document.getElementById('avnav-settings-name').value = (_profile && _profile.display_name) || '';
+    document.getElementById('avnav-settings-svcnum').value = id.svcNum;
+    document.getElementById('avnav-settings-role').value = id.avRole;
+    document.getElementById('avnav-settings-branch').value = id.branch;
+    renderAvatarInto('avnav-settings-avatar-preview', id);
+    updateThemeSwatches();
+    close();
+    document.getElementById('avnav-settings-modal').classList.add('open');
+  }
+  function closeSettings() {
+    document.getElementById('avnav-settings-modal').classList.remove('open');
+  }
+
+  async function saveSettings() {
+    var displayName = (document.getElementById('avnav-settings-name').value || '').trim();
+    var svcNum = (document.getElementById('avnav-settings-svcnum').value || '').trim();
+    var avRole = (document.getElementById('avnav-settings-role').value || '').trim();
+    var branch = (document.getElementById('avnav-settings-branch').value || '').trim();
+    if (!svcNum) { alert('Please enter your service number'); return; }
+    if (!avRole) { alert('Please select your role'); return; }
+    if (!_session) { alert('No active session — please reload'); return; }
+    try {
+      await sbFetch('profiles?id=eq.' + _session.user.id, {
+        method: 'PATCH',
+        body: JSON.stringify({ display_name: displayName || null, svc_num: svcNum, av_role: avRole, branch: branch || null })
+      });
+      if (_profile) {
+        _profile.display_name = displayName || null;
+        _profile.svc_num = svcNum;
+        _profile.av_role = avRole;
+        _profile.branch = branch || null;
+      }
+      renderUserCard();
+      closeSettings();
+    } catch (e) {
+      alert('Failed to save: ' + e.message);
+    }
+  }
+
+  async function uploadAvatar(file) {
+    if (!file) return;
+    if (!_session) { alert('No active session'); return; }
+    if (file.size > 2 * 1024 * 1024) { alert('Image must be under 2MB'); return; }
+    var ext = (file.name.split('.').pop() || 'png').toLowerCase();
+    var path = _session.user.id + '/' + Date.now() + '.' + ext;
+    var prevUrl = _profile && _profile.avatar_url;
+    try {
+      var up = await _sb.storage.from('avatars').upload(path, file, { contentType: file.type });
+      if (up.error) throw up.error;
+      var pub = _sb.storage.from('avatars').getPublicUrl(path);
+      var publicUrl = pub.data.publicUrl;
+      await sbFetch('profiles?id=eq.' + _session.user.id, {
+        method: 'PATCH',
+        body: JSON.stringify({ avatar_url: publicUrl })
+      });
+      if (_profile) _profile.avatar_url = publicUrl;
+      renderUserCard();
+      renderAvatarInto('avnav-settings-avatar-preview', identity());
+      if (prevUrl) {
+        var marker = '/object/public/avatars/';
+        var idx = prevUrl.indexOf(marker);
+        if (idx >= 0) {
+          var oldPath = prevUrl.slice(idx + marker.length);
+          _sb.storage.from('avatars').remove([oldPath]).catch(function () {});
+        }
+      }
+    } catch (e) {
+      alert('Avatar upload failed: ' + e.message);
+    }
+  }
+
+  function ensureModal(id, title) {
+    var modal = document.getElementById(id);
+    if (!modal) {
+      modal = document.createElement('div');
+      modal.id = id;
+      modal.className = 'avnav-modal-overlay';
+      modal.innerHTML = '<div class="avnav-modal avnav-modal-wide">' +
+        '<div class="avnav-modal-header"><h2 id="' + id + '-title"></h2>' +
+        '<button class="avnav-modal-close" onclick="document.getElementById(\'' + id + '\').classList.remove(\'open\')">✕</button></div>' +
+        '<div class="avnav-modal-body"></div></div>';
+      modal.addEventListener('click', function (e) { if (e.target === modal) modal.classList.remove('open'); });
+      document.body.appendChild(modal);
+    }
+    document.getElementById(id + '-title').textContent = title;
+    return modal;
+  }
+
+  async function openMyScenarios() {
+    close();
+    var modal = ensureModal('avnav-myscenarios-modal', '📁 My Scenarios');
+    var body = modal.querySelector('.avnav-modal-body');
+    body.innerHTML = '<p style="text-align:center;color:var(--grey);padding:20px">Loading…</p>';
+    modal.classList.add('open');
+    try {
+      var uuid = _session ? _session.user.id : '';
+      var rows = await sbFetch('scenarios?is_builtin=eq.false&creator_uuid=eq.' + encodeURIComponent(uuid) +
+        '&select=id,title,subtitle,category,ai_generated,created_at&order=created_at.desc');
+      if (!rows.length) {
+        body.innerHTML = '<div style="text-align:center;padding:24px;color:var(--grey)"><div style="font-size:36px;margin-bottom:12px">📋</div><p>You haven\u2019t created any scenarios yet.</p></div>';
+        return;
+      }
+      body.innerHTML = rows.map(function (s) {
+        return '<div class="avnav-scenario-item"><div><div class="avnav-scenario-title">' + escapeHtml(s.title) + '</div>' +
+          '<div class="avnav-scenario-sub">' + escapeHtml(s.subtitle || s.category || '') + (s.ai_generated ? ' · AI' : ' · Manual') + '</div></div>' +
+          '<a class="avnav-scenario-load-btn" href="scenario.html?id=' + encodeURIComponent(s.id) + '">Load</a></div>';
+      }).join('');
+    } catch (e) {
+      body.innerHTML = '<p style="color:var(--red);padding:16px">Failed to load: ' + escapeHtml(e.message) + '</p>';
+    }
+  }
+
+  async function openManageMine() {
+    close();
+    var admin = isAdmin();
+    var modal = ensureModal('avnav-manage-modal', admin ? '⚙ Manage My Scenarios (Admin: all users)' : '⚙ Manage My Scenarios');
+    var body = modal.querySelector('.avnav-modal-body');
+    body.innerHTML = '<p style="text-align:center;color:var(--grey);padding:20px">Loading…</p>';
+    modal.classList.add('open');
+    try {
+      var uuid = _session ? _session.user.id : '';
+      var filter = admin ? '' : ('&creator_uuid=eq.' + encodeURIComponent(uuid));
+      var rows = await sbFetch('scenarios?is_builtin=eq.false' + filter +
+        '&select=id,title,subtitle,category,creator_name,ai_generated,created_at&order=created_at.desc');
+      if (!rows.length) {
+        body.innerHTML = '<div style="text-align:center;padding:24px;color:var(--grey)"><div style="font-size:36px;margin-bottom:12px">📋</div><p>No custom scenarios yet.</p></div>';
+        return;
+      }
+      body.innerHTML = '<p style="font-size:12px;color:var(--grey);margin-bottom:12px">' + rows.length + ' scenario' + (rows.length !== 1 ? 's' : '') + '.</p>' +
+        rows.map(function (s) {
+          return '<div class="avnav-scenario-item"><div><div class="avnav-scenario-title">' + escapeHtml(s.title) + '</div>' +
+            '<div class="avnav-scenario-sub">' + escapeHtml(s.subtitle || s.category || '') + (admin ? ' · ' + escapeHtml(s.creator_name || 'Unknown') : '') + '</div></div>' +
+            '<a class="avnav-scenario-load-btn" href="scenario.html?id=' + encodeURIComponent(s.id) + '">Load</a>' +
+            '<button class="avnav-scenario-delete-btn" onclick="AVNav.deleteScenario(\'' + s.id + '\')">Delete</button></div>';
+        }).join('');
+    } catch (e) {
+      body.innerHTML = '<p style="color:var(--red);padding:16px">Failed to load: ' + escapeHtml(e.message) + '</p>';
+    }
+  }
+
+  async function deleteScenario(id) {
+    if (!confirm('Delete this scenario? This cannot be undone.')) return;
+    try {
+      await sbFetch('scenarios?id=eq.' + encodeURIComponent(id), { method: 'DELETE', prefer: 'return=minimal' });
+      if (/scenario\.html/i.test(window.location.pathname)) window.location.reload();
+      else openManageMine();
+    } catch (e) {
+      alert('Delete failed: ' + e.message);
+    }
+  }
+
+  async function signOut() {
+    await _sb.auth.signOut();
+    window.location.href = 'login.html';
+  }
+
+  async function init() {
+    injectStyle();
+    injectMarkup();
+    initTheme();
+
+    var loginBtn = document.getElementById('topbar-login-btn');
+
+    var sessionResult = await _sb.auth.getSession();
+    _session = sessionResult.data.session;
+
+    if (_session) {
+      var profileResult = await _sb.from('profiles').select('*').eq('id', _session.user.id).single();
+      _profile = profileResult.data;
+      renderUserCard();
+      if (loginBtn) loginBtn.style.display = 'none';
+    }
+    // If there's no session, the hamburger slot is left empty and
+    // any page-local "Sign in" button (e.g. index.html) stays visible.
+  }
+
+  window.AVNav = {
+    toggle: toggle,
+    close: close,
+    openSettings: openSettings,
+    closeSettings: closeSettings,
+    saveSettings: saveSettings,
+    uploadAvatar: uploadAvatar,
+    openMyScenarios: openMyScenarios,
+    openManageMine: openManageMine,
+    deleteScenario: deleteScenario,
+    signOut: signOut,
+    applyTheme: applyTheme
+  };
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+})();
