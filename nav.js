@@ -216,6 +216,7 @@
         '<div class="avnav-links">' +
           '<div class="avnav-link" onclick="AVNav.openMyScenarios()"><span class="avnav-icon">📁</span> My Scenarios</div>' +
           '<div class="avnav-link" onclick="AVNav.openManageMine()"><span class="avnav-icon">⚙</span> Manage My Scenarios</div>' +
+          '<div class="avnav-link" id="avnav-users-link" style="display:none" onclick="AVNav.openUsers()"><span class="avnav-icon">👥</span> Users</div>' +
         '</div>' +
         '<div class="avnav-bottom"><button class="avnav-signout-btn" onclick="AVNav.signOut()">⎋ Sign out</button></div>' +
       '</div>' +
@@ -302,6 +303,8 @@
     document.getElementById('avnav-user-meta').textContent = meta;
     var badge = document.getElementById('avnav-admin-badge');
     if (badge) badge.style.display = isAdmin() ? 'inline-block' : 'none';
+    var usersLink = document.getElementById('avnav-users-link');
+    if (usersLink) usersLink.style.display = isAdmin() ? 'flex' : 'none';
     renderAvatarInto('avnav-avatar', id);
   }
 
@@ -486,6 +489,47 @@
     }
   }
 
+  async function openUsers() {
+    close();
+    if (!isAdmin()) return;
+    var modal = ensureModal('avnav-users-modal', '👥 Users');
+    var body = modal.querySelector('.avnav-modal-body');
+    body.innerHTML = '<p style="text-align:center;color:var(--grey);padding:20px">Loading…</p>';
+    modal.classList.add('open');
+    try {
+      var profiles = await sbFetch('profiles?select=id,display_name,svc_num,branch,av_role,created_at&order=display_name.asc');
+      var scenarios = await sbFetch('scenarios?is_builtin=eq.false&select=id,title,category,creator_uuid,created_at&order=created_at.desc');
+      var byUser = {};
+      scenarios.forEach(function (s) {
+        var key = s.creator_uuid || '';
+        (byUser[key] = byUser[key] || []).push(s);
+      });
+      if (!profiles.length) {
+        body.innerHTML = '<div style="text-align:center;padding:24px;color:var(--grey)"><div style="font-size:36px;margin-bottom:12px">👥</div><p>No users found.</p></div>';
+        return;
+      }
+      body.innerHTML = profiles.map(function (p) {
+        var userScenarios = byUser[p.id] || [];
+        var meta = [p.av_role, p.branch].filter(Boolean).join(' · ');
+        var scenarioListHtml = userScenarios.length
+          ? userScenarios.map(function (s) {
+              return '<div class="avnav-scenario-item"><div><div class="avnav-scenario-title">' + escapeHtml(s.title) + '</div>' +
+                '<div class="avnav-scenario-sub">' + escapeHtml(s.category || '') + '</div></div>' +
+                '<a class="avnav-scenario-load-btn" href="scenario.html?id=' + encodeURIComponent(s.id) + '">Load</a></div>';
+            }).join('')
+          : '<p style="font-size:12px;color:var(--grey);padding:8px 0 0">No scenarios created.</p>';
+        return '<div style="margin-bottom:20px;padding-bottom:16px;border-bottom:2px solid var(--border)">' +
+          '<div style="font-weight:700;font-size:14px;color:var(--text)">' + escapeHtml(p.display_name || 'Unnamed') + '</div>' +
+          '<div style="font-size:11px;color:var(--grey);margin-bottom:8px">' + (p.svc_num ? 'Service #' + escapeHtml(p.svc_num) : 'No service number') + (meta ? ' · ' + escapeHtml(meta) : '') + '</div>' +
+          '<div style="font-size:11px;color:var(--grey);margin-bottom:6px">' + userScenarios.length + ' scenario' + (userScenarios.length !== 1 ? 's' : '') + '</div>' +
+          scenarioListHtml +
+        '</div>';
+      }).join('');
+    } catch (e) {
+      body.innerHTML = '<p style="color:var(--red);padding:16px">Failed to load: ' + escapeHtml(e.message) + '</p>';
+    }
+  }
+
   async function deleteScenario(id) {
     if (!confirm('Delete this scenario? This cannot be undone.')) return;
     try {
@@ -533,6 +577,7 @@
     selectPresetAvatar: selectPresetAvatar,
     openMyScenarios: openMyScenarios,
     openManageMine: openManageMine,
+    openUsers: openUsers,
     deleteScenario: deleteScenario,
     signOut: signOut,
     applyTheme: applyTheme
