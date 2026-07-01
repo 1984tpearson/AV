@@ -3282,7 +3282,7 @@ function renderScenario(s) {
     ${paedAgeSelector}
     <div class="sh-badges">
       <span class="badge" style="background:${catBg[s.category]||'#1C3A6E'}">${s.category}${s.subcategory ? ' — '+s.subcategory : ''}</span>
-      ${s.cpg?`<span class="badge amber-badge">${getCPGLabel(s.cpg)}</span>`:''}
+      ${_primaryCpgStr?`<span class="badge amber-badge">${getCPGLabel(_primaryCpgStr)}</span>`:''}
       <select id="grad-level" onchange="applyLevel(this.value)" style="appearance:auto;-webkit-appearance:auto;background:rgba(255,255,255,0.18);border:1px solid rgba(255,255,255,0.35);color:white;padding:3px 8px;border-radius:14px;font-size:11px;font-weight:700;cursor:pointer;outline:none"><option value="A" style="color:#1a1a2e">Level A</option><option value="B" style="color:#1a1a2e">Level B</option><option value="C" style="color:#1a1a2e">Level C</option><option value="D" selected style="color:#1a1a2e">Level D</option></select>
       ${s.ai_generated?`<span class="ai-generated-badge">✦ AI</span>${s.created_at ? `<span style="font-size:10px;color:rgba(255,255,255,0.4);font-weight:400;margin-left:1px">${(d => d.getDate().toString().padStart(2,'0')+'/'+(d.getMonth()+1).toString().padStart(2,'0')+'/'+(d.getFullYear().toString().slice(2)))(new Date(s.created_at))}</span>` : ''}`:'' }
       ${s.custom&&!s.ai_generated?'<span class="badge custom-badge">Custom</span>':''}
