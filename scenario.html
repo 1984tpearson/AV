@@ -3203,6 +3203,8 @@ function randomAustralianPatient(category) {
 // ============================================================
 function renderScenario(s) {
   const isCustom = s.custom || s.ai_generated;
+  // Primary CPG codes only (excludes AI-suggested extra_cpgs) — used in header badge and management row
+  const _primaryCpgStr = (s.cpg || '').split(/[,/]/).map(c => c.trim()).filter(c => c && !(s.extra_cpgs||[]).includes(c)).join(', ');
   const catBg = { 'Adult':'#1C3A6E', 'Paediatric':'#2E86C1', 'Maternity':'#7D3C98', 'Newborn':'#1E8449', 'Treat and Refer':'#4E342E' };
   const isTrauma = (s.subcategory === 'Trauma' || s.category === 'Paediatric' && s.subcategory === 'Trauma');
 
@@ -3949,8 +3951,7 @@ function renderSection2(s) {
   const _legacyAlsHtml = !_scenPkgKeys.length ? (s.treatment_als||s.treatment||[]).filter(Boolean).map(t=>`<li>${t}</li>`).join('') : '';
   const _legacyMicaHtml = !_scenPkgKeys.length ? (s.treatment_mica||[]).filter(Boolean).map(t=>`<li>${t}</li>`).join('') : '';
   const treatCollapsiblesHtml = renderCPGCollapsibles(_mgmtResult, s.extra_cpgs || []);
-  // Primary CPG codes only — excludes AI-suggested additional CPGs (used for the "Appropriate management" badge)
-  const _primaryCpgStr = (s.cpg || '').split(/[,/]/).map(c => c.trim()).filter(c => c && !(s.extra_cpgs||[]).includes(c)).join(', ');
+  // _primaryCpgStr defined at top of renderScenario
 
   return `
   <div class="section">
