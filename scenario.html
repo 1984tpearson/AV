@@ -275,7 +275,22 @@ body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background
 .sidebar-bottom-btn.amber { background: var(--amber); color: white; }
 .sidebar-bottom-btn.green { background: var(--green); color: white; }
 .sidebar-bottom-btn.purple { background: var(--purple); color: white; }
+.sidebar-bottom-btn.red { background: var(--red); color: white; }
 .sidebar-bottom-btn:active { opacity: 0.85; }
+
+/* ============================================================ SIDEBAR — USER CARD & NAV */
+.sidebar-user-card { display: flex; align-items: center; gap: 10px; padding: 14px 16px; background: var(--navy); color: white; border-bottom: 1px solid rgba(255,255,255,0.15); }
+.sidebar-user-avatar { width: 40px; height: 40px; border-radius: 50%; background: rgba(255,255,255,0.18); display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 15px; flex-shrink: 0; }
+.sidebar-user-info { flex: 1; min-width: 0; }
+.sidebar-user-name { font-size: 13px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sidebar-user-meta { font-size: 11px; opacity: 0.75; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 1px; }
+.sidebar-admin-badge { display: inline-block; background: var(--amber); color: white; font-size: 9px; font-weight: 700; padding: 1px 6px; border-radius: 8px; margin-left: 6px; vertical-align: middle; }
+.sidebar-edit-profile-btn { background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.3); color: white; width: 32px; height: 32px; border-radius: 8px; cursor: pointer; font-size: 14px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.sidebar-edit-profile-btn:active { background: rgba(255,255,255,0.3); }
+.sidebar-nav { padding: 6px 0; border-bottom: 1px solid var(--border); }
+.sidebar-nav-link { display: flex; align-items: center; gap: 10px; padding: 11px 16px; font-size: 13px; font-weight: 600; color: var(--text); text-decoration: none; cursor: pointer; min-height: var(--tap); }
+.sidebar-nav-link:active { background: var(--light); }
+.sidebar-nav-link .nav-icon { width: 20px; text-align: center; flex-shrink: 0; }
 
 /* ============================================================ CONTENT */
 #content { flex: 1; padding: 16px; min-height: calc(100vh - 56px); width: 100%; }
@@ -1117,7 +1132,6 @@ body.flag-mode-active .flaggable.has-correction:hover { outline: 2px solid var(-
   <div class="topbar-actions">
     <a class="tb-btn" id="ai-toggle-btn" href="generator.html">✦ Create New Case</a>
     <button class="tb-btn" onclick="openFeedbackModal()" style="background:rgba(125,60,152,0.6)" title="Send feedback or suggestion">💬 Feedback</button>
-    <button class="tb-btn" onclick="signOut()" style="background:rgba(255,255,255,0.15)" title="Sign out">⎋ Sign out</button>
   </div>
 </div>
 
@@ -1125,6 +1139,21 @@ body.flag-mode-active .flaggable.has-correction:hover { outline: 2px solid var(-
 
 <div id="sidebar-overlay" onclick="closeSidebar()"></div>
 <div id="sidebar">
+  <div class="sidebar-user-card">
+    <div class="sidebar-user-avatar" id="sidebar-user-avatar">?</div>
+    <div class="sidebar-user-info">
+      <div class="sidebar-user-name"><span id="sidebar-user-name-text">—</span><span class="sidebar-admin-badge" id="sidebar-admin-badge" style="display:none">ADMIN</span></div>
+      <div class="sidebar-user-meta" id="sidebar-user-meta">—</div>
+    </div>
+    <button class="sidebar-edit-profile-btn" onclick="openProfileModal()" title="Edit profile">✎</button>
+  </div>
+  <div class="sidebar-nav">
+    <div class="sidebar-nav-link" onclick="closeSidebar();goHome()"><span class="nav-icon">🏠</span> Home</div>
+    <a class="sidebar-nav-link" href="generator.html"><span class="nav-icon">✦</span> Create New Case</a>
+    <div class="sidebar-nav-link" onclick="closeSidebar();openCreateModal()"><span class="nav-icon">✏️</span> Create Manually</div>
+    <div class="sidebar-nav-link" onclick="closeSidebar();openManageModal()"><span class="nav-icon">⚙</span> Manage Custom</div>
+    <a class="sidebar-nav-link" href="monitor.html" target="_blank"><span class="nav-icon">🖥</span> Monitor / Second Screen</a>
+  </div>
   <div id="sidebar-header"><h2>Scenario Library</h2></div>
   <div id="search-box"><input type="text" id="search-input" placeholder="Search scenarios…" oninput="filterScenarios(this.value)"></div>
   <div id="scenario-list"></div>
@@ -1145,9 +1174,7 @@ body.flag-mode-active .flaggable.has-correction:hover { outline: 2px solid var(-
         <div class="theme-swatch" data-theme="dusk"     title="Dusk"     style="background:linear-gradient(135deg,#2A1E3A 50%,#FF9A6C 50%)" onclick="applyTheme('dusk')"></div>
       </div>
     </div>
-    <a class="sidebar-bottom-btn amber" href="generator.html">✦ Create New Case</a>
-    <button class="sidebar-bottom-btn green" onclick="closeSidebar();openCreateModal()">✏️ Create Manually</button>
-    <button class="sidebar-bottom-btn purple" onclick="closeSidebar();openManageModal()">⚙ Manage Custom</button>
+    <button class="sidebar-bottom-btn red" onclick="signOut()">⎋ Sign out</button>
   </div>
 </div>
 
@@ -1385,6 +1412,46 @@ body.flag-mode-active .flaggable.has-correction:hover { outline: 2px solid var(-
         <input type="text" id="profile-branch-input" placeholder="e.g. Wangaratta" style="font-size:15px" maxlength="60">
       </div>
       <button class="modal-submit-btn navy" onclick="completeSvcNum()" style="width:100%;font-size:15px">Save &amp; continue →</button>
+    </div>
+  </div>
+</div>
+
+<!-- PROFILE EDIT MODAL -->
+<div class="modal-overlay" id="profile-edit-modal">
+  <div class="modal-inner" style="max-width:420px">
+    <div class="modal-header" style="background:var(--navy)">
+      <h2 style="font-size:17px">👤 My Profile</h2>
+      <button class="modal-close" onclick="closeProfileModal()">✕</button>
+    </div>
+    <div class="modal-body" style="padding:20px 24px">
+      <div class="form-group" style="margin-bottom:12px">
+        <label>Email</label>
+        <div id="profile-edit-email" style="font-size:13px;color:var(--grey);padding:8px 0"></div>
+      </div>
+      <div class="form-group" style="margin-bottom:12px">
+        <label>Display Name</label>
+        <input type="text" id="profile-edit-name-input" placeholder="e.g. Sarah Jones" style="font-size:15px" maxlength="60">
+      </div>
+      <div class="form-group" style="margin-bottom:12px">
+        <label>Service Number <span style="color:var(--red)">*</span></label>
+        <input type="text" id="profile-edit-svcnum-input" placeholder="e.g. 12345" style="font-size:15px" maxlength="20">
+      </div>
+      <div class="form-group" style="margin-bottom:12px">
+        <label>Role <span style="color:var(--red)">*</span></label>
+        <select id="profile-edit-role-input" style="font-size:15px">
+          <option value="">Select your role…</option>
+          <option value="CI">Clinical Instructor (CI)</option>
+          <option value="PE">Paramedic Educator (PE)</option>
+          <option value="GAP">Graduate Ambulance Paramedic (GAP)</option>
+          <option value="CSO">Clinical Support Officer (CSO)</option>
+          <option value="Other">Other</option>
+        </select>
+      </div>
+      <div class="form-group" style="margin-bottom:16px">
+        <label>Branch / Location</label>
+        <input type="text" id="profile-edit-branch-input" placeholder="e.g. Wangaratta" style="font-size:15px" maxlength="60">
+      </div>
+      <button class="modal-submit-btn navy" onclick="saveProfileEdit()" style="width:100%;font-size:15px">💾 Save Changes</button>
     </div>
   </div>
 </div>
@@ -2095,6 +2162,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 async function initApp() {
+  renderSidebarUserCard();
   showToast('☁️ Loading scenarios…', 3000);
   await seedBuiltinsIfNeeded();
 
@@ -7097,6 +7165,63 @@ async function completeSvcNum() {
   }
   document.getElementById('svcnum-modal').classList.remove('open');
   await initApp();
+}
+
+function renderSidebarUserCard() {
+  const id = getIdentity();
+  const nameEl  = document.getElementById('sidebar-user-name-text');
+  const metaEl  = document.getElementById('sidebar-user-meta');
+  const avEl    = document.getElementById('sidebar-user-avatar');
+  const badgeEl = document.getElementById('sidebar-admin-badge');
+  if (!nameEl) return;
+  const name = id.name || 'Unknown';
+  nameEl.textContent = name;
+  const metaParts = [];
+  if (id.avRole) metaParts.push(id.avRole);
+  if (id.branch) metaParts.push(id.branch);
+  metaEl.textContent = metaParts.join(' · ') || (id.svcNum ? `Service #${id.svcNum}` : '');
+  avEl.textContent = name.split(/\s+/).filter(Boolean).map(w => w[0]).slice(0, 2).join('').toUpperCase() || '?';
+  if (badgeEl) badgeEl.style.display = isAdmin() ? 'inline-block' : 'none';
+}
+
+function openProfileModal() {
+  document.getElementById('profile-edit-email').textContent = _authSession?.user?.email || '';
+  document.getElementById('profile-edit-name-input').value = _authProfile?.display_name || '';
+  document.getElementById('profile-edit-svcnum-input').value = _authProfile?.svc_num || '';
+  document.getElementById('profile-edit-role-input').value = _authProfile?.av_role || '';
+  document.getElementById('profile-edit-branch-input').value = _authProfile?.branch || '';
+  closeSidebar();
+  document.getElementById('profile-edit-modal').classList.add('open');
+}
+function closeProfileModal() {
+  document.getElementById('profile-edit-modal').classList.remove('open');
+}
+async function saveProfileEdit() {
+  const displayName = (document.getElementById('profile-edit-name-input').value || '').trim();
+  const svcNum = (document.getElementById('profile-edit-svcnum-input').value || '').trim();
+  const avRole = (document.getElementById('profile-edit-role-input').value || '').trim();
+  const branch = (document.getElementById('profile-edit-branch-input').value || '').trim();
+  if (!svcNum) { showToast('⚠️ Please enter your service number'); return; }
+  if (!avRole) { showToast('⚠️ Please select your role'); return; }
+  const uuid = _authSession?.user?.id;
+  if (!uuid) { showToast('⚠️ No active session — please reload'); return; }
+  try {
+    await sbFetch(`profiles?id=eq.${uuid}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ display_name: displayName || null, svc_num: svcNum, av_role: avRole, branch: branch || null }),
+    });
+    if (_authProfile) {
+      _authProfile.display_name = displayName || null;
+      _authProfile.svc_num = svcNum;
+      _authProfile.av_role = avRole;
+      _authProfile.branch = branch || null;
+    }
+    renderSidebarUserCard();
+    closeProfileModal();
+    showToast('✅ Profile updated');
+  } catch (e) {
+    showToast('⚠️ Failed to save: ' + e.message);
+  }
 }
 function saveIdentityAndStart() {}
 
