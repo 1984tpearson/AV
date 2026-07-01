@@ -95,6 +95,29 @@
     ['dusk','Dusk','linear-gradient(135deg,#2A1E3A 50%,#FF9A6C 50%)']
   ];
 
+  // Pre-made avatar images living in /avatars on the deployed site.
+  // Hardcoded list — GitHub Pages has no directory-listing API.
+  var PRESET_AVATARS = [
+    'pixellab-colourful-comic-book-style-clo-1782880385465.png',
+    'pixellab-colourful-comic-book-style-clo-1782880557678.png',
+    'pixellab-colourful-comic-book-style-clo-1782880591652.png',
+    'pixellab-colourful-comic-book-style-clo-1782880626100.png',
+    'pixellab-colourful-comic-book-style-clo-1782880658631.png',
+    'pixellab-colourful-comic-book-style-clo-1782880767231.png',
+    'pixellab-colourful-comic-book-style-clo-1782880813234.png',
+    'pixellab-colourful-comic-book-style-clo-1782880854386.png',
+    'pixellab-colourful-comic-book-style-clo-1782880889045.png',
+    'pixellab-colourful-comic-book-style-clo-1782880919712.png',
+    'pixellab-colourful-comic-book-style-clo-1782881079295.png',
+    'pixellab-colourful-comic-book-style-clo-1782881229101.png',
+    'pixellab-colourful-comic-book-style-clo-1782881317919.png',
+    'pixellab-colourful-comic-book-style-clo-1782881356639.png',
+    'pixellab-colourful-comic-book-style-clo-1782881399033.png',
+    'pixellab-colourful-comic-book-style-clo-1782881468621.png',
+    'pixellab-colourful-comic-book-style-clo-1782881752735.png',
+    'pixellab-colourful-comic-book-style-clo-1782881821786.png'
+  ];
+
   var NAV_CSS = ''
     + '#avnav-hamburger{background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.3);color:white;width:44px;height:44px;border-radius:8px;cursor:pointer;font-size:18px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}'
     + '#avnav-hamburger:active{background:rgba(255,255,255,0.3);}'
@@ -140,6 +163,10 @@
     + '.avnav-avatar-upload-btn{background:var(--light);border:1px solid var(--border);color:var(--text);padding:8px 12px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;}'
     + '.avnav-avatar-upload-btn:active{background:var(--border);}'
     + '.avnav-avatar-hint{font-size:11px;color:var(--grey);margin-top:6px;}'
+    + '.avnav-avatar-picker-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;}'
+    + '.avnav-avatar-picker-item{width:100%;aspect-ratio:1;border-radius:50%;overflow:hidden;cursor:pointer;border:3px solid transparent;background:var(--light);}'
+    + '.avnav-avatar-picker-item:active{border-color:var(--navy);}'
+    + '.avnav-avatar-picker-item img{width:100%;height:100%;object-fit:cover;display:block;}'
     + '.avnav-theme-swatches{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;}'
     + '.avnav-theme-swatch{width:100%;aspect-ratio:1;border-radius:8px;cursor:pointer;border:2px solid transparent;}'
     + '.avnav-theme-swatch.active{border-color:var(--navy);}'
@@ -200,6 +227,7 @@
               '<div class="avnav-avatar-preview" id="avnav-settings-avatar-preview">?</div>' +
               '<div>' +
                 '<button class="avnav-avatar-upload-btn" onclick="document.getElementById(\'avnav-avatar-file-input\').click()">📷 Change Photo</button>' +
+                '<button class="avnav-avatar-upload-btn" onclick="AVNav.openAvatarPicker()" style="margin-left:6px">🖼 Choose Preset</button>' +
                 '<input type="file" id="avnav-avatar-file-input" accept="image/png,image/jpeg,image/webp,image/gif" style="display:none" onchange="AVNav.uploadAvatar(this.files[0])">' +
                 '<div class="avnav-avatar-hint">JPG, PNG, WebP or GIF, up to 2MB</div>' +
               '</div>' +
@@ -351,6 +379,44 @@
     }
   }
 
+  function openAvatarPicker() {
+    var modal = ensureModal('avnav-avatar-picker-modal', '🖼 Choose an Avatar');
+    var body = modal.querySelector('.avnav-modal-body');
+    body.innerHTML = '<div class="avnav-avatar-picker-grid">' +
+      PRESET_AVATARS.map(function (f) {
+        return '<div class="avnav-avatar-picker-item" onclick="AVNav.selectPresetAvatar(\'' + f + '\')"><img src="avatars/' + f + '" alt="" loading="lazy"></div>';
+      }).join('') +
+    '</div>';
+    modal.classList.add('open');
+  }
+
+  async function selectPresetAvatar(filename) {
+    if (!_session) { alert('No active session'); return; }
+    var newUrl = 'avatars/' + filename;
+    var prevUrl = _profile && _profile.avatar_url;
+    try {
+      await sbFetch('profiles?id=eq.' + _session.user.id, {
+        method: 'PATCH',
+        body: JSON.stringify({ avatar_url: newUrl })
+      });
+      if (_profile) _profile.avatar_url = newUrl;
+      renderUserCard();
+      renderAvatarInto('avnav-settings-avatar-preview', identity());
+      document.getElementById('avnav-avatar-picker-modal').classList.remove('open');
+      // best-effort cleanup if the previous avatar was an uploaded (not preset) file
+      if (prevUrl) {
+        var marker = '/object/public/avatars/';
+        var idx = prevUrl.indexOf(marker);
+        if (idx >= 0) {
+          var oldPath = prevUrl.slice(idx + marker.length);
+          _sb.storage.from('avatars').remove([oldPath]).catch(function () {});
+        }
+      }
+    } catch (e) {
+      alert('Failed to set avatar: ' + e.message);
+    }
+  }
+
   function ensureModal(id, title) {
     var modal = document.getElementById(id);
     if (!modal) {
@@ -463,6 +529,8 @@
     closeSettings: closeSettings,
     saveSettings: saveSettings,
     uploadAvatar: uploadAvatar,
+    openAvatarPicker: openAvatarPicker,
+    selectPresetAvatar: selectPresetAvatar,
     openMyScenarios: openMyScenarios,
     openManageMine: openManageMine,
     deleteScenario: deleteScenario,
