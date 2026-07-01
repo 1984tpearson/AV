@@ -27,11 +27,35 @@
 
   var _session = null;
   var _profile = null;
+  var _adminUsers = [];
+  var _adminUsersScenarios = {};
+  var _avatarPickerTarget = null; // null = editing own avatar; else a user id (admin editing someone else)
+
+  var AV_ROLES = [
+    ['', 'Select role…'],
+    ['CI', 'Clinical Instructor (CI)'],
+    ['PE', 'Paramedic Educator (PE)'],
+    ['GAP', 'Graduate Ambulance Paramedic (GAP)'],
+    ['CSO', 'Clinical Support Officer (CSO)'],
+    ['Other', 'Other']
+  ];
 
   function escapeHtml(s) {
     return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
       return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
     });
+  }
+
+  function roleOptionsHtml(selected) {
+    return AV_ROLES.map(function (r) {
+      return '<option value="' + r[0] + '"' + (r[0] === (selected || '') ? ' selected' : '') + '>' + escapeHtml(r[1]) + '</option>';
+    }).join('');
+  }
+
+  function avatarHtmlFor(name, avatarUrl) {
+    if (avatarUrl) return '<img src="' + escapeHtml(avatarUrl) + '" alt="">';
+    var initials = (name || '').split(/\s+/).filter(Boolean).map(function (w) { return w[0]; }).slice(0, 2).join('').toUpperCase() || '?';
+    return escapeHtml(initials);
   }
 
   async function sbFetch(path, opts) {
@@ -382,7 +406,8 @@
     }
   }
 
-  function openAvatarPicker() {
+  function openAvatarPicker(targetUserId) {
+    _avatarPickerTarget = targetUserId || null;
     var modal = ensureModal('avnav-avatar-picker-modal', '🖼 Choose an Avatar');
     var body = modal.querySelector('.avnav-modal-body');
     body.innerHTML = '<div class="avnav-avatar-picker-grid">' +
@@ -396,15 +421,24 @@
   async function selectPresetAvatar(filename) {
     if (!_session) { alert('No active session'); return; }
     var newUrl = 'avatars/' + filename;
-    var prevUrl = _profile && _profile.avatar_url;
+    var editingOther = !!_avatarPickerTarget;
+    var targetId = editingOther ? _avatarPickerTarget : _session.user.id;
+    var targetProfile = editingOther ? _adminUsers.filter(function (u) { return u.id === targetId; })[0] : null;
+    var prevUrl = editingOther ? (targetProfile && targetProfile.avatar_url) : (_profile && _profile.avatar_url);
     try {
-      await sbFetch('profiles?id=eq.' + _session.user.id, {
+      await sbFetch('profiles?id=eq.' + encodeURIComponent(targetId), {
         method: 'PATCH',
         body: JSON.stringify({ avatar_url: newUrl })
       });
-      if (_profile) _profile.avatar_url = newUrl;
-      renderUserCard();
-      renderAvatarInto('avnav-settings-avatar-preview', identity());
+      if (editingOther) {
+        if (targetProfile) targetProfile.avatar_url = newUrl;
+        renderAvatarInto('avnav-edit-user-avatar-preview', { name: targetProfile ? targetProfile.display_name : '', avatarUrl: newUrl });
+        renderUsersList();
+      } else {
+        if (_profile) _profile.avatar_url = newUrl;
+        renderUserCard();
+        renderAvatarInto('avnav-settings-avatar-preview', identity());
+      }
       document.getElementById('avnav-avatar-picker-modal').classList.remove('open');
       // best-effort cleanup if the previous avatar was an uploaded (not preset) file
       if (prevUrl) {
@@ -497,36 +531,111 @@
     body.innerHTML = '<p style="text-align:center;color:var(--grey);padding:20px">Loading…</p>';
     modal.classList.add('open');
     try {
-      var profiles = await sbFetch('profiles?select=id,display_name,svc_num,branch,av_role,created_at&order=display_name.asc');
+      var profiles = await sbFetch('profiles?select=id,display_name,svc_num,branch,av_role,avatar_url,created_at&order=display_name.asc');
       var scenarios = await sbFetch('scenarios?is_builtin=eq.false&select=id,title,category,creator_uuid,created_at&order=created_at.desc');
       var byUser = {};
       scenarios.forEach(function (s) {
         var key = s.creator_uuid || '';
         (byUser[key] = byUser[key] || []).push(s);
       });
-      if (!profiles.length) {
-        body.innerHTML = '<div style="text-align:center;padding:24px;color:var(--grey)"><div style="font-size:36px;margin-bottom:12px">👥</div><p>No users found.</p></div>';
-        return;
-      }
-      body.innerHTML = profiles.map(function (p) {
-        var userScenarios = byUser[p.id] || [];
-        var meta = [p.av_role, p.branch].filter(Boolean).join(' · ');
-        var scenarioListHtml = userScenarios.length
-          ? userScenarios.map(function (s) {
-              return '<div class="avnav-scenario-item"><div><div class="avnav-scenario-title">' + escapeHtml(s.title) + '</div>' +
-                '<div class="avnav-scenario-sub">' + escapeHtml(s.category || '') + '</div></div>' +
-                '<a class="avnav-scenario-load-btn" href="scenario.html?id=' + encodeURIComponent(s.id) + '">Load</a></div>';
-            }).join('')
-          : '<p style="font-size:12px;color:var(--grey);padding:8px 0 0">No scenarios created.</p>';
-        return '<div style="margin-bottom:20px;padding-bottom:16px;border-bottom:2px solid var(--border)">' +
-          '<div style="font-weight:700;font-size:14px;color:var(--text)">' + escapeHtml(p.display_name || 'Unnamed') + '</div>' +
-          '<div style="font-size:11px;color:var(--grey);margin-bottom:8px">' + (p.svc_num ? 'Service #' + escapeHtml(p.svc_num) : 'No service number') + (meta ? ' · ' + escapeHtml(meta) : '') + '</div>' +
-          '<div style="font-size:11px;color:var(--grey);margin-bottom:6px">' + userScenarios.length + ' scenario' + (userScenarios.length !== 1 ? 's' : '') + '</div>' +
-          scenarioListHtml +
-        '</div>';
-      }).join('');
+      _adminUsers = profiles;
+      _adminUsersScenarios = byUser;
+      renderUsersList();
     } catch (e) {
       body.innerHTML = '<p style="color:var(--red);padding:16px">Failed to load: ' + escapeHtml(e.message) + '</p>';
+    }
+  }
+
+  function renderUsersList() {
+    var modal = document.getElementById('avnav-users-modal');
+    if (!modal) return;
+    var body = modal.querySelector('.avnav-modal-body');
+    if (!_adminUsers.length) {
+      body.innerHTML = '<div style="text-align:center;padding:24px;color:var(--grey)"><div style="font-size:36px;margin-bottom:12px">👥</div><p>No users found.</p></div>';
+      return;
+    }
+    body.innerHTML = _adminUsers.map(function (p) {
+      var userScenarios = _adminUsersScenarios[p.id] || [];
+      var meta = [p.av_role, p.branch].filter(Boolean).join(' · ');
+      var scenarioListHtml = userScenarios.length
+        ? userScenarios.map(function (s) {
+            return '<div class="avnav-scenario-item"><div><div class="avnav-scenario-title">' + escapeHtml(s.title) + '</div>' +
+              '<div class="avnav-scenario-sub">' + escapeHtml(s.category || '') + '</div></div>' +
+              '<a class="avnav-scenario-load-btn" href="scenario.html?id=' + encodeURIComponent(s.id) + '">Load</a></div>';
+          }).join('')
+        : '<p style="font-size:12px;color:var(--grey);padding:8px 0 0">No scenarios created.</p>';
+      return '<div style="display:flex;gap:12px;margin-bottom:20px;padding-bottom:16px;border-bottom:2px solid var(--border)">' +
+        '<div class="avnav-avatar" style="width:44px;height:44px">' + avatarHtmlFor(p.display_name, p.avatar_url) + '</div>' +
+        '<div style="flex:1;min-width:0">' +
+          '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px">' +
+            '<div style="font-weight:700;font-size:14px;color:var(--text)">' + escapeHtml(p.display_name || 'Unnamed') + '</div>' +
+            '<button class="avnav-avatar-upload-btn" onclick="AVNav.openEditUser(\'' + p.id + '\')">✎ Edit</button>' +
+          '</div>' +
+          '<div style="font-size:11px;color:var(--grey);margin:4px 0 8px">' + (p.svc_num ? 'Service #' + escapeHtml(p.svc_num) : 'No service number') + (meta ? ' · ' + escapeHtml(meta) : '') + '</div>' +
+          '<div class="avnav-link" style="padding:4px 0;min-height:auto;font-size:12px" onclick="AVNav.toggleUserScenarios(\'' + p.id + '\')">' +
+            '<span id="avnav-scen-arrow-' + p.id + '">▸</span>&nbsp;' + userScenarios.length + ' scenario' + (userScenarios.length !== 1 ? 's' : '') +
+          '</div>' +
+          '<div id="avnav-scen-list-' + p.id + '" style="display:none">' + scenarioListHtml + '</div>' +
+        '</div>' +
+      '</div>';
+    }).join('');
+  }
+
+  function toggleUserScenarios(userId) {
+    var list = document.getElementById('avnav-scen-list-' + userId);
+    var arrow = document.getElementById('avnav-scen-arrow-' + userId);
+    if (!list) return;
+    var willOpen = list.style.display === 'none';
+    list.style.display = willOpen ? 'block' : 'none';
+    if (arrow) arrow.textContent = willOpen ? '▾' : '▸';
+  }
+
+  function openEditUser(userId) {
+    var p = _adminUsers.filter(function (u) { return u.id === userId; })[0];
+    if (!p) return;
+    var modal = ensureModal('avnav-edit-user-modal', '✎ Edit User');
+    var body = modal.querySelector('.avnav-modal-body');
+    body.innerHTML =
+      '<div class="avnav-avatar-upload-row">' +
+        '<div class="avnav-avatar-preview" id="avnav-edit-user-avatar-preview">' + avatarHtmlFor(p.display_name, p.avatar_url) + '</div>' +
+        '<button class="avnav-avatar-upload-btn" onclick="AVNav.openAvatarPicker(\'' + p.id + '\')">🖼 Choose Preset</button>' +
+      '</div>' +
+      '<div class="avnav-form-group"><label>Display Name</label><input type="text" id="avnav-edit-user-name" maxlength="60" value="' + escapeHtml(p.display_name || '') + '"></div>' +
+      '<div class="avnav-form-group"><label>Service Number</label><input type="text" id="avnav-edit-user-svcnum" maxlength="20" value="' + escapeHtml(p.svc_num || '') + '"></div>' +
+      '<div class="avnav-form-group"><label>Role</label><select id="avnav-edit-user-role">' + roleOptionsHtml(p.av_role) + '</select></div>' +
+      '<div class="avnav-form-group"><label>Branch / Location</label><input type="text" id="avnav-edit-user-branch" maxlength="60" value="' + escapeHtml(p.branch || '') + '"></div>' +
+      '<button class="avnav-submit-btn" onclick="AVNav.saveEditUser(\'' + p.id + '\')">💾 Save Changes</button>';
+    modal.classList.add('open');
+  }
+
+  async function saveEditUser(userId) {
+    var displayName = (document.getElementById('avnav-edit-user-name').value || '').trim();
+    var svcNum = (document.getElementById('avnav-edit-user-svcnum').value || '').trim();
+    var avRole = (document.getElementById('avnav-edit-user-role').value || '').trim();
+    var branch = (document.getElementById('avnav-edit-user-branch').value || '').trim();
+    try {
+      await sbFetch('profiles?id=eq.' + encodeURIComponent(userId), {
+        method: 'PATCH',
+        body: JSON.stringify({ display_name: displayName || null, svc_num: svcNum || null, av_role: avRole || null, branch: branch || null })
+      });
+      var p = _adminUsers.filter(function (u) { return u.id === userId; })[0];
+      if (p) {
+        p.display_name = displayName || null;
+        p.svc_num = svcNum || null;
+        p.av_role = avRole || null;
+        p.branch = branch || null;
+      }
+      document.getElementById('avnav-edit-user-modal').classList.remove('open');
+      renderUsersList();
+      if (userId === (_session && _session.user.id) && _profile) {
+        _profile.display_name = displayName || null;
+        _profile.svc_num = svcNum || null;
+        _profile.av_role = avRole || null;
+        _profile.branch = branch || null;
+        renderUserCard();
+      }
+    } catch (e) {
+      alert('Failed to save: ' + e.message);
     }
   }
 
@@ -578,6 +687,9 @@
     openMyScenarios: openMyScenarios,
     openManageMine: openManageMine,
     openUsers: openUsers,
+    toggleUserScenarios: toggleUserScenarios,
+    openEditUser: openEditUser,
+    saveEditUser: saveEditUser,
     deleteScenario: deleteScenario,
     signOut: signOut,
     applyTheme: applyTheme
