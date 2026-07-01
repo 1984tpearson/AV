@@ -383,6 +383,7 @@
     font-weight: 600;
   }
 </style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
 
@@ -399,6 +400,7 @@
   <div>
     <div id="topbar-title">Paramedic Training Tools</div>
   </div>
+  <button id="topbar-login-btn" style="margin-left:auto;background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.3);color:white;padding:7px 14px;border-radius:7px;cursor:pointer;font-size:13px;font-weight:600">Sign in</button>
 </div>
 
 <!-- MAIN -->
@@ -529,5 +531,26 @@
   </div>
 
 </div><!-- /main -->
+
+<script>
+const _sb = supabase.createClient(
+  'https://befsjenbaruxqrntuhpn.supabase.co',
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJlZnNqZW5iYXJ1eHFybnR1aHBuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI2MjA5MjAsImV4cCI6MjA4ODE5NjkyMH0.hOFFbIvd1wAgu-QyghupQ-7ttSpg7sxz_UsJbXyXztA'
+);
+(async () => {
+  const { data: { session } } = await _sb.auth.getSession();
+  const btn = document.getElementById('topbar-login-btn');
+  if (btn) {
+    if (session) {
+      btn.textContent = session.user.user_metadata?.full_name?.split(' ')[0] || 'Account';
+      btn.onclick = () => window.location.href = 'scenario.html';
+    } else {
+      btn.textContent = 'Sign in';
+      btn.onclick = () => window.location.href = 'login.html?redirect=scenario.html';
+    }
+  }
+})();
+</script>
+
 </body>
 </html>

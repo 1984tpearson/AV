@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>AV Scenario Generator</title>
+<title>Scenario Generator</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M16 2L4 9V16C4 22.6 9.4 28.7 16 30C22.6 28.7 28 22.6 28 16V9L16 2Z' fill='%231C3A6E'/%3E%3Cpath d='M15 15H12V17H15V20H17V17H20V15H17V12H15V15Z' fill='white'/%3E%3C/svg%3E">
 
 <script src="cpg_packages_combined.js"></script>
@@ -252,17 +252,19 @@ textarea{resize:vertical;min-height:72px;line-height:1.5}
 .gen-progress-fill{height:100%;background:var(--amber);border-radius:2px;transition:width .4s ease;width:0%}
 .gen-progress-label{font-size:22px;color:var(--grey);margin-top:8px;font-weight:600;letter-spacing:.2px;text-align:center}
 </style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
 
 <!-- HEADER -->
 <div class="topbar">
-  <div class="topbar-logo">AV</div>
+  <div class="topbar-logo">✦</div>
   <div>
     <span class="topbar-title">Scenario Generator</span>
     <span class="topbar-sub">ALS</span>
   </div>
   <a class="topbar-back" href="scenario.html">← Scenario Tool</a>
+  <button onclick="_sbSignOut()" style="margin-left:8px;background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.3);color:white;padding:6px 12px;border-radius:6px;cursor:pointer;font-size:12px">⎋ Sign out</button>
 </div>
 
 <!-- TAB BAR -->
@@ -418,17 +420,21 @@ textarea{resize:vertical;min-height:72px;line-height:1.5}
 
 
 <script>
-// ── SUPABASE CONFIG (same as scenario.html) ──────────────────────────────────
-// ── SUPABASE ──────────────────────────────────────────────────────────────────
+// ── SUPABASE CONFIG ──────────────────────────────────────────────────────────
 const SUPABASE_URL = 'https://befsjenbaruxqrntuhpn.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJlZnNqZW5iYXJ1eHFybnR1aHBuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI2MjA5MjAsImV4cCI6MjA4ODE5NjkyMH0.hOFFbIvd1wAgu-QyghupQ-7ttSpg7sxz_UsJbXyXztA';
 const ADMIN_UUID   = 'fe1f2d3f-2139-44ec-bbe0-14ad6bb748ac';
 
+const _supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+let _authSession = null;
+let _authProfile = null;
+
 async function sbFetch(path, opts={}) {
+  const authToken = _authSession?.access_token || SUPABASE_KEY;
   const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
     ...opts,
     headers: {
-      'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`,
+      'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${authToken}`,
       'Content-Type': 'application/json', 'Prefer': opts.prefer||'return=representation',
       ...(opts.headers||{})
     }
@@ -438,14 +444,23 @@ async function sbFetch(path, opts={}) {
   return text ? JSON.parse(text) : [];
 }
 function getIdentity() {
-  let uuid=localStorage.getItem('av_user_uuid');
-  if(!uuid){uuid=crypto.randomUUID();localStorage.setItem('av_user_uuid',uuid);}
-  const fn=localStorage.getItem('av_ci_firstname')||'', ln=localStorage.getItem('av_ci_lastname')||'';
-  const svcNum=localStorage.getItem('av_ci_svcnum')||'';
-  const name=(fn||ln)?[fn,ln].filter(Boolean).join(' '):(localStorage.getItem('av_user_name')||'');
-  return{uuid,name,firstName:fn,lastName:ln,svcNum};
+  if (_authSession && _authProfile) {
+    return {
+      uuid:      _authSession.user.id,
+      name:      _authProfile.display_name || _authSession.user.email,
+      firstName: (_authProfile.display_name || '').split(' ')[0] || '',
+      lastName:  (_authProfile.display_name || '').split(' ').slice(1).join(' ') || '',
+      svcNum:    _authProfile.svc_num || '',
+      role:      _authProfile.role || 'user',
+    };
+  }
+  return { uuid: '', name: '', firstName: '', lastName: '', svcNum: '', role: '' };
 }
-function isAdmin(){return getIdentity().uuid===ADMIN_UUID;}
+function isAdmin() { return (_authProfile && _authProfile.role === 'admin') || getIdentity().uuid === ADMIN_UUID; }
+async function _sbSignOut() {
+  await _supabaseClient.auth.signOut();
+  window.location.href = 'login.html';
+}
 function updateUsageDisplay(){
   ['usage-display','usage-display-custom'].forEach(id=>{
     const el=document.getElementById(id);if(!el)return;el.style.display='flex';
@@ -1944,7 +1959,15 @@ function populateCategorySelect(selectId, prefixOption) {
 // ── INIT ──────────────────────────────────────────────────────────────────────
 buildAccordion();
 buildConditionPicker();
-updateUsageDisplay();
+// Auth init — check session before allowing use
+(async () => {
+  const { data: { session } } = await _supabaseClient.auth.getSession();
+  if (!session) { window.location.href = 'login.html?redirect=generator.html'; return; }
+  _authSession = session;
+  const { data: profile } = await _supabaseClient.from('profiles').select('*').eq('id', session.user.id).single();
+  _authProfile = profile;
+  updateUsageDisplay();
+})();
 populateCategorySelect('gen-category');
 populateCategorySelect('gen-category-2', '— None (single scenario) —');
 </script>

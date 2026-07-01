@@ -1066,6 +1066,7 @@ body.flag-mode-active .flaggable.has-correction:hover { outline: 2px solid var(-
 <script src="cpg_packages_combined.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700&display=swap" rel="stylesheet">
 <script src="https://1984tpearson.github.io/AV/ecg_engine.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 /* ── Live ECG strip on assessor side ── */
 .live-ecg-strip {
@@ -1116,6 +1117,7 @@ body.flag-mode-active .flaggable.has-correction:hover { outline: 2px solid var(-
   <div class="topbar-actions">
     <a class="tb-btn" id="ai-toggle-btn" href="generator.html">✦ Create New Case</a>
     <button class="tb-btn" onclick="openFeedbackModal()" style="background:rgba(125,60,152,0.6)" title="Send feedback or suggestion">💬 Feedback</button>
+    <button class="tb-btn" onclick="signOut()" style="background:rgba(255,255,255,0.15)" title="Sign out">⎋ Sign out</button>
   </div>
 </div>
 
@@ -1341,41 +1343,51 @@ body.flag-mode-active .flaggable.has-correction:hover { outline: 2px solid var(-
 </div>
 
 <!-- Welcome + Disclaimer Modal (first run only) -->
-<div class="modal-overlay" id="identity-modal" style="z-index:1001">
-  <div class="modal-inner" style="max-width:460px">
+<!-- LOGIN SCREEN -->
+<div id="login-screen" style="display:none;position:fixed;inset:0;z-index:9999;background:var(--navy-dark);flex-direction:column;align-items:center;justify-content:center;padding:24px">
+  <div style="background:white;border-radius:16px;padding:32px 28px;max-width:400px;width:100%;box-shadow:0 8px 32px rgba(0,0,0,0.3);text-align:center">
+    <div style="width:56px;height:56px;background:var(--amber);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:900;color:white;margin:0 auto 16px">+</div>
+    <h1 style="font-size:20px;font-weight:800;color:var(--navy);margin-bottom:4px">Scenario Trainer</h1>
+    <p style="font-size:13px;color:var(--grey);margin-bottom:8px">ALS Verbal Assessment Tool</p>
+    <div style="background:var(--amber-light);border:1px solid #F5CBA7;border-radius:8px;padding:10px 12px;margin-bottom:24px;font-size:11px;color:#7D6608;line-height:1.5;text-align:left">
+      <strong>⚠️ Not an Official AV Product.</strong> Independent tool based on AV CPGs. Always verify against current official CPGs before formal assessment use.
+    </div>
+    <button onclick="signInWithGoogle()" style="width:100%;display:flex;align-items:center;justify-content:center;gap:10px;padding:13px 16px;border:1px solid var(--border);border-radius:10px;background:white;font-size:15px;font-weight:600;color:var(--text);cursor:pointer;box-shadow:0 1px 4px rgba(0,0,0,0.1)">
+      <svg width="20" height="20" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.35-8.16 2.35-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
+      Sign in with Google
+    </button>
+  </div>
+</div>
+
+<!-- PROFILE COMPLETION MODAL -->
+<div class="modal-overlay" id="svcnum-modal" style="z-index:1001">
+  <div class="modal-inner" style="max-width:420px">
     <div class="modal-header" style="background:var(--navy);padding:20px 24px">
-      <h2 style="font-size:17px">👋 Welcome to AV Scenario Trainer</h2>
-      <div style="font-size:11px;opacity:0.7;margin-top:3px">ALS Level C/D Verbal Assessment Tool</div>
+      <h2 style="font-size:17px">👋 One more thing…</h2>
+      <div style="font-size:11px;opacity:0.7;margin-top:3px">Complete your profile</div>
     </div>
     <div class="modal-body" style="padding:20px 24px">
-
-      <div style="background:var(--amber-light);border:1px solid #F5CBA7;border-radius:8px;padding:12px 14px;margin-bottom:16px">
-        <div style="font-weight:700;color:#7D6608;margin-bottom:4px">⚠️ Not an Official AV Product</div>
-        <p style="font-size:12px;color:#7D6608;line-height:1.6;margin:0">This tool is independent and <strong>not affiliated with or endorsed by Ambulance Victoria</strong>. Clinical content is based on AV CPGs but may contain errors. Always verify against current official CPGs before use in formal assessment.</p>
+      <p style="font-size:13px;color:var(--grey);margin-bottom:16px">You're signed in as <strong id="svcnum-modal-name"></strong>. Please complete your profile so it appears on assessment records.</p>
+      <div class="form-group" style="margin-bottom:12px">
+        <label>Service Number <span style="color:var(--red)">*</span></label>
+        <input type="text" id="svcnum-input" placeholder="e.g. 12345" style="font-size:15px" maxlength="20">
       </div>
-
-      <div style="background:var(--blue-light);border:1px solid #AED6F1;border-radius:8px;padding:10px 14px;margin-bottom:16px;font-size:12px;color:#1a5276;line-height:1.6">
-        Scenarios are <strong>shared across all users</strong>. Enter your name so others can see who created a scenario.
-      </div>
-
-      <div style="font-size:13px;font-weight:700;color:var(--navy);margin-bottom:8px;text-transform:uppercase;letter-spacing:0.5px">Your Details (CI / PE)</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
-        <div class="form-group" style="margin-bottom:0">
-          <label>First Name <span style="color:var(--red)">*</span></label>
-          <input type="text" id="identity-firstname-input" placeholder="e.g. Lisa" style="font-size:15px" maxlength="30">
-        </div>
-        <div class="form-group" style="margin-bottom:0">
-          <label>Last Name <span style="color:var(--red)">*</span></label>
-          <input type="text" id="identity-lastname-input" placeholder="e.g. Smith" style="font-size:15px" maxlength="30">
-        </div>
+      <div class="form-group" style="margin-bottom:12px">
+        <label>Role <span style="color:var(--red)">*</span></label>
+        <select id="profile-role-input" style="font-size:15px">
+          <option value="">Select your role…</option>
+          <option value="CI">Clinical Instructor (CI)</option>
+          <option value="PE">Paramedic Educator (PE)</option>
+          <option value="GAP">Graduate Ambulance Paramedic (GAP)</option>
+          <option value="CSO">Clinical Support Officer (CSO)</option>
+          <option value="Other">Other</option>
+        </select>
       </div>
       <div class="form-group" style="margin-bottom:16px">
-        <label>Service Number <span style="color:var(--red)">*</span></label>
-        <input type="text" id="identity-svcnum-input" placeholder="e.g. 12345" style="font-size:15px" maxlength="20">
+        <label>Branch / Location</label>
+        <input type="text" id="profile-branch-input" placeholder="e.g. Wangaratta" style="font-size:15px" maxlength="60">
       </div>
-
-      <button class="modal-submit-btn navy" onclick="saveIdentityAndStart()" style="width:100%;margin-top:4px;font-size:15px">I understand — get started →</button>
-      <p style="font-size:11px;color:var(--grey);margin-top:10px;text-align:center">Your details are stored on this device only.</p>
+      <button class="modal-submit-btn navy" onclick="completeSvcNum()" style="width:100%;font-size:15px">Save &amp; continue →</button>
     </div>
   </div>
 </div>
@@ -1763,33 +1775,26 @@ const SUPABASE_URL  = 'https://befsjenbaruxqrntuhpn.supabase.co';
 const SUPABASE_KEY  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJlZnNqZW5iYXJ1eHFybnR1aHBuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI2MjA5MjAsImV4cCI6MjA4ODE5NjkyMH0.hOFFbIvd1wAgu-QyghupQ-7ttSpg7sxz_UsJbXyXztA';
 const ADMIN_UUID    = 'fe1f2d3f-2139-44ec-bbe0-14ad6bb748ac';
 
-// Soft identity — persists in localStorage
+const _supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+let _authSession = null;
+let _authProfile = null;
+
 function getIdentity() {
-  let uuid = localStorage.getItem('av_user_uuid');
-  const firstName = localStorage.getItem('av_ci_firstname') || '';
-  const lastName  = localStorage.getItem('av_ci_lastname') || '';
-  const svcNum    = localStorage.getItem('av_ci_svcnum') || '';
-  const name = (firstName || lastName) ? [firstName, lastName].filter(Boolean).join(' ') : (localStorage.getItem('av_user_name') || '');
-  if (!uuid) {
-    uuid = crypto.randomUUID();
-    localStorage.setItem('av_user_uuid', uuid);
+  if (_authSession && _authProfile) {
+    return {
+      uuid:      _authSession.user.id,
+      name:      _authProfile.display_name || _authSession.user.email,
+      firstName: (_authProfile.display_name || '').split(' ')[0] || '',
+      lastName:  (_authProfile.display_name || '').split(' ').slice(1).join(' ') || '',
+      svcNum:    _authProfile.svc_num || '',
+      avRole:    _authProfile.av_role || '',
+      branch:    _authProfile.branch || '',
+      role:      _authProfile.role || 'user',
+    };
   }
-  return { uuid, name, firstName, lastName, svcNum };
+  return { uuid: '', name: '', firstName: '', lastName: '', svcNum: '', avRole: '', branch: '', role: '' };
 }
-function setIdentityName(name) {
-  localStorage.setItem('av_user_name', name);
-}
-function setCIIdentity(firstName, lastName, svcNum) {
-  localStorage.setItem('av_ci_firstname', firstName);
-  localStorage.setItem('av_ci_lastname', lastName);
-  localStorage.setItem('av_ci_svcnum', svcNum);
-  localStorage.setItem('av_user_name', [firstName, lastName].filter(Boolean).join(' '));
-}
-function getCIDisplayName() {
-  const id = getIdentity();
-  return id.name || 'Unknown';
-}
-// Graduate info — stored locally, persists until overwritten
+function getCIDisplayName() { return getIdentity().name || 'Unknown'; }
 function getGraduate() {
   return {
     firstName: localStorage.getItem('av_grad_firstname') || '',
@@ -1806,39 +1811,37 @@ function getGraduateDisplayName() {
   const g = getGraduate();
   return [g.firstName, g.lastName].filter(Boolean).join(' ');
 }
-function isAdmin() {
-  return getIdentity().uuid === ADMIN_UUID;
-}
+function isAdmin() { return (_authProfile && _authProfile.role === 'admin') || getIdentity().uuid === ADMIN_UUID; }
 function canEdit(scenario) {
   if (!scenario) return false;
   const { uuid } = getIdentity();
-  return uuid === ADMIN_UUID || scenario.creator_uuid === uuid;
+  return isAdmin() || scenario.creator_uuid === uuid;
 }
-function adminLogin() {
-  const pw = prompt('Admin password:');
-  if (pw === null) return;
-  if (pw === 'avscenarios') {
-    localStorage.setItem('av_user_uuid', ADMIN_UUID);
-    showToast('🔑 Admin mode enabled');
-    renderManageModal();
-    loadDevNotes();
-  } else {
-    showToast('⚠️ Incorrect password');
-  }
+async function signInWithGoogle() {
+  await _supabaseClient.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: window.location.href } });
 }
-function adminLogout() {
-  localStorage.removeItem('av_user_uuid');
-  showToast('Admin mode disabled');
-  renderManageModal();
-  loadDevNotes();
+async function signOut() {
+  await _supabaseClient.auth.signOut();
+  window.location.reload();
 }
+async function saveSvcNum(svcNum) {
+  const uuid = _authSession?.user?.id;
+  if (!uuid) return;
+  await sbFetch(`profiles?id=eq.${uuid}`, { method: 'PATCH', body: JSON.stringify({ svc_num: svcNum }) });
+  if (_authProfile) _authProfile.svc_num = svcNum;
+}
+function setIdentityName() {}
+function setCIIdentity(firstName, lastName, svcNum) { saveSvcNum(svcNum); }
+function adminLogin() { showToast('⚠️ Admin access is now role-based via login'); }
+function adminLogout() { signOut(); }
 
 async function sbFetch(path, opts = {}) {
+  const authToken = _authSession?.access_token || SUPABASE_KEY;
   const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
     ...opts,
     headers: {
       'apikey': SUPABASE_KEY,
-      'Authorization': `Bearer ${SUPABASE_KEY}`,
+      'Authorization': `Bearer ${authToken}`,
       'Content-Type': 'application/json',
       'Prefer': opts.prefer || 'return=representation',
       ...(opts.headers || {})
@@ -2068,28 +2071,22 @@ function getOverallScore() {
 // INIT
 // ============================================================
 document.addEventListener('DOMContentLoaded', async () => {
-  // Ensure user has an identity
-  const identity = getIdentity();
-  const hasCIDetails = identity.firstName && identity.lastName && identity.svcNum;
-  if (!hasCIDetails || !localStorage.getItem('av_disclaimer_accepted')) {
-    // Show combined welcome/disclaimer on first run, or if disclaimer not yet accepted
-    document.getElementById('identity-modal').classList.add('open');
-    // Pre-fill if they have details but haven't accepted disclaimer yet
-    if (identity.firstName) {
-      const fn = document.getElementById('identity-firstname-input');
-      if (fn) fn.value = identity.firstName;
-    }
-    if (identity.lastName) {
-      const ln = document.getElementById('identity-lastname-input');
-      if (ln) ln.value = identity.lastName;
-    }
-    if (identity.svcNum) {
-      const sn = document.getElementById('identity-svcnum-input');
-      if (sn) sn.value = identity.svcNum;
-    }
-  } else {
-    await initApp();
+  const { data: { session } } = await _supabaseClient.auth.getSession();
+  if (!session) {
+    const ls = document.getElementById('login-screen');
+    ls.style.display = 'flex';
+    return;
   }
+  _authSession = session;
+  const { data: profileData } = await _supabaseClient.from('profiles').select('*').eq('id', session.user.id).single();
+  _authProfile = profileData;
+  if (!_authProfile || !_authProfile.svc_num || !_authProfile.av_role) {
+    const nameEl = document.getElementById('svcnum-modal-name');
+    if (nameEl) nameEl.textContent = session.user.user_metadata?.full_name || session.user.email;
+    document.getElementById('svcnum-modal').classList.add('open');
+    return;
+  }
+  await initApp();
   // Pulse the Generate AI Case button red 3 times on load
   setTimeout(() => {
     const btn = document.getElementById('ai-toggle-btn');
@@ -7084,25 +7081,27 @@ function acceptDisclaimer() {
 // ============================================================
 // IDENTITY
 // ============================================================
-function saveIdentityAndStart() {
-  const firstName = (document.getElementById('identity-firstname-input').value || '').trim();
-  const lastName  = (document.getElementById('identity-lastname-input').value || '').trim();
-  const svcNum    = (document.getElementById('identity-svcnum-input').value || '').trim();
-  if (!firstName || !lastName) { showToast('⚠️ Please enter your first and last name'); return; }
-  if (!svcNum) { showToast('⚠️ Please enter your service number'); return; }
-  setCIIdentity(firstName, lastName, svcNum);
-  localStorage.setItem('av_disclaimer_accepted', '1');
-  document.getElementById('identity-modal').classList.remove('open');
-  initApp();
-}
-
-// Allow pressing Enter in last name / svcnum fields to submit
-document.addEventListener('DOMContentLoaded', () => {
-  ['identity-lastname-input','identity-svcnum-input'].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.addEventListener('keydown', e => { if (e.key === 'Enter') saveIdentityAndStart(); });
+async function completeSvcNum() {
+  const svcNum  = (document.getElementById('svcnum-input').value || '').trim();
+  const avRole  = (document.getElementById('profile-role-input').value || '').trim();
+  const branch  = (document.getElementById('profile-branch-input').value || '').trim();
+  if (!svcNum)  { showToast('⚠️ Please enter your service number'); return; }
+  if (!avRole)  { showToast('⚠️ Please select your role'); return; }
+  const uuid = _authSession?.user?.id;
+  if (!uuid) { showToast('⚠️ No active session — please reload'); return; }
+  await sbFetch(`profiles?id=eq.${uuid}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ svc_num: svcNum, av_role: avRole, branch: branch || null }),
   });
-});
+  if (_authProfile) {
+    _authProfile.svc_num = svcNum;
+    _authProfile.av_role = avRole;
+    _authProfile.branch  = branch || null;
+  }
+  document.getElementById('svcnum-modal').classList.remove('open');
+  await initApp();
+}
+function saveIdentityAndStart() {}
 
 // ============================================================
 // GRAD BAR LIVE-EDIT — updates localStorage when fields changed in scenario view
