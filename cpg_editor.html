@@ -157,16 +157,29 @@ const _sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 async function checkAdminAccess() {
   const { data } = await _sb.auth.getSession();
   const session = data.session;
-  if (!session || session.user.id !== ADMIN_UUID) {
-    document.body.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100vh;flex-direction:column;gap:10px;font-family:Segoe UI,sans-serif;text-align:center;padding:20px">' +
-      '<div style="font-size:40px">&#128274;</div>' +
-      '<div style="font-size:16px;font-weight:700;color:#1a1a2e">Admin access required</div>' +
-      '<div style="font-size:13px;color:#888">This page is restricted to the site administrator.</div>' +
-      '<a href="index.html" style="margin-top:8px;color:#1C3A6E;font-weight:600;font-size:13px;text-decoration:none">&larr; Back to site</a>' +
-    '</div>';
-    return false;
+  if (!session) {
+    return denyAccess();
+  }
+  let profile = null;
+  try {
+    const profileResult = await _sb.from('profiles').select('role').eq('id', session.user.id).single();
+    profile = profileResult.data;
+  } catch (e) { /* best-effort — fall through to UUID check */ }
+  const isAdmin = (profile && profile.role === 'admin') || session.user.id === ADMIN_UUID;
+  if (!isAdmin) {
+    return denyAccess();
   }
   return true;
+}
+
+function denyAccess() {
+  document.body.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100vh;flex-direction:column;gap:10px;font-family:Segoe UI,sans-serif;text-align:center;padding:20px">' +
+    '<div style="font-size:40px">&#128274;</div>' +
+    '<div style="font-size:16px;font-weight:700;color:#1a1a2e">Admin access required</div>' +
+    '<div style="font-size:13px;color:#888">This page is restricted to the site administrator.</div>' +
+    '<a href="index.html" style="margin-top:8px;color:#1C3A6E;font-weight:600;font-size:13px;text-decoration:none">&larr; Back to site</a>' +
+  '</div>';
+  return false;
 }
 </script>
 <script>
