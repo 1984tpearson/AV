@@ -918,6 +918,61 @@ function buildAdditionalCPGCatalogue(excludeKeys) {
   return lines.join('\n');
 }
 
+// ── FREE-TEXT CPG CLASSIFICATION (Custom Build, no condition tags selected) ────
+// Finds which catKey (e.g. "Adult|Trauma") a given CPG subtype key belongs to.
+function findCatKeyForCPGKey(key) {
+  for (const [catKey, keys] of Object.entries(CATEGORY_TO_CPG)) {
+    if (keys.includes(key)) return catKey;
+  }
+  return null;
+}
+
+// Builds a full key|catKey|code|title catalogue for the classifier — every selectable
+// CPG subtype key across all categories, so free text can be matched against the
+// complete set rather than a single pre-picked category's pool.
+function buildClassificationCatalogue() {
+  const seen = new Set();
+  const lines = [];
+  for (const [catKey, keys] of Object.entries(CATEGORY_TO_CPG)) {
+    for (const key of keys) {
+      if (seen.has(key)) continue; // same key can appear under Adult + Paediatric etc.
+      seen.add(key);
+      const pkg = CPG_PACKAGES[key];
+      const code = pkg?.cpg || '';
+      const title = CPG_SUBTYPE_LABELS[key] || pkg?.title || key;
+      lines.push(`${key} | ${catKey} | ${code} | ${title}`);
+    }
+  }
+  return lines.join('\n');
+}
+
+// Reads free-text scenario details and returns the best-fitting CPG subtype key(s)
+// (max 2) from the full catalogue, using a cheap classification-only model call.
+// Returns [] on no clear match or any failure — caller falls back to random pick.
+async function classifyCPGFromText(freeText) {
+  if (!freeText) return [];
+  try {
+    const apiKey = await getAnthropicKey();
+    const catalogue = buildClassificationCatalogue();
+    const systemPrompt = `You are classifying free-text paramedic scenario notes against a fixed catalogue of Ambulance Victoria CPG codes. Respond with valid JSON only — no markdown, no preamble. Format: {"keys":["key1","key2"]}. Rules: (1) Only use keys that appear exactly as written in the catalogue below (the first column before the first "|"). (2) Return the 1-2 keys that are the CLOSEST clinically appropriate match to the free text, even if no exact match exists — pick the nearest reasonable fit rather than returning nothing. (3) Only return an empty array if the text gives genuinely no clinical signal to classify (e.g. it's blank or purely non-clinical). (4) Order matters — put the single most central/primary condition first.\n\nCATALOGUE (key | category | code | title):\n${catalogue}`;
+    const userPrompt = `Free-text scenario details:\n${freeText}\n\nReturn the best-fitting CPG key(s) as JSON.`;
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' },
+      body: JSON.stringify({ model: 'claude-haiku-4-5-20251001', max_tokens: 200, system: systemPrompt, messages: [{ role: 'user', content: userPrompt }] })
+    });
+    if (!response.ok) return [];
+    const data = await response.json();
+    const text = (data.content || []).map(b => b.text || '').join('');
+    const parsed = parseFirstJSON(text);
+    const validKeys = new Set(Object.keys(CPG_SUBTYPE_LABELS));
+    const keys = Array.isArray(parsed?.keys) ? parsed.keys.filter(k => validKeys.has(k)) : [];
+    return keys.slice(0, 2);
+  } catch (e) {
+    return []; // classification is a best-effort enhancement — never block generation
+  }
+}
+
 const SCENARIO_JSON_TEMPLATE = `{"title":"","subtitle":"","category":"CAT","subcategory":"SUB","type":"","cpg":"","additional_cpgs":[],"level":"C/D","dispatch":"","vitals":{"GCS":{"E":0,"V":0,"M":0,"total":0,"description":""},"SpO2":"","RR":"","HR":"","BP":"","Temp":"","BGL":"","Rhythm":"","Weight":"","Ketones":"","EtCO2":""},"caller_hx":"","arrival_hx":"","hx":{"timeline":"","nature":"","prodromal":"","aggreliev":"","assoc":"","similar":""},"medical_conditions":["","",""],"medications":["","",""],"allergies":"","flags":["","","",""],"ddx":["","","",""],"provisional":"","ra":{"wob":"","skin":""},"ps_exposure":"","social":"","rsa":{"appearance":"","speech":"","breath_sounds":"","rhythm":"","wob":""},"secondary_survey":{},"life_threats":["",""],"kq":[{"q":"","max":2,"answer":""},{"q":"","max":2,"answer":""},{"q":"","max":1,"answer":""}],"discussion":[]}`;
 // Note: medical_conditions = short list e.g. ["Asthma (previous ICU admission)", "Type 2 Diabetes", "Hypertension"]
 // medications = short list e.g. ["Metoprolol 50mg daily", "Aspirin 100mg", "Candesartan 8mg"]
@@ -1569,9 +1624,10 @@ function handleQuickGenerate() {
   generateAIScenario();
 }
 
-function handleCustomGenerate() {
+async function handleCustomGenerate() {
   const firstCond = selectedConditions[0];
   let catKey = 'Adult|Medical';
+  let classifiedKeys = [];
   if (firstCond && firstCond.includes('::')) {
     const [cat, cond] = firstCond.split('::');
     for (const c of CATEGORIES) {
@@ -1580,6 +1636,21 @@ function handleCustomGenerate() {
         if (conds.includes(cond)) { catKey = `${cat}|${sub}`; break; }
       }
       break;
+    }
+  } else {
+    // No condition tags selected — try to classify the closest-matching CPG(s) from
+    // free text before falling back to a random pick from the default Medical pool.
+    const pmhxEarly = document.getElementById('c-pmhx').value.trim();
+    const complaintEarly = document.getElementById('c-complaint').value.trim();
+    const textForClassification = [pmhxEarly, complaintEarly].filter(Boolean).join('. ');
+    if (textForClassification) {
+      const btn = document.getElementById('custom-gen-btn');
+      if (btn) btn.innerHTML = 'Reading scenario details<span class="dot-pulse"><span>.</span><span>.</span><span>.</span></span>';
+      classifiedKeys = await classifyCPGFromText(textForClassification);
+      if (classifiedKeys.length) {
+        const inferredCat = findCatKeyForCPGKey(classifiedKeys[0]);
+        if (inferredCat) catKey = inferredCat;
+      }
     }
   }
   _setGenCategory(catKey);
@@ -1612,11 +1683,17 @@ function handleCustomGenerate() {
   // Set override CPG key for first condition
   const firstCondName = selectedConditions[0] ? (selectedConditions[0].includes('::') ? selectedConditions[0].split('::')[1] : selectedConditions[0]) : null;
   _overrideCatVal = catKey;
-  _overrideSubtypeKey = firstCondName ? (COND_TO_CPG_KEY[firstCondName] || null) : null;
-  // Collect ALL CPG keys for all selected conditions
-  _overrideSubtypeKeys = selectedConditions
-    .map(k => { const n = k.includes('::') ? k.split('::')[1] : k; return COND_TO_CPG_KEY[n]; })
-    .filter(Boolean);
+  if (classifiedKeys.length) {
+    // Free-text classification found (a) closest-matching CPG key(s) — use those
+    _overrideSubtypeKey = classifiedKeys[0];
+    _overrideSubtypeKeys = classifiedKeys;
+  } else {
+    _overrideSubtypeKey = firstCondName ? (COND_TO_CPG_KEY[firstCondName] || null) : null;
+    // Collect ALL CPG keys for all selected conditions
+    _overrideSubtypeKeys = selectedConditions
+      .map(k => { const n = k.includes('::') ? k.split('::')[1] : k; return COND_TO_CPG_KEY[n]; })
+      .filter(Boolean);
+  }
   const sel = document.getElementById('gen-category');
   if (sel) { const opt = document.createElement('option'); opt.value = catKey; sel.appendChild(opt); sel.value = catKey; }
   _activeGenBtn = 'custom-gen-btn';
