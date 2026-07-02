@@ -197,6 +197,22 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #f0f2f5; colo
   </div>
 </div>
 
+<div class="ex-modal-overlay" id="cat-modal">
+  <div class="ex-modal">
+    <div class="ex-modal-header">
+      <h2>&#127991;&#65039; Assign Category</h2>
+      <button class="ex-modal-close" onclick="closeCategoryAssign()">&#10005;</button>
+    </div>
+    <div class="ex-modal-body">
+      <div class="ex-hint">Choose where this CPG belongs. This updates the category mapping used by the Scenario Generator too, not just this editor's grouping &mdash; it commits to <code>generator.html</code> and <code>cpg_editor.html</code>.</div>
+      <select class="field-input" id="cat-assign-select" style="margin-bottom:14px"></select>
+      <button class="btn btn-save" style="width:100%" id="cat-assign-confirm-btn" onclick="confirmCategoryAssign()">Assign</button>
+      <button class="btn btn-reset" style="width:100%;margin-top:8px" onclick="closeCategoryAssign()">Cancel</button>
+      <div class="ex-status" id="cat-assign-status"></div>
+    </div>
+  </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="cpg_packages_combined.js"></script>
 <script>
@@ -472,6 +488,7 @@ function renderCardBody(key, pkg) {
     <div class="save-bar">
       <button class="btn btn-save" onclick="savePkg('${key}')">&#10003; Save to file</button>
       <button class="btn btn-reset" onclick="resetPkg('${key}')">Reset</button>
+      <button class="btn btn-reset" onclick="openCategoryAssign('${key}')">&#127991;&#65039; Category</button>
       <span class="save-status" id="status-${key}"></span>
     </div>
   `;
@@ -713,6 +730,7 @@ function addNewPackage() {
     card.classList.add('open', 'dirty');
     card.scrollIntoView({ behavior: 'smooth', block: 'center' });
   }
+  openCategoryAssign(key);
 }
 
 // ── GITHUB CONFIG & API ──────────────────────────────────────
@@ -736,10 +754,10 @@ function changeGithubToken() {
   alert(t ? 'Token saved.' : 'No token saved — you\u2019ll be asked again next time you save.');
 }
 
-async function ghGetFile() {
+async function ghGetFileAtPath(path) {
   const token = ghGetToken();
   if (!token) throw new Error('No GitHub token provided');
-  const res = await fetch('https://api.github.com/repos/' + GH_OWNER + '/' + GH_REPO + '/contents/' + GH_PATH + '?ref=' + GH_BRANCH, {
+  const res = await fetch('https://api.github.com/repos/' + GH_OWNER + '/' + GH_REPO + '/contents/' + path + '?ref=' + GH_BRANCH, {
     headers: { 'Authorization': 'Bearer ' + token, 'Accept': 'application/vnd.github+json' }
   });
   if (!res.ok) {
@@ -751,6 +769,7 @@ async function ghGetFile() {
   const text = new TextDecoder('utf-8').decode(bytes);
   return { text, sha: json.sha };
 }
+async function ghGetFile() { return ghGetFileAtPath(GH_PATH); }
 
 function utf8ToBase64(str) {
   const bytes = new TextEncoder().encode(str);
@@ -759,10 +778,10 @@ function utf8ToBase64(str) {
   return btoa(bin);
 }
 
-async function ghCommitFile(newText, sha, message) {
+async function ghCommitFileAtPath(path, newText, sha, message) {
   const token = ghGetToken();
   if (!token) throw new Error('No GitHub token provided');
-  const res = await fetch('https://api.github.com/repos/' + GH_OWNER + '/' + GH_REPO + '/contents/' + GH_PATH, {
+  const res = await fetch('https://api.github.com/repos/' + GH_OWNER + '/' + GH_REPO + '/contents/' + path, {
     method: 'PUT',
     headers: { 'Authorization': 'Bearer ' + token, 'Accept': 'application/vnd.github+json', 'Content-Type': 'application/json' },
     body: JSON.stringify({ message, content: utf8ToBase64(newText), sha, branch: GH_BRANCH })
@@ -773,6 +792,7 @@ async function ghCommitFile(newText, sha, message) {
   }
   return res.json();
 }
+async function ghCommitFile(newText, sha, message) { return ghCommitFileAtPath(GH_PATH, newText, sha, message); }
 
 function ghEscapeRegex(s) {
   return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -1043,6 +1063,136 @@ function finalizeExtractedPackage(extracted) {
     card.classList.add('open', 'dirty');
     card.scrollIntoView({ behavior: 'smooth', block: 'center' });
   }
+  openCategoryAssign(key);
+}
+
+// ── CATEGORY ASSIGNMENT (patches CATEGORY_TO_CPG in generator.html + this file) ──
+let _catAssignKey = null;
+
+function populateCategorySelectOptions(selectEl, currentValue) {
+  let html = '<option value="">— Uncategorised —</option>';
+  TOP_CATEGORIES.forEach(cat => {
+    const subKeys = Object.keys(CATEGORY_TO_CPG).filter(k => k.startsWith(cat.key + '|'));
+    const subs = [...new Set(subKeys.map(k => k.split('|')[1]))];
+    html += '<optgroup label="' + esc(cat.key) + '">';
+    subs.forEach(sub => {
+      const val = cat.key + '|' + sub;
+      html += '<option value="' + esc(val) + '"' + (val === currentValue ? ' selected' : '') + '>' + esc(cat.key) + ' — ' + esc(sub) + '</option>';
+    });
+    html += '</optgroup>';
+  });
+  selectEl.innerHTML = html;
+}
+
+function openCategoryAssign(key) {
+  _catAssignKey = key;
+  const current = findCategoryPathForKey(key);
+  const sel = document.getElementById('cat-assign-select');
+  populateCategorySelectOptions(sel, current ? current.catSubKey : '');
+  const statusEl = document.getElementById('cat-assign-status');
+  statusEl.className = 'ex-status';
+  statusEl.textContent = '';
+  document.getElementById('cat-modal').classList.add('open');
+}
+function closeCategoryAssign() {
+  document.getElementById('cat-modal').classList.remove('open');
+  _catAssignKey = null;
+}
+
+function validateHtmlScripts(text) {
+  const scriptRe = /<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/g;
+  let m;
+  while ((m = scriptRe.exec(text))) {
+    const code = m[1];
+    if (!code.trim()) continue;
+    try { new Function(code); }
+    catch (e) { throw new Error('Syntax error in patched file: ' + e.message); }
+  }
+}
+
+// Removes `cpgKey` from every category array in the file's CATEGORY_TO_CPG object,
+// then (if newCatSubKey is given) adds it under that key — creating the entry if needed.
+function patchCategoryToCpgText(fileText, cpgKey, newCatSubKey) {
+  const declMatch = /const\s+CATEGORY_TO_CPG\s*=\s*\{/.exec(fileText);
+  if (!declMatch) throw new Error('CATEGORY_TO_CPG declaration not found in this file');
+  const openBraceIdx = declMatch.index + declMatch[0].length - 1;
+  let depth = 0, i = openBraceIdx, inStr = false, strChar = '';
+  while (i < fileText.length) {
+    const ch = fileText[i];
+    if (inStr) {
+      if (ch === '\\') { i += 2; continue; }
+      if (ch === strChar) inStr = false;
+    } else {
+      if (ch === '"' || ch === "'" || ch === '`') { inStr = true; strChar = ch; }
+      else if (ch === '{' || ch === '[') depth++;
+      else if (ch === '}' || ch === ']') { depth--; if (depth === 0) break; }
+    }
+    i++;
+  }
+  const closeBraceIdx = i;
+  let block = fileText.slice(openBraceIdx, closeBraceIdx + 1);
+
+  const entryRe = /'([^']+)'\s*:\s*\[([^\]]*)\]/g;
+  let foundTarget = false;
+  block = block.replace(entryRe, (m, catSubKey, arrText) => {
+    let items = arrText.split(',').map(s => s.trim()).filter(Boolean).map(s => s.replace(/^['"]|['"]$/g, ''));
+    items = items.filter(it => it !== cpgKey);
+    if (newCatSubKey && catSubKey === newCatSubKey) {
+      if (!items.includes(cpgKey)) items.push(cpgKey);
+      foundTarget = true;
+    }
+    const newArr = items.map(it => "'" + it + "'").join(', ');
+    return "'" + catSubKey + "': [" + newArr + ']';
+  });
+
+  if (newCatSubKey && !foundTarget) {
+    const insertion = "\n  '" + newCatSubKey + "': ['" + cpgKey + "'],";
+    block = block.slice(0, -1) + insertion + '\n' + block.slice(-1);
+  }
+
+  return fileText.slice(0, openBraceIdx) + block + fileText.slice(closeBraceIdx + 1);
+}
+
+async function confirmCategoryAssign() {
+  const key = _catAssignKey;
+  if (!key) return;
+  const newCatSubKey = document.getElementById('cat-assign-select').value || null;
+  const btn = document.getElementById('cat-assign-confirm-btn');
+  const statusEl = document.getElementById('cat-assign-status');
+  btn.disabled = true; btn.textContent = 'Assigning…';
+  statusEl.className = 'ex-status';
+  try {
+    statusEl.textContent = 'Updating generator.html…';
+    const gen = await ghGetFileAtPath('generator.html');
+    const genPatched = patchCategoryToCpgText(gen.text, key, newCatSubKey);
+    validateHtmlScripts(genPatched);
+    await ghCommitFileAtPath('generator.html', genPatched, gen.sha, 'Update CPG category mapping: ' + key);
+
+    statusEl.textContent = 'Updating cpg_editor.html…';
+    const ed = await ghGetFileAtPath('cpg_editor.html');
+    const edPatched = patchCategoryToCpgText(ed.text, key, newCatSubKey);
+    validateHtmlScripts(edPatched);
+    await ghCommitFileAtPath('cpg_editor.html', edPatched, ed.sha, 'Update CPG category mapping: ' + key);
+
+    // Reflect immediately in this session without waiting for a reload
+    Object.keys(CATEGORY_TO_CPG).forEach(csk => {
+      CATEGORY_TO_CPG[csk] = CATEGORY_TO_CPG[csk].filter(k => k !== key);
+    });
+    if (newCatSubKey) {
+      if (!CATEGORY_TO_CPG[newCatSubKey]) CATEGORY_TO_CPG[newCatSubKey] = [];
+      CATEGORY_TO_CPG[newCatSubKey].push(key);
+    }
+
+    statusEl.className = 'ex-status ok';
+    statusEl.textContent = '\u2713 Category updated — live in ~1 min';
+    closeCategoryAssign();
+    revealCard(key);
+    renderCards();
+  } catch (e) {
+    statusEl.className = 'ex-status err';
+    statusEl.textContent = 'Failed: ' + e.message;
+  }
+  btn.disabled = false; btn.textContent = 'Assign';
 }
 
 // ── INIT ──────────────────────────────────────────────────────
