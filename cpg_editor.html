@@ -903,8 +903,12 @@ function spliceNewPackage(src, key, pkg) {
     i++;
   }
   const closeBraceIdx = i; // closing brace of CPG_PACKAGES itself
+  // The last existing entry may have no trailing comma (valid JS) — check before inserting a sibling
+  let j = closeBraceIdx - 1;
+  while (j > openBraceIdx && /\s/.test(src[j])) j--;
+  const needsComma = src[j] !== ',' && src[j] !== '{';
   const newJson = JSON.stringify(pkg, null, 2).replace(/^/gm, '  ').replace(/^  /, '');
-  const insertion = '\n  ' + key + ': ' + newJson + ',\n';
+  const insertion = (needsComma ? ',' : '') + '\n\n  ' + key + ': ' + newJson + ',\n';
   return src.slice(0, closeBraceIdx) + insertion + src.slice(closeBraceIdx);
 }
 
@@ -1008,8 +1012,11 @@ CRITICAL RULES — clinical safety depends on these:
 - Extract content VERBATIM from the supplied document only. Do not add, infer, paraphrase, or summarise any clinical content.
 - Do NOT add management steps, drug doses, or clinical rules from your own training knowledge, even if they seem standard or obviously missing. If it is not visibly in the document, it does not go in the output.
 - ALS/MICA split: green-coded / plain action boxes are ALS scope → "management". Blue-coded / MICA-labelled boxes (infusions, intubation, BiPAP/NIV detail, vasopressors, finger thoracostomy, thrombolysis, RSI drugs) → "management_mica". A step belongs in exactly one array, never both.
-- If part of the document is illegible, cut off, or ambiguous, do NOT guess — instead add a short note about it in the "notes" field (e.g. "Right column partially cut off in source image — verify against full CPG").
-- If you are not confident about the ALS/MICA classification of a specific step, still place it in your best-guess array but flag the uncertainty in "notes".
+- If part of the document is illegible, cut off, or ambiguous, do NOT guess — put a short flag about it in "extractionCaveats" instead (e.g. "Right column partially cut off in source image — verify against full CPG").
+- If you are not confident about the ALS/MICA classification of a specific step, still place it in your best-guess array but flag the uncertainty in "extractionCaveats".
+- "notes" and "extractionCaveats" are different fields with different purposes — do not mix them:
+  - "notes" is ONLY for genuine verbatim clinical context that is actually written in the source document itself (e.g. an "Indication" or "Background" paragraph). Leave it as an empty string if the document has no such text. This field gets fed to another AI as clinical context for generating training scenarios, so it must never contain commentary about the extraction process itself.
+  - "extractionCaveats" is for YOUR commentary about this extraction — illegible sections, low confidence, anything a human reviewer should double-check. This is shown to the reviewer on screen and is never saved into the CPG data or shown to any other system.
 
 Return ONLY a single valid JSON object, no markdown fences, no commentary, in this exact shape:
 {
@@ -1027,7 +1034,8 @@ Return ONLY a single valid JSON object, no markdown fences, no commentary, in th
   "management_mica": [
     {"type":"mica","text":"single MICA-only step"}
   ],
-  "notes": "Any extraction caveats, illegible sections, or uncertainty. Empty string if none."
+  "notes": "Genuine verbatim clinical context from the document only. Empty string if none.",
+  "extractionCaveats": "Your notes to the human reviewer about extraction quality/uncertainty. Empty string if none."
 }
 Valid step "type" values: assess, action, header, subheader, stop, note, mica. Use "items" (array) for steps with multiple sub-points, "text" (string) for single-line steps.`;
 
@@ -1080,6 +1088,9 @@ async function runExtraction() {
     finalizeExtractedPackage(extracted);
     statusEl.className = 'ex-status ok';
     statusEl.textContent = '\u2713 Extracted — review the opened card below.';
+    if (extracted.extractionCaveats) {
+      alert('\u26a0\ufe0f AI flagged something about this extraction (not saved into the CPG \u2014 for your review only):\n\n' + extracted.extractionCaveats);
+    }
   } catch (e) {
     statusEl.className = 'ex-status err';
     statusEl.textContent = 'Extraction failed: ' + e.message;
@@ -1199,8 +1210,13 @@ function patchCategoryToCpgText(fileText, cpgKey, newCatSubKey) {
   });
 
   if (newCatSubKey && !foundTarget) {
-    const insertion = "\n  '" + newCatSubKey + "': ['" + cpgKey + "'],";
-    block = block.slice(0, -1) + insertion + '\n' + block.slice(-1);
+    // block.slice(0,-1) strips the outer trailing '}'; the entry before it may not have a trailing comma
+    let body = block.slice(0, -1);
+    let j = body.length - 1;
+    while (j >= 0 && /\s/.test(body[j])) j--;
+    const needsComma = body[j] !== ',' && body[j] !== '{';
+    const insertion = (needsComma ? ',' : '') + "\n  '" + newCatSubKey + "': ['" + cpgKey + "'],";
+    block = body + insertion + '\n' + block.slice(-1);
   }
 
   return fileText.slice(0, openBraceIdx) + block + fileText.slice(closeBraceIdx + 1);
