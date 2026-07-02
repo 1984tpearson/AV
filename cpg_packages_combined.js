@@ -2446,6 +2446,154 @@ const CPG_PACKAGES = {
     notes: "Intended for adult patients with minor superficial burns from thermal sources (scald or contact with hot objects). If any doubt exists as to nature, size or depth \u2014 transport and manage as per CPG A0805 Burns. Superficial burns: dry and red, no blisters, skin intact, painful. Cool running water for 20 minutes as per CPG A0805. Epidermal burns generally heal within 7 days without scarring. Sunburn may be appropriate for self-care if patient is otherwise well. Treat and Refer CPGs apply to adult patients only \u2014 not elderly/frail or paediatric."
   }
 
+,
+
+  fracture_dislocation_a0806: {
+    "title": "Fracture/Dislocation",
+    "cpg": "A0806",
+    "careObjectives": [],
+    "management": [
+      {
+        "type": "assess",
+        "items": [
+          "MOI",
+          "Risk factors",
+          "Physical exam focussed on injury site",
+          "Neurovascular observations"
+        ]
+      },
+      {
+        "type": "header",
+        "text": "Pelvic fracture"
+      },
+      {
+        "type": "assess",
+        "items": [
+          "Blunt trauma AND",
+          "Pelvic pain",
+          "Haemodynamic instability",
+          "Altered conscious state"
+        ]
+      },
+      {
+        "type": "action",
+        "text": "Pain relief"
+      },
+      {
+        "type": "action",
+        "text": "Pelvic splint"
+      },
+      {
+        "type": "action",
+        "text": "Transport as per CPG A0105 Trauma Triage"
+      },
+      {
+        "type": "header",
+        "text": "Neck of femur fracture"
+      },
+      {
+        "type": "assess",
+        "items": [
+          "Limb shortening",
+          "External rotation of the affected leg",
+          "Pain in hip or groin",
+          "Bruising / swelling"
+        ]
+      },
+      {
+        "type": "action",
+        "text": "Pain relief"
+      },
+      {
+        "type": "action",
+        "text": "Anatomical splinting"
+      },
+      {
+        "type": "header",
+        "text": "Limb or digit fracture / dislocations"
+      },
+      {
+        "type": "action",
+        "text": "Pain relief"
+      },
+      {
+        "type": "action",
+        "text": "CT-6 traction splint femur or tibia/fibula"
+      },
+      {
+        "type": "action",
+        "text": "Formable splint if other fracture"
+      },
+      {
+        "type": "action",
+        "text": "Anatomical splint if no other options"
+      },
+      {
+        "type": "note",
+        "text": "Abnormal neurovascular observations or severe deformity:"
+      },
+      {
+        "type": "action",
+        "text": "Reduction / realignment"
+      },
+      {
+        "type": "action",
+        "text": "Signal 1 transport with notification"
+      },
+      {
+        "type": "note",
+        "text": "Open fracture / dislocation with gross contamination or prior to reduction:"
+      },
+      {
+        "type": "action",
+        "text": "Irrigate"
+      },
+      {
+        "type": "header",
+        "text": "Soft tissue injury / potential minor fracture"
+      },
+      {
+        "type": "assess",
+        "items": [
+          "No obvious deformity",
+          "Normal neurovascular observations",
+          "No significant bony tenderness",
+          "Mild pain",
+          "Mild functional impairment"
+        ]
+      },
+      {
+        "type": "note",
+        "text": "Consider clinical decision rules: Ottawa Knee Rule; Ottawa Ankle Rule"
+      },
+      {
+        "type": "action",
+        "text": "Paracetamol"
+      },
+      {
+        "type": "action",
+        "text": "Self-care advice – Pain relief"
+      },
+      {
+        "type": "action",
+        "text": "Safety netting"
+      },
+      {
+        "type": "action",
+        "text": "Consider splint / sling / bandage as appropriate"
+      },
+      {
+        "type": "action",
+        "text": "Timely follow-up for imaging if fracture more likely (24 hours)"
+      },
+      {
+        "type": "action",
+        "text": "GP for follow-up if fracture unlikely (2-3 days)"
+      }
+    ],
+    "management_mica": [],
+    "notes": ""
+  },
 };
 
 // Export for use in application
