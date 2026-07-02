@@ -1347,6 +1347,45 @@ function patchCondToCpgKeyText(fileText, oldConditionName, cpgKey, newConditionN
   return fileText.slice(0, openIdx) + block + fileText.slice(closeIdx + 1);
 }
 
+// Adds/updates a bare-identifier-key label in scenario.html's CPG_SUBTYPE_LABELS (e.g. `fracture_dislocation_a0806: 'Fracture/dislocation',`).
+function patchSubtypeLabelText(fileText, cpgKey, newLabel) {
+  const declMatch = /const\s+CPG_SUBTYPE_LABELS\s*=\s*\{/.exec(fileText);
+  if (!declMatch) throw new Error('CPG_SUBTYPE_LABELS declaration not found in this file');
+  const openIdx = declMatch.index + declMatch[0].length - 1;
+  let depth = 0, i = openIdx, inStr = false, strChar = '';
+  while (i < fileText.length) {
+    const ch = fileText[i];
+    if (inStr) {
+      if (ch === '\\') { i += 2; continue; }
+      if (ch === strChar) inStr = false;
+    } else {
+      if (ch === '"' || ch === "'" || ch === '`') { inStr = true; strChar = ch; }
+      else if (ch === '{') depth++;
+      else if (ch === '}') { depth--; if (depth === 0) break; }
+    }
+    i++;
+  }
+  const closeIdx = i;
+  let block = fileText.slice(openIdx, closeIdx + 1);
+
+  const entryRe = /([a-zA-Z_][a-zA-Z0-9_]*)\s*:\s*'([^']*)'/g;
+  let m, foundIdx = -1, foundLen = 0;
+  while ((m = entryRe.exec(block))) {
+    if (m[1] === cpgKey) { foundIdx = m.index; foundLen = m[0].length; break; }
+  }
+  if (foundIdx !== -1) {
+    block = block.slice(0, foundIdx) + cpgKey + ": '" + newLabel.replace(/'/g, "\\'") + "'" + block.slice(foundIdx + foundLen);
+  } else {
+    const closeRel = block.length - 1;
+    let j = closeRel - 1;
+    while (j >= 0 && /\s/.test(block[j])) j--;
+    const needsComma = block[j] !== ',' && block[j] !== '{';
+    const insertion = (needsComma ? ',' : '') + '\n  ' + cpgKey + ": '" + newLabel.replace(/'/g, "\\'") + "',";
+    block = block.slice(0, closeRel) + insertion + '\n' + block.slice(closeRel);
+  }
+  return fileText.slice(0, openIdx) + block + fileText.slice(closeIdx + 1);
+}
+
 async function confirmCategoryAssign() {
   const key = _catAssignKey;
   if (!key) return;
@@ -1372,6 +1411,14 @@ async function confirmCategoryAssign() {
     const edPatched = patchCategoryToCpgText(ed.text, key, newCatSubKey);
     validateHtmlScripts(edPatched);
     await ghCommitFileAtPath('cpg_editor.html', edPatched, ed.sha, 'Update CPG category mapping: ' + key);
+
+    statusEl.textContent = 'Updating scenario.html…';
+    const scn = await ghGetFileAtPath('scenario.html');
+    let scnPatched = patchCategoryToCpgText(scn.text, key, newCatSubKey);
+    const subtypeLabel = newConditionName || DATA[key].title || key;
+    scnPatched = patchSubtypeLabelText(scnPatched, key, subtypeLabel);
+    validateHtmlScripts(scnPatched);
+    await ghCommitFileAtPath('scenario.html', scnPatched, scn.sha, 'Update CPG category mapping: ' + key);
 
     // Reflect immediately in this session without waiting for a reload
     Object.keys(CATEGORY_TO_CPG).forEach(csk => {
