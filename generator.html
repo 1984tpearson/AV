@@ -456,9 +456,12 @@ function getIdentity() {
       lastName:  (_authProfile.display_name || '').split(' ').slice(1).join(' ') || '',
       svcNum:    _authProfile.svc_num || '',
       role:      _authProfile.role || 'user',
+      avRole:    _authProfile.av_role || '',
+      level:     _authProfile.level || '',
+      avatarUrl: _authProfile.avatar_url || '',
     };
   }
-  return { uuid: '', name: '', firstName: '', lastName: '', svcNum: '', role: '' };
+  return { uuid: '', name: '', firstName: '', lastName: '', svcNum: '', role: '', avRole: '', level: '', avatarUrl: '' };
 }
 function isAdmin() { return (_authProfile && _authProfile.role === 'admin') || getIdentity().uuid === ADMIN_UUID; }
 function updateUsageDisplay(){
@@ -487,6 +490,9 @@ function toRow(s){
     treatment_als:s.treatment_als||[],treatment_mica:s.treatment_mica||[],
     life_threats:s.life_threats||[],kq:s.kq||[],discussion:s.discussion||[],
     creator_uuid:s.creator_uuid||id.uuid,creator_name:s.creator_name||id.name||'Anonymous',
+    creator_avatar_url:s.creator_avatar_url||id.avatarUrl||'',
+    creator_role:s.creator_role||id.avRole||'',
+    creator_level:s.creator_level||id.level||'',
     ai_generated:!!s.ai_generated,is_builtin:false};
 }
 async function saveAndNavigate(scenario){

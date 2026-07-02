@@ -414,6 +414,11 @@ body.snav-active #content { padding-left: 60px; }
 .sh-left h2 { font-size: 17px; font-weight: 800; }
 .sh-left .sh-sub { font-size: 12px; opacity: 0.8; margin-top: 2px; }
 .sh-badges { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+.sh-creator { display: flex; align-items: center; gap: 7px; margin-top: 8px; }
+.sh-creator-avatar { width: 22px; height: 22px; border-radius: 50%; background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.35); display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 800; color: white; overflow: hidden; flex-shrink: 0; }
+.sh-creator-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.sh-creator-text { font-size: 11px; color: rgba(255,255,255,0.75); }
+.sh-creator-text strong { color: rgba(255,255,255,0.95); font-weight: 700; }
 .badge { padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 700; background: rgba(255,255,255,0.15); color: white; }
 .badge.amber-badge { background: var(--amber); }
 .ai-generated-badge { display: inline-flex; align-items: center; gap: 5px; background: linear-gradient(135deg,var(--purple),var(--blue)); color: white; padding: 3px 10px; border-radius: 20px; font-size: 10px; font-weight: 700; }
@@ -1784,9 +1789,10 @@ function getIdentity() {
       level:     _authProfile.level || '',
       branch:    _authProfile.branch || '',
       role:      _authProfile.role || 'user',
+      avatarUrl: _authProfile.avatar_url || '',
     };
   }
-  return { uuid: '', name: '', firstName: '', lastName: '', svcNum: '', avRole: '', level: '', branch: '', role: '' };
+  return { uuid: '', name: '', firstName: '', lastName: '', svcNum: '', avRole: '', level: '', branch: '', role: '', avatarUrl: '' };
 }
 function getCIDisplayName() { return getIdentity().name || 'Unknown'; }
 function getGraduate() {
@@ -1886,6 +1892,9 @@ function toRow(s, overrides = {}) {
     discussion:   s.discussion || [],
     creator_uuid: s.creator_uuid || getIdentity().uuid,
     creator_name: s.creator_name || getIdentity().name || 'Anonymous',
+    creator_avatar_url: s.creator_avatar_url || getIdentity().avatarUrl || '',
+    creator_role: s.creator_role || getIdentity().avRole || '',
+    creator_level: s.creator_level || getIdentity().level || '',
     ai_generated: !!s.ai_generated,
     is_builtin:   !!s.is_builtin,
     ...overrides
@@ -1929,6 +1938,9 @@ function fromRow(r) {
     discussion:   r.discussion || [],
     creator_uuid: r.creator_uuid,
     creator_name: r.creator_name,
+    creator_avatar_url: r.creator_avatar_url || '',
+    creator_role: r.creator_role || '',
+    creator_level: r.creator_level || '',
     ai_generated: r.ai_generated,
     is_builtin:   r.is_builtin,
     custom:       !r.is_builtin,
@@ -3301,6 +3313,16 @@ function renderScenario(s) {
       ${s.custom&&!s.ai_generated?'<span class="badge custom-badge">Custom</span>':''}
       ${s._edited?'<span class="badge" style="background:#16A085">✎ Edited</span>':''}
     </div>
+    ${(isCustom && s.creator_uuid) ? (() => {
+      const roleLabel = {CI:'Clinical Instructor',PE:'Paramedic Educator',GAP:'Graduate Ambulance Paramedic',CSO:'Clinical Support Officer',Other:'Other'}[s.creator_role] || s.creator_role || '';
+      const levelLabel = s.creator_level || '';
+      const meta = [roleLabel, levelLabel].filter(Boolean).join(' · ');
+      const initials = (s.creator_name || '').split(/\s+/).filter(Boolean).map(w => w[0]).slice(0,2).join('').toUpperCase() || '?';
+      return `<div class="sh-creator">
+        <div class="sh-creator-avatar">${s.creator_avatar_url ? `<img src="${s.creator_avatar_url}" alt="">` : initials}</div>
+        <div class="sh-creator-text">Created by <strong>${s.creator_name || 'Unknown'}</strong>${meta ? ` — ${meta}` : ''}</div>
+      </div>`;
+    })() : ''}
     ${isCustom?'<div class="ai-disclaimer">⚠️ Custom scenario — verify all clinical content against current AV CPGs before use.</div>':''}
   </div>
   <div style="display:flex;flex-direction:column;align-items:flex-end;gap:8px;flex-shrink:0">
