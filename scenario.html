@@ -3318,8 +3318,9 @@ function renderScenario(s) {
       const levelLabel = s.creator_level || '';
       const meta = [roleLabel, levelLabel].filter(Boolean).join(' · ');
       const initials = (s.creator_name || '').split(/\s+/).filter(Boolean).map(w => w[0]).slice(0,2).join('').toUpperCase() || '?';
+      const avatarClickable = s.creator_avatar_url ? ` onclick="openCreatorAvatarLightbox('${s.creator_avatar_url}','${(s.creator_name||'').replace(/'/g,"\\'")}')" style="cursor:zoom-in"` : '';
       return `<div class="sh-creator">
-        <div class="sh-creator-avatar">${s.creator_avatar_url ? `<img src="${s.creator_avatar_url}" alt="">` : initials}</div>
+        <div class="sh-creator-avatar"${avatarClickable}>${s.creator_avatar_url ? `<img src="${s.creator_avatar_url}" alt="">` : initials}</div>
         <div class="sh-creator-text">Created by <strong>${s.creator_name || 'Unknown'}</strong>${meta ? ` — ${meta}` : ''}</div>
       </div>`;
     })() : ''}
@@ -7184,6 +7185,15 @@ function openECGLightbox(src, label) {
 }
 function closeECGLightbox() {
   document.getElementById('ecg-lightbox').classList.remove('open');
+}
+function openCreatorAvatarLightbox(src, name) {
+  const lb = document.getElementById('ecg-lightbox');
+  const lbImg = document.getElementById('ecg-lightbox-img');
+  const lbLabel = document.getElementById('ecg-lightbox-label');
+  if (!lb || !lbImg) return;
+  lbImg.src = src;
+  if (lbLabel) lbLabel.textContent = name || '';
+  lb.classList.add('open');
 }
 
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closeECGLightbox(); });
