@@ -1084,6 +1084,7 @@ body.flag-mode-active .flaggable.has-correction:hover { outline: 2px solid var(-
 /* home-random-btn defined in HOME section above */
 </style>
 <script src="cpg_packages_combined.js"></script>
+<script src="category_data.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700&display=swap" rel="stylesheet">
 <script src="https://1984tpearson.github.io/AV/ecg_engine.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -5033,125 +5034,8 @@ function closeAIModal() { document.getElementById('ai-modal').classList.remove('
 document.getElementById('ai-modal').addEventListener('click', e => { if(e.target===document.getElementById('ai-modal')) closeAIModal(); });
 
 // ── Category → CPG key mapping ─────────────────────────────────────────────
-const CATEGORY_TO_CPG = {
-  // Adult
-  'Adult|Cardiac Arrest':    ['cardiac_arrest_medical', 'cardiac_arrest_traumatic', 'rosc_management', 'withholding_resuscitation'],
-  'Adult|Airway Management': ['essential_airway', 'endotracheal_intubation', 'difficult_airway', 'upper_airway_obstruction'],
-  'Adult|Cardiac':           ['acs', 'bradycardia', 'tachycardia_narrow', 'tachycardia_broad', 'pulmonary_oedema', 'inadequate_perfusion_cardiogenic', 'stemi_management', 'hypertension'],
-  'Adult|Pain Relief':       ['pain_relief', 'headache'],
-  'Adult|Respiratory':       ['asthma', 'copd', 'upper_airway_obstruction', 'dyspnoea', 'pulmonary_embolism'],
-  'Adult|Medical':           ['seizures', 'hypoglycaemia', 'stroke', 'anaphylaxis', 'hyperkalaemia', 'hyperglycaemia', 'adrenal_insufficiency', 'nausea_vomiting', 'shock'],
-  'Adult|Infection':         ['sepsis', 'meningococcal'],
-  'Adult|Mental Health':     ['acute_behavioural_disturbance', 'mental_health_conditions'],
-  'Adult|Palliative Care':   ['palliative_care'],
-  'Adult|Syncope':           ['syncope'],
-  'Adult|Trauma':            ['major_trauma', 'head_injury', 'chest_injury', 'spinal_injury', 'burns'],
-  'Adult|Environment':       ['hypothermia', 'hyperthermia_environmental'],
-  'Adult|Toxicology':        ['opioid_toxicity', 'tca_toxicity', 'beta_blocker_toxicity', 'ccb_toxicity', 'organophosphate_toxicity', 'drug_induced_hyperthermia', 'quetiapine_toxicity', 'alcohol_intoxication', 'alcohol_withdrawal', 'cyanide_toxicity'],
-  // Paediatric
-  'Paediatric|Cardiac Arrest':    ['cardiac_arrest_medical', 'cardiac_arrest_traumatic', 'rosc_management', 'withholding_resuscitation'],
-  'Paediatric|Airway Management': ['essential_airway', 'endotracheal_intubation', 'difficult_airway', 'upper_airway_obstruction'],
-  'Paediatric|Pain Relief':       ['pain_relief', 'headache'],
-  'Paediatric|Respiratory':       ['asthma', 'croup'],
-  'Paediatric|Medical':           ['seizures', 'hypoglycaemia', 'anaphylaxis', 'hyperglycaemia'],
-  'Paediatric|Infection':         ['sepsis'],
-  'Paediatric|Trauma':            ['major_trauma', 'head_injury', 'chest_injury', 'burns'],
-  'Paediatric|Environment':       ['hypothermia', 'hyperthermia_environmental'],
-  'Paediatric|Toxicology':        ['opioid_toxicity', 'tca_toxicity', 'alcohol_intoxication', 'organophosphate_toxicity', 'drug_induced_hyperthermia'],
-  // Maternity
-  'Maternity|Antepartum Haemorrhage':           ['shock', 'maternity_patient'],
-  'Maternity|Pre-eclampsia / Eclampsia':        ['preeclampsia_eclampsia', 'seizures'],
-  'Maternity|Normal Birth':                      ['normal_birth', 'maternity_patient', 'the_newborn'],
-  'Maternity|Breech / Compound':                 ['breech_birth', 'maternity_patient', 'the_newborn'],
-  'Maternity|Preterm Labour':                    ['maternity_patient', 'the_newborn'],
-  'Maternity|Cord Prolapse':                     ['cord_prolapse', 'maternity_patient'],
-  'Maternity|Shoulder Dystocia':                 ['shoulder_dystocia', 'maternity_patient'],
-  'Maternity|Primary Postpartum Haemorrhage':    ['shock', 'maternity_patient'],
-  'Maternity|Miscarriage':                       ['maternity_patient'],
-  // Other
-  'Newborn|Newborn Resuscitation': ['newborn_resuscitation', 'the_newborn'],
-  'Treat and Refer|Epistaxis':     ['epistaxis'],
-  'Treat and Refer|Minor Burns':   ['minor_burns'],
-};
 
 // ── CPG subtype labels for the presentation-type dropdown ──────────────────
-const CPG_SUBTYPE_LABELS = {
-  // Cardiac Arrest / Resuscitation
-  cardiac_arrest_medical:   'Medical Cardiac Arrest',
-  cardiac_arrest_traumatic: 'Traumatic Cardiac Arrest',
-  rosc_management:          'ROSC Management',
-  withholding_resuscitation:'Withholding or Ceasing Resuscitation',
-  // Airway
-  essential_airway:         'Essential Airway Management',
-  endotracheal_intubation:  'Endotracheal Intubation (RSI)',
-  difficult_airway:         'Difficult Airway Guideline',
-  // Toxicology
-  opioid_toxicity:          'Opioid Toxicity',
-  tca_toxicity:             'Tricyclic Antidepressant (TCA) Overdose',
-  beta_blocker_toxicity:    'Beta-Blocker Toxicity',
-  ccb_toxicity:             'Calcium Channel Blocker Toxicity',
-  organophosphate_toxicity: 'Organophosphate / Pesticide Toxicity',
-  drug_induced_hyperthermia:'Drug-Induced Hyperthermia / Stimulant Toxidrome',
-  quetiapine_toxicity:      'Quetiapine (Antipsychotic) Toxicity',
-  alcohol_intoxication:     'Acute Alcohol Intoxication',
-  alcohol_withdrawal:       'Alcohol Withdrawal Syndrome',
-  cyanide_toxicity:         'Cyanide Toxicity',
-  // Cardiac
-  acs:                          'ACS / STEMI',
-  bradycardia:                  'Bradycardia',
-  tachycardia_narrow:           'Narrow Complex Tachycardia (SVT/AF)',
-  tachycardia_broad:            'Broad Complex Tachycardia (VT)',
-  pulmonary_oedema:             'Cardiogenic Pulmonary Oedema',
-  inadequate_perfusion_cardiogenic: 'Inadequate Perfusion (Cardiogenic)',
-  stemi_management:             'STEMI Management',
-  hypertension:                 'Hypertension',
-  // Medical
-  seizures:                 'Seizures / Status Epilepticus',
-  hypoglycaemia:            'Hypoglycaemia',
-  stroke:                   'Suspected Stroke / TIA',
-  anaphylaxis:              'Anaphylaxis',
-  hyperkalaemia:            'Hyperkalaemia',
-  adrenal_insufficiency:    'Adrenal Insufficiency / Crisis',
-  hyperglycaemia:           'Hyperglycaemia / DKA / HHS',
-  headache:                 'Headache',
-  nausea_vomiting:          'Nausea and Vomiting',
-  // Respiratory
-  asthma:                   'Asthma',
-  copd:                     'COPD Exacerbation',
-  upper_airway_obstruction: 'Upper Airway Obstruction',
-  croup:                    'Croup',
-  dyspnoea:                 'Undifferentiated Dyspnoea',
-  pulmonary_embolism:       'Pulmonary Embolism',
-  // Mental Health
-  acute_behavioural_disturbance: 'Acute Behavioural Disturbance',
-  mental_health_conditions: 'Mental Health Conditions',
-  // Trauma
-  major_trauma:             'Major Trauma',
-  head_injury:              'Traumatic Head Injury',
-  chest_injury:             'Chest Injury',
-  spinal_injury:            'Spinal Injury',
-  burns:                    'Burns',
-  shock:                    'Shock',
-  // Environment
-  hypothermia:              'Hypothermia',
-  hyperthermia_environmental: 'Heat Stress / Heat Stroke',
-  // Maternity
-  maternity_patient:        'General Maternity Assessment',
-  preeclampsia_eclampsia:   'Pre-eclampsia / Eclampsia',
-  normal_birth:             'Normal Birth',
-  breech_birth:             'Breech / Compound Presentation',
-  cord_prolapse:            'Cord Prolapse',
-  shoulder_dystocia:        'Shoulder Dystocia',
-  // Newborn
-  newborn_resuscitation:    'Newborn Resuscitation',
-  the_newborn:              'Newborn Assessment',
-  // Infection
-  sepsis:                   'Sepsis',
-  meningococcal:            'Meningococcal Septicaemia',
-  // Palliative / Syncope
-  palliative_care:          'Palliative Care',
-  syncope:                  'Syncope',
-};
 
 function updateCPGSubtypeDropdown(catId, groupId, selectId) {
   // Defaults for primary category (called without args from legacy paths)
