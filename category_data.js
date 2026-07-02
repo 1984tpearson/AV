@@ -206,6 +206,7 @@ const CPG_SUBTYPE_LABELS = {
   spinal_injury:            'Spinal Injury',
   burns:                    'Burns',
   minor_burns:              'Minor Burns',
+  fracture_dislocation_a0806: 'Fracture/dislocation',
   shock:                    'Shock',
   // Environment
   hypothermia:              'Hypothermia',
