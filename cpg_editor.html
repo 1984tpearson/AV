@@ -137,6 +137,28 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #f0f2f5; colo
 .ex-status.err { color:#C0392B; font-weight:600; }
 .ex-status.ok { color:#27833A; font-weight:600; }
 
+/* CATEGORY ACCORDION */
+.cpg-cat { background:white; border:1px solid #dde; border-radius:8px; margin-bottom:10px; overflow:hidden; }
+.cpg-cat-row { display:flex; align-items:center; gap:10px; padding:12px 16px; cursor:pointer; user-select:none; background:white; }
+.cpg-cat-row:hover { background:#f8f9fc; }
+.cpg-cat-stripe { width:4px; height:22px; border-radius:2px; flex-shrink:0; }
+.cpg-cat-icon { font-size:17px; width:24px; text-align:center; flex-shrink:0; }
+.cpg-cat-name { font-size:14px; font-weight:700; color:#1a1a2e; flex:1; }
+.cpg-cat-count { font-size:11px; color:#888; font-weight:600; margin-right:4px; }
+.cpg-cat-chevron { font-size:12px; color:#aaa; transition:transform .2s; }
+.cpg-cat-chevron.open { transform:rotate(90deg); }
+.cpg-cat-body { display:none; background:#f7f9fc; border-top:1px solid #eaedf0; }
+.cpg-cat-body.open { display:block; }
+
+.cpg-subcat-row { display:flex; align-items:center; gap:8px; padding:9px 16px; cursor:pointer; background:#f0f3f7; border-bottom:1px solid #eaedf0; user-select:none; }
+.cpg-subcat-row:hover { background:#e4e8ef; }
+.cpg-subcat-label { font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:.6px; color:#1C3A6E; flex:1; }
+.cpg-subcat-count { font-size:11px; color:#888; font-weight:600; }
+.cpg-subcat-chevron { font-size:11px; color:#aaa; transition:transform .18s; }
+.cpg-subcat-chevron.open { transform:rotate(90deg); }
+.cpg-subcat-body { display:none; padding:10px 12px; }
+.cpg-subcat-body.open { display:block; }
+
 </style>
 </head>
 <body>
@@ -151,10 +173,6 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #f0f2f5; colo
 
 <div class="controls">
   <input class="search-box" type="text" id="search" placeholder="Search by title, CPG code or key&hellip;" oninput="renderCards()">
-  <button class="filter-btn active" onclick="setFilter('all',this)">All</button>
-  <button class="filter-btn" onclick="setFilter('adult',this)">Adult (A)</button>
-  <button class="filter-btn" onclick="setFilter('paed',this)">Paediatric (P)</button>
-  <button class="filter-btn" onclick="setFilter('tr',this)">Treat &amp; Refer (TR)</button>
   <button class="filter-btn" style="background:#27833A;color:white;border-color:#27833A" onclick="addNewPackage()">+ New CPG</button>
   <button class="filter-btn" style="background:#7D3C98;color:white;border-color:#7D3C98" onclick="openExtractModal()">&#129302; Extract from Document</button>
   <button class="filter-btn" onclick="changeGithubToken()" title="Update GitHub token">&#128273; Token</button>
@@ -224,45 +242,165 @@ const ORIGINAL = JSON.parse(JSON.stringify(CPG_PACKAGES));
 // Working copy — edits go here
 const DATA = JSON.parse(JSON.stringify(CPG_PACKAGES));
 
-let currentFilter = 'all';
 const _newKeys = new Set(); // keys added this session that don't exist in the file yet
 const STEP_TYPES = ['action','mica','header','subheader','stop','note','assess'];
 const TYPE_LABELS = { action:'ALS Action', mica:'MICA', header:'Header', subheader:'Subheader', stop:'Stop', note:'Note', assess:'Assess' };
 
-// ── FILTER / SEARCH ────────────────────────────────────────────
-function setFilter(f, btn) {
-  currentFilter = f;
-  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
-  btn.classList.add('active');
-  renderCards();
+// ── CATEGORY GROUPING (mirrors generator.html / scenario.html) ──
+const TOP_CATEGORIES = [
+  { key: 'Adult',           icon: '🧑', color: 'var(--navy)' },
+  { key: 'Paediatric',      icon: '🧒', color: 'var(--blue)' },
+  { key: 'Maternity',       icon: '🤰', color: 'var(--purple)' },
+  { key: 'Newborn',         icon: '👶', color: 'var(--green)' },
+  { key: 'Treat and Refer', icon: '🩹', color: '#6D4C41' }
+];
+const CATEGORY_TO_CPG = {
+  'Adult|Cardiac Arrest':    ['cardiac_arrest_medical', 'cardiac_arrest_traumatic', 'rosc_management', 'withholding_resuscitation'],
+  'Adult|Airway Management': ['essential_airway', 'endotracheal_intubation', 'difficult_airway', 'upper_airway_obstruction'],
+  'Adult|Cardiac':           ['acs', 'bradycardia', 'tachycardia_narrow', 'tachycardia_broad', 'pulmonary_oedema', 'inadequate_perfusion_cardiogenic', 'stemi_management', 'hypertension'],
+  'Adult|Pain Relief':       ['pain_relief', 'headache'],
+  'Adult|Respiratory':       ['asthma', 'copd', 'upper_airway_obstruction', 'dyspnoea', 'pulmonary_embolism'],
+  'Adult|Medical':           ['seizures', 'hypoglycaemia', 'stroke', 'anaphylaxis', 'hyperkalaemia', 'hyperglycaemia', 'adrenal_insufficiency', 'nausea_vomiting', 'shock'],
+  'Adult|Infection':         ['sepsis', 'meningococcal'],
+  'Adult|Mental Health':     ['acute_behavioural_disturbance', 'mental_health_conditions'],
+  'Adult|Palliative Care':   ['palliative_care'],
+  'Adult|Syncope':           ['syncope'],
+  'Adult|Trauma':            ['major_trauma', 'head_injury', 'chest_injury', 'spinal_injury', 'burns'],
+  'Adult|Environment':       ['hypothermia', 'hyperthermia_environmental'],
+  'Adult|Toxicology':        ['opioid_toxicity', 'tca_toxicity', 'beta_blocker_toxicity', 'ccb_toxicity', 'organophosphate_toxicity', 'drug_induced_hyperthermia', 'quetiapine_toxicity', 'alcohol_intoxication', 'alcohol_withdrawal', 'cyanide_toxicity'],
+  'Paediatric|Cardiac Arrest':    ['cardiac_arrest_medical', 'cardiac_arrest_traumatic', 'rosc_management', 'withholding_resuscitation'],
+  'Paediatric|Airway Management': ['essential_airway', 'endotracheal_intubation', 'difficult_airway', 'upper_airway_obstruction'],
+  'Paediatric|Pain Relief':       ['pain_relief'],
+  'Paediatric|Respiratory':       ['asthma', 'croup'],
+  'Paediatric|Medical':           ['seizures', 'hypoglycaemia', 'anaphylaxis', 'hyperglycaemia'],
+  'Paediatric|Infection':         ['sepsis'],
+  'Paediatric|Trauma':            ['major_trauma', 'head_injury', 'chest_injury', 'burns'],
+  'Paediatric|Environment':       ['hypothermia', 'hyperthermia_environmental'],
+  'Paediatric|Toxicology':        ['opioid_toxicity', 'tca_toxicity', 'alcohol_intoxication', 'organophosphate_toxicity', 'drug_induced_hyperthermia'],
+  'Maternity|Antepartum Haemorrhage':        ['shock', 'maternity_patient'],
+  'Maternity|Pre-eclampsia / Eclampsia':     ['preeclampsia_eclampsia', 'seizures'],
+  'Maternity|Normal Birth':                  ['normal_birth', 'maternity_patient', 'the_newborn'],
+  'Maternity|Breech / Compound':             ['breech_birth', 'maternity_patient', 'the_newborn'],
+  'Maternity|Preterm Labour':                ['maternity_patient', 'the_newborn'],
+  'Maternity|Cord Prolapse':                 ['cord_prolapse', 'maternity_patient'],
+  'Maternity|Shoulder Dystocia':             ['shoulder_dystocia', 'maternity_patient'],
+  'Maternity|Primary Postpartum Haemorrhage':['shock', 'maternity_patient'],
+  'Maternity|Miscarriage':                   ['maternity_patient'],
+  'Newborn|Newborn Resuscitation': ['newborn_resuscitation', 'the_newborn'],
+  'Treat and Refer|Treat and Refer': ['burns', 'epistaxis'],
+  'Treat and Refer|Epistaxis':     ['epistaxis'],
+  'Treat and Refer|Minor Burns':   ['minor_burns']
+};
+
+const _openCats = new Set();    // top-level category keys currently expanded
+const _openSubcats = new Set(); // 'Cat|Subcat' keys currently expanded
+
+function findCategoryPathForKey(key) {
+  for (const catSubKey of Object.keys(CATEGORY_TO_CPG)) {
+    if (CATEGORY_TO_CPG[catSubKey].includes(key)) {
+      const [cat, sub] = catSubKey.split('|');
+      return { cat, sub, catSubKey };
+    }
+  }
+  return null;
 }
 
-function matchesFilter(key, pkg) {
-  if (currentFilter === 'all') return true;
-  const c = (pkg.cpg||'').toUpperCase();
-  if (currentFilter === 'adult') return c.startsWith('A');
-  if (currentFilter === 'paed') return c.startsWith('P');
-  if (currentFilter === 'tr') return c.startsWith('TR');
-  return true;
-}
-
+// ── SEARCH ────────────────────────────────────────────────────
 function matchesSearch(key, pkg, q) {
   if (!q) return true;
   q = q.toLowerCase();
   return key.toLowerCase().includes(q) || (pkg.title||'').toLowerCase().includes(q) || (pkg.cpg||'').toLowerCase().includes(q);
 }
 
-// ── RENDER ALL CARDS ───────────────────────────────────────────
+// ── RENDER ACCORDION ──────────────────────────────────────────
 function renderCards() {
   const q = document.getElementById('search').value.trim();
-  const entries = Object.entries(DATA);
-  const filtered = entries.filter(([k,v]) => matchesFilter(k,v) && matchesSearch(k,v,q));
-  document.getElementById('pkg-count').textContent = entries.length + ' packages';
+  const allEntries = Object.entries(DATA);
+  document.getElementById('pkg-count').textContent = allEntries.length + ' packages';
+
+  const usedKeys = new Set();
+  const sections = [];
+
+  TOP_CATEGORIES.forEach(cat => {
+    const subKeys = Object.keys(CATEGORY_TO_CPG).filter(k => k.startsWith(cat.key + '|'));
+    const subcats = [];
+    subKeys.forEach(catSubKey => {
+      const sub = catSubKey.split('|')[1];
+      const entries = CATEGORY_TO_CPG[catSubKey]
+        .filter(k => DATA[k] && matchesSearch(k, DATA[k], q))
+        .map(k => { usedKeys.add(k); return [k, DATA[k]]; });
+      if (entries.length) subcats.push({ sub, catSubKey, entries });
+    });
+    if (subcats.length) sections.push({ cat, subcats });
+  });
+
+  // Anything not mapped into a category/subcategory
+  const uncategorized = allEntries.filter(([k, v]) => !usedKeys.has(k) && matchesSearch(k, v, q));
+
   const grid = document.getElementById('grid');
-  if (!filtered.length) { grid.innerHTML = '<div class="empty">No packages match.</div>'; return; }
-  grid.innerHTML = filtered.map(([k,v]) => cardHTML(k,v)).join('');
-  // attach drag events after render
-  filtered.forEach(([k]) => attachDrag(k));
+  if (!sections.length && !uncategorized.length) { grid.innerHTML = '<div class="empty">No packages match.</div>'; return; }
+
+  const autoExpand = !!q; // auto-open groups with matches while searching
+
+  let html = sections.map(({ cat, subcats }) => {
+    const total = subcats.reduce((s, sc) => s + sc.entries.length, 0);
+    const catOpen = _openCats.has(cat.key) || autoExpand;
+    const subcatsHtml = subcats.map(({ sub, catSubKey, entries }) => {
+      const subOpen = _openSubcats.has(catSubKey) || autoExpand;
+      return `<div class="cpg-subcat">
+        <div class="cpg-subcat-row" onclick="toggleSubcat('${catSubKey.replace(/'/g,"\\'")}')">
+          <span class="cpg-subcat-chevron${subOpen ? ' open' : ''}">&#9656;</span>
+          <span class="cpg-subcat-label">${esc(sub)}</span>
+          <span class="cpg-subcat-count">${entries.length}</span>
+        </div>
+        <div class="cpg-subcat-body${subOpen ? ' open' : ''}">
+          ${entries.map(([k,v]) => cardHTML(k,v)).join('')}
+        </div>
+      </div>`;
+    }).join('');
+    return `<div class="cpg-cat">
+      <div class="cpg-cat-row" onclick="toggleCat('${cat.key.replace(/'/g,"\\'")}')">
+        <span class="cpg-cat-stripe" style="background:${cat.color}"></span>
+        <span class="cpg-cat-icon">${cat.icon}</span>
+        <span class="cpg-cat-name">${esc(cat.key)}</span>
+        <span class="cpg-cat-count">${total}</span>
+        <span class="cpg-cat-chevron${catOpen ? ' open' : ''}">&#9656;</span>
+      </div>
+      <div class="cpg-cat-body${catOpen ? ' open' : ''}">${subcatsHtml}</div>
+    </div>`;
+  }).join('');
+
+  if (uncategorized.length) {
+    const catOpen = _openCats.has('__uncategorized__') || autoExpand;
+    html += `<div class="cpg-cat">
+      <div class="cpg-cat-row" onclick="toggleCat('__uncategorized__')">
+        <span class="cpg-cat-stripe" style="background:#888"></span>
+        <span class="cpg-cat-icon">&#128193;</span>
+        <span class="cpg-cat-name">Uncategorised</span>
+        <span class="cpg-cat-count">${uncategorized.length}</span>
+        <span class="cpg-cat-chevron${catOpen ? ' open' : ''}">&#9656;</span>
+      </div>
+      <div class="cpg-cat-body${catOpen ? ' open' : ''}">${uncategorized.map(([k,v]) => cardHTML(k,v)).join('')}</div>
+    </div>`;
+  }
+
+  grid.innerHTML = html;
+  allEntries.forEach(([k]) => attachDrag(k));
+}
+
+function toggleCat(catKey) {
+  if (_openCats.has(catKey)) _openCats.delete(catKey); else _openCats.add(catKey);
+  renderCards();
+}
+function toggleSubcat(catSubKey) {
+  if (_openSubcats.has(catSubKey)) _openSubcats.delete(catSubKey); else _openSubcats.add(catSubKey);
+  renderCards();
+}
+
+function revealCard(key) {
+  const path = findCategoryPathForKey(key);
+  if (path) { _openCats.add(path.cat); _openSubcats.add(path.catSubKey); }
+  else { _openCats.add('__uncategorized__'); }
 }
 
 // ── CARD HTML ──────────────────────────────────────────────────
@@ -568,6 +706,7 @@ function addNewPackage() {
   const title = (prompt('Title:') || key).trim();
   DATA[key] = { title, cpg: cpgCode, careObjectives: [], management: [], management_mica: [], notes: '' };
   _newKeys.add(key);
+  revealCard(key);
   renderCards();
   const card = document.getElementById('card-' + key);
   if (card) {
@@ -897,6 +1036,7 @@ function finalizeExtractedPackage(extracted) {
     notes: extracted.notes || ''
   };
   closeExtractModal();
+  revealCard(key);
   renderCards();
   const card = document.getElementById('card-' + key);
   if (card) {
