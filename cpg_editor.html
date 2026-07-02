@@ -206,6 +206,11 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #f0f2f5; colo
     <div class="ex-modal-body">
       <div class="ex-hint">Choose where this CPG belongs. This updates the category mapping used by the Scenario Generator too, not just this editor's grouping &mdash; it commits to <code>generator.html</code> and <code>cpg_editor.html</code>.</div>
       <select class="field-input" id="cat-assign-select" style="margin-bottom:14px"></select>
+      <div class="field-row" style="margin-top:0;margin-bottom:14px">
+        <label>Condition name (optional)</label>
+        <input class="field-input" id="cat-assign-condition-name" type="text" placeholder="e.g. Fracture/dislocation">
+      </div>
+      <div class="ex-hint" style="margin-top:-8px">Fill this in to make the CPG tappable by name in the Quick Build picker. Leave blank and it's still usable via Custom Build's category pool, just not selectable by name.</div>
       <button class="btn btn-save" style="width:100%" id="cat-assign-confirm-btn" onclick="confirmCategoryAssign()">Assign</button>
       <button class="btn btn-reset" style="width:100%;margin-top:8px" onclick="closeCategoryAssign()">Cancel</button>
       <div class="ex-status" id="cat-assign-status"></div>
@@ -1148,15 +1153,30 @@ function populateCategorySelectOptions(selectEl, currentValue) {
   selectEl.innerHTML = html;
 }
 
-function openCategoryAssign(key) {
+let _catAssignOldConditionName = '';
+
+async function openCategoryAssign(key) {
   _catAssignKey = key;
   const current = findCategoryPathForKey(key);
   const sel = document.getElementById('cat-assign-select');
   populateCategorySelectOptions(sel, current ? current.catSubKey : '');
+  const nameInput = document.getElementById('cat-assign-condition-name');
+  nameInput.value = '';
+  _catAssignOldConditionName = '';
   const statusEl = document.getElementById('cat-assign-status');
   statusEl.className = 'ex-status';
-  statusEl.textContent = '';
+  statusEl.textContent = 'Checking for an existing condition name…';
   document.getElementById('cat-modal').classList.add('open');
+  try {
+    const gen = await ghGetFileAtPath('generator.html');
+    const match = new RegExp("'([^']+)'\\s*:\\s*'" + ghEscapeRegex(key) + "'").exec(gen.text);
+    _catAssignOldConditionName = match ? match[1] : '';
+    nameInput.value = _catAssignOldConditionName;
+    statusEl.textContent = '';
+  } catch (e) {
+    statusEl.className = 'ex-status err';
+    statusEl.textContent = 'Could not check for an existing condition name: ' + e.message;
+  }
 }
 function closeCategoryAssign() {
   document.getElementById('cat-modal').classList.remove('open');
@@ -1222,10 +1242,117 @@ function patchCategoryToCpgText(fileText, cpgKey, newCatSubKey) {
   return fileText.slice(0, openBraceIdx) + block + fileText.slice(closeBraceIdx + 1);
 }
 
+// Adds/moves/removes a condition display name within the (generator.html-only) CATEGORIES picker list.
+// oldConditionName: removed from wherever it currently is (pass '' if none). newConditionName: added under catKey/subKey (pass '' to just remove).
+function patchCategoriesText(fileText, oldConditionName, catKey, subKey, newConditionName) {
+  const declMatch = /const\s+CATEGORIES\s*=\s*\[/.exec(fileText);
+  if (!declMatch) throw new Error('CATEGORIES declaration not found in this file');
+  const openIdx = declMatch.index + declMatch[0].length - 1;
+  let depth = 0, i = openIdx, inStr = false, strChar = '';
+  while (i < fileText.length) {
+    const ch = fileText[i];
+    if (inStr) {
+      if (ch === '\\') { i += 2; continue; }
+      if (ch === strChar) inStr = false;
+    } else {
+      if (ch === '"' || ch === "'" || ch === '`') { inStr = true; strChar = ch; }
+      else if (ch === '{' || ch === '[') depth++;
+      else if (ch === '}' || ch === ']') { depth--; if (depth === 0) break; }
+    }
+    i++;
+  }
+  const closeIdx = i;
+  let block = fileText.slice(openIdx, closeIdx + 1);
+
+  if (oldConditionName) {
+    block = block.replace(/'([^']+)'\s*:\s*\[([^\]]*)\]/g, (m, subK, arrText) => {
+      let items = arrText.split(',').map(s => s.trim()).filter(Boolean).map(s => s.replace(/^['"]|['"]$/g, ''));
+      const filtered = items.filter(it => it !== oldConditionName);
+      if (filtered.length === items.length) return m;
+      const newArr = filtered.map(it => "'" + it.replace(/'/g, "\\'") + "'").join(',');
+      return "'" + subK + "':[" + newArr + ']';
+    });
+  }
+
+  if (newConditionName && catKey && subKey) {
+    const catRe = new RegExp("\\{key:\\s*'" + ghEscapeRegex(catKey) + "'.*?\\}\\},?", 'g');
+    const catMatch = catRe.exec(block);
+    if (!catMatch) throw new Error('Category "' + catKey + '" not found in CATEGORIES');
+    let catLine = catMatch[0];
+    const subRe = new RegExp("'" + ghEscapeRegex(subKey) + "'\\s*:\\s*\\[([^\\]]*)\\]");
+    const subMatch = subRe.exec(catLine);
+    let newCatLine;
+    if (subMatch) {
+      let items = subMatch[1].split(',').map(s => s.trim()).filter(Boolean).map(s => s.replace(/^['"]|['"]$/g, ''));
+      if (!items.includes(newConditionName)) items.push(newConditionName);
+      const newArr = items.map(it => "'" + it.replace(/'/g, "\\'") + "'").join(',');
+      newCatLine = catLine.slice(0, subMatch.index) + "'" + subKey + "':[" + newArr + "]" + catLine.slice(subMatch.index + subMatch[0].length);
+    } else {
+      const insertion = ",'" + subKey.replace(/'/g, "\\'") + "':['" + newConditionName.replace(/'/g, "\\'") + "']";
+      const lastClose = catLine.lastIndexOf('}}');
+      newCatLine = catLine.slice(0, lastClose) + insertion + catLine.slice(lastClose);
+    }
+    block = block.slice(0, catMatch.index) + newCatLine + block.slice(catMatch.index + catMatch[0].length);
+  }
+
+  return fileText.slice(0, openIdx) + block + fileText.slice(closeIdx + 1);
+}
+
+// Adds/moves/removes a condition-name → CPG-key mapping (generator.html-only, drives Quick Build selection).
+function patchCondToCpgKeyText(fileText, oldConditionName, cpgKey, newConditionName) {
+  const declMatch = /const\s+COND_TO_CPG_KEY\s*=\s*\{/.exec(fileText);
+  if (!declMatch) throw new Error('COND_TO_CPG_KEY declaration not found in this file');
+  const openIdx = declMatch.index + declMatch[0].length - 1;
+  let depth = 0, i = openIdx, inStr = false, strChar = '';
+  while (i < fileText.length) {
+    const ch = fileText[i];
+    if (inStr) {
+      if (ch === '\\') { i += 2; continue; }
+      if (ch === strChar) inStr = false;
+    } else {
+      if (ch === '"' || ch === "'" || ch === '`') { inStr = true; strChar = ch; }
+      else if (ch === '{') depth++;
+      else if (ch === '}') { depth--; if (depth === 0) break; }
+    }
+    i++;
+  }
+  const closeIdx = i;
+  let block = fileText.slice(openIdx, closeIdx + 1);
+
+  const entryRe = /'([^']+)'\s*:\s*'([^']*)'/g;
+  const toRemove = [];
+  let m;
+  while ((m = entryRe.exec(block))) {
+    if (m[2] === cpgKey || (oldConditionName && m[1] === oldConditionName)) toRemove.push(m);
+  }
+  for (let k = toRemove.length - 1; k >= 0; k--) {
+    const mm = toRemove[k];
+    const start = mm.index;
+    let end = start + mm[0].length;
+    if (block[end] === ',') end++;
+    let lineEnd = block.indexOf('\n', end);
+    if (lineEnd !== -1 && block.slice(end, lineEnd).trim() === '') end = lineEnd + 1;
+    block = block.slice(0, start) + block.slice(end);
+  }
+
+  if (newConditionName) {
+    const closeRel = block.length - 1;
+    let j = closeRel - 1;
+    while (j >= 0 && /\s/.test(block[j])) j--;
+    const needsComma = block[j] !== ',' && block[j] !== '{';
+    const insertion = (needsComma ? ',' : '') + "\n  '" + newConditionName.replace(/'/g, "\\'") + "': '" + cpgKey + "',";
+    block = block.slice(0, closeRel) + insertion + '\n' + block.slice(closeRel);
+  }
+
+  return fileText.slice(0, openIdx) + block + fileText.slice(closeIdx + 1);
+}
+
 async function confirmCategoryAssign() {
   const key = _catAssignKey;
   if (!key) return;
   const newCatSubKey = document.getElementById('cat-assign-select').value || null;
+  const newConditionName = document.getElementById('cat-assign-condition-name').value.trim();
+  const oldConditionName = _catAssignOldConditionName || '';
   const btn = document.getElementById('cat-assign-confirm-btn');
   const statusEl = document.getElementById('cat-assign-status');
   btn.disabled = true; btn.textContent = 'Assigning…';
@@ -1233,9 +1360,12 @@ async function confirmCategoryAssign() {
   try {
     statusEl.textContent = 'Updating generator.html…';
     const gen = await ghGetFileAtPath('generator.html');
-    const genPatched = patchCategoryToCpgText(gen.text, key, newCatSubKey);
+    let genPatched = patchCategoryToCpgText(gen.text, key, newCatSubKey);
+    const [catKey, subKey] = newCatSubKey ? newCatSubKey.split('|') : [null, null];
+    genPatched = patchCategoriesText(genPatched, oldConditionName, catKey, subKey, newConditionName);
+    genPatched = patchCondToCpgKeyText(genPatched, oldConditionName, key, newConditionName);
     validateHtmlScripts(genPatched);
-    await ghCommitFileAtPath('generator.html', genPatched, gen.sha, 'Update CPG category mapping: ' + key);
+    await ghCommitFileAtPath('generator.html', genPatched, gen.sha, 'Update CPG category/condition mapping: ' + key);
 
     statusEl.textContent = 'Updating cpg_editor.html…';
     const ed = await ghGetFileAtPath('cpg_editor.html');
