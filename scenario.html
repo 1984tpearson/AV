@@ -7101,6 +7101,7 @@ async function completeSvcNum() {
     _authProfile.level   = level;
     _authProfile.branch  = branch || null;
   }
+  if (window.AVNav && window.AVNav.refreshProfile) window.AVNav.refreshProfile();
   document.getElementById('svcnum-modal').classList.remove('open');
   await initApp();
 }

@@ -666,6 +666,17 @@
     window.location.href = 'login.html';
   }
 
+  async function refreshProfile() {
+    if (!_session) return;
+    try {
+      var profileResult = await _sb.from('profiles').select('*').eq('id', _session.user.id).single();
+      _profile = profileResult.data;
+      renderUserCard();
+    } catch (e) {
+      // best-effort — leave existing _profile in place if this fails
+    }
+  }
+
   async function init() {
     injectStyle();
     initTheme();
@@ -702,6 +713,7 @@
     saveEditUser: saveEditUser,
     deleteScenario: deleteScenario,
     signOut: signOut,
+    refreshProfile: refreshProfile,
     applyTheme: applyTheme
   };
 
