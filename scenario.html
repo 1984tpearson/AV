@@ -1366,6 +1366,16 @@ body.flag-mode-active .flaggable.has-correction:hover { outline: 2px solid var(-
           <option value="Other">Other</option>
         </select>
       </div>
+      <div class="form-group" style="margin-bottom:12px">
+        <label>Level <span style="color:var(--red)">*</span></label>
+        <select id="profile-level-input" style="font-size:15px">
+          <option value="">Select your level…</option>
+          <option value="MICA">MICA</option>
+          <option value="ALS">ALS</option>
+          <option value="ACO">ACO</option>
+          <option value="CERT">CERT</option>
+        </select>
+      </div>
       <div class="form-group" style="margin-bottom:16px">
         <label>Branch / Location</label>
         <input type="text" id="profile-branch-input" placeholder="e.g. Wangaratta" style="font-size:15px" maxlength="60">
@@ -1771,11 +1781,12 @@ function getIdentity() {
       lastName:  (_authProfile.display_name || '').split(' ').slice(1).join(' ') || '',
       svcNum:    _authProfile.svc_num || '',
       avRole:    _authProfile.av_role || '',
+      level:     _authProfile.level || '',
       branch:    _authProfile.branch || '',
       role:      _authProfile.role || 'user',
     };
   }
-  return { uuid: '', name: '', firstName: '', lastName: '', svcNum: '', avRole: '', branch: '', role: '' };
+  return { uuid: '', name: '', firstName: '', lastName: '', svcNum: '', avRole: '', level: '', branch: '', role: '' };
 }
 function getCIDisplayName() { return getIdentity().name || 'Unknown'; }
 function getGraduate() {
@@ -2063,7 +2074,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   _authSession = session;
   const { data: profileData } = await _supabaseClient.from('profiles').select('*').eq('id', session.user.id).single();
   _authProfile = profileData;
-  if (!_authProfile || !_authProfile.svc_num || !_authProfile.av_role) {
+  if (!_authProfile || !_authProfile.svc_num || !_authProfile.av_role || !_authProfile.level) {
     const nameEl = document.getElementById('svcnum-modal-name');
     if (nameEl) nameEl.textContent = session.user.user_metadata?.full_name || session.user.email;
     document.getElementById('svcnum-modal').classList.add('open');
@@ -7073,18 +7084,21 @@ function acceptDisclaimer() {
 async function completeSvcNum() {
   const svcNum  = (document.getElementById('svcnum-input').value || '').trim();
   const avRole  = (document.getElementById('profile-role-input').value || '').trim();
+  const level   = (document.getElementById('profile-level-input').value || '').trim();
   const branch  = (document.getElementById('profile-branch-input').value || '').trim();
   if (!svcNum)  { showToast('⚠️ Please enter your service number'); return; }
   if (!avRole)  { showToast('⚠️ Please select your role'); return; }
+  if (!level)   { showToast('⚠️ Please select your level'); return; }
   const uuid = _authSession?.user?.id;
   if (!uuid) { showToast('⚠️ No active session — please reload'); return; }
   await sbFetch(`profiles?id=eq.${uuid}`, {
     method: 'PATCH',
-    body: JSON.stringify({ svc_num: svcNum, av_role: avRole, branch: branch || null }),
+    body: JSON.stringify({ svc_num: svcNum, av_role: avRole, level: level, branch: branch || null }),
   });
   if (_authProfile) {
     _authProfile.svc_num = svcNum;
     _authProfile.av_role = avRole;
+    _authProfile.level   = level;
     _authProfile.branch  = branch || null;
   }
   document.getElementById('svcnum-modal').classList.remove('open');
