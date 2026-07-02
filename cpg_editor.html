@@ -222,6 +222,7 @@ const SUPABASE_URL = 'https://befsjenbaruxqrntuhpn.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJlZnNqZW5iYXJ1eHFybnR1aHBuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI2MjA5MjAsImV4cCI6MjA4ODE5NjkyMH0.hOFFbIvd1wAgu-QyghupQ-7ttSpg7sxz_UsJbXyXztA';
 const ADMIN_UUID = 'fe1f2d3f-2139-44ec-bbe0-14ad6bb748ac';
 const _sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+let _userSession = null;
 
 async function checkAdminAccess() {
   const { data } = await _sb.auth.getSession();
@@ -238,6 +239,7 @@ async function checkAdminAccess() {
   if (!isAdmin) {
     return denyAccess();
   }
+  _userSession = session;
   return true;
 }
 
@@ -739,29 +741,80 @@ const GH_REPO = 'AV';
 const GH_BRANCH = 'main';
 const GH_PATH = 'cpg_packages_combined.js';
 
-function ghGetToken() {
-  let t = localStorage.getItem('av_gh_pat');
-  if (!t) {
-    t = prompt('Enter your GitHub Personal Access Token\n(fine-grained, scoped to the AV repo, Contents: Read and write).\n\nStored only in this browser — sent only to api.github.com.');
-    if (t) localStorage.setItem('av_gh_pat', t.trim());
-  }
-  return t ? t.trim() : null;
+let _cachedGithubToken = null;
+
+async function getGithubTokenFromSupabase() {
+  if (!_userSession) return null;
+  try {
+    const res = await fetch(SUPABASE_URL + '/rest/v1/admin_secrets?key=eq.github_pat&select=value', {
+      headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + _userSession.access_token }
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    return (data && data[0] && data[0].value) ? data[0].value : null;
+  } catch (e) { return null; }
 }
 
-function changeGithubToken() {
-  localStorage.removeItem('av_gh_pat');
-  const t = ghGetToken();
-  alert(t ? 'Token saved.' : 'No token saved — you\u2019ll be asked again next time you save.');
+async function saveGithubTokenToSupabase(token) {
+  if (!_userSession) return;
+  try {
+    await fetch(SUPABASE_URL + '/rest/v1/admin_secrets', {
+      method: 'POST',
+      headers: {
+        'apikey': SUPABASE_KEY,
+        'Authorization': 'Bearer ' + _userSession.access_token,
+        'Content-Type': 'application/json',
+        'Prefer': 'resolution=merge-duplicates,return=minimal'
+      },
+      body: JSON.stringify({ key: 'github_pat', value: token })
+    });
+  } catch (e) { /* best-effort — local cache still works */ }
+}
+
+async function ghGetToken() {
+  if (_cachedGithubToken) return _cachedGithubToken;
+  // Try the account-linked copy first — works across every device you're logged into
+  const fromSupabase = await getGithubTokenFromSupabase();
+  if (fromSupabase) {
+    _cachedGithubToken = fromSupabase;
+    localStorage.setItem('av_gh_pat', fromSupabase);
+    return fromSupabase;
+  }
+  // Fall back to this device's local cache (e.g. offline)
+  const local = localStorage.getItem('av_gh_pat');
+  if (local) {
+    _cachedGithubToken = local;
+    saveGithubTokenToSupabase(local); // best-effort sync so other devices pick it up too
+    return local;
+  }
+  // Nothing found anywhere — ask once
+  const entered = prompt('Enter your GitHub Personal Access Token\n(fine-grained, scoped to the AV repo, Contents: Read and write).\n\nSaved to your account so you won\u2019t need to re-enter it on other devices.');
+  if (!entered) return null;
+  const trimmed = entered.trim();
+  _cachedGithubToken = trimmed;
+  localStorage.setItem('av_gh_pat', trimmed);
+  await saveGithubTokenToSupabase(trimmed);
+  return trimmed;
+}
+
+async function changeGithubToken() {
+  const entered = prompt('Enter a new GitHub Personal Access Token to replace the current one:');
+  if (!entered) return;
+  const trimmed = entered.trim();
+  _cachedGithubToken = trimmed;
+  localStorage.setItem('av_gh_pat', trimmed);
+  await saveGithubTokenToSupabase(trimmed);
+  alert('Token updated — available on all your devices.');
 }
 
 async function ghGetFileAtPath(path) {
-  const token = ghGetToken();
+  const token = await ghGetToken();
   if (!token) throw new Error('No GitHub token provided');
   const res = await fetch('https://api.github.com/repos/' + GH_OWNER + '/' + GH_REPO + '/contents/' + path + '?ref=' + GH_BRANCH, {
     headers: { 'Authorization': 'Bearer ' + token, 'Accept': 'application/vnd.github+json' }
   });
   if (!res.ok) {
-    if (res.status === 401 || res.status === 403) localStorage.removeItem('av_gh_pat');
+    if (res.status === 401 || res.status === 403) { localStorage.removeItem('av_gh_pat'); _cachedGithubToken = null; }
     throw new Error('GitHub fetch failed (' + res.status + '): ' + await res.text());
   }
   const json = await res.json();
@@ -779,7 +832,7 @@ function utf8ToBase64(str) {
 }
 
 async function ghCommitFileAtPath(path, newText, sha, message) {
-  const token = ghGetToken();
+  const token = await ghGetToken();
   if (!token) throw new Error('No GitHub token provided');
   const res = await fetch('https://api.github.com/repos/' + GH_OWNER + '/' + GH_REPO + '/contents/' + path, {
     method: 'PUT',
@@ -787,7 +840,7 @@ async function ghCommitFileAtPath(path, newText, sha, message) {
     body: JSON.stringify({ message, content: utf8ToBase64(newText), sha, branch: GH_BRANCH })
   });
   if (!res.ok) {
-    if (res.status === 401 || res.status === 403) localStorage.removeItem('av_gh_pat');
+    if (res.status === 401 || res.status === 403) { localStorage.removeItem('av_gh_pat'); _cachedGithubToken = null; }
     throw new Error('GitHub commit failed (' + res.status + '): ' + await res.text());
   }
   return res.json();
