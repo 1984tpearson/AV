@@ -668,7 +668,6 @@
 
   async function init() {
     injectStyle();
-    injectMarkup();
     initTheme();
 
     var loginBtn = document.getElementById('topbar-login-btn');
@@ -677,13 +676,13 @@
     _session = sessionResult.data.session;
 
     if (_session) {
+      injectMarkup();
       var profileResult = await _sb.from('profiles').select('*').eq('id', _session.user.id).single();
       _profile = profileResult.data;
       renderUserCard();
       if (loginBtn) loginBtn.style.display = 'none';
     }
-    // If there's no session, the hamburger slot is left empty and
-    // any page-local "Sign in" button (e.g. index.html) stays visible.
+    // No session — don't render sidebar at all, leave login button visible
   }
 
   window.AVNav = {
