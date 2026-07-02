@@ -250,6 +250,7 @@
           '<div class="avnav-link" onclick="AVNav.openMyScenarios()"><span class="avnav-icon">📁</span> My Scenarios</div>' +
           '<div class="avnav-link" onclick="AVNav.openManageMine()"><span class="avnav-icon">⚙</span> Manage My Scenarios</div>' +
           '<div class="avnav-link" id="avnav-users-link" style="display:none" onclick="AVNav.openUsers()"><span class="avnav-icon">👥</span> Users</div>' +
+          '<a class="avnav-link" id="avnav-cpg-link" href="cpg_editor.html" style="display:none"><span class="avnav-icon">📖</span> CPG Editor</a>' +
         '</div>' +
         '<div class="avnav-bottom"><button class="avnav-signout-btn" onclick="AVNav.signOut()">⎋ Sign out</button></div>' +
       '</div>' +
@@ -332,6 +333,8 @@
     if (badge) badge.style.display = isAdmin() ? 'inline-block' : 'none';
     var usersLink = document.getElementById('avnav-users-link');
     if (usersLink) usersLink.style.display = isAdmin() ? 'flex' : 'none';
+    var cpgLink = document.getElementById('avnav-cpg-link');
+    if (cpgLink) cpgLink.style.display = isAdmin() ? 'flex' : 'none';
     renderAvatarInto('avnav-avatar', id);
   }
 

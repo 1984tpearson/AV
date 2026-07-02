@@ -138,20 +138,46 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #f0f2f5; colo
   <button class="filter-btn" onclick="setFilter('adult',this)">Adult (A)</button>
   <button class="filter-btn" onclick="setFilter('paed',this)">Paediatric (P)</button>
   <button class="filter-btn" onclick="setFilter('tr',this)">Treat &amp; Refer (TR)</button>
+  <button class="filter-btn" style="background:#27833A;color:white;border-color:#27833A" onclick="addNewPackage()">+ New CPG</button>
+  <button class="filter-btn" onclick="changeGithubToken()" title="Update GitHub token">&#128273; Token</button>
 </div>
 
 <div class="grid" id="grid"></div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="cpg_packages_combined.js"></script>
 <script>
 
+// ── ADMIN AUTH GATE ────────────────────────────────────────────
+const SUPABASE_URL = 'https://befsjenbaruxqrntuhpn.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJlZnNqZW5iYXJ1eHFybnR1aHBuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI2MjA5MjAsImV4cCI6MjA4ODE5NjkyMH0.hOFFbIvd1wAgu-QyghupQ-7ttSpg7sxz_UsJbXyXztA';
+const ADMIN_UUID = 'fe1f2d3f-2139-44ec-bbe0-14ad6bb748ac';
+const _sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+async function checkAdminAccess() {
+  const { data } = await _sb.auth.getSession();
+  const session = data.session;
+  if (!session || session.user.id !== ADMIN_UUID) {
+    document.body.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100vh;flex-direction:column;gap:10px;font-family:Segoe UI,sans-serif;text-align:center;padding:20px">' +
+      '<div style="font-size:40px">&#128274;</div>' +
+      '<div style="font-size:16px;font-weight:700;color:#1a1a2e">Admin access required</div>' +
+      '<div style="font-size:13px;color:#888">This page is restricted to the site administrator.</div>' +
+      '<a href="index.html" style="margin-top:8px;color:#1C3A6E;font-weight:600;font-size:13px;text-decoration:none">&larr; Back to site</a>' +
+    '</div>';
+    return false;
+  }
+  return true;
+}
+</script>
+<script>
+
 // ── STATE ──────────────────────────────────────────────────────
-// Deep-clone original data so we can reset
 const ORIGINAL = JSON.parse(JSON.stringify(CPG_PACKAGES));
 // Working copy — edits go here
 const DATA = JSON.parse(JSON.stringify(CPG_PACKAGES));
 
 let currentFilter = 'all';
+const _newKeys = new Set(); // keys added this session that don't exist in the file yet
 const STEP_TYPES = ['action','mica','header','subheader','stop','note','assess'];
 const TYPE_LABELS = { action:'ALS Action', mica:'MICA', header:'Header', subheader:'Subheader', stop:'Stop', note:'Note', assess:'Assess' };
 
@@ -469,6 +495,13 @@ function toggleCard(key) {
 
 // ── RESET ─────────────────────────────────────────────────────
 function resetPkg(key) {
+  if (_newKeys.has(key)) {
+    if (!confirm('Discard this new, unsaved package?')) return;
+    delete DATA[key];
+    _newKeys.delete(key);
+    renderCards();
+    return;
+  }
   if (!confirm('Reset "' + (DATA[key].title||key) + '" to original? All unsaved changes will be lost.')) return;
   DATA[key] = JSON.parse(JSON.stringify(ORIGINAL[key]));
   document.getElementById('card-' + key).classList.remove('dirty');
@@ -477,32 +510,171 @@ function resetPkg(key) {
   setStatus(key, '', '');
 }
 
+// ── NEW PACKAGE ───────────────────────────────────────────────
+function addNewPackage() {
+  const key = (prompt('New package key — lowercase, underscores only, e.g. "quetiapine_toxicity":') || '').trim();
+  if (!key) return;
+  if (!/^[a-z][a-z0-9_]*$/.test(key)) { alert('Key must start with a letter and contain only lowercase letters, numbers and underscores.'); return; }
+  if (DATA[key]) { alert('A package with that key already exists.'); return; }
+  const cpgCode = (prompt('CPG code, e.g. "A0603" or "P0602-1":') || '').trim();
+  const title = (prompt('Title:') || key).trim();
+  DATA[key] = { title, cpg: cpgCode, careObjectives: [], management: [], management_mica: [], notes: '' };
+  _newKeys.add(key);
+  renderCards();
+  const card = document.getElementById('card-' + key);
+  if (card) {
+    card.classList.add('open', 'dirty');
+    card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+}
+
+// ── GITHUB CONFIG & API ──────────────────────────────────────
+const GH_OWNER = '1984tpearson';
+const GH_REPO = 'AV';
+const GH_BRANCH = 'main';
+const GH_PATH = 'cpg_packages_combined.js';
+
+function ghGetToken() {
+  let t = localStorage.getItem('av_gh_pat');
+  if (!t) {
+    t = prompt('Enter your GitHub Personal Access Token\n(fine-grained, scoped to the AV repo, Contents: Read and write).\n\nStored only in this browser — sent only to api.github.com.');
+    if (t) localStorage.setItem('av_gh_pat', t.trim());
+  }
+  return t ? t.trim() : null;
+}
+
+function changeGithubToken() {
+  localStorage.removeItem('av_gh_pat');
+  const t = ghGetToken();
+  alert(t ? 'Token saved.' : 'No token saved — you\u2019ll be asked again next time you save.');
+}
+
+async function ghGetFile() {
+  const token = ghGetToken();
+  if (!token) throw new Error('No GitHub token provided');
+  const res = await fetch('https://api.github.com/repos/' + GH_OWNER + '/' + GH_REPO + '/contents/' + GH_PATH + '?ref=' + GH_BRANCH, {
+    headers: { 'Authorization': 'Bearer ' + token, 'Accept': 'application/vnd.github+json' }
+  });
+  if (!res.ok) {
+    if (res.status === 401 || res.status === 403) localStorage.removeItem('av_gh_pat');
+    throw new Error('GitHub fetch failed (' + res.status + '): ' + await res.text());
+  }
+  const json = await res.json();
+  const bytes = Uint8Array.from(atob(json.content.replace(/\n/g, '')), c => c.charCodeAt(0));
+  const text = new TextDecoder('utf-8').decode(bytes);
+  return { text, sha: json.sha };
+}
+
+function utf8ToBase64(str) {
+  const bytes = new TextEncoder().encode(str);
+  let bin = '';
+  bytes.forEach(b => bin += String.fromCharCode(b));
+  return btoa(bin);
+}
+
+async function ghCommitFile(newText, sha, message) {
+  const token = ghGetToken();
+  if (!token) throw new Error('No GitHub token provided');
+  const res = await fetch('https://api.github.com/repos/' + GH_OWNER + '/' + GH_REPO + '/contents/' + GH_PATH, {
+    method: 'PUT',
+    headers: { 'Authorization': 'Bearer ' + token, 'Accept': 'application/vnd.github+json', 'Content-Type': 'application/json' },
+    body: JSON.stringify({ message, content: utf8ToBase64(newText), sha, branch: GH_BRANCH })
+  });
+  if (!res.ok) {
+    if (res.status === 401 || res.status === 403) localStorage.removeItem('av_gh_pat');
+    throw new Error('GitHub commit failed (' + res.status + '): ' + await res.text());
+  }
+  return res.json();
+}
+
+function ghEscapeRegex(s) {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+// Find the { ... } value belonging to `key` and replace it in place.
+function spliceExistingPackage(src, key, pkg) {
+  const newJson = JSON.stringify(pkg, null, 2);
+  const keyPattern = new RegExp('(\\/\\/\\s*-+[\\s\\S]*?\\n\\s*)(' + ghEscapeRegex(key) + '\\s*:\\s*)(\\{)', 'm');
+  let match = keyPattern.exec(src);
+  if (!match) {
+    const simplePattern = new RegExp('(' + ghEscapeRegex(key) + '\\s*:\\s*)(\\{)', 'm');
+    match = simplePattern.exec(src);
+    if (!match) throw new Error('Key "' + key + '" not found in file');
+  }
+  const openBraceIdx = match.index + match[0].length - 1;
+  let depth = 0, i = openBraceIdx, inStr = false, strChar = '';
+  while (i < src.length) {
+    const ch = src[i];
+    if (inStr) {
+      if (ch === '\\') { i += 2; continue; }
+      if (ch === strChar) inStr = false;
+    } else {
+      if (ch === '"' || ch === "'" || ch === '`') { inStr = true; strChar = ch; }
+      else if (ch === '{' || ch === '[') depth++;
+      else if (ch === '}' || ch === ']') { depth--; if (depth === 0) break; }
+    }
+    i++;
+  }
+  const closeBraceIdx = i;
+  const indented = newJson.replace(/^/gm, '  ').replace(/^  /, '');
+  return src.slice(0, openBraceIdx) + indented + src.slice(closeBraceIdx + 1);
+}
+
+// Insert a brand-new key: value pair just before the closing brace of CPG_PACKAGES = { ... }
+function spliceNewPackage(src, key, pkg) {
+  if (new RegExp('(^|[^A-Za-z0-9_])' + ghEscapeRegex(key) + '\\s*:').test(src)) {
+    throw new Error('Key "' + key + '" already exists in the file');
+  }
+  const declIdx = src.indexOf('CPG_PACKAGES');
+  if (declIdx === -1) throw new Error('CPG_PACKAGES declaration not found');
+  const openBraceIdx = src.indexOf('{', declIdx);
+  if (openBraceIdx === -1) throw new Error('Could not locate CPG_PACKAGES opening brace');
+  let depth = 0, i = openBraceIdx, inStr = false, strChar = '';
+  while (i < src.length) {
+    const ch = src[i];
+    if (inStr) {
+      if (ch === '\\') { i += 2; continue; }
+      if (ch === strChar) inStr = false;
+    } else {
+      if (ch === '"' || ch === "'" || ch === '`') { inStr = true; strChar = ch; }
+      else if (ch === '{') depth++;
+      else if (ch === '}') { depth--; if (depth === 0) break; }
+    }
+    i++;
+  }
+  const closeBraceIdx = i; // closing brace of CPG_PACKAGES itself
+  const newJson = JSON.stringify(pkg, null, 2).replace(/^/gm, '  ').replace(/^  /, '');
+  const insertion = '\n  ' + key + ': ' + newJson + ',\n';
+  return src.slice(0, closeBraceIdx) + insertion + src.slice(closeBraceIdx);
+}
+
+function validateJs(text) {
+  try { new Function(text); }
+  catch (e) { throw new Error('Generated file has a syntax error — nothing was saved: ' + e.message); }
+}
+
 // ── SAVE ──────────────────────────────────────────────────────
 async function savePkg(key) {
   const pkg = DATA[key];
+  const isNew = _newKeys.has(key);
   const btn = document.querySelector('#card-' + key + ' .btn-save');
   btn.textContent = 'Saving…'; btn.disabled = true;
-  setStatus(key, '', 'Saving…');
+  setStatus(key, '', 'Fetching latest file from GitHub…');
   try {
-    // Build the JS block for just this package
-    const jsonStr = JSON.stringify(pkg, null, 2)
-      .replace(/\u2014/g, '\\u2014')
-      .replace(/\u2013/g, '\\u2013')
-      .replace(/\u2192/g, '\\u2192')
-      .replace(/\u2265/g, '\\u2265')
-      .replace(/\u2264/g, '\\u2264')
-      .replace(/\u00b2/g, '\\u00b2')
-      .replace(/\u00b0/g, '\\u00b0');
-
-    const res = await fetch('http://localhost:3456/save-package', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ key, pkg: JSON.parse(jsonStr) })
-    });
-    if (!res.ok) throw new Error(await res.text());
+    const { text, sha } = await ghGetFile();
+    const newText = isNew ? spliceNewPackage(text, key, pkg) : spliceExistingPackage(text, key, pkg);
+    validateJs(newText);
+    const ok = confirm((isNew ? 'Add new CPG package "' : 'Save changes to "') + (pkg.title || key) + '" ' + (pkg.cpg ? '(' + pkg.cpg + ') ' : '') + 'and commit to GitHub now?\n\nThis goes live on the site in about a minute.');
+    if (!ok) {
+      setStatus(key, '', '');
+      btn.textContent = '✓ Save to file'; btn.disabled = false;
+      return;
+    }
+    setStatus(key, '', 'Committing to GitHub…');
+    await ghCommitFile(newText, sha, (isNew ? 'Add CPG: ' : 'Edit CPG: ') + (pkg.cpg || key));
     document.getElementById('card-' + key).classList.remove('dirty');
-    setStatus(key, 'ok', '\u2713 Saved to cpg_packages_combined.js');
-    // update original snapshot
+    setStatus(key, 'ok', '\u2713 Committed \u2014 live in ~1 min');
+    if (isNew) _newKeys.delete(key);
     ORIGINAL[key] = JSON.parse(JSON.stringify(DATA[key]));
   } catch(e) {
     setStatus(key, 'err', 'Save failed: ' + e.message);
@@ -522,7 +694,10 @@ function esc(s) {
 }
 
 // ── INIT ──────────────────────────────────────────────────────
-renderCards();
+(async function initEditor(){
+  const ok = await checkAdminAccess();
+  if (ok) renderCards();
+})();
 </script>
 </body>
 </html>
