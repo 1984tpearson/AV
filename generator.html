@@ -690,6 +690,13 @@ window.__avSupabaseClient = _supabaseClient; // shared with nav.js — avoids du
 let _authSession = null;
 let _authProfile = null;
 
+// Keep _authSession current as Supabase silently refreshes the access token in
+// the background — without this, long-lived tabs start sending an expired JWT
+// on every request (401 "JWT expired") even though the real session is fine.
+_supabaseClient.auth.onAuthStateChange((_event, session) => {
+  _authSession = session;
+});
+
 async function sbFetch(path, opts={}) {
   const authToken = _authSession?.access_token || SUPABASE_KEY;
   const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {

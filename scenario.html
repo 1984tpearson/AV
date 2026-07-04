@@ -1702,6 +1702,13 @@ let _authProfile = null;
 let _myFavourites = new Set();
 let _popularScenarios = []; // [{scenario_id, fav_count}] from get_popular_scenarios RPC
 
+// Keep _authSession current as Supabase silently refreshes the access token in
+// the background — without this, long-lived tabs start sending an expired JWT
+// on every request (401 "JWT expired") even though the real session is fine.
+_supabaseClient.auth.onAuthStateChange((_event, session) => {
+  _authSession = session;
+});
+
 function getIdentity() {
   if (_authSession && _authProfile) {
     return {
@@ -2465,6 +2472,7 @@ function showScreen(name) {
   } else if (name === 'home-screen') {
     localStorage.removeItem('av_last_scenario');
     sessionStorage.removeItem('av_in_scenario');
+    if (location.search) history.replaceState(null, '', 'scenario.html');
   }
 }
 
@@ -2854,6 +2862,7 @@ function loadScenario(id) {
   const s = all.find(x => String(x.id) === String(id));
   if (!s) return;
   currentScenario = s;
+  history.replaceState(null, '', `scenario.html?id=${encodeURIComponent(String(s.id))}`);
   rowStates = {}; sectionScores = {}; kqScores = {};
   resetTimer();
 
