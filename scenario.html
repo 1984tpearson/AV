@@ -2092,6 +2092,7 @@ async function initApp() {
   const wasInScenario = sessionStorage.getItem('av_in_scenario');
   const navEntry = performance.getEntriesByType && performance.getEntriesByType('navigation')[0];
   const isReload = navEntry ? navEntry.type === 'reload' : false;
+  console.log('[reload-restore]', { lastId, wasInScenario, isReload, navEntryType: navEntry && navEntry.type });
   if (lastId && wasInScenario && isReload) {
     const all = getAllScenarios();
     const s = all.find(x => String(x.id) === lastId);
