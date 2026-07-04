@@ -1155,9 +1155,6 @@ body.flag-mode-active .flaggable.has-correction:hover { outline: 2px solid var(-
 
       <div class="home-actions">
         <a class="home-ai-btn" href="generator.html">✦ Create New Case</a>
-        <div class="home-secondary-actions">
-          <button class="home-create-btn" onclick="openCreateModal()">✏️ Create manually</button>
-        </div>
       </div>
 
       <button class="home-random-btn" onclick="loadRandomScenario(null, null)">🎲 Random Scenario — Any Category</button>
@@ -1442,82 +1439,6 @@ body.flag-mode-active .flaggable.has-correction:hover { outline: 2px solid var(-
         <button class="corr-filter-btn" id="cf-reverted" onclick="filterCorrections('reverted')">Reverted</button>
       </div>
       <div id="corrections-list"><p style="color:var(--grey);font-size:13px">Loading corrections…</p></div>
-    </div>
-  </div>
-</div>
-
-<!-- Manual Create Modal -->
-<div class="modal-overlay" id="create-modal">
-  <div class="modal-inner">
-    <div class="modal-header" style="background:var(--green)">
-      <h2>✏️ Create Scenario</h2>
-      <button class="modal-close" onclick="closeCreateModal()">✕</button>
-    </div>
-    <div class="modal-body">
-      <div class="form-info">Fill in as much or as little as you like. All fields except Title and Category are optional. Custom scenarios are saved permanently to this device.</div>
-
-      <div class="create-section-title">Basic Info</div>
-      <div class="form-group"><label>Title *</label><input type="text" id="c-title" placeholder="e.g. Anaphylaxis"></div>
-      <div class="form-group"><label>Subtitle</label><input type="text" id="c-subtitle" placeholder="e.g. 42yo Female — Bee Sting"></div>
-      <div class="form-group"><label>Category *</label>
-        <select id="c-category" onchange="updateCreateTypeDropdown()">
-        </select>
-      </div>
-      <div class="form-group" id="c-type-group" style="display:none"><label>Scenario Type</label>
-        <select id="c-scenario-type">
-          <option value="">— Any / Unspecified —</option>
-        </select>
-      </div>
-      <div class="form-group"><label>CPG Reference</label><input type="text" id="c-cpg" placeholder="e.g. CPG A0704"></div>
-
-      <div class="create-section-title">Dispatch & History</div>
-      <div class="form-group"><label>Dispatch</label><textarea id="c-dispatch" rows="2" placeholder="Priority 1 — 71yo Male — difficulty breathing"></textarea></div>
-      <div class="form-group"><label>Caller Reports</label><textarea id="c-callerhx" rows="2" placeholder="What the caller/bystander reported to dispatch…"></textarea></div>
-      <div class="form-group"><label>On Arrival</label><textarea id="c-arrivalhx" rows="3" placeholder="Clinical picture found on arrival — what the paramedic observes and hears…"></textarea></div>
-
-      <div class="create-section-title">Vitals</div>
-      <div class="vitals-grid-form">
-        <div class="gcs-grid-wrap">
-          <label>GCS</label>
-          <div class="gcs-inputs">
-            <div class="gcs-field"><label>Eyes (1–4)</label><input type="number" id="cv-gcs-e" min="1" max="4" placeholder="4" oninput="updateGCSTotal('cv')"></div>
-            <div class="gcs-field"><label>Verbal (1–5)</label><input type="number" id="cv-gcs-v" min="1" max="5" placeholder="5" oninput="updateGCSTotal('cv')"></div>
-            <div class="gcs-field"><label>Motor (1–6)</label><input type="number" id="cv-gcs-m" min="1" max="6" placeholder="6" oninput="updateGCSTotal('cv')"></div>
-            <div class="gcs-field"><label>Total</label><input type="text" id="cv-gcs-total" readonly placeholder="15"></div>
-          </div>
-          <div class="gcs-desc-wrap"><input type="text" id="cv-gcs-desc" placeholder="e.g. eyes open to pain, confused speech, localising to pain"></div>
-        </div>
-        <div class="form-group"><label>SpO₂</label><input type="text" id="cv-spo2" placeholder="98%"></div>
-        <div class="form-group"><label>RR</label><input type="text" id="cv-rr" placeholder="18/min"></div>
-        <div class="form-group"><label>HR</label><input type="text" id="cv-hr" placeholder="88 bpm"></div>
-        <div class="form-group"><label>BP</label><input type="text" id="cv-bp" placeholder="130/80"></div>
-        <div class="form-group"><label>Temp</label><input type="text" id="cv-temp" placeholder="36.8°C"></div>
-        <div class="form-group"><label>BGL</label><input type="text" id="cv-bgl" placeholder="6.2 mmol/L"></div>
-        <div class="form-group"><label>Rhythm</label><input type="text" id="cv-rhythm" placeholder="Sinus tachycardia"></div>
-      </div>
-
-      <div class="create-section-title">Clinical Flags</div>
-      <div class="repeating-list" id="c-flags-list"></div>
-      <button class="add-item-btn" onclick="addRepItem('c-flags-list','flag')">+ Add Flag</button>
-
-      <div class="create-section-title">Differential Diagnoses</div>
-      <div class="repeating-list" id="c-ddx-list"></div>
-      <button class="add-item-btn" onclick="addRepItem('c-ddx-list','ddx')">+ Add DDx</button>
-
-      <div class="create-section-title">Provisional Diagnosis</div>
-      <div class="form-group"><input type="text" id="c-provisional" placeholder="e.g. Anaphylaxis — bee sting, haemodynamically unstable"></div>
-
-      <div class="create-section-title">Treatment / Expected Management</div>
-      <div class="repeating-list" id="c-treatment-list"></div>
-      <button class="add-item-btn" onclick="addRepItem('c-treatment-list','treatment')">+ Add Treatment Step</button>
-
-      <div class="create-section-title">Knowledge Questions (up to 3)</div>
-      <div id="c-kq-list"></div>
-      <button class="add-item-btn" id="c-add-kq-btn" onclick="addKQBlock()">+ Add Knowledge Question</button>
-
-      <div style="margin-top:20px">
-        <button class="modal-submit-btn green" onclick="saveManualScenario()">💾 Save to Library</button>
-      </div>
     </div>
   </div>
 </div>
@@ -2499,28 +2420,12 @@ function populateCategorySelect(selectId, prefixOption) {
   el.innerHTML = html;
 }
 
-// Cascade scenario type dropdown in the manual create form
-function updateCreateTypeDropdown() {
-  const catVal = document.getElementById('c-category').value;
-  const group = document.getElementById('c-type-group');
-  const select = document.getElementById('c-scenario-type');
-  if (!group || !select) return;
-  const keys = CATEGORY_TO_CPG[catVal] || [];
-  if (keys.length === 0) {
-    group.style.display = 'none';
-    return;
-  }
-  group.style.display = '';
-  select.innerHTML = '<option value="">— Any / Unspecified —</option>' +
-    keys.map(k => `<option value="${k}">${CPG_SUBTYPE_LABELS[k] || k}</option>`).join('');
-}
 
 
 document.addEventListener('DOMContentLoaded', () => {
   populateCategorySelect('gen-category');
   initTheme();
   populateCategorySelect('gen-category-2', '— None (single scenario) —');
-  populateCategorySelect('c-category');
   populateCategorySelect('e-category');
 });
 
@@ -5852,145 +5757,6 @@ function showAIStatus(type, msg) {
 }
 
 // ============================================================
-// MANUAL CREATE MODAL
-// ============================================================
-let kqCount = 0;
-let kqMaxValues = {};
-
-function openCreateModal() {
-  kqCount = 0; kqMaxValues = {};
-  document.getElementById('c-kq-list').innerHTML = '';
-  document.getElementById('c-flags-list').innerHTML = '';
-  document.getElementById('c-ddx-list').innerHTML = '';
-  document.getElementById('c-treatment-list').innerHTML = '';
-  // Clear fields
-  ['c-title','c-subtitle','c-cpg','c-dispatch','c-callerhx','c-arrivalhx','c-provisional',
-   'cv-spo2','cv-rr','cv-hr','cv-bp','cv-temp','cv-bgl','cv-rhythm',
-   'cv-gcs-e','cv-gcs-v','cv-gcs-m','cv-gcs-total','cv-gcs-desc'].forEach(id => {
-    const el = document.getElementById(id); if(el) el.value='';
-  });
-  // Add default items
-  addRepItem('c-flags-list','flag'); addRepItem('c-flags-list','flag');
-  addRepItem('c-ddx-list','ddx'); addRepItem('c-ddx-list','ddx'); addRepItem('c-ddx-list','ddx');
-  addRepItem('c-treatment-list','treatment'); addRepItem('c-treatment-list','treatment'); addRepItem('c-treatment-list','treatment');
-  addKQBlock(); addKQBlock();
-  // Reset type dropdown
-  const typeGroup = document.getElementById('c-type-group');
-  if (typeGroup) typeGroup.style.display = 'none';
-  updateCreateTypeDropdown();
-  document.getElementById('create-modal').classList.add('open');
-}
-function closeCreateModal() { document.getElementById('create-modal').classList.remove('open'); }
-document.getElementById('create-modal').addEventListener('click', e => { if(e.target===document.getElementById('create-modal')) closeCreateModal(); });
-
-function addRepItem(listId, type) {
-  const list = document.getElementById(listId);
-  const item = document.createElement('div');
-  item.className = 'repeating-item';
-  const placeholder = type==='flag' ? 'Clinical flag or assessor note…' : type==='ddx' ? 'Differential diagnosis…' : 'Treatment / management step…';
-  item.innerHTML = `<input type="text" placeholder="${placeholder}"><button class="rep-remove-btn" onclick="this.parentElement.remove()">×</button>`;
-  list.appendChild(item);
-}
-
-function addKQBlock() {
-  if (kqCount >= 3) { showToast('Maximum 3 knowledge questions per scenario'); return; }
-  const idx = kqCount++;
-  kqMaxValues[idx] = 2;
-  const block = document.createElement('div');
-  block.className = 'kq-create-block';
-  block.id = `kqcb-${idx}`;
-  block.innerHTML = `
-    <label>Question ${idx+1}</label>
-    <textarea id="kqc-q-${idx}" placeholder="Enter the knowledge question…" rows="2"></textarea>
-    <label>Model Answer</label>
-    <textarea id="kqc-a-${idx}" placeholder="Enter the expected answer / key points…" rows="3"></textarea>
-    <div class="kq-max-select">
-      <label>Max points:</label>
-      <button class="kq-max-btn active" id="kqmb-${idx}-2" onclick="setKQMax(${idx},2)">2</button>
-      <button class="kq-max-btn" id="kqmb-${idx}-1" onclick="setKQMax(${idx},1)">1</button>
-    </div>`;
-  document.getElementById('c-kq-list').appendChild(block);
-  if (kqCount >= 3) document.getElementById('c-add-kq-btn').style.display='none';
-}
-
-function setKQMax(idx, val) {
-  kqMaxValues[idx] = val;
-  document.getElementById(`kqmb-${idx}-1`).classList.toggle('active', val===1);
-  document.getElementById(`kqmb-${idx}-2`).classList.toggle('active', val===2);
-}
-
-async function saveManualScenario() {
-  const title = document.getElementById('c-title').value.trim();
-  const catVal = document.getElementById('c-category').value;
-  const [category, subcategory] = catVal.includes('|') ? catVal.split('|') : [catVal, catVal];
-  if (!title) { showToast('⚠️ Title is required'); return; }
-
-  const getList = (listId) => Array.from(document.querySelectorAll(`#${listId} .repeating-item input`)).map(i=>i.value.trim()).filter(Boolean);
-
-  const scenario = {
-    id: 'custom_' + Date.now(),
-    custom: true,
-    ai_generated: false,
-    title,
-    subtitle: document.getElementById('c-subtitle').value.trim(),
-    category,
-    subcategory,
-    scenario_type: document.getElementById('c-scenario-type').value || null,
-    type: subcategory && subcategory.toLowerCase().includes('trauma') ? 'trauma' : category.toLowerCase().includes('paed') ? 'paediatric' : category === 'Maternity' ? 'obstetric' : 'medical',
-    cpg: document.getElementById('c-cpg').value.trim() || 'Custom',
-    level: 'C/D',
-    dispatch: document.getElementById('c-dispatch').value.trim(),
-    caller_hx: document.getElementById('c-callerhx').value.trim(),
-    arrival_hx: document.getElementById('c-arrivalhx').value.trim(),
-    vitals: {
-      GCS: (() => {
-        const e = parseInt(document.getElementById('cv-gcs-e').value) || 0;
-        const v = parseInt(document.getElementById('cv-gcs-v').value) || 0;
-        const m = parseInt(document.getElementById('cv-gcs-m').value) || 0;
-        const total = e + v + m;
-        const desc = document.getElementById('cv-gcs-desc').value.trim();
-        return total > 0 ? { E: e, V: v, M: m, total, description: desc } : { E: 4, V: 5, M: 6, total: 15, description: 'Alert and oriented' };
-      })(),
-      SpO2: document.getElementById('cv-spo2').value.trim() || '—',
-      RR: document.getElementById('cv-rr').value.trim() || '—',
-      HR: document.getElementById('cv-hr').value.trim() || '—',
-      BP: document.getElementById('cv-bp').value.trim() || '—',
-      Temp: document.getElementById('cv-temp').value.trim() || '—',
-      BGL: document.getElementById('cv-bgl').value.trim() || '—',
-      Rhythm: document.getElementById('cv-rhythm').value.trim() || '—',
-    },
-    flags: getList('c-flags-list'),
-    ddx: getList('c-ddx-list'),
-    provisional: document.getElementById('c-provisional').value.trim(),
-    treatment: getList('c-treatment-list'),
-    kq: Array.from({length:kqCount}, (_,i) => {
-      const q = (document.getElementById(`kqc-q-${i}`)||{}).value || '';
-      const a = (document.getElementById(`kqc-a-${i}`)||{}).value || '';
-      return q.trim() ? { q: q.trim(), max: kqMaxValues[i]||2, answer: a.trim() } : null;
-    }).filter(Boolean)
-  };
-
-  const { uuid, name } = getIdentity();
-  scenario.creator_uuid = uuid;
-  scenario.creator_name = name || 'Anonymous';
-
-  try {
-    await saveScenarioToCloud(scenario);
-    customScenarios.push(scenario);
-    if (window._cloudScenarios) window._cloudScenarios.push(scenario);
-    buildSidebar(getAllScenarios());
-    buildHomeScreen();
-    // buildRecentScenariosList — merged into buildHomeScreen
-    updateCustomCount();
-    closeCreateModal();
-    showToast('✓ Scenario saved to shared library!');
-    loadScenario(scenario.id);
-  } catch(e) {
-    showToast('⚠️ Save failed: ' + e.message);
-  }
-}
-
-// ============================================================
 // MANAGE CUSTOM MODAL
 // ============================================================
 function openManageModal() {
@@ -6013,10 +5779,9 @@ function renderManageModal() {
     body.innerHTML = `${cloudBanner}<div class="no-custom-msg">
       <div style="font-size:36px;margin-bottom:12px">📋</div>
       <p>No custom scenarios yet.</p>
-      <p style="margin-top:6px">Use the AI Generator or Create Manually to add scenarios.</p>
+      <p style="margin-top:6px">Use the Scenario Generator to add scenarios — AI-generated or built manually.</p>
       <div style="display:flex;gap:10px;justify-content:center;margin-top:16px">
-        <a class="modal-submit-btn amber" style="flex:1;text-decoration:none;text-align:center" href="generator.html">✦ AI Generator</a>
-        <button class="modal-submit-btn green" style="flex:1" onclick="closeManageModal();openCreateModal()">✏️ Create</button>
+        <a class="modal-submit-btn amber" style="flex:1;text-decoration:none;text-align:center" href="generator.html">✦ Scenario Generator</a>
       </div>
     </div>`;
     return;

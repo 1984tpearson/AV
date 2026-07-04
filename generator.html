@@ -620,7 +620,13 @@ textarea{resize:vertical;min-height:72px;line-height:1.5}
 
     <!-- SECONDARY SURVEY -->
     <div class="card">
-      <div class="card-header">🩺 Secondary Survey <span style="font-weight:400;opacity:.7;font-size:11px;margin-left:6px" id="m-ss-hint">— set by Category</span></div>
+      <div class="card-header" style="flex-wrap:wrap;row-gap:8px">
+        <span>🩺 Secondary Survey</span>
+        <div class="toggle-group" id="m-ss-type-toggle" style="margin-left:auto">
+          <span class="toggle-chip" onclick="renderSecondarySurveyFields('medical',this)">Medical</span>
+          <span class="toggle-chip" onclick="renderSecondarySurveyFields('trauma',this)">Trauma</span>
+        </div>
+      </div>
       <div style="padding:16px" id="m-ss-grid"></div>
     </div>
 
@@ -2126,9 +2132,15 @@ function updateManualGCSTotal() {
 
 const SS_KEYS_TRAUMA  = ['head','neck','chest','abdomen','back','pelvis','limbs','other'];
 const SS_KEYS_MEDICAL = ['neuro','cardio','resp','gi','gu','msk','skin','other'];
-function renderSecondarySurveyFields(type) {
+function renderSecondarySurveyFields(type, chipEl) {
   const keys = type === 'trauma' ? SS_KEYS_TRAUMA : SS_KEYS_MEDICAL;
-  document.getElementById('m-ss-hint').textContent = type === 'trauma' ? '— Trauma systems' : '— Medical systems';
+  // Sync toggle chip active state whether called from a click or from category auto-detection
+  const toggleWrap = document.getElementById('m-ss-type-toggle');
+  if (toggleWrap) {
+    toggleWrap.querySelectorAll('.toggle-chip').forEach(c => c.classList.remove('on'));
+    const target = chipEl || Array.from(toggleWrap.querySelectorAll('.toggle-chip')).find(c => c.textContent.trim().toLowerCase() === type);
+    if (target) target.classList.add('on');
+  }
   const grid = document.getElementById('m-ss-grid');
   grid.innerHTML = keys.map(k => `
     <div class="ss-row" data-key="${k}">
