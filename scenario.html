@@ -1735,7 +1735,7 @@ function getGraduateDisplayName() {
   const g = getGraduate();
   return [g.firstName, g.lastName].filter(Boolean).join(' ');
 }
-function isAdmin() { return (_authProfile && _authProfile.role === 'admin') || getIdentity().uuid === ADMIN_UUID; }
+function isAdmin() { return !!(_authProfile && _authProfile.role === 'admin'); }
 function canEdit(scenario) {
   if (!scenario) return false;
   const { uuid } = getIdentity();
