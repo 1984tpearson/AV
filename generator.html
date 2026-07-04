@@ -252,6 +252,35 @@ textarea{resize:vertical;min-height:72px;line-height:1.5}
 .gen-progress-track{height:4px;background:#e2e8f0;border-radius:2px;overflow:hidden}
 .gen-progress-fill{height:100%;background:var(--amber);border-radius:2px;transition:width .4s ease;width:0%}
 .gen-progress-label{font-size:22px;color:var(--grey);margin-top:8px;font-weight:600;letter-spacing:.2px;text-align:center}
+
+/* ── MANUAL BUILDER ── */
+.gcs-grid-wrap{grid-column:1/-1}
+.gcs-inputs{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:6px}
+.gcs-inputs .gcs-field{display:flex;flex-direction:column;gap:3px}
+.gcs-inputs .gcs-field label{font-size:11px;font-weight:700;color:var(--grey);text-transform:uppercase;letter-spacing:.4px;margin-bottom:0}
+.gcs-inputs .gcs-field input{width:100%;padding:9px 8px;border:1px solid var(--border);border-radius:8px;font-size:15px;text-align:center;min-height:auto}
+.gcs-inputs .gcs-field input[readonly]{background:var(--light);color:var(--navy);font-weight:700;border-color:var(--navy)}
+.gcs-desc-wrap{margin-top:6px}
+.rep-list{border:1px solid var(--border);border-radius:8px;overflow:hidden}
+.rep-item{display:flex;gap:8px;padding:8px;border-bottom:1px solid var(--border);align-items:center;background:white}
+.rep-item:last-child{border-bottom:none}
+.rep-item input{flex:1;min-height:38px;padding:8px 10px}
+.rep-remove-btn{width:34px;height:34px;border-radius:50%;background:var(--red-light);color:var(--red);border:1px solid #F5B7B1;cursor:pointer;font-size:18px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.rep-remove-btn:active{background:var(--red);color:white}
+.add-item-btn{width:100%;padding:10px;background:var(--light);border:2px dashed var(--border);border-radius:8px;color:var(--grey);font-size:13px;font-weight:600;cursor:pointer;margin-top:6px;min-height:44px}
+.add-item-btn:active{border-color:var(--navy);color:var(--navy)}
+.kq-block{border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:8px;background:var(--light)}
+.kq-block label{margin-bottom:4px}
+.kq-block textarea{margin-bottom:8px}
+.kq-max-select{display:flex;gap:8px;align-items:center}
+.kq-max-select label{font-size:12px;color:var(--grey);font-weight:600;margin-bottom:0;text-transform:none}
+.kq-max-btn{width:40px;height:40px;border-radius:7px;border:2px solid var(--border);background:white;font-size:14px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.kq-max-btn.active{background:var(--navy);border-color:var(--navy);color:white}
+.ss-row{border:1px solid var(--border);border-radius:8px;padding:10px;margin-bottom:8px;background:white}
+.ss-row-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
+.ss-row-label{font-size:12px;font-weight:700;color:var(--navy);text-transform:uppercase;letter-spacing:.4px}
+.ss-abnormal-toggle{padding:4px 10px;border-radius:20px;font-size:11px;font-weight:700;border:1.5px solid var(--border);background:white;color:var(--grey);cursor:pointer;user-select:none}
+.ss-abnormal-toggle.on{background:var(--red);border-color:var(--red);color:white}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
@@ -409,11 +438,237 @@ textarea{resize:vertical;min-height:72px;line-height:1.5}
   <!-- ══ MANUAL ══ -->
   <div id="tab-manual" class="tab-panel">
   <div class="tab-panel-scroll">
-    <div style="padding:40px 20px;text-align:center;color:var(--grey)">
-      <div style="font-size:36px;margin-bottom:12px">🚧</div>
-      <div style="font-size:14px;font-weight:600;margin-bottom:6px">Coming soon</div>
-      <div style="font-size:13px">Manual builder will be linked here.</div>
+    <div class="info-banner">
+      <span>✏️</span>
+      <span>Build a scenario field-by-field, no AI involved. Only Title and Category are required — fill in as much as you like.</span>
     </div>
+
+    <!-- BASIC INFO -->
+    <div class="card">
+      <div class="card-header">📌 Basic Info</div>
+      <div style="padding:16px">
+        <div class="form-row cols-1">
+          <div><label>Title *</label><input type="text" id="m-title" placeholder="e.g. Chest pain 81yo Male"></div>
+        </div>
+        <div class="form-row cols-1">
+          <div><label>Subtitle</label><input type="text" id="m-subtitle" placeholder="e.g. 81yo Male — Central chest pain"></div>
+        </div>
+        <div class="form-row cols-1">
+          <div><label>Category *</label>
+            <select id="m-category" onchange="updateManualTypeDropdown()"></select>
+          </div>
+        </div>
+        <div class="form-row cols-1" id="m-type-group" style="display:none">
+          <div><label>Scenario Type</label><select id="m-scenario-type"></select></div>
+        </div>
+        <div class="form-row cols-2">
+          <div><label>CPG Reference</label><input type="text" id="m-cpg" placeholder="e.g. A0704"></div>
+          <div><label>Additional CPGs <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--grey);font-size:11px">— comma separated</span></label><input type="text" id="m-additional-cpgs" placeholder="e.g. A0301, A0801"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- DISPATCH & HISTORY -->
+    <div class="card">
+      <div class="card-header">🚑 Dispatch & History</div>
+      <div style="padding:16px">
+        <div class="form-row cols-1">
+          <div><label>Dispatch</label><textarea id="m-dispatch" rows="2" placeholder="Priority 1 — 81yo Male — chest pain"></textarea></div>
+        </div>
+        <div class="form-row cols-1">
+          <div><label>Caller Reports</label><textarea id="m-callerhx" placeholder="What the caller/bystander reported to dispatch…"></textarea></div>
+        </div>
+        <div class="form-row cols-1">
+          <div><label>On Arrival</label><textarea id="m-arrivalhx" style="min-height:90px" placeholder="Clinical picture found on arrival…"></textarea></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- HISTORY DETAIL -->
+    <div class="card">
+      <div class="card-header">📋 History Detail <span style="font-weight:400;opacity:.7;font-size:11px;margin-left:6px">— optional hint text shown to assessors</span></div>
+      <div style="padding:16px">
+        <div class="form-row cols-2">
+          <div><label>Timeline</label><input type="text" id="m-hx-timeline" placeholder="Onset 2 hours ago, gradually worsening"></div>
+          <div><label>Nature</label><input type="text" id="m-hx-nature" placeholder="Tight, crushing pain radiating to left arm"></div>
+        </div>
+        <div class="form-row cols-2">
+          <div><label>Prodromal</label><input type="text" id="m-hx-prodromal" placeholder="Nausea and diaphoresis 30 min prior"></div>
+          <div><label>Aggravating / Relieving</label><input type="text" id="m-hx-aggreliev" placeholder="Worse on exertion, relieved by rest"></div>
+        </div>
+        <div class="form-row cols-2">
+          <div><label>Associated Symptoms</label><input type="text" id="m-hx-assoc" placeholder="Shortness of breath, no cough or fever"></div>
+          <div><label>Similar Episodes</label><input type="text" id="m-hx-similar" placeholder="One prior episode 6 months ago"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PATIENT BACKGROUND -->
+    <div class="card">
+      <div class="card-header">🧑 Patient Background</div>
+      <div style="padding:16px">
+        <label>Medical Conditions</label>
+        <div class="rep-list" id="m-conditions-list"></div>
+        <button class="add-item-btn" onclick="addManualRepItem('m-conditions-list','e.g. Type 2 Diabetes')">+ Add Condition</button>
+        <div class="form-row cols-1" style="margin-top:14px"></div>
+        <label>Medications</label>
+        <div class="rep-list" id="m-meds-list"></div>
+        <button class="add-item-btn" onclick="addManualRepItem('m-meds-list','e.g. Metformin 500mg daily')">+ Add Medication</button>
+        <div class="form-row cols-1" style="margin-top:14px">
+          <div><label>Allergies</label><input type="text" id="m-allergies" placeholder="e.g. Penicillin — rash"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- VITALS -->
+    <div class="card">
+      <div class="card-header">💓 Vitals</div>
+      <div style="padding:16px">
+        <div class="vitals-grid-form" style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+          <div class="gcs-grid-wrap">
+            <label>GCS</label>
+            <div class="gcs-inputs">
+              <div class="gcs-field"><label>Eyes (1–4)</label><input type="number" id="m-gcs-e" min="1" max="4" placeholder="4" oninput="updateManualGCSTotal()"></div>
+              <div class="gcs-field"><label>Verbal (1–5)</label><input type="number" id="m-gcs-v" min="1" max="5" placeholder="5" oninput="updateManualGCSTotal()"></div>
+              <div class="gcs-field"><label>Motor (1–6)</label><input type="number" id="m-gcs-m" min="1" max="6" placeholder="6" oninput="updateManualGCSTotal()"></div>
+              <div class="gcs-field"><label>Total</label><input type="text" id="m-gcs-total" readonly placeholder="15"></div>
+            </div>
+            <div class="gcs-desc-wrap"><input type="text" id="m-gcs-desc" placeholder="e.g. eyes open to pain, confused speech, localising to pain"></div>
+          </div>
+          <div><label>SpO₂</label><input type="text" id="m-spo2" placeholder="98%"></div>
+          <div><label>RR</label><input type="text" id="m-rr" placeholder="18/min"></div>
+          <div><label>HR</label><input type="text" id="m-hr" placeholder="88 bpm"></div>
+          <div><label>BP</label><input type="text" id="m-bp" placeholder="130/80"></div>
+          <div><label>Temp</label><input type="text" id="m-temp" placeholder="36.8°C"></div>
+          <div><label>BGL</label><input type="text" id="m-bgl" placeholder="6.2 mmol/L"></div>
+          <div><label>Rhythm</label><input type="text" id="m-rhythm" placeholder="Sinus tachycardia"></div>
+          <div><label>Weight</label><input type="text" id="m-weight" placeholder="82 kg"></div>
+          <div><label>Ketones</label><input type="text" id="m-ketones" placeholder="0.2 mmol/L"></div>
+          <div><label>EtCO₂</label><input type="text" id="m-etco2" placeholder="38 mmHg"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- RAPID ASSESSMENT & EXPOSURE -->
+    <div class="card">
+      <div class="card-header">👁️ Rapid Assessment & Exposure</div>
+      <div style="padding:16px">
+        <div class="form-row cols-2">
+          <div><label>Work of Breathing (glance)</label>
+            <select id="m-ra-wob">
+              <option value="">— Select —</option>
+              <option>Adequate</option><option>Increased effort</option><option>Decreased effort</option>
+              <option>Agonal</option><option>Not breathing</option><option>Laboured</option><option>Shallow</option>
+            </select>
+          </div>
+          <div><label>Skin (glance)</label><input type="text" id="m-ra-skin" placeholder="e.g. Warm, pink, dry"></div>
+        </div>
+        <div class="form-row cols-2">
+          <div><label>Exposure</label><input type="text" id="m-ps-exposure" placeholder="Adequately clothed, no environmental exposure concerns"></div>
+          <div><label>Social</label><input type="text" id="m-social" placeholder="e.g. Lives alone, no carer support"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- RAPID SECONDARY ASSESSMENT -->
+    <div class="card">
+      <div class="card-header">🔍 Rapid Secondary Assessment (RSA)</div>
+      <div style="padding:16px">
+        <div class="form-row cols-2">
+          <div><label>Appearance</label>
+            <select id="m-rsa-appearance"><option value="">— Select —</option>
+              <option>Calm, quiet</option><option>Calm or mildly anxious</option><option>Distressed, anxious</option>
+              <option>Distressed, anxious, fighting to breathe, exhausted</option><option>Catatonic</option>
+            </select>
+          </div>
+          <div><label>Speech</label>
+            <select id="m-rsa-speech"><option value="">— Select —</option>
+              <option>Clear and steady</option><option>Sentences</option><option>Phrases</option>
+              <option>Single words</option><option>Unable to speak</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-row cols-2">
+          <div><label>Breath Sounds</label>
+            <select id="m-rsa-breath-sounds"><option value="">— Select —</option>
+              <option>Normal lung sounds</option><option>Wheeze</option><option>Crackles</option>
+              <option>Wheeze and crackles</option><option>Silent chest</option><option>Full field crackles</option>
+              <option>Inspiratory stridor</option><option>Normal</option>
+            </select>
+          </div>
+          <div><label>Breathing Rhythm</label>
+            <select id="m-rsa-rhythm"><option value="">— Select —</option>
+              <option>Regular and even</option><option>Slightly prolonged expiratory phase</option>
+              <option>Prolonged expiratory phase</option><option>Kussmaul breathing</option>
+              <option>Cheyne-Stokes respiration</option><option>Agonal breathing</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-row cols-1">
+          <div><label>Work of Breathing (RSA)</label>
+            <select id="m-rsa-wob"><option value="">— Select —</option>
+              <option>Normal, no increased effort</option><option>Mild increase in effort</option>
+              <option>Moderate increase in effort</option><option>Accessory muscle use</option>
+              <option>Moderate increase in effort, accessory muscle use</option>
+              <option>Severe/maximal effort — accessory muscle use, intercostal retraction, tracheal tugging</option>
+              <option>Poor respiratory effort</option>
+            </select>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SECONDARY SURVEY -->
+    <div class="card">
+      <div class="card-header">🩺 Secondary Survey <span style="font-weight:400;opacity:.7;font-size:11px;margin-left:6px" id="m-ss-hint">— set by Category</span></div>
+      <div style="padding:16px" id="m-ss-grid"></div>
+    </div>
+
+    <!-- CLINICAL PICTURE -->
+    <div class="card">
+      <div class="card-header">🎯 Clinical Picture</div>
+      <div style="padding:16px">
+        <label>Clinical Flags</label>
+        <div class="rep-list" id="m-flags-list"></div>
+        <button class="add-item-btn" onclick="addManualRepItem('m-flags-list','Clinical flag or assessor note…')">+ Add Flag</button>
+        <div style="margin-top:14px"><label>Differential Diagnoses</label></div>
+        <div class="rep-list" id="m-ddx-list"></div>
+        <button class="add-item-btn" onclick="addManualRepItem('m-ddx-list','Differential diagnosis…')">+ Add DDx</button>
+        <div class="form-row cols-1" style="margin-top:14px">
+          <div><label>Provisional Diagnosis</label><input type="text" id="m-provisional" placeholder="e.g. STEMI — inferior territory"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- LIFE THREATS -->
+    <div class="card">
+      <div class="card-header">🚨 Life Threats <span style="font-weight:400;opacity:.7;font-size:11px;margin-left:6px">— immediate actions before Hx/vitals</span></div>
+      <div style="padding:16px">
+        <div class="rep-list" id="m-lifethreats-list"></div>
+        <button class="add-item-btn" onclick="addManualRepItem('m-lifethreats-list','e.g. Position upright, apply non-rebreather mask 15 L/min')">+ Add Life Threat Action</button>
+      </div>
+    </div>
+
+    <!-- KNOWLEDGE QUESTIONS -->
+    <div class="card">
+      <div class="card-header">❓ Knowledge Questions <span style="font-weight:400;opacity:.7;font-size:11px;margin-left:6px">— up to 3</span></div>
+      <div style="padding:16px">
+        <div id="m-kq-list"></div>
+        <button class="add-item-btn" id="m-add-kq-btn" onclick="addManualKQBlock()">+ Add Knowledge Question</button>
+      </div>
+    </div>
+
+    <!-- DISCUSSION -->
+    <div class="card">
+      <div class="card-header">💬 Discussion Points <span style="font-weight:400;opacity:.7;font-size:11px;margin-left:6px">— beyond AV scope, for CI use</span></div>
+      <div style="padding:16px">
+        <div class="rep-list" id="m-discussion-list"></div>
+        <button class="add-item-btn" onclick="addManualRepItem('m-discussion-list','e.g. In-hospital thrombolysis criteria')">+ Add Discussion Point</button>
+      </div>
+    </div>
+
+    <div id="manual-status" class="gen-status" style="margin-bottom:8px"></div>
+    <button class="btn btn-primary btn-full" id="manual-save-btn" onclick="saveManualScenario()" style="margin-top:4px">💾 Save to Library</button>
   </div></div>
 
 </div><!-- /content -->
@@ -1828,6 +2083,198 @@ buildConditionPicker();
 })();
 populateCategorySelect('gen-category');
 populateCategorySelect('gen-category-2', '— None (single scenario) —');
+
+// ══════════════════════════════════════════════════════════════════════════
+// MANUAL BUILDER
+// ══════════════════════════════════════════════════════════════════════════
+
+function updateManualTypeDropdown() {
+  const catVal = document.getElementById('m-category').value;
+  const group = document.getElementById('m-type-group');
+  const select = document.getElementById('m-scenario-type');
+  if (!group || !select) return;
+  const keys = CATEGORY_TO_CPG[catVal] || [];
+  if (keys.length === 0) { group.style.display = 'none'; }
+  else {
+    group.style.display = '';
+    select.innerHTML = '<option value="">— Any / Unspecified —</option>' +
+      keys.map(k => `<option value="${k}">${CPG_SUBTYPE_LABELS[k] || k}</option>`).join('');
+  }
+  // Re-render secondary survey fields for the correct body-system set (trauma vs medical)
+  const [category, subcategory] = catVal.includes('|') ? catVal.split('|') : [catVal, catVal];
+  const isTrauma = subcategory && subcategory.toLowerCase().includes('trauma');
+  renderSecondarySurveyFields(isTrauma ? 'trauma' : 'medical');
+}
+
+function addManualRepItem(listId, placeholder) {
+  const list = document.getElementById(listId);
+  const item = document.createElement('div');
+  item.className = 'rep-item';
+  item.innerHTML = `<input type="text" placeholder="${placeholder}"><button class="rep-remove-btn" onclick="this.parentElement.remove()">×</button>`;
+  list.appendChild(item);
+}
+function getManualRepListValues(listId) {
+  return Array.from(document.querySelectorAll(`#${listId} .rep-item input`)).map(i => i.value.trim()).filter(Boolean);
+}
+
+function updateManualGCSTotal() {
+  const e = parseInt(document.getElementById('m-gcs-e').value) || 0;
+  const v = parseInt(document.getElementById('m-gcs-v').value) || 0;
+  const m = parseInt(document.getElementById('m-gcs-m').value) || 0;
+  document.getElementById('m-gcs-total').value = (e || v || m) ? (e + v + m) : '';
+}
+
+const SS_KEYS_TRAUMA  = ['head','neck','chest','abdomen','back','pelvis','limbs','other'];
+const SS_KEYS_MEDICAL = ['neuro','cardio','resp','gi','gu','msk','skin','other'];
+function renderSecondarySurveyFields(type) {
+  const keys = type === 'trauma' ? SS_KEYS_TRAUMA : SS_KEYS_MEDICAL;
+  document.getElementById('m-ss-hint').textContent = type === 'trauma' ? '— Trauma systems' : '— Medical systems';
+  const grid = document.getElementById('m-ss-grid');
+  grid.innerHTML = keys.map(k => `
+    <div class="ss-row" data-key="${k}">
+      <div class="ss-row-head">
+        <span class="ss-row-label">${k}</span>
+        <span class="ss-abnormal-toggle" onclick="this.classList.toggle('on')">Abnormal</span>
+      </div>
+      <input type="text" class="ss-finding" placeholder="Expected finding for ${k}…">
+    </div>`).join('');
+}
+
+let manualKqCount = 0;
+let manualKqMaxValues = {};
+function addManualKQBlock() {
+  if (manualKqCount >= 3) { showStatus('manual-status','error','⚠️ Maximum 3 knowledge questions per scenario'); return; }
+  const idx = manualKqCount++;
+  manualKqMaxValues[idx] = 2;
+  const block = document.createElement('div');
+  block.className = 'kq-block';
+  block.id = `mkq-${idx}`;
+  block.innerHTML = `
+    <label>Question ${idx+1}</label>
+    <textarea id="mkq-q-${idx}" placeholder="Enter the knowledge question…" rows="2"></textarea>
+    <label>Model Answer</label>
+    <textarea id="mkq-a-${idx}" placeholder="Enter the expected answer / key points…" rows="3"></textarea>
+    <div class="kq-max-select">
+      <label>Max points:</label>
+      <button class="kq-max-btn active" id="mkqb-${idx}-2" onclick="setManualKQMax(${idx},2)">2</button>
+      <button class="kq-max-btn" id="mkqb-${idx}-1" onclick="setManualKQMax(${idx},1)">1</button>
+    </div>`;
+  document.getElementById('m-kq-list').appendChild(block);
+  if (manualKqCount >= 3) document.getElementById('m-add-kq-btn').style.display = 'none';
+}
+function setManualKQMax(idx, val) {
+  manualKqMaxValues[idx] = val;
+  document.getElementById(`mkqb-${idx}-1`).classList.toggle('active', val === 1);
+  document.getElementById(`mkqb-${idx}-2`).classList.toggle('active', val === 2);
+}
+
+async function saveManualScenario() {
+  const title = document.getElementById('m-title').value.trim();
+  const catVal = document.getElementById('m-category').value;
+  if (!title) { showStatus('manual-status','error','⚠️ Title is required'); return; }
+  if (!catVal) { showStatus('manual-status','error','⚠️ Category is required'); return; }
+  const [category, subcategory] = catVal.includes('|') ? catVal.split('|') : [catVal, catVal];
+  const isTrauma = subcategory && subcategory.toLowerCase().includes('trauma');
+  const type = isTrauma ? 'trauma'
+    : category.toLowerCase().includes('paed') ? 'paediatric'
+    : category === 'Maternity' ? 'obstetric' : 'medical';
+
+  const secondary_survey = {};
+  document.querySelectorAll('#m-ss-grid .ss-row').forEach(row => {
+    const key = row.dataset.key;
+    secondary_survey[key] = {
+      finding: row.querySelector('.ss-finding').value.trim(),
+      abnormal: row.querySelector('.ss-abnormal-toggle').classList.contains('on')
+    };
+  });
+
+  const scenario = {
+    id: 'custom_' + Date.now(),
+    custom: true,
+    ai_generated: false,
+    title,
+    subtitle: document.getElementById('m-subtitle').value.trim(),
+    category, subcategory,
+    scenario_type: document.getElementById('m-scenario-type').value || null,
+    type,
+    cpg: document.getElementById('m-cpg').value.trim() || 'Custom',
+    extra_cpgs: document.getElementById('m-additional-cpgs').value.split(',').map(s => s.trim()).filter(Boolean),
+    level: 'C/D',
+    dispatch: document.getElementById('m-dispatch').value.trim(),
+    caller_hx: document.getElementById('m-callerhx').value.trim(),
+    arrival_hx: document.getElementById('m-arrivalhx').value.trim(),
+    hx: {
+      timeline:  document.getElementById('m-hx-timeline').value.trim(),
+      nature:    document.getElementById('m-hx-nature').value.trim(),
+      prodromal: document.getElementById('m-hx-prodromal').value.trim(),
+      aggreliev: document.getElementById('m-hx-aggreliev').value.trim(),
+      assoc:     document.getElementById('m-hx-assoc').value.trim(),
+      similar:   document.getElementById('m-hx-similar').value.trim(),
+    },
+    medical_conditions: getManualRepListValues('m-conditions-list'),
+    medications: getManualRepListValues('m-meds-list'),
+    allergies: document.getElementById('m-allergies').value.trim(),
+    vitals: {
+      GCS: (() => {
+        const e = parseInt(document.getElementById('m-gcs-e').value) || 0;
+        const v = parseInt(document.getElementById('m-gcs-v').value) || 0;
+        const m = parseInt(document.getElementById('m-gcs-m').value) || 0;
+        const total = e + v + m;
+        const desc = document.getElementById('m-gcs-desc').value.trim();
+        return total > 0 ? { E: e, V: v, M: m, total, description: desc } : { E: 4, V: 5, M: 6, total: 15, description: 'Alert and oriented' };
+      })(),
+      SpO2: document.getElementById('m-spo2').value.trim() || '—',
+      RR: document.getElementById('m-rr').value.trim() || '—',
+      HR: document.getElementById('m-hr').value.trim() || '—',
+      BP: document.getElementById('m-bp').value.trim() || '—',
+      Temp: document.getElementById('m-temp').value.trim() || '—',
+      BGL: document.getElementById('m-bgl').value.trim() || '—',
+      Rhythm: document.getElementById('m-rhythm').value.trim() || '—',
+      Weight: document.getElementById('m-weight').value.trim() || '—',
+      Ketones: document.getElementById('m-ketones').value.trim() || '—',
+      EtCO2: document.getElementById('m-etco2').value.trim() || '—',
+    },
+    ra: {
+      wob: document.getElementById('m-ra-wob').value,
+      skin: document.getElementById('m-ra-skin').value.trim(),
+    },
+    ps_exposure: document.getElementById('m-ps-exposure').value.trim(),
+    social: document.getElementById('m-social').value.trim(),
+    rsa: {
+      appearance: document.getElementById('m-rsa-appearance').value,
+      speech: document.getElementById('m-rsa-speech').value,
+      breath_sounds: document.getElementById('m-rsa-breath-sounds').value,
+      rhythm: document.getElementById('m-rsa-rhythm').value,
+      wob: document.getElementById('m-rsa-wob').value,
+    },
+    secondary_survey,
+    flags: getManualRepListValues('m-flags-list'),
+    ddx: getManualRepListValues('m-ddx-list'),
+    provisional: document.getElementById('m-provisional').value.trim(),
+    life_threats: getManualRepListValues('m-lifethreats-list'),
+    kq: Array.from({length: manualKqCount}, (_, i) => {
+      const q = (document.getElementById(`mkq-q-${i}`) || {}).value || '';
+      const a = (document.getElementById(`mkq-a-${i}`) || {}).value || '';
+      return q.trim() ? { q: q.trim(), max: manualKqMaxValues[i] || 2, answer: a.trim() } : null;
+    }).filter(Boolean),
+    discussion: getManualRepListValues('m-discussion-list'),
+    created_at: new Date().toISOString(),
+  };
+
+  const btn = document.getElementById('manual-save-btn');
+  btn.disabled = true;
+  try {
+    await saveAndNavigate(scenario);
+  } catch (e) {
+    showStatus('manual-status', 'error', '✕ Save failed: ' + e.message);
+    btn.disabled = false;
+  }
+}
+
+// Manual builder init
+populateCategorySelect('m-category');
+renderSecondarySurveyFields('medical');
+addManualKQBlock(); addManualKQBlock();
 </script>
 
 <!-- Hidden fields read by generateAIScenario() -->
