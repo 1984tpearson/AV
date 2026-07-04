@@ -1698,6 +1698,8 @@ const ADMIN_UUID    = 'fe1f2d3f-2139-44ec-bbe0-14ad6bb748ac';
 const _supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 let _authSession = null;
 let _authProfile = null;
+let _myFavourites = new Set();
+let _popularScenarios = []; // [{scenario_id, fav_count}] from get_popular_scenarios RPC
 
 function getIdentity() {
   if (_authSession && _authProfile) {
@@ -2039,6 +2041,8 @@ async function initApp() {
   }
   updateCustomCount();
 
+  await Promise.all([loadMyFavourites(), loadPopularScenarios()]);
+
   buildHomeScreen();
   // buildRecentScenariosList — merged into buildHomeScreen
   loadDevNotes();
@@ -2318,9 +2322,13 @@ function buildHomePanels() {
     .sort((a,b) => b.t - a.t)
     .map(x => x.s);
 
-  // Favourites & Most Popular — placeholders
-  const favIds = JSON.parse(localStorage.getItem('av_favourites') || '[]');
-  const favScenarios = favIds.map(id => all.find(s => String(s.id) === String(id))).filter(Boolean);
+  // My Favourites — server-backed, sourced from _myFavourites (loaded in initApp)
+  const favScenarios = Array.from(_myFavourites).map(id => all.find(s => String(s.id) === String(id))).filter(Boolean);
+
+  // Most Popular — ranked by favourite count via get_popular_scenarios RPC (loaded in initApp)
+  const popularScenarios = _popularScenarios
+    .map(p => all.find(s => String(s.id) === String(p.scenario_id)))
+    .filter(Boolean);
 
   container.innerHTML = `
     <div class="home-panel">
@@ -2349,7 +2357,7 @@ function buildHomePanels() {
         <span style="font-size:14px">🔥</span>
         <div class="home-panel-title">Most Popular</div>
       </div>
-      <div class="home-panel-body"><div class="home-panel-empty">Coming soon</div></div>
+      <div class="home-panel-body">${popularScenarios.length ? renderItems(popularScenarios, 8) : '<div class="home-panel-empty">No favourites yet — be the first to star a scenario</div>'}</div>
     </div>`;
 }
 
@@ -2898,6 +2906,72 @@ function loadScenario(id) {
   window.scrollTo(0, 0);
 }
 
+// ============================================================
+// FAVOURITES — server-backed (scenario_favourites table)
+// ============================================================
+async function loadMyFavourites() {
+  if (!_authSession) return;
+  try {
+    const { data, error } = await _supabaseClient
+      .from('scenario_favourites')
+      .select('scenario_id')
+      .eq('user_id', _authSession.user.id);
+    if (error) throw error;
+    _myFavourites = new Set((data || []).map(r => r.scenario_id));
+  } catch (e) {
+    console.warn('Failed to load favourites:', e);
+    _myFavourites = new Set();
+  }
+}
+
+async function loadPopularScenarios() {
+  try {
+    const { data, error } = await _supabaseClient.rpc('get_popular_scenarios', { limit_count: 8 });
+    if (error) throw error;
+    _popularScenarios = data || [];
+  } catch (e) {
+    console.warn('Failed to load popular scenarios:', e);
+    _popularScenarios = [];
+  }
+}
+
+async function toggleFavourite(scenarioId) {
+  if (!_authSession) return;
+  const uid = _authSession.user.id;
+  const isFav = _myFavourites.has(scenarioId);
+  try {
+    if (isFav) {
+      const { error } = await _supabaseClient
+        .from('scenario_favourites')
+        .delete()
+        .eq('scenario_id', scenarioId)
+        .eq('user_id', uid);
+      if (error) throw error;
+      _myFavourites.delete(scenarioId);
+    } else {
+      const { error } = await _supabaseClient
+        .from('scenario_favourites')
+        .insert({ scenario_id: scenarioId, user_id: uid });
+      if (error) throw error;
+      _myFavourites.add(scenarioId);
+    }
+    updateFavouriteButton(scenarioId);
+    loadPopularScenarios(); // refresh counts in background for next home visit
+  } catch (e) {
+    showToast('⚠️ Could not update favourite', 2000);
+    console.warn('toggleFavourite failed:', e);
+  }
+}
+
+function updateFavouriteButton(scenarioId) {
+  const btn = document.getElementById('fav-toggle-btn');
+  if (!btn || !currentScenario || String(currentScenario.id) !== String(scenarioId)) return;
+  const isFav = _myFavourites.has(scenarioId);
+  btn.innerHTML = isFav ? '⭐ Favourited' : '☆ Favourite';
+  btn.title = isFav ? 'Remove from favourites' : 'Add to favourites';
+  btn.style.background = isFav ? 'rgba(255,205,60,0.28)' : 'rgba(255,255,255,0.15)';
+  btn.style.borderColor = isFav ? 'rgba(255,205,60,0.55)' : 'rgba(255,255,255,0.3)';
+}
 
 // ============================================================
 // ECG RHYTHM → WIKIMEDIA IMAGE MAP
@@ -3233,6 +3307,7 @@ function renderScenario(s) {
     ${isCustom?'<div class="ai-disclaimer">⚠️ Custom scenario — verify all clinical content against current AV CPGs before use.</div>':''}
   </div>
   <div style="display:flex;flex-direction:column;align-items:flex-end;gap:8px;flex-shrink:0">
+    <button id="fav-toggle-btn" onclick="toggleFavourite('${s.id}')" title="${_myFavourites.has(s.id)?'Remove from favourites':'Add to favourites'}" style="background:${_myFavourites.has(s.id)?'rgba(255,205,60,0.28)':'rgba(255,255,255,0.15)'};border:1px solid ${_myFavourites.has(s.id)?'rgba(255,205,60,0.55)':'rgba(255,255,255,0.3)'};color:white;padding:7px 14px;border-radius:7px;cursor:pointer;font-size:12px;font-weight:700;white-space:nowrap">${_myFavourites.has(s.id)?'⭐ Favourited':'☆ Favourite'}</button>
     <button onclick="openEditModal()" style="background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.3);color:white;padding:7px 14px;border-radius:7px;cursor:pointer;font-size:12px;font-weight:700;white-space:nowrap">✏️ Edit Scenario</button>
     <button onclick="openPatientSessionModal()" style="background:linear-gradient(135deg,rgba(20,90,50,0.85),rgba(39,131,58,0.75));border:1px solid rgba(100,220,130,0.35);color:white;padding:8px 14px 8px 10px;border-radius:8px;cursor:pointer;display:flex;align-items:center;gap:10px;text-align:left;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,0.25)">
       <span style="font-size:26px;line-height:1;filter:drop-shadow(0 1px 3px rgba(0,0,0,0.4))">📺</span>
