@@ -686,6 +686,7 @@ const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
 const ADMIN_UUID   = 'fe1f2d3f-2139-44ec-bbe0-14ad6bb748ac';
 
 const _supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+window.__avSupabaseClient = _supabaseClient; // shared with nav.js — avoids duplicate GoTrueClient instances
 let _authSession = null;
 let _authProfile = null;
 

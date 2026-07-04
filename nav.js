@@ -1,9 +1,11 @@
 // ============================================================
 // nav.js — Shared hamburger nav, sidebar, and Settings modal
 // for the Scenario Trainer suite (scenario.html, generator.html,
-// index.html). Self-contained: creates its own Supabase client
-// and reads the session independently of each page's own auth
-// variables, so it behaves identically everywhere it's included.
+// index.html). Reuses the host page's own Supabase client
+// (exposed on window.__avSupabaseClient) if one already exists,
+// to avoid multiple GoTrueClient instances sharing the same
+// auth storage key in the same tab. Falls back to creating its
+// own client for pages that don't set one up.
 //
 // Usage per page:
 //   1. Include the Supabase CDN script BEFORE this file.
@@ -23,7 +25,10 @@
     console.error('nav.js: supabase-js must be loaded before nav.js');
     return;
   }
-  var _sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  // Reuse the host page's client if it already created one (scenario.html,
+  // generator.html, index.html all do). Only create a fresh one otherwise.
+  var _sb = window.__avSupabaseClient || supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  if (!window.__avSupabaseClient) window.__avSupabaseClient = _sb;
 
   var _session = null;
   var _profile = null;

@@ -542,6 +542,7 @@ const _sb = supabase.createClient(
   'https://befsjenbaruxqrntuhpn.supabase.co',
   'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJlZnNqZW5iYXJ1eHFybnR1aHBuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI2MjA5MjAsImV4cCI6MjA4ODE5NjkyMH0.hOFFbIvd1wAgu-QyghupQ-7ttSpg7sxz_UsJbXyXztA'
 );
+window.__avSupabaseClient = _sb; // shared with nav.js — avoids duplicate GoTrueClient instances
 (async () => {
   const { data: { session } } = await _sb.auth.getSession();
   const btn = document.getElementById('topbar-login-btn');
