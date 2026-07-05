@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Quiz — Join Game</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+* { box-sizing: border-box; margin:0; padding:0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background:#EEF5FB; color:#0D2137; min-height:100vh; display:flex; flex-direction:column; }
+.topbar { background:#1C3A6E; color:white; padding:14px 20px; font-weight:800; font-size:18px; }
+.wrap { max-width:480px; margin:0 auto; padding:20px; width:100%; flex:1; }
+.card { background:white; border-radius:14px; padding:22px; box-shadow:0 2px 10px rgba(0,0,0,0.08); }
+label { display:block; font-size:13px; font-weight:600; color:#546E7A; margin-bottom:6px; }
+input { width:100%; padding:12px; border:1px solid #B8D4EA; border-radius:8px; font-size:18px; text-align:center; letter-spacing:4px; text-transform:uppercase; margin-bottom:14px; }
+.btn { display:block; width:100%; padding:14px; border:none; border-radius:10px; font-weight:700; font-size:16px; cursor:pointer; background:#1C3A6E; color:white; }
+.btn:active { background:#12274a; }
+.btn:disabled { opacity:0.5; }
+.err { color:#C62828; font-size:13px; margin-top:-8px; margin-bottom:12px; }
+.hidden { display:none; }
+.center { text-align:center; padding:40px 0; color:#546E7A; }
+.q-text { font-size:20px; font-weight:700; margin-bottom:18px; text-align:center; }
+.opt-btn { display:block; width:100%; padding:16px; margin-bottom:10px; border-radius:10px; border:2px solid #B8D4EA; background:white; font-size:16px; font-weight:600; cursor:pointer; text-align:left; }
+.opt-btn:active { background:#E1F0FA; }
+.opt-btn.selected { background:#1C3A6E; color:white; border-color:#1C3A6E; }
+.opt-btn:disabled { cursor:default; }
+.feedback { text-align:center; font-size:18px; font-weight:800; margin-bottom:14px; }
+.feedback.good { color:#00897B; }
+.feedback.bad { color:#C62828; }
+.score-line { text-align:center; color:#546E7A; font-size:14px; margin-top:16px; }
+.lb-row { display:flex; justify-content:space-between; padding:10px 0; border-bottom:1px solid #EEF5FB; font-size:15px; }
+.lb-rank { font-weight:800; color:#E8921A; margin-right:10px; }
+</style>
+</head>
+<body>
+<div class="topbar">🎮 Quiz</div>
+<div class="wrap">
+
+  <div id="screen-join" class="card">
+    <label>Room Code</label>
+    <input type="text" id="join-code" maxlength="4" placeholder="ABCD">
+    <div id="join-err" class="err hidden"></div>
+    <button class="btn" id="join-btn" onclick="joinRoom()">Join Game</button>
+  </div>
+
+  <div id="screen-waiting" class="card hidden">
+    <div class="center">⏳ Waiting for host to start the game…</div>
+  </div>
+
+  <div id="screen-question" class="card hidden">
+    <div class="q-text" id="q-text"></div>
+    <div id="q-options"></div>
+  </div>
+
+  <div id="screen-feedback" class="card hidden">
+    <div id="feedback-msg" class="feedback"></div>
+    <div class="center">Waiting for the next question…</div>
+    <div class="score-line" id="score-line"></div>
+  </div>
+
+  <div id="screen-end" class="card hidden">
+    <h2 style="color:#1C3A6E;margin-bottom:12px">🏁 Game Over</h2>
+    <div id="leaderboard"></div>
+  </div>
+
+</div>
+<script>
+const SUPABASE_URL = 'https://befsjenbaruxqrntuhpn.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJlZnNqZW5iYXJ1eHFybnR1aHBuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI2MjA5MjAsImV4cCI6MjA4ODE5NjkyMH0.hOFFbIvd1wAgu-QyghupQ-7ttSpg7sxz_UsJbXyXztA';
+const _sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+let _session=null, _profile=null, _room=null, _player=null, _roomChannel=null, _lastSeenIndex=-1;
+
+async function requireAuth() {
+  const { data: { session } } = await _sb.auth.getSession();
+  if (!session) { window.location.href = 'login.html?redirect=quiz_player.html'; return null; }
+  return session;
+}
+
+async function init() {
+  _session = await requireAuth();
+  if (!_session) return;
+  const { data: profile } = await _sb.from('profiles').select('display_name').eq('id', _session.user.id).single();
+  _profile = profile;
+  const params = new URLSearchParams(window.location.search);
+  const code = params.get('code');
+  if (code) document.getElementById('join-code').value = code.toUpperCase();
+}
+init();
+
+function escapeHtml(s){ return String(s==null?'':s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+async function sbFetch(path, opts={}) {
+  const token = (_session && _session.access_token) || SUPABASE_KEY;
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
+    ...opts,
+    headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${token}`, 'Content-Type':'application/json',
+      'Prefer': opts.prefer || 'return=representation', ...(opts.headers||{}) }
+  });
+  if (!res.ok) { const e = await res.json().catch(()=>({})); throw new Error(e.message || `Supabase error ${res.status}`); }
+  const text = await res.text();
+  return text ? JSON.parse(text) : [];
+}
+
+async function joinRoom() {
+  const errEl = document.getElementById('join-err');
+  errEl.classList.add('hidden');
+  const code = (document.getElementById('join-code').value||'').trim().toUpperCase();
+  if (code.length!==4) { errEl.textContent='Enter the 4-character room code.'; errEl.classList.remove('hidden'); return; }
+  const btn = document.getElementById('join-btn');
+  btn.disabled=true; btn.textContent='Joining…';
+  try {
+    const rooms = await sbFetch(`quiz_rooms?code=eq.${code}&status=in.(lobby,live)&select=*`);
+    if (!rooms.length) throw new Error('Room not found or already ended.');
+    _room = rooms[0];
+    const name = (_profile && _profile.display_name) || _session.user.email;
+    const rows = await sbFetch(`quiz_players?on_conflict=room_id,user_id`, { method:'POST',
+      headers:{ 'Prefer':'resolution=merge-duplicates,return=representation' },
+      body: JSON.stringify({ room_id:_room.id, user_id:_session.user.id, name }) });
+    _player = rows[0];
+    document.getElementById('screen-join').classList.add('hidden');
+    subscribeRoom();
+    if (_room.status === 'live') { _lastSeenIndex = -1; checkForQuestion(); }
+    else document.getElementById('screen-waiting').classList.remove('hidden');
+  } catch(e) {
+    errEl.textContent = e.message; errEl.classList.remove('hidden');
+  } finally {
+    btn.disabled=false; btn.textContent='Join Game';
+  }
+}
+
+function subscribeRoom() {
+  _roomChannel = _sb.channel('room-'+_room.id)
+    .on('postgres_changes', { event:'UPDATE', schema:'public', table:'quiz_rooms', filter:`id=eq.${_room.id}` }, payload => {
+      _room = payload.new;
+      checkForQuestion();
+    })
+    .subscribe();
+}
+
+function hideAllGameScreens() {
+  ['screen-waiting','screen-question','screen-feedback','screen-end'].forEach(id=>document.getElementById(id).classList.add('hidden'));
+}
+
+async function checkForQuestion() {
+  if (_room.status === 'ended') {
+    hideAllGameScreens();
+    document.getElementById('screen-end').classList.remove('hidden');
+    if (_roomChannel) _sb.removeChannel(_roomChannel);
+    const rows = await sbFetch(`quiz_players?room_id=eq.${_room.id}&select=name,score&order=score.desc`);
+    document.getElementById('leaderboard').innerHTML = rows.map((p,i)=>`<div class="lb-row"><span><span class="lb-rank">#${i+1}</span>${escapeHtml(p.name)}</span><span>${p.score} pts</span></div>`).join('');
+    return;
+  }
+  if (_room.status !== 'live' || _room.current_question_index === _lastSeenIndex) return;
+  _lastSeenIndex = _room.current_question_index;
+  const qrows = await sbFetch(`quiz_questions?room_id=eq.${_room.id}&order_index=eq.${_room.current_question_index}&select=*`);
+  const q = qrows[0];
+  hideAllGameScreens();
+  document.getElementById('screen-question').classList.remove('hidden');
+  document.getElementById('q-text').textContent = q.question_text;
+  document.getElementById('q-options').innerHTML = q.options.map((o,i)=>`<button class="opt-btn" onclick="submitAnswer('${q.id}',${i},${q.correct_index})">${escapeHtml(o)}</button>`).join('');
+}
+
+async function submitAnswer(questionId, selectedIndex, correctIndex) {
+  document.querySelectorAll('.opt-btn').forEach((el,i)=>{ el.disabled=true; if(i===selectedIndex) el.classList.add('selected'); });
+  const isCorrect = selectedIndex === correctIndex;
+  try {
+    await sbFetch('quiz_answers', { method:'POST', prefer:'return=minimal',
+      body: JSON.stringify({ room_id:_room.id, question_id:questionId, player_id:_player.id, selected_index:selectedIndex, is_correct:isCorrect }) });
+  } catch(e) { /* likely already answered — ignore */ }
+
+  hideAllGameScreens();
+  document.getElementById('screen-feedback').classList.remove('hidden');
+  const fb = document.getElementById('feedback-msg');
+  fb.textContent = isCorrect ? '✅ Correct!' : '❌ Not quite';
+  fb.className = 'feedback ' + (isCorrect?'good':'bad');
+  document.getElementById('score-line').textContent = '';
+}
+</script>
+</body>
+</html>

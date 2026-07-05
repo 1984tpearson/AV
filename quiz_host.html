@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Quiz Host — Paramedic Assessment Tools</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="category_data.js"></script>
+<script src="cpg_packages_combined.js"></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #EEF5FB; color: #0D2137; min-height: 100vh; }
+.topbar { background: #1C3A6E; color: white; padding: 14px 20px; font-weight: 800; font-size: 18px; display:flex; align-items:center; justify-content:space-between; }
+.wrap { max-width: 720px; margin: 0 auto; padding: 20px; }
+.card { background: white; border-radius: 14px; padding: 22px; box-shadow: 0 2px 10px rgba(0,0,0,0.08); margin-bottom: 16px; }
+h2 { color: #1C3A6E; font-size: 17px; margin-bottom: 12px; }
+label { display:block; font-size:13px; font-weight:600; color:#546E7A; margin-bottom:6px; }
+textarea, select, input { width:100%; padding:10px 12px; border:1px solid #B8D4EA; border-radius:8px; font-size:14px; font-family:inherit; margin-bottom:14px; }
+textarea { min-height: 140px; resize: vertical; }
+.btn { display:inline-block; padding:12px 20px; border:none; border-radius:8px; font-weight:700; font-size:14px; cursor:pointer; background:#1C3A6E; color:white; }
+.btn:active { background:#12274a; }
+.btn-amber { background:#E8921A; }
+.btn-full { width:100%; }
+.btn:disabled { opacity:0.5; cursor:not-allowed; }
+.room-code { font-size:48px; font-weight:800; letter-spacing:8px; color:#1C3A6E; text-align:center; padding:20px 0; }
+.player-chip { display:inline-block; background:#E1F0FA; color:#1C3A6E; padding:6px 14px; border-radius:20px; font-size:13px; font-weight:600; margin:4px; }
+.q-text { font-size:20px; font-weight:700; margin-bottom:16px; }
+.opt-row { display:flex; align-items:center; gap:10px; padding:12px; border-radius:8px; background:#F5F9FC; margin-bottom:8px; font-size:15px; }
+.opt-row.correct { background:#E0F5EC; border:2px solid #00897B; }
+.opt-count { margin-left:auto; font-weight:700; color:#546E7A; }
+.status-line { text-align:center; color:#546E7A; font-size:13px; margin-bottom:10px; }
+.hidden { display:none; }
+.lb-row { display:flex; justify-content:space-between; padding:10px 0; border-bottom:1px solid #EEF5FB; font-size:15px; }
+.lb-rank { font-weight:800; color:#E8921A; margin-right:10px; }
+.err { color:#C62828; font-size:13px; margin-top:-8px; margin-bottom:12px; }
+</style>
+</head>
+<body>
+<div class="topbar"><span>🎮 Quiz Host</span><span id="host-name"></span></div>
+<div class="wrap">
+
+  <div id="screen-setup" class="card">
+    <h2>1. Build your quiz</h2>
+    <label>Package source</label>
+    <select id="package-preset" onchange="onPresetChange()">
+      <option value="custom">— Paste your own text —</option>
+      <option value="cpg">CPG Package (single condition)</option>
+    </select>
+    <div id="cpg-pickers" class="hidden">
+      <label>Category</label>
+      <select id="cpg-category" onchange="onCpgCategoryChange()"></select>
+      <label>Condition</label>
+      <select id="cpg-condition" onchange="onCpgConditionChange()"></select>
+    </div>
+    <textarea id="package-text" placeholder="Paste any reference material here — the AI will write quiz questions from it."></textarea>
+    <label>Number of questions</label>
+    <input type="number" id="num-questions" min="3" max="15" value="5">
+    <div id="setup-err" class="err hidden"></div>
+    <button class="btn btn-full" id="gen-btn" onclick="generateQuiz()">✦ Generate Quiz</button>
+  </div>
+
+  <div id="screen-lobby" class="card hidden">
+    <h2>2. Players join</h2>
+    <div class="status-line">Room code — enter this on each player device</div>
+    <div class="room-code" id="room-code-display"></div>
+    <div id="lobby-players"></div>
+    <button class="btn btn-full btn-amber" onclick="startGame()">▶ Start Game</button>
+  </div>
+
+  <div id="screen-game" class="card hidden">
+    <div class="status-line" id="game-progress"></div>
+    <div class="q-text" id="q-text"></div>
+    <div id="q-options"></div>
+    <div class="status-line" id="answer-count"></div>
+    <button class="btn btn-full" id="reveal-btn" onclick="revealAnswer()">👁 Reveal Answer</button>
+    <button class="btn btn-full btn-amber hidden" id="next-btn" onclick="nextQuestion()">Next Question ▶</button>
+  </div>
+
+  <div id="screen-end" class="card hidden">
+    <h2>🏆 Final Leaderboard</h2>
+    <div id="leaderboard"></div>
+    <button class="btn btn-full" onclick="location.reload()">New Quiz</button>
+  </div>
+
+</div>
+<script>
+const SUPABASE_URL = 'https://befsjenbaruxqrntuhpn.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJlZnNqZW5iYXJ1eHFybnR1aHBuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI2MjA5MjAsImV4cCI6MjA4ODE5NjkyMH0.hOFFbIvd1wAgu-QyghupQ-7ttSpg7sxz_UsJbXyXztA';
+const _sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+let _session=null, _room=null, _questions=[], _curIdx=-1, _playersChannel=null, _answersChannel=null;
+
+async function requireAuth() {
+  const { data: { session } } = await _sb.auth.getSession();
+  if (!session) { window.location.href = 'login.html?redirect=quiz_host.html'; return null; }
+  return session;
+}
+
+async function init() {
+  _session = await requireAuth();
+  if (!_session) return;
+  const { data: profile } = await _sb.from('profiles').select('display_name').eq('id', _session.user.id).single();
+  document.getElementById('host-name').textContent = (profile && profile.display_name) || _session.user.email;
+}
+init();
+
+function onPresetChange() {
+  const val = document.getElementById('package-preset').value;
+  const ta = document.getElementById('package-text');
+  const pickers = document.getElementById('cpg-pickers');
+  if (val === 'cpg') {
+    pickers.classList.remove('hidden');
+    ta.readOnly = true;
+    populateCpgCategories();
+  } else {
+    pickers.classList.add('hidden');
+    ta.value = '';
+    ta.readOnly = false;
+  }
+}
+
+function populateCpgCategories() {
+  const catSel = document.getElementById('cpg-category');
+  catSel.innerHTML = CATEGORIES.map(c => `<option value="${c.key}">${c.icon} ${c.key}</option>`).join('');
+  onCpgCategoryChange();
+}
+
+function onCpgCategoryChange() {
+  const cat = CATEGORIES.find(c => c.key === document.getElementById('cpg-category').value);
+  const condSel = document.getElementById('cpg-condition');
+  const conditions = [];
+  Object.keys(cat.subcats).forEach(sub => cat.subcats[sub].forEach(c => conditions.push(c)));
+  condSel.innerHTML = conditions.map(c => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('');
+  onCpgConditionChange();
+}
+
+function onCpgConditionChange() {
+  const cond = document.getElementById('cpg-condition').value;
+  const key = COND_TO_CPG_KEY[cond];
+  const pkg = key && typeof CPG_PACKAGES !== 'undefined' ? CPG_PACKAGES[key] : null;
+  document.getElementById('package-text').value = pkg ? JSON.stringify(pkg, null, 2) : '(No CPG package data found for this condition)';
+}
+
+async function sbFetch(path, opts={}) {
+  const token = (_session && _session.access_token) || SUPABASE_KEY;
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
+    ...opts,
+    headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${token}`, 'Content-Type':'application/json',
+      'Prefer': opts.prefer || 'return=representation', ...(opts.headers||{}) }
+  });
+  if (!res.ok) { const e = await res.json().catch(()=>({})); throw new Error(e.message || `Supabase error ${res.status}`); }
+  const text = await res.text();
+  return text ? JSON.parse(text) : [];
+}
+
+let _cachedKey = null;
+async function getAnthropicKey() {
+  if (_cachedKey) return _cachedKey;
+  const rows = await sbFetch('app_config?key=eq.anthropic_api_key&select=value');
+  if (rows[0] && rows[0].value) { _cachedKey = rows[0].value; return _cachedKey; }
+  throw new Error('AI generation is temporarily unavailable.');
+}
+
+function parseFirstJSONArray(raw) {
+  let s = raw.replace(/```json|```/g,'').trim();
+  const start = s.indexOf('[');
+  if (start===-1) throw new Error('No JSON array found in AI response');
+  let depth=0, end=-1;
+  for (let i=start;i<s.length;i++){ if(s[i]==='[')depth++; else if(s[i]===']'){depth--; if(depth===0){end=i;break;}} }
+  if (end===-1) throw new Error('Unterminated JSON array');
+  return JSON.parse(s.slice(start,end+1));
+}
+
+function genRoomCode() {
+  const chars='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let c=''; for(let i=0;i<4;i++) c+=chars[Math.floor(Math.random()*chars.length)];
+  return c;
+}
+
+function escapeHtml(s){ return String(s==null?'':s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+async function generateQuiz() {
+  const errEl = document.getElementById('setup-err');
+  errEl.classList.add('hidden');
+  const packageText = document.getElementById('package-text').value.trim();
+  const numQ = parseInt(document.getElementById('num-questions').value) || 5;
+  if (!packageText) { errEl.textContent='Paste some reference material first.'; errEl.classList.remove('hidden'); return; }
+  const btn = document.getElementById('gen-btn');
+  btn.disabled = true; btn.textContent = '✦ Generating…';
+  try {
+    const apiKey = await getAnthropicKey();
+    const systemPrompt = `You write multiple-choice quiz questions from reference material. Respond with valid JSON only — no markdown, no preamble. Format: [{"question":"...","options":["a","b","c","d"],"correct_index":0}, ...]. Rules: (1) Generate exactly ${numQ} questions. (2) Each question has exactly 4 options. (3) correct_index is 0-based and must be accurate per the source material. (4) Questions must be answerable strictly from the material provided — do not invent facts. (5) Vary question style (recall, application, scenario-based) where the material supports it.`;
+    const userPrompt = `Reference material:\n\n${packageText}\n\nGenerate the quiz as JSON.`;
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method:'POST',
+      headers:{ 'Content-Type':'application/json', 'x-api-key':apiKey, 'anthropic-version':'2023-06-01', 'anthropic-dangerous-direct-browser-access':'true' },
+      body: JSON.stringify({ model:'claude-sonnet-4-6', max_tokens: 4000, system: systemPrompt, messages:[{role:'user', content:userPrompt}] })
+    });
+    if (!response.ok) throw new Error('AI request failed: ' + response.status);
+    const data = await response.json();
+    const text = (data.content||[]).map(b=>b.text||'').join('');
+    const parsed = parseFirstJSONArray(text);
+    if (!Array.isArray(parsed) || !parsed.length) throw new Error('AI returned no questions');
+    _questions = parsed.map((q,i)=>({ order_index:i, question_text:q.question, options:q.options, correct_index:q.correct_index }));
+
+    let code, room;
+    for (let attempt=0; attempt<5; attempt++) {
+      code = genRoomCode();
+      try {
+        const rows = await sbFetch('quiz_rooms', { method:'POST', body: JSON.stringify({ code, host_user_id:_session.user.id, package_source: packageText.slice(0,2000), status:'lobby', current_question_index:-1 }) });
+        room = rows[0]; break;
+      } catch(e) { if (attempt===4) throw e; }
+    }
+    _room = room;
+    await sbFetch('quiz_questions', { method:'POST', prefer:'return=minimal', body: JSON.stringify(_questions.map(q=>({ room_id:_room.id, order_index:q.order_index, question_text:q.question_text, options:q.options, correct_index:q.correct_index }))) });
+
+    document.getElementById('screen-setup').classList.add('hidden');
+    document.getElementById('screen-lobby').classList.remove('hidden');
+    document.getElementById('room-code-display').textContent = _room.code;
+    subscribeLobby();
+  } catch(e) {
+    errEl.textContent = e.message; errEl.classList.remove('hidden');
+  } finally {
+    btn.disabled=false; btn.textContent='✦ Generate Quiz';
+  }
+}
+
+function subscribeLobby() {
+  refreshLobbyPlayers();
+  _playersChannel = _sb.channel('room-players-'+_room.id)
+    .on('postgres_changes', { event:'*', schema:'public', table:'quiz_players', filter:`room_id=eq.${_room.id}` }, refreshLobbyPlayers)
+    .subscribe();
+}
+
+async function refreshLobbyPlayers() {
+  const rows = await sbFetch(`quiz_players?room_id=eq.${_room.id}&select=name,score&order=joined_at.asc`);
+  document.getElementById('lobby-players').innerHTML = rows.length
+    ? rows.map(p=>`<span class="player-chip">${escapeHtml(p.name)}</span>`).join('')
+    : '<div class="status-line">Waiting for players…</div>';
+}
+
+async function startGame() {
+  await sbFetch(`quiz_rooms?id=eq.${_room.id}`, { method:'PATCH', prefer:'return=minimal', body: JSON.stringify({ status:'live', current_question_index:0 }) });
+  _curIdx = 0;
+  document.getElementById('screen-lobby').classList.add('hidden');
+  document.getElementById('screen-game').classList.remove('hidden');
+  if (_playersChannel) _sb.removeChannel(_playersChannel);
+  showQuestion();
+  subscribeAnswers();
+}
+
+function showQuestion() {
+  const q = _questions[_curIdx];
+  document.getElementById('game-progress').textContent = `Question ${_curIdx+1} of ${_questions.length}`;
+  document.getElementById('q-text').textContent = q.question_text;
+  document.getElementById('q-options').innerHTML = q.options.map((o,i)=>`<div class="opt-row" id="opt-${i}">${escapeHtml(o)}<span class="opt-count" id="opt-count-${i}"></span></div>`).join('');
+  document.getElementById('answer-count').textContent = '';
+  document.getElementById('reveal-btn').classList.remove('hidden');
+  document.getElementById('next-btn').classList.add('hidden');
+}
+
+function subscribeAnswers() {
+  if (_answersChannel) _sb.removeChannel(_answersChannel);
+  _answersChannel = _sb.channel('room-answers-'+_room.id)
+    .on('postgres_changes', { event:'INSERT', schema:'public', table:'quiz_answers', filter:`room_id=eq.${_room.id}` }, updateAnswerCount)
+    .subscribe();
+  updateAnswerCount();
+}
+
+async function updateAnswerCount() {
+  const qid = await currentQuestionId();
+  const answers = await sbFetch(`quiz_answers?question_id=eq.${qid}&select=selected_index`);
+  const players = await sbFetch(`quiz_players?room_id=eq.${_room.id}&select=id`);
+  document.getElementById('answer-count').textContent = `${answers.length} of ${players.length} answered`;
+}
+
+let _qidCache = {};
+async function currentQuestionId() {
+  const key = _curIdx;
+  if (_qidCache[key]) return _qidCache[key];
+  const rows = await sbFetch(`quiz_questions?room_id=eq.${_room.id}&order_index=eq.${_curIdx}&select=id`);
+  _qidCache[key] = rows[0].id;
+  return _qidCache[key];
+}
+
+async function revealAnswer() {
+  const q = _questions[_curIdx];
+  const qid = await currentQuestionId();
+  const answers = await sbFetch(`quiz_answers?question_id=eq.${qid}&select=selected_index,player_id`);
+  const counts = q.options.map((_,i)=> answers.filter(a=>a.selected_index===i).length);
+  counts.forEach((c,i)=>{ document.getElementById('opt-count-'+i).textContent = c; });
+  document.getElementById('opt-'+q.correct_index).classList.add('correct');
+
+  const correctPlayerIds = answers.filter(a=>a.selected_index===q.correct_index).map(a=>a.player_id);
+  for (const pid of correctPlayerIds) {
+    const rows = await sbFetch(`quiz_players?id=eq.${pid}&select=score`);
+    const cur = (rows[0] && rows[0].score) || 0;
+    await sbFetch(`quiz_players?id=eq.${pid}`, { method:'PATCH', prefer:'return=minimal', body: JSON.stringify({ score: cur+10 }) });
+  }
+
+  document.getElementById('reveal-btn').classList.add('hidden');
+  document.getElementById('next-btn').classList.remove('hidden');
+}
+
+async function nextQuestion() {
+  _curIdx++;
+  if (_curIdx >= _questions.length) {
+    await sbFetch(`quiz_rooms?id=eq.${_room.id}`, { method:'PATCH', prefer:'return=minimal', body: JSON.stringify({ status:'ended' }) });
+    if (_answersChannel) _sb.removeChannel(_answersChannel);
+    showLeaderboard();
+    return;
+  }
+  await sbFetch(`quiz_rooms?id=eq.${_room.id}`, { method:'PATCH', prefer:'return=minimal', body: JSON.stringify({ current_question_index: _curIdx }) });
+  showQuestion();
+}
+
+async function showLeaderboard() {
+  document.getElementById('screen-game').classList.add('hidden');
+  document.getElementById('screen-end').classList.remove('hidden');
+  const rows = await sbFetch(`quiz_players?room_id=eq.${_room.id}&select=name,score&order=score.desc`);
+  document.getElementById('leaderboard').innerHTML = rows.map((p,i)=>`<div class="lb-row"><span><span class="lb-rank">#${i+1}</span>${escapeHtml(p.name)}</span><span>${p.score} pts</span></div>`).join('');
+}
+</script>
+</body>
+</html>
