@@ -764,6 +764,22 @@
       injectMarkup();
       var profileResult = await _sb.from('profiles').select('*').eq('id', _session.user.id).single();
       _profile = profileResult.data;
+      if (!_profile) {
+        // Self-heal: the profiles-row trigger should have created this on signup, but
+        // if it didn't (e.g. row was manually deleted, or the trigger failed), create
+        // a minimal one now rather than looping the "complete your profile" prompt forever.
+        var meta = _session.user.user_metadata || {};
+        try {
+          var upsertResult = await _sb.from('profiles').upsert({
+            id: _session.user.id,
+            email: _session.user.email,
+            display_name: meta.full_name || _session.user.email
+          }, { onConflict: 'id' }).select().single();
+          _profile = upsertResult.data;
+        } catch (e) {
+          console.error('Profile self-heal failed:', e.message);
+        }
+      }
       renderUserCard();
       if (loginBtn) loginBtn.style.display = 'none';
       if (_profile && !_profile.avatar_url) openWelcomeAvatarModal();
