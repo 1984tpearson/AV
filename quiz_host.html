@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Quiz Host — Paramedic Assessment Tools</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
 <script src="category_data.js"></script>
 <script src="cpg_packages_combined.js"></script>
 <style>
@@ -63,6 +64,7 @@ textarea { min-height: 140px; resize: vertical; }
     <h2>2. Players join</h2>
     <div class="status-line">Room code — enter this on each player device</div>
     <div class="room-code" id="room-code-display"></div>
+    <div id="qr-code" style="display:flex;justify-content:center;margin-bottom:16px"></div>
     <div id="lobby-players"></div>
     <button class="btn btn-full btn-amber" onclick="startGame()">▶ Start Game</button>
   </div>
@@ -223,6 +225,7 @@ async function generateQuiz() {
     document.getElementById('screen-setup').classList.add('hidden');
     document.getElementById('screen-lobby').classList.remove('hidden');
     document.getElementById('room-code-display').textContent = _room.code;
+    renderJoinQR();
     subscribeLobby();
   } catch(e) {
     errEl.textContent = e.message; errEl.classList.remove('hidden');
@@ -243,6 +246,17 @@ async function refreshLobbyPlayers() {
   document.getElementById('lobby-players').innerHTML = rows.length
     ? rows.map(p=>`<span class="player-chip">${escapeHtml(p.name)}</span>`).join('')
     : '<div class="status-line">Waiting for players…</div>';
+}
+
+function renderJoinQR() {
+  const joinUrl = new URL('quiz_player.html?code=' + _room.code, window.location.href).href;
+  const container = document.getElementById('qr-code');
+  container.innerHTML = '';
+  const canvas = document.createElement('canvas');
+  container.appendChild(canvas);
+  QRCode.toCanvas(canvas, joinUrl, { width: 200, margin: 1, color: { dark: '#1C3A6E', light: '#FFFFFF' } }, function (err) {
+    if (err) container.innerHTML = '<div class="status-line">(QR code unavailable — use the room code above)</div>';
+  });
 }
 
 async function startGame() {
