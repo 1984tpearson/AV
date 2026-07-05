@@ -122,7 +122,7 @@ textarea::placeholder{color:var(--muted);}
     <div id="q-options"></div>
     <div class="status-line" id="answer-count"></div>
     <button class="btn btn-full" id="reveal-btn" onclick="manualReveal()">👁 Reveal Answer</button>
-    <button class="btn btn-full btn-amber hidden" id="next-btn" onclick="nextQuestion()">Next Question ▶</button>
+    <button class="btn btn-full btn-amber hidden" id="next-btn" onclick="triggerNext()">Next Question ▶</button>
   </div>
 
   <div id="screen-end" class="card hidden">
@@ -138,6 +138,7 @@ const SUPABASE_URL = 'https://befsjenbaruxqrntuhpn.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJlZnNqZW5iYXJ1eHFybnR1aHBuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI2MjA5MjAsImV4cCI6MjA4ODE5NjkyMH0.hOFFbIvd1wAgu-QyghupQ-7ttSpg7sxz_UsJbXyXztA';
 const _sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 let _session=null, _room=null, _questions=[], _curIdx=-1, _playersChannel=null, _answersChannel=null, _revealing=false, _timerInterval=null, _questionDuration=20;
+let _autoAdvanceTimer=null, _autoAdvanceCountdownInterval=null, _advancing=false;
 
 async function requireAuth() {
   const { data: { session } } = await _sb.auth.getSession();
@@ -351,6 +352,10 @@ const QUESTION_PALETTE = [
 
 function showQuestion() {
   _revealing = false;
+  _advancing = false;
+  clearTimeout(_autoAdvanceTimer);
+  clearInterval(_autoAdvanceCountdownInterval);
+  document.getElementById('next-btn').textContent = 'Next Question ▶';
   const q = _questions[_curIdx];
   const shapes = ['▲','◆','●','■'];
   const pal = QUESTION_PALETTE[_curIdx % QUESTION_PALETTE.length];
@@ -423,6 +428,28 @@ async function revealAnswer() {
 
   document.getElementById('reveal-btn').classList.add('hidden');
   document.getElementById('next-btn').classList.remove('hidden');
+  scheduleAutoAdvance();
+}
+
+function scheduleAutoAdvance() {
+  clearTimeout(_autoAdvanceTimer);
+  clearInterval(_autoAdvanceCountdownInterval);
+  let secondsLeft = 6;
+  const btn = document.getElementById('next-btn');
+  btn.textContent = `Next Question ▶ (${secondsLeft})`;
+  _autoAdvanceCountdownInterval = setInterval(() => {
+    secondsLeft--;
+    if (secondsLeft > 0) btn.textContent = `Next Question ▶ (${secondsLeft})`;
+  }, 1000);
+  _autoAdvanceTimer = setTimeout(triggerNext, 6000);
+}
+
+function triggerNext() {
+  if (_advancing) return;
+  _advancing = true;
+  clearTimeout(_autoAdvanceTimer);
+  clearInterval(_autoAdvanceCountdownInterval);
+  nextQuestion();
 }
 
 async function nextQuestion() {
