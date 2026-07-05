@@ -124,7 +124,7 @@ async function requireAuth() {
 async function init() {
   _session = await requireAuth();
   if (!_session) return;
-  const { data: profile } = await _sb.from('profiles').select('display_name').eq('id', _session.user.id).single();
+  const { data: profile } = await _sb.from('profiles').select('display_name,avatar_url').eq('id', _session.user.id).single();
   _profile = profile;
   const params = new URLSearchParams(window.location.search);
   const code = params.get('code');
@@ -176,9 +176,10 @@ async function joinRoom() {
     if (!rooms.length) throw new Error('Room not found or already ended.');
     _room = rooms[0];
     const name = (_profile && _profile.display_name) || _session.user.email;
+    const avatarUrl = (_profile && _profile.avatar_url) || null;
     const rows = await sbFetch(`quiz_players?on_conflict=room_id,user_id`, { method:'POST',
       headers:{ 'Prefer':'resolution=merge-duplicates,return=representation' },
-      body: JSON.stringify({ room_id:_room.id, user_id:_session.user.id, name }) });
+      body: JSON.stringify({ room_id:_room.id, user_id:_session.user.id, name, avatar_url:avatarUrl }) });
     _player = rows[0];
     document.getElementById('screen-join').classList.add('hidden');
     subscribeRoom();

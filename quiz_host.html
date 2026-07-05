@@ -45,7 +45,8 @@ textarea::placeholder{color:var(--muted);}
 .marquee-frame::after{bottom:0; animation:bulbFlash 1.4s infinite 0.7s;}
 .room-code{font-family:'Space Mono',monospace; font-size:52px;font-weight:700;letter-spacing:12px;color:var(--gold); text-shadow:0 0 20px rgba(255,201,60,0.5);}
 @keyframes bulbFlash{0%,100%{opacity:1}50%{opacity:0.35}}
-.player-chip{display:inline-block;padding:7px 16px;border-radius:20px;font-size:13px;font-weight:700;margin:4px; color:#0B0E1A; animation:popIn .3s ease;}
+.player-chip{display:inline-flex;align-items:center;gap:8px;padding:6px 16px 6px 6px;border-radius:20px;font-size:13px;font-weight:700;margin:4px; color:#0B0E1A; animation:popIn .3s ease;}
+.player-avatar{width:26px;height:26px;border-radius:50%;object-fit:cover;border:2px solid rgba(255,255,255,0.6);}
 @keyframes popIn{from{transform:scale(0.5);opacity:0}to{transform:scale(1);opacity:1}}
 .q-progress{text-align:center;color:var(--muted);font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;}
 .timer-wrap{display:flex;justify-content:center;margin-bottom:18px;}
@@ -290,11 +291,11 @@ function subscribeLobby() {
 }
 
 async function refreshLobbyPlayers() {
-  const rows = await sbFetch(`quiz_players?room_id=eq.${_room.id}&select=name,score&order=joined_at.asc`);
+  const rows = await sbFetch(`quiz_players?room_id=eq.${_room.id}&select=name,score,avatar_url&order=joined_at.asc`);
   const colors = ['var(--magenta)','var(--teal)','var(--gold)','var(--violet)'];
   const textDark = ['','','color:#1B1400;',''];
   document.getElementById('lobby-players').innerHTML = rows.length
-    ? rows.map((p,i)=>`<span class="player-chip" style="background:${colors[i%4]};${textDark[i%4]}">${escapeHtml(p.name)}</span>`).join('')
+    ? rows.map((p,i)=>`<span class="player-chip" style="background:${colors[i%4]};${textDark[i%4]}">${p.avatar_url?`<img src="${escapeHtml(p.avatar_url)}" class="player-avatar" alt="">`:''}${escapeHtml(p.name)}</span>`).join('')
     : '<div class="status-line">Waiting for players…</div>';
 }
 
