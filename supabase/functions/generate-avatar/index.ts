@@ -44,7 +44,7 @@ Deno.serve(async (req) => {
       `colourful comic book style close up portrait of a ${animal} EMT, ` +
       `smiling, blue uniform. colourful background`;
 
-    const plRes = await fetch("https://api.pixellab.ai/v2/create-image-pixflux", {
+    const plRes = await fetch("https://api.pixellab.ai/v2/create-image-pixen", {
       method: "POST",
       headers: {
         "Authorization": `Bearer ${PIXELLAB_API_KEY}`,
