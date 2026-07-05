@@ -47,6 +47,9 @@ textarea::placeholder{color:var(--muted);}
 @keyframes bulbFlash{0%,100%{opacity:1}50%{opacity:0.35}}
 .player-chip{display:inline-flex;align-items:center;gap:8px;padding:6px 16px 6px 6px;border-radius:20px;font-size:13px;font-weight:700;margin:4px; color:#0B0E1A; animation:popIn .3s ease;}
 .player-avatar{width:26px;height:26px;border-radius:50%;object-fit:cover;border:2px solid rgba(255,255,255,0.6);}
+.game-players-bar{display:flex;flex-wrap:wrap;justify-content:center;gap:8px;margin-bottom:16px;}
+.game-player-chip{display:inline-flex;align-items:center;gap:7px;padding:5px 12px 5px 5px;border-radius:20px;background:#0F1428;border:1px solid var(--line);font-size:12px;font-weight:700;color:var(--ink);}
+.game-player-chip .gp-score{font-family:'Space Mono',monospace;color:var(--gold);}
 @keyframes popIn{from{transform:scale(0.5);opacity:0}to{transform:scale(1);opacity:1}}
 .q-progress{text-align:center;color:var(--muted);font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;}
 .timer-wrap{display:flex;justify-content:center;margin-bottom:18px;}
@@ -113,6 +116,7 @@ textarea::placeholder{color:var(--muted);}
   </div>
   <div id="screen-game" class="card hidden">
     <div class="q-progress" id="game-progress"></div>
+    <div id="game-players-bar" class="game-players-bar"></div>
     <div class="timer-wrap">
       <div class="timer-ring">
         <svg width="96" height="96"><circle class="track" cx="48" cy="48" r="42"></circle><circle class="bar" id="timer-bar" cx="48" cy="48" r="42"></circle></svg>
@@ -299,6 +303,13 @@ async function refreshLobbyPlayers() {
     : '<div class="status-line">Waiting for players…</div>';
 }
 
+async function renderGamePlayers() {
+  const rows = await sbFetch(`quiz_players?room_id=eq.${_room.id}&select=name,score,avatar_url&order=score.desc`);
+  const bar = document.getElementById('game-players-bar');
+  if (!bar) return;
+  bar.innerHTML = rows.map(p=>`<span class="game-player-chip">${p.avatar_url?`<img src="${escapeHtml(p.avatar_url)}" class="player-avatar" alt="">`:''}${escapeHtml(p.name)}<span class="gp-score">${p.score}</span></span>`).join('');
+}
+
 function renderJoinQR() {
   const joinUrl = new URL('quiz_player.html?code=' + _room.code, window.location.href).href;
   const container = document.getElementById('qr-code');
@@ -357,6 +368,7 @@ function showQuestion() {
   clearTimeout(_autoAdvanceTimer);
   clearInterval(_autoAdvanceCountdownInterval);
   document.getElementById('next-btn').textContent = 'Next Question ▶';
+  renderGamePlayers();
   const q = _questions[_curIdx];
   const shapes = ['▲','◆','●','■'];
   const pal = QUESTION_PALETTE[_curIdx % QUESTION_PALETTE.length];
@@ -426,6 +438,7 @@ async function revealAnswer() {
     const cur = (rows[0] && rows[0].score) || 0;
     await sbFetch(`quiz_players?id=eq.${pid}`, { method:'PATCH', prefer:'return=minimal', body: JSON.stringify({ score: cur+10 }) });
   }
+  renderGamePlayers();
 
   document.getElementById('reveal-btn').classList.add('hidden');
   document.getElementById('next-btn').classList.remove('hidden');
