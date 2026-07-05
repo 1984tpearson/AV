@@ -1380,6 +1380,18 @@ body.flag-mode-active .flaggable.has-correction:hover { outline: 2px solid var(-
         </select>
       </div>
       <div class="form-group" style="margin-bottom:16px">
+        <label>Avatar</label>
+        <div style="display:flex;align-items:center;gap:10px">
+          <div id="svcnum-avatar-preview" style="width:48px;height:48px;border-radius:50%;background:var(--light);display:flex;align-items:center;justify-content:center;font-weight:700;color:var(--navy);overflow:hidden;flex-shrink:0">?</div>
+          <div style="display:flex;flex-direction:column;gap:4px">
+            <button type="button" onclick="document.getElementById('svcnum-avatar-file-input').click()" style="font-size:12px;font-weight:600;padding:6px 10px;background:var(--light);border:1px solid var(--border);border-radius:8px;cursor:pointer;color:var(--text)">📷 Upload Photo</button>
+            <input type="file" id="svcnum-avatar-file-input" accept="image/png,image/jpeg,image/webp,image/gif" style="display:none" onchange="if(window.AVNav)AVNav.uploadAvatar(this.files[0])">
+          </div>
+          <button type="button" onclick="if(window.AVNav)AVNav.openAvatarPicker()" style="font-size:12px;font-weight:600;padding:6px 10px;background:var(--light);border:1px solid var(--border);border-radius:8px;cursor:pointer;color:var(--text)">🖼 Choose Preset</button>
+        </div>
+        <div style="font-size:11px;color:var(--grey);margin-top:6px">Leave this and we'll generate a random one for you.</div>
+      </div>
+      <div class="form-group" style="margin-bottom:16px">
         <label>Branch / Location</label>
         <input type="text" id="profile-branch-input" placeholder="e.g. Wangaratta" style="font-size:15px" maxlength="60">
       </div>
@@ -2021,6 +2033,15 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (!_authProfile || !_authProfile.svc_num || !_authProfile.av_role || !_authProfile.level) {
     const nameEl = document.getElementById('svcnum-modal-name');
     if (nameEl) nameEl.textContent = session.user.user_metadata?.full_name || session.user.email;
+    const avEl = document.getElementById('svcnum-avatar-preview');
+    if (avEl) {
+      if (_authProfile?.avatar_url) {
+        avEl.innerHTML = '<img src="' + _authProfile.avatar_url + '" style="width:100%;height:100%;object-fit:cover">';
+      } else {
+        const nm = session.user.user_metadata?.full_name || session.user.email || '';
+        avEl.textContent = nm.split(/\s+/).filter(Boolean).map(w => w[0]).slice(0, 2).join('').toUpperCase() || '?';
+      }
+    }
     document.getElementById('svcnum-modal').classList.add('open');
     return;
   }
@@ -6860,6 +6881,9 @@ async function completeSvcNum() {
     _authProfile.branch  = branch || null;
   }
   if (window.AVNav && window.AVNav.refreshProfile) window.AVNav.refreshProfile();
+  if (!_authProfile?.avatar_url && window.AVNav && window.AVNav.generateAvatarInBackground) {
+    window.AVNav.generateAvatarInBackground(); // fire-and-forget, no loading UI needed
+  }
   document.getElementById('svcnum-modal').classList.remove('open');
   await initApp();
 }

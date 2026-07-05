@@ -213,17 +213,7 @@
     + '.avnav-scenario-sub{font-size:11px;color:var(--grey);margin-top:2px;}'
     + '.avnav-scenario-load-btn{padding:7px 11px;background:var(--light);color:var(--text);border:1px solid var(--border);border-radius:6px;font-size:12px;font-weight:600;text-decoration:none;flex-shrink:0;}'
     + '.avnav-scenario-delete-btn{padding:7px 11px;background:var(--red-light);color:var(--red);border:1px solid var(--red);border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;flex-shrink:0;}'
-    + '.avnav-scenario-delete-btn:active{background:var(--red);color:white;}'
-    + '.avnav-welcome-modal .avnav-modal{max-width:420px;}'
-    + '.avnav-welcome-subtitle{font-size:13px;color:var(--grey);margin-bottom:18px;line-height:1.5;}'
-    + '.avnav-welcome-options{display:flex;flex-direction:column;gap:10px;}'
-    + '.avnav-welcome-option-btn{display:flex;align-items:center;gap:10px;padding:14px 16px;background:var(--light);border:1px solid var(--border);border-radius:10px;font-size:14px;font-weight:600;color:var(--text);cursor:pointer;text-align:left;width:100%;}'
-    + '.avnav-welcome-option-btn:active{background:var(--border);}'
-    + '.avnav-welcome-option-icon{font-size:20px;}'
-    + '.avnav-welcome-skip-note{font-size:11px;color:var(--grey);margin-top:14px;text-align:center;}'
-    + '.avnav-welcome-generating{display:flex;flex-direction:column;align-items:center;gap:12px;padding:30px 10px;font-size:14px;color:var(--text);}'
-    + '.avnav-welcome-spinner{width:32px;height:32px;border:3px solid var(--border);border-top-color:var(--navy);border-radius:50%;animation:avnav-spin 0.8s linear infinite;}'
-    + '@keyframes avnav-spin{to{transform:rotate(360deg);}}';
+    + '.avnav-scenario-delete-btn:active{background:var(--red);color:white;}';
 
   function injectStyle() {
     var style = document.createElement('style');
@@ -292,20 +282,11 @@
             '<button class="avnav-submit-btn" onclick="AVNav.saveSettings()">💾 Save Changes</button>' +
           '</div>' +
         '</div>' +
-      '</div>' +
-      '<div class="avnav-modal-overlay avnav-welcome-modal" id="avnav-welcome-modal">' +
-        '<div class="avnav-modal">' +
-          '<div class="avnav-modal-header"><h2>👋 Choose your avatar</h2><button class="avnav-modal-close" onclick="AVNav.dismissWelcomeAvatar()">✕</button></div>' +
-          '<div class="avnav-modal-body"></div>' +
-        '</div>' +
       '</div>';
     document.body.appendChild(wrap);
 
     document.getElementById('avnav-settings-modal').addEventListener('click', function (e) {
       if (e.target === e.currentTarget) AVNav.closeSettings();
-    });
-    document.getElementById('avnav-welcome-modal').addEventListener('click', function (e) {
-      if (e.target === e.currentTarget) AVNav.dismissWelcomeAvatar();
     });
   }
 
@@ -427,7 +408,7 @@
       if (_profile) _profile.avatar_url = publicUrl;
       renderUserCard();
       renderAvatarInto('avnav-settings-avatar-preview', identity());
-      closeWelcomeAvatarModalIfOpen();
+      renderAvatarInto('svcnum-avatar-preview', identity());
       if (prevUrl) {
         var marker = '/object/public/avatars/';
         var idx = prevUrl.indexOf(marker);
@@ -473,7 +454,7 @@
         if (_profile) _profile.avatar_url = newUrl;
         renderUserCard();
         renderAvatarInto('avnav-settings-avatar-preview', identity());
-        closeWelcomeAvatarModalIfOpen();
+        renderAvatarInto('svcnum-avatar-preview', identity());
       }
       document.getElementById('avnav-avatar-picker-modal').classList.remove('open');
       // best-effort cleanup if the previous avatar was an uploaded (not preset) file
@@ -490,32 +471,11 @@
     }
   }
 
-  function openWelcomeAvatarModal() {
-    var modal = document.getElementById('avnav-welcome-modal');
-    if (!modal) return;
-    var body = modal.querySelector('.avnav-modal-body');
-    body.innerHTML =
-      '<p class="avnav-welcome-subtitle">Upload a photo or pick a preset below. Close this window and we\'ll generate a random one for you instead.</p>' +
-      '<div class="avnav-welcome-options">' +
-        '<button class="avnav-welcome-option-btn" onclick="document.getElementById(\'avnav-welcome-file-input\').click()"><span class="avnav-welcome-option-icon">📷</span> Upload a photo</button>' +
-        '<input type="file" id="avnav-welcome-file-input" accept="image/png,image/jpeg,image/webp,image/gif" style="display:none" onchange="AVNav.uploadAvatar(this.files[0])">' +
-        '<button class="avnav-welcome-option-btn" onclick="AVNav.openAvatarPicker()"><span class="avnav-welcome-option-icon">🖼</span> Choose a preset</button>' +
-      '</div>' +
-      '<div class="avnav-welcome-skip-note">Closing this (✕) will generate a random avatar for you.</div>';
-    modal.classList.add('open');
-  }
-
-  function closeWelcomeAvatarModalIfOpen() {
-    var modal = document.getElementById('avnav-welcome-modal');
-    if (modal) modal.classList.remove('open');
-  }
-
-  async function dismissWelcomeAvatar() {
-    var modal = document.getElementById('avnav-welcome-modal');
-    if (!modal || !modal.classList.contains('open')) return;
-    if (!_session) { modal.classList.remove('open'); return; }
-    var body = modal.querySelector('.avnav-modal-body');
-    body.innerHTML = '<div class="avnav-welcome-generating"><div class="avnav-welcome-spinner"></div>Generating your avatar…</div>';
+  // Fire-and-forget: called when a user finishes the profile-completion step
+  // without picking an avatar. Runs silently — no loading UI — and just
+  // updates the avatar wherever it's shown once it resolves.
+  async function generateAvatarInBackground() {
+    if (!_session) return;
     try {
       var res = await fetch(SUPABASE_URL + '/functions/v1/generate-avatar', {
         method: 'POST',
@@ -528,11 +488,11 @@
       if (!res.ok || !data.avatar_url) throw new Error(data.error || 'Generation failed');
       if (_profile) _profile.avatar_url = data.avatar_url;
       renderUserCard();
+      renderAvatarInto('avnav-settings-avatar-preview', identity());
+      renderAvatarInto('svcnum-avatar-preview', identity());
     } catch (e) {
-      // Best-effort — don't block the user if generation fails; they can set one later in Settings.
-      console.error('Avatar generation failed:', e.message);
+      console.error('Background avatar generation failed:', e.message);
     }
-    modal.classList.remove('open');
   }
 
   function ensureModal(id, title) {
@@ -782,7 +742,6 @@
       }
       renderUserCard();
       if (loginBtn) loginBtn.style.display = 'none';
-      if (_profile && !_profile.avatar_url) openWelcomeAvatarModal();
     }
     // No session — don't render sidebar at all, leave login button visible
   }
@@ -796,7 +755,7 @@
     uploadAvatar: uploadAvatar,
     openAvatarPicker: openAvatarPicker,
     selectPresetAvatar: selectPresetAvatar,
-    dismissWelcomeAvatar: dismissWelcomeAvatar,
+    generateAvatarInBackground: generateAvatarInBackground,
     openMyScenarios: openMyScenarios,
     openManageMine: openManageMine,
     openUsers: openUsers,
