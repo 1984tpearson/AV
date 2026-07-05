@@ -155,8 +155,15 @@ async function sbFetch(path, opts={}) {
 let _cachedKey = null;
 async function getAnthropicKey() {
   if (_cachedKey) return _cachedKey;
-  const rows = await sbFetch('app_config?key=eq.anthropic_api_key&select=value');
-  if (rows[0] && rows[0].value) { _cachedKey = rows[0].value; return _cachedKey; }
+  // Deliberately uses the plain anon key here, not the user's session token —
+  // app_config's RLS only grants SELECT to the anon role (same pattern as generator.html).
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/app_config?key=eq.anthropic_api_key&select=value`, {
+    headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
+  });
+  if (res.ok) {
+    const data = await res.json();
+    if (data && data[0] && data[0].value) { _cachedKey = data[0].value; return _cachedKey; }
+  }
   throw new Error('AI generation is temporarily unavailable.');
 }
 
