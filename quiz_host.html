@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Quiz Host — Paramedic Assessment Tools</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.4/build/qrcode.min.js"></script>
 <script src="category_data.js"></script>
 <script src="cpg_packages_combined.js"></script>
 <style>
@@ -74,7 +74,7 @@ textarea { min-height: 140px; resize: vertical; }
     <div class="q-text" id="q-text"></div>
     <div id="q-options"></div>
     <div class="status-line" id="answer-count"></div>
-    <button class="btn btn-full" id="reveal-btn" onclick="revealAnswer()">👁 Reveal Answer</button>
+    <button class="btn btn-full" id="reveal-btn" onclick="manualReveal()">👁 Reveal Answer</button>
     <button class="btn btn-full btn-amber hidden" id="next-btn" onclick="nextQuestion()">Next Question ▶</button>
   </div>
 
@@ -89,7 +89,7 @@ textarea { min-height: 140px; resize: vertical; }
 const SUPABASE_URL = 'https://befsjenbaruxqrntuhpn.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJlZnNqZW5iYXJ1eHFybnR1aHBuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI2MjA5MjAsImV4cCI6MjA4ODE5NjkyMH0.hOFFbIvd1wAgu-QyghupQ-7ttSpg7sxz_UsJbXyXztA';
 const _sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-let _session=null, _room=null, _questions=[], _curIdx=-1, _playersChannel=null, _answersChannel=null;
+let _session=null, _room=null, _questions=[], _curIdx=-1, _playersChannel=null, _answersChannel=null, _revealing=false;
 
 async function requireAuth() {
   const { data: { session } } = await _sb.auth.getSession();
@@ -270,6 +270,7 @@ async function startGame() {
 }
 
 function showQuestion() {
+  _revealing = false;
   const q = _questions[_curIdx];
   document.getElementById('game-progress').textContent = `Question ${_curIdx+1} of ${_questions.length}`;
   document.getElementById('q-text').textContent = q.question_text;
@@ -292,6 +293,11 @@ async function updateAnswerCount() {
   const answers = await sbFetch(`quiz_answers?question_id=eq.${qid}&select=selected_index`);
   const players = await sbFetch(`quiz_players?room_id=eq.${_room.id}&select=id`);
   document.getElementById('answer-count').textContent = `${answers.length} of ${players.length} answered`;
+  const revealBtn = document.getElementById('reveal-btn');
+  if (!_revealing && players.length > 0 && answers.length >= players.length && !revealBtn.classList.contains('hidden')) {
+    _revealing = true;
+    revealAnswer();
+  }
 }
 
 let _qidCache = {};
@@ -301,6 +307,12 @@ async function currentQuestionId() {
   const rows = await sbFetch(`quiz_questions?room_id=eq.${_room.id}&order_index=eq.${_curIdx}&select=id`);
   _qidCache[key] = rows[0].id;
   return _qidCache[key];
+}
+
+function manualReveal() {
+  if (_revealing) return;
+  _revealing = true;
+  revealAnswer();
 }
 
 async function revealAnswer() {

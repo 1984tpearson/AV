@@ -24,6 +24,10 @@ input { width:100%; padding:12px; border:1px solid #B8D4EA; border-radius:8px; f
 .opt-btn:active { background:#E1F0FA; }
 .opt-btn.selected { background:#1C3A6E; color:white; border-color:#1C3A6E; }
 .opt-btn:disabled { cursor:default; }
+.open-quiz-item { display:flex; justify-content:space-between; align-items:center; width:100%; padding:14px; margin-bottom:8px; border-radius:10px; border:2px solid #B8D4EA; background:#F5F9FC; font-size:15px; font-weight:600; cursor:pointer; text-align:left; }
+.open-quiz-item:active { background:#E1F0FA; }
+.open-quiz-item .tag { font-size:11px; font-weight:700; padding:2px 8px; border-radius:10px; background:#E0F5EC; color:#00897B; }
+.open-quiz-item .tag.live { background:#FEF5E7; color:#E8921A; }
 .feedback { text-align:center; font-size:18px; font-weight:800; margin-bottom:14px; }
 .feedback.good { color:#00897B; }
 .feedback.bad { color:#C62828; }
@@ -37,7 +41,11 @@ input { width:100%; padding:12px; border:1px solid #B8D4EA; border-radius:8px; f
 <div class="wrap">
 
   <div id="screen-join" class="card">
-    <label>Room Code</label>
+    <div id="open-quizzes-wrap">
+      <label>Open Quizzes — tap to join</label>
+      <div id="open-quizzes-list"></div>
+    </div>
+    <label>Or enter Room Code</label>
     <input type="text" id="join-code" maxlength="4" placeholder="ABCD">
     <div id="join-err" class="err hidden"></div>
     <button class="btn" id="join-btn" onclick="joinRoom()">Join Game</button>
@@ -84,8 +92,26 @@ async function init() {
   const params = new URLSearchParams(window.location.search);
   const code = params.get('code');
   if (code) document.getElementById('join-code').value = code.toUpperCase();
+  loadOpenQuizzes();
+  _sb.channel('open-rooms-list')
+    .on('postgres_changes', { event:'*', schema:'public', table:'quiz_rooms' }, loadOpenQuizzes)
+    .subscribe();
 }
 init();
+
+async function loadOpenQuizzes() {
+  const list = document.getElementById('open-quizzes-list');
+  try {
+    const rows = await sbFetch(`quiz_rooms?status=in.(lobby,live)&select=code,status,created_at&order=created_at.desc&limit=10`);
+    if (!rows.length) { list.innerHTML = '<div class="center" style="padding:8px 0">No open quizzes right now.</div>'; return; }
+    list.innerHTML = rows.map(r => `<button type="button" class="open-quiz-item" onclick="quickJoin('${r.code}')"><span>Room ${r.code}</span><span class="tag${r.status==='live'?' live':''}">${r.status==='live'?'In progress':'Lobby'}</span></button>`).join('');
+  } catch(e) { list.innerHTML = ''; }
+}
+
+function quickJoin(code) {
+  document.getElementById('join-code').value = code;
+  joinRoom();
+}
 
 function escapeHtml(s){ return String(s==null?'':s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 
