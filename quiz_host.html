@@ -47,9 +47,13 @@ textarea::placeholder{color:var(--muted);}
 @keyframes bulbFlash{0%,100%{opacity:1}50%{opacity:0.35}}
 .player-chip{display:inline-flex;flex-direction:column;align-items:center;gap:6px;padding:10px 14px;border-radius:16px;font-size:13px;font-weight:700;margin:4px; color:#0B0E1A; animation:popIn .3s ease;}
 .player-avatar{width:128px;height:128px;border-radius:16px;object-fit:cover;border:3px solid rgba(255,255,255,0.6);}
-.game-players-bar{display:flex;flex-wrap:wrap;justify-content:center;gap:10px;margin-bottom:16px;}
-.game-player-chip{display:inline-flex;flex-direction:column;align-items:center;gap:6px;padding:8px 12px;border-radius:16px;background:#0F1428;border:1px solid var(--line);font-size:12px;font-weight:700;color:var(--ink);}
-.game-player-chip .gp-score{font-family:'Space Mono',monospace;color:var(--gold);}
+.game-players-bar{display:flex;flex-direction:column;gap:10px;}
+.game-player-chip{display:flex;flex-direction:column;align-items:center;gap:6px;padding:10px 8px;border-radius:16px;background:#0F1428;border:1px solid var(--line);font-size:12px;font-weight:700;color:var(--ink);width:100%;}
+.game-player-chip .gp-score{font-family:'Space Mono',monospace;color:var(--gold);font-size:15px;}
+.game-layout{display:flex;gap:22px;align-items:flex-start;}
+.game-main{flex:1;min-width:0;}
+.game-sidebar{width:150px;flex-shrink:0;}
+.game-sidebar-title{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:1px;color:var(--muted);text-align:center;margin-bottom:12px;}
 @keyframes popIn{from{transform:scale(0.5);opacity:0}to{transform:scale(1);opacity:1}}
 .q-progress{text-align:center;color:var(--muted);font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;}
 .timer-wrap{display:flex;justify-content:center;margin-bottom:18px;}
@@ -115,19 +119,26 @@ textarea::placeholder{color:var(--muted);}
     <button class="btn btn-full btn-amber" onclick="startGame()">▶ Start Game</button>
   </div>
   <div id="screen-game" class="card hidden">
-    <div class="q-progress" id="game-progress"></div>
-    <div id="game-players-bar" class="game-players-bar"></div>
-    <div class="timer-wrap">
-      <div class="timer-ring">
-        <svg width="96" height="96"><circle class="track" cx="48" cy="48" r="42"></circle><circle class="bar" id="timer-bar" cx="48" cy="48" r="42"></circle></svg>
-        <div class="timer-num" id="timer-num">20</div>
+    <div class="game-layout">
+      <div class="game-main">
+        <div class="q-progress" id="game-progress"></div>
+        <div class="timer-wrap">
+          <div class="timer-ring">
+            <svg width="96" height="96"><circle class="track" cx="48" cy="48" r="42"></circle><circle class="bar" id="timer-bar" cx="48" cy="48" r="42"></circle></svg>
+            <div class="timer-num" id="timer-num">20</div>
+          </div>
+        </div>
+        <div class="q-text" id="q-text"></div>
+        <div id="q-options"></div>
+        <div class="status-line" id="answer-count"></div>
+        <button class="btn btn-full" id="reveal-btn" onclick="manualReveal()">👁 Reveal Answer</button>
+        <button class="btn btn-full btn-amber hidden" id="next-btn" onclick="triggerNext()">Next Question ▶</button>
+      </div>
+      <div class="game-sidebar">
+        <div class="game-sidebar-title">🏆 Leaderboard</div>
+        <div id="game-players-bar" class="game-players-bar"></div>
       </div>
     </div>
-    <div class="q-text" id="q-text"></div>
-    <div id="q-options"></div>
-    <div class="status-line" id="answer-count"></div>
-    <button class="btn btn-full" id="reveal-btn" onclick="manualReveal()">👁 Reveal Answer</button>
-    <button class="btn btn-full btn-amber hidden" id="next-btn" onclick="triggerNext()">Next Question ▶</button>
   </div>
 
   <div id="screen-end" class="card hidden">
