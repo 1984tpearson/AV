@@ -5,41 +5,71 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Quiz — Join Game</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;800;900&family=Space+Mono:wght@700&display=swap" rel="stylesheet">
 <style>
-* { box-sizing: border-box; margin:0; padding:0; }
-body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background:#EEF5FB; color:#0D2137; min-height:100vh; display:flex; flex-direction:column; }
-.topbar { background:#1C3A6E; color:white; padding:14px 20px; font-weight:800; font-size:18px; }
-.wrap { max-width:480px; margin:0 auto; padding:20px; width:100%; flex:1; }
-.card { background:white; border-radius:14px; padding:22px; box-shadow:0 2px 10px rgba(0,0,0,0.08); }
-label { display:block; font-size:13px; font-weight:600; color:#546E7A; margin-bottom:6px; }
-input { width:100%; padding:12px; border:1px solid #B8D4EA; border-radius:8px; font-size:18px; text-align:center; letter-spacing:4px; text-transform:uppercase; margin-bottom:14px; }
-.btn { display:block; width:100%; padding:14px; border:none; border-radius:10px; font-weight:700; font-size:16px; cursor:pointer; background:#1C3A6E; color:white; }
-.btn:active { background:#12274a; }
-.btn:disabled { opacity:0.5; }
-.err { color:#C62828; font-size:13px; margin-top:-8px; margin-bottom:12px; }
-.hidden { display:none; }
-.center { text-align:center; padding:40px 0; color:#546E7A; }
-.q-text { font-size:20px; font-weight:700; margin-bottom:18px; text-align:center; }
-.opt-btn { display:block; width:100%; padding:16px; margin-bottom:10px; border-radius:10px; border:2px solid #B8D4EA; background:white; font-size:16px; font-weight:600; cursor:pointer; text-align:left; }
-.opt-btn:active { background:#E1F0FA; }
-.opt-btn.selected { background:#1C3A6E; color:white; border-color:#1C3A6E; }
-.opt-btn:disabled { cursor:default; }
-.open-quiz-item { display:flex; justify-content:space-between; align-items:center; width:100%; padding:14px; margin-bottom:8px; border-radius:10px; border:2px solid #B8D4EA; background:#F5F9FC; font-size:15px; font-weight:600; cursor:pointer; text-align:left; }
-.open-quiz-item:active { background:#E1F0FA; }
-.open-quiz-item .tag { font-size:11px; font-weight:700; padding:2px 8px; border-radius:10px; background:#E0F5EC; color:#00897B; }
-.open-quiz-item .tag.live { background:#FEF5E7; color:#E8921A; }
-.feedback { text-align:center; font-size:18px; font-weight:800; margin-bottom:14px; }
-.feedback.good { color:#00897B; }
-.feedback.bad { color:#C62828; }
-.score-line { text-align:center; color:#546E7A; font-size:14px; margin-top:16px; }
-.lb-row { display:flex; justify-content:space-between; padding:10px 0; border-bottom:1px solid #EEF5FB; font-size:15px; }
-.lb-rank { font-weight:800; color:#E8921A; margin-right:10px; }
+:root{
+  --bg:#0B0E1A; --bg2:#141931; --card:#1B2140;
+  --gold:#FFC93C; --magenta:#FF3D7F; --teal:#2FE6C4; --violet:#7B61FF;
+  --ink:#F5F5FA; --muted:#8B93A8; --line:rgba(255,255,255,0.08);
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{
+  font-family:'Poppins',sans-serif; background:var(--bg); color:var(--ink); min-height:100vh; display:flex; flex-direction:column;
+  background-image:
+    radial-gradient(circle at 50% -10%, rgba(255,201,60,0.15), transparent 60%),
+    radial-gradient(circle at 90% 20%, rgba(255,61,127,0.12), transparent 50%),
+    radial-gradient(circle at 10% 80%, rgba(47,230,196,0.10), transparent 50%);
+}
+.stage-bar{background:linear-gradient(90deg,var(--bg2),var(--card)); border-bottom:2px solid var(--gold); color:var(--gold); padding:16px 20px; font-weight:900; font-size:18px;}
+.wrap{max-width:480px;margin:0 auto;padding:20px;width:100%;flex:1;}
+.card{background:var(--card); border:1px solid var(--line); border-radius:18px; padding:24px; box-shadow:0 12px 30px rgba(0,0,0,0.35);}
+label{display:block;font-size:12px;font-weight:700;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.5px;}
+input{width:100%;padding:14px;border:1px solid var(--line);border-radius:10px;font-size:20px;text-align:center;letter-spacing:6px;text-transform:uppercase;margin-bottom:14px; background:#0F1428; color:var(--gold); font-family:'Space Mono',monospace;}
+.btn{display:block;width:100%;padding:16px;border:none;border-radius:12px;font-weight:800;font-size:16px;cursor:pointer;background:var(--gold);color:#1B1400; text-transform:uppercase; letter-spacing:0.5px; transition:transform .12s;}
+.btn:active{transform:scale(0.97);}
+.btn:disabled{opacity:0.4;}
+.err{color:var(--magenta);font-size:13px;margin-top:-8px;margin-bottom:12px;font-weight:600;}
+.hidden{display:none;}
+.center{text-align:center;padding:40px 0;color:var(--muted);}
+.pulse-dots span{display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--gold);margin:0 4px;animation:dotPulse 1.2s infinite ease-in-out;}
+.pulse-dots span:nth-child(2){animation-delay:0.2s;}
+.pulse-dots span:nth-child(3){animation-delay:0.4s;}
+@keyframes dotPulse{0%,80%,100%{transform:scale(0.6);opacity:0.4}40%{transform:scale(1);opacity:1}}
+.timer-bar-track{width:100%;height:10px;border-radius:6px;background:#0F1428;overflow:hidden;margin-bottom:18px;}
+.timer-bar-fill{height:100%;background:linear-gradient(90deg,var(--teal),var(--gold));width:100%;transition:width 0.2s linear, background 0.3s;}
+.q-text{font-size:20px;font-weight:800;margin-bottom:18px;text-align:center;}
+.opt-btn{display:flex;align-items:center;gap:12px;width:100%;padding:18px;margin-bottom:10px;border-radius:12px;border:none;font-size:16px;font-weight:700;cursor:pointer;text-align:left;color:white;}
+.opt-btn .shape{font-size:18px;}
+.opt-btn.opt-0{background:linear-gradient(135deg,#FF3D7F,#C6236B);}
+.opt-btn.opt-1{background:linear-gradient(135deg,#2FE6C4,#149C86);}
+.opt-btn.opt-2{background:linear-gradient(135deg,#FFC93C,#D69A11); color:#1B1400;}
+.opt-btn.opt-3{background:linear-gradient(135deg,#7B61FF,#5138C9);}
+.opt-btn.selected{outline:3px solid white; transform:scale(0.98);}
+.opt-btn:disabled{cursor:default; opacity:0.55;}
+.open-quiz-item{display:flex;justify-content:space-between;align-items:center;width:100%;padding:14px;margin-bottom:8px;border-radius:10px;border:1px solid var(--line);background:#0F1428;font-size:15px;font-weight:700;cursor:pointer;text-align:left;color:var(--ink);}
+.open-quiz-item .tag{font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px;background:rgba(47,230,196,0.15);color:var(--teal);}
+.open-quiz-item .tag.live{background:rgba(255,201,60,0.15);color:var(--gold);}
+.feedback{text-align:center;font-size:26px;font-weight:900;margin-bottom:14px;animation:popIn .35s ease;}
+@keyframes popIn{from{transform:scale(0.6);opacity:0}to{transform:scale(1);opacity:1}}
+.feedback.good{color:var(--teal); text-shadow:0 0 20px rgba(47,230,196,0.5);}
+.feedback.bad{color:var(--magenta); text-shadow:0 0 20px rgba(255,61,127,0.5);}
+.score-line{text-align:center;color:var(--muted);font-size:14px;margin-top:16px;}
+.podium{display:flex;align-items:flex-end;justify-content:center;gap:8px;margin:20px 0 24px;}
+.pod-step{flex:1;max-width:100px;border-radius:12px 12px 0 0;text-align:center;padding:12px 4px 8px;animation:slideUp .5s ease backwards;}
+.pod-step .pname{font-weight:800;font-size:12px;margin-bottom:4px;}
+.pod-step .pscore{font-family:'Space Mono',monospace;font-weight:700;font-size:14px;}
+.pod-1{background:linear-gradient(180deg,var(--gold),#B8890A);height:140px;order:2;color:#1B1400;}
+.pod-2{background:linear-gradient(180deg,#C7CEDB,#8A93A6);height:100px;order:1;color:#12162A;}
+.pod-3{background:linear-gradient(180deg,#D98A4B,#9C5A26);height:78px;order:3;color:#1B1400;}
+@keyframes slideUp{from{transform:translateY(40px);opacity:0}to{transform:translateY(0);opacity:1}}
+.lb-row{display:flex;justify-content:space-between;padding:10px 4px;border-bottom:1px solid var(--line);font-size:15px;}
+.lb-rank{font-weight:800;color:var(--gold);margin-right:10px;font-family:'Space Mono',monospace;}
 </style>
 </head>
 <body>
-<div class="topbar">🎮 Quiz</div>
+<div class="stage-bar">🎙️ QUIZ NIGHT</div>
 <div class="wrap">
-
   <div id="screen-join" class="card">
     <div id="open-quizzes-wrap">
       <label>Open Quizzes — tap to join</label>
@@ -52,10 +82,14 @@ input { width:100%; padding:12px; border:1px solid #B8D4EA; border-radius:8px; f
   </div>
 
   <div id="screen-waiting" class="card hidden">
-    <div class="center">⏳ Waiting for host to start the game…</div>
+    <div class="center">
+      <div class="pulse-dots"><span></span><span></span><span></span></div>
+      <div style="margin-top:14px">Waiting for host to start the game…</div>
+    </div>
   </div>
 
   <div id="screen-question" class="card hidden">
+    <div class="timer-bar-track"><div class="timer-bar-fill" id="timer-bar-fill"></div></div>
     <div class="q-text" id="q-text"></div>
     <div id="q-options"></div>
   </div>
@@ -67,7 +101,8 @@ input { width:100%; padding:12px; border:1px solid #B8D4EA; border-radius:8px; f
   </div>
 
   <div id="screen-end" class="card hidden">
-    <h2 style="color:#1C3A6E;margin-bottom:12px">🏁 Game Over</h2>
+    <h2 style="color:var(--gold);margin-bottom:12px;text-transform:uppercase;letter-spacing:1px;font-size:16px">🏁 Game Over</h2>
+    <div id="podium" class="podium"></div>
     <div id="leaderboard"></div>
   </div>
 
@@ -76,7 +111,7 @@ input { width:100%; padding:12px; border:1px solid #B8D4EA; border-radius:8px; f
 const SUPABASE_URL = 'https://befsjenbaruxqrntuhpn.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJlZnNqZW5iYXJ1eHFybnR1aHBuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI2MjA5MjAsImV4cCI6MjA4ODE5NjkyMH0.hOFFbIvd1wAgu-QyghupQ-7ttSpg7sxz_UsJbXyXztA';
 const _sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-let _session=null, _profile=null, _room=null, _player=null, _roomChannel=null, _lastSeenIndex=-1;
+let _session=null, _profile=null, _room=null, _player=null, _roomChannel=null, _lastSeenIndex=-1, _timerInterval=null;
 
 async function requireAuth() {
   const { data: { session } } = await _sb.auth.getSession();
@@ -164,6 +199,7 @@ function subscribeRoom() {
 }
 
 function hideAllGameScreens() {
+  clearInterval(_timerInterval);
   ['screen-waiting','screen-question','screen-feedback','screen-end'].forEach(id=>document.getElementById(id).classList.add('hidden'));
 }
 
@@ -173,7 +209,9 @@ async function checkForQuestion() {
     document.getElementById('screen-end').classList.remove('hidden');
     if (_roomChannel) _sb.removeChannel(_roomChannel);
     const rows = await sbFetch(`quiz_players?room_id=eq.${_room.id}&select=name,score&order=score.desc`);
-    document.getElementById('leaderboard').innerHTML = rows.map((p,i)=>`<div class="lb-row"><span><span class="lb-rank">#${i+1}</span>${escapeHtml(p.name)}</span><span>${p.score} pts</span></div>`).join('');
+    const top3 = rows.slice(0,3), rest = rows.slice(3);
+    document.getElementById('podium').innerHTML = top3.map((p,i)=>`<div class="pod-step pod-${i+1}"><div class="pname">${escapeHtml(p.name)}</div><div class="pscore">${p.score}</div></div>`).join('');
+    document.getElementById('leaderboard').innerHTML = rest.map((p,i)=>`<div class="lb-row"><span><span class="lb-rank">#${i+4}</span>${escapeHtml(p.name)}</span><span>${p.score} pts</span></div>`).join('');
     return;
   }
   if (_room.status !== 'live' || _room.current_question_index === _lastSeenIndex) return;
@@ -183,10 +221,34 @@ async function checkForQuestion() {
   hideAllGameScreens();
   document.getElementById('screen-question').classList.remove('hidden');
   document.getElementById('q-text').textContent = q.question_text;
-  document.getElementById('q-options').innerHTML = q.options.map((o,i)=>`<button class="opt-btn" onclick="submitAnswer('${q.id}',${i},${q.correct_index})">${escapeHtml(o)}</button>`).join('');
+  const shapes = ['▲','◆','●','■'];
+  document.getElementById('q-options').innerHTML = q.options.map((o,i)=>`<button class="opt-btn opt-${i}" onclick="submitAnswer('${q.id}',${i},${q.correct_index})"><span class="shape">${shapes[i]}</span>${escapeHtml(o)}</button>`).join('');
+  startTimerBar(_room.question_started_at, _room.question_duration_seconds || 20);
+}
+
+function startTimerBar(startedAtISO, durationSec) {
+  clearInterval(_timerInterval);
+  const fill = document.getElementById('timer-bar-fill');
+  if (!fill || !startedAtISO) return;
+  function tick() {
+    const elapsed = (Date.now() - new Date(startedAtISO).getTime()) / 1000;
+    const remaining = Math.max(0, durationSec - elapsed);
+    const pct = Math.max(0, Math.min(100, (remaining/durationSec)*100));
+    fill.style.width = pct + '%';
+    fill.style.background = remaining <= 5
+      ? 'linear-gradient(90deg, var(--magenta), #ff7aa8)'
+      : 'linear-gradient(90deg, var(--teal), var(--gold))';
+    if (remaining <= 0) {
+      clearInterval(_timerInterval);
+      document.querySelectorAll('.opt-btn').forEach(el => el.disabled = true);
+    }
+  }
+  tick();
+  _timerInterval = setInterval(tick, 200);
 }
 
 async function submitAnswer(questionId, selectedIndex, correctIndex) {
+  clearInterval(_timerInterval);
   document.querySelectorAll('.opt-btn').forEach((el,i)=>{ el.disabled=true; if(i===selectedIndex) el.classList.add('selected'); });
   const isCorrect = selectedIndex === correctIndex;
   try {
