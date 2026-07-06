@@ -75,15 +75,15 @@ textarea::placeholder{color:var(--muted);}
 .opt-row.selected{outline:3px solid var(--gold);outline-offset:2px;}
 .status-line{text-align:center;color:var(--muted);font-size:13px;margin-bottom:12px;}
 .hidden{display:none;}
-.podium{display:flex;align-items:flex-end;justify-content:center;gap:10px;margin:20px 0 24px;}
-.pod-step{flex:1;max-width:110px;border-radius:12px 12px 0 0;text-align:center;padding:14px 6px 10px;position:relative;animation:slideUp .5s ease backwards;}
+.podium{display:flex;align-items:flex-end;justify-content:center;gap:14px;margin:20px 0 24px;}
+.pod-step{flex:1;max-width:170px;border-radius:12px 12px 0 0;text-align:center;padding:14px 6px 10px;position:relative;animation:slideUp .5s ease backwards;}
 .pod-step .pname{font-weight:800;font-size:13px;margin-bottom:4px;}
 .pod-step .pscore{font-family:'Space Mono',monospace;font-weight:700;font-size:15px;}
 .pod-avatar{width:128px;height:128px;border-radius:50%;object-fit:cover;border:2px solid rgba(255,255,255,0.75);display:block;margin:0 auto 8px;}
 .lb-avatar{width:28px;height:28px;border-radius:50%;object-fit:cover;vertical-align:middle;margin-right:8px;}
-.pod-1{background:linear-gradient(180deg,var(--gold),#B8890A);height:150px;order:2;color:#1B1400;}
-.pod-2{background:linear-gradient(180deg,#C7CEDB,#8A93A6);height:110px;order:1;color:#12162A;}
-.pod-3{background:linear-gradient(180deg,#D98A4B,#9C5A26);height:85px;order:3;color:#1B1400;}
+.pod-1{background:linear-gradient(180deg,var(--gold),#B8890A);height:250px;order:2;color:#1B1400;}
+.pod-2{background:linear-gradient(180deg,#C7CEDB,#8A93A6);height:210px;order:1;color:#12162A;}
+.pod-3{background:linear-gradient(180deg,#D98A4B,#9C5A26);height:185px;order:3;color:#1B1400;}
 @keyframes slideUp{from{transform:translateY(40px);opacity:0}to{transform:translateY(0);opacity:1}}
 .lb-row{display:flex;justify-content:space-between;padding:10px 4px;border-bottom:1px solid var(--line);font-size:15px;animation:slideUp .4s ease backwards;}
 .lb-rank{font-weight:800;color:var(--gold);margin-right:10px;font-family:'Space Mono',monospace;}
@@ -99,12 +99,23 @@ textarea::placeholder{color:var(--muted);}
     <select id="package-preset" onchange="onPresetChange()">
       <option value="custom">— Paste your own text —</option>
       <option value="cpg">CPG Package (single condition)</option>
+      <option value="upload">Upload File(s)</option>
+      <option value="topic">Topic (AI uses its own knowledge)</option>
     </select>
     <div id="cpg-pickers" class="hidden">
       <label>Category</label>
       <select id="cpg-category" onchange="onCpgCategoryChange()"></select>
       <label>Condition</label>
       <select id="cpg-condition" onchange="onCpgConditionChange()"></select>
+    </div>
+    <div id="upload-picker" class="hidden">
+      <label>Upload reference file(s)</label>
+      <input type="file" id="upload-files" multiple accept="image/*,application/pdf" onchange="updateUploadFileList()">
+      <div id="upload-filelist" class="status-line" style="margin-bottom:10px;"></div>
+    </div>
+    <div id="topic-picker" class="hidden">
+      <label>Topic</label>
+      <input type="text" id="topic-input" placeholder="e.g. Asthma, WWII, French Revolution">
     </div>
     <textarea id="package-text" placeholder="Paste any reference material here — the AI will write quiz questions from it."></textarea>
     <label>Number of questions</label>
@@ -196,15 +207,43 @@ function onPresetChange() {
   const val = document.getElementById('package-preset').value;
   const ta = document.getElementById('package-text');
   const pickers = document.getElementById('cpg-pickers');
+  const uploadPicker = document.getElementById('upload-picker');
+  const topicPicker = document.getElementById('topic-picker');
+  pickers.classList.add('hidden');
+  uploadPicker.classList.add('hidden');
+  topicPicker.classList.add('hidden');
+  ta.classList.remove('hidden');
+  ta.readOnly = false;
+  ta.value = '';
   if (val === 'cpg') {
     pickers.classList.remove('hidden');
     ta.readOnly = true;
     populateCpgCategories();
+  } else if (val === 'upload') {
+    uploadPicker.classList.remove('hidden');
+    ta.placeholder = 'Optional — add extra instructions or context for the AI here.';
+  } else if (val === 'topic') {
+    topicPicker.classList.remove('hidden');
+    ta.classList.add('hidden');
   } else {
-    pickers.classList.add('hidden');
-    ta.value = '';
-    ta.readOnly = false;
+    ta.placeholder = 'Paste any reference material here — the AI will write quiz questions from it.';
   }
+}
+
+function updateUploadFileList() {
+  const files = document.getElementById('upload-files').files;
+  document.getElementById('upload-filelist').textContent = files.length
+    ? Array.from(files).map(f => f.name).join(', ')
+    : '';
+}
+
+function fileToBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result.split(',')[1]);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
 }
 
 function populateCpgCategories() {
@@ -275,20 +314,49 @@ function escapeHtml(s){ return String(s==null?'':s).replace(/[&<>"']/g, c=>({'&'
 async function generateQuiz() {
   const errEl = document.getElementById('setup-err');
   errEl.classList.add('hidden');
+  const mode = document.getElementById('package-preset').value;
   const packageText = document.getElementById('package-text').value.trim();
+  const topicText = document.getElementById('topic-input').value.trim();
+  const uploadFiles = Array.from(document.getElementById('upload-files').files || []);
   const numQ = parseInt(document.getElementById('num-questions').value) || 5;
   _questionDuration = parseInt(document.getElementById('q-duration').value) || 20;
-  if (!packageText) { errEl.textContent='Paste some reference material first.'; errEl.classList.remove('hidden'); return; }
+
+  if (mode === 'upload' && !uploadFiles.length) { errEl.textContent='Upload at least one file first.'; errEl.classList.remove('hidden'); return; }
+  if (mode === 'topic' && !topicText) { errEl.textContent='Enter a topic first.'; errEl.classList.remove('hidden'); return; }
+  if ((mode === 'custom' || mode === 'cpg') && !packageText) { errEl.textContent='Paste some reference material first.'; errEl.classList.remove('hidden'); return; }
+
   const btn = document.getElementById('gen-btn');
   btn.disabled = true; btn.textContent = '✦ Generating…';
   try {
     const apiKey = await getAnthropicKey();
-    const systemPrompt = `You write multiple-choice quiz questions from reference material. Respond with valid JSON only — no markdown, no preamble. Format: [{"question":"...","options":["a","b","c","d"],"correct_index":0}, ...]. Rules: (1) Generate exactly ${numQ} questions. (2) Each question has exactly 4 options. (3) correct_index is 0-based and must be accurate per the source material. (4) Questions must be answerable strictly from the material provided — do not invent facts. (5) Vary question style (recall, application, scenario-based) where the material supports it.`;
-    const userPrompt = `Reference material:\n\n${packageText}\n\nGenerate the quiz as JSON.`;
+    let systemPrompt, userContent, sourceSummary;
+
+    if (mode === 'topic') {
+      systemPrompt = `You write multiple-choice quiz questions on a given topic, drawing on your own general knowledge. Respond with valid JSON only — no markdown, no preamble. Format: [{"question":"...","options":["a","b","c","d"],"correct_index":0}, ...]. Rules: (1) Generate exactly ${numQ} questions. (2) Each question has exactly 4 options. (3) correct_index is 0-based and must be factually correct. (4) Vary question difficulty and style (recall, application, scenario-based) where the topic supports it. (5) Only include facts you are confident are accurate — do not invent statistics, dates, or names.`;
+      userContent = `Topic: ${topicText}\n\nGenerate the quiz as JSON.`;
+      sourceSummary = `Topic: ${topicText}`;
+    } else if (mode === 'upload') {
+      systemPrompt = `You write multiple-choice quiz questions from reference material supplied as documents/images${packageText ? ' and additional instructions' : ''}. Respond with valid JSON only — no markdown, no preamble. Format: [{"question":"...","options":["a","b","c","d"],"correct_index":0}, ...]. Rules: (1) Generate exactly ${numQ} questions. (2) Each question has exactly 4 options. (3) correct_index is 0-based and must be accurate per the source material. (4) Questions must be answerable strictly from the material provided — do not invent facts. (5) Vary question style (recall, application, scenario-based) where the material supports it.`;
+      const blocks = [];
+      for (const file of uploadFiles) {
+        const b64 = await fileToBase64(file);
+        if (file.type === 'application/pdf') blocks.push({ type:'document', source:{ type:'base64', media_type:'application/pdf', data:b64 } });
+        else blocks.push({ type:'image', source:{ type:'base64', media_type: file.type || 'image/png', data:b64 } });
+      }
+      if (packageText) blocks.push({ type:'text', text: packageText });
+      blocks.push({ type:'text', text:'Generate the quiz as JSON from the material above.' });
+      userContent = blocks;
+      sourceSummary = `Uploaded: ${uploadFiles.map(f=>f.name).join(', ')}` + (packageText ? ` + notes: ${packageText.slice(0,500)}` : '');
+    } else {
+      systemPrompt = `You write multiple-choice quiz questions from reference material. Respond with valid JSON only — no markdown, no preamble. Format: [{"question":"...","options":["a","b","c","d"],"correct_index":0}, ...]. Rules: (1) Generate exactly ${numQ} questions. (2) Each question has exactly 4 options. (3) correct_index is 0-based and must be accurate per the source material. (4) Questions must be answerable strictly from the material provided — do not invent facts. (5) Vary question style (recall, application, scenario-based) where the material supports it.`;
+      userContent = `Reference material:\n\n${packageText}\n\nGenerate the quiz as JSON.`;
+      sourceSummary = packageText.slice(0,2000);
+    }
+
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method:'POST',
       headers:{ 'Content-Type':'application/json', 'x-api-key':apiKey, 'anthropic-version':'2023-06-01', 'anthropic-dangerous-direct-browser-access':'true' },
-      body: JSON.stringify({ model:'claude-sonnet-4-6', max_tokens: 4000, system: systemPrompt, messages:[{role:'user', content:userPrompt}] })
+      body: JSON.stringify({ model:'claude-sonnet-4-6', max_tokens: 4000, system: systemPrompt, messages:[{role:'user', content:userContent}] })
     });
     if (!response.ok) throw new Error('AI request failed: ' + response.status);
     const data = await response.json();
@@ -301,7 +369,7 @@ async function generateQuiz() {
     for (let attempt=0; attempt<5; attempt++) {
       code = genRoomCode();
       try {
-        const rows = await sbFetch('quiz_rooms', { method:'POST', body: JSON.stringify({ code, host_user_id:_session.user.id, package_source: packageText.slice(0,2000), status:'lobby', current_question_index:-1, question_duration_seconds:_questionDuration }) });
+        const rows = await sbFetch('quiz_rooms', { method:'POST', body: JSON.stringify({ code, host_user_id:_session.user.id, package_source: sourceSummary.slice(0,2000), status:'lobby', current_question_index:-1, question_duration_seconds:_questionDuration }) });
         room = rows[0]; break;
       } catch(e) { if (attempt===4) throw e; }
     }
