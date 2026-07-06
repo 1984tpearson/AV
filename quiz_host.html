@@ -209,7 +209,7 @@ textarea::placeholder{color:var(--muted);}
         <button class="btn btn-full" id="reveal-btn" onclick="manualReveal()">👁 Reveal Answer</button>
         <button class="btn btn-full btn-amber hidden" id="next-btn" onclick="triggerNext()">Next Question ▶</button>
       </div>
-      <div class="game-sidebar card">
+      <div class="game-sidebar card" id="game-sidebar">
         <div class="game-sidebar-title">🏆 Leaderboard</div>
         <div id="game-players-bar" class="game-players-bar"></div>
       </div>
@@ -625,6 +625,8 @@ async function renderGamePlayers() {
   const rows = await sbFetch(`quiz_players?room_id=eq.${_room.id}&select=name,score,avatar_url&order=score.desc`);
   const bar = document.getElementById('game-players-bar');
   if (!bar) return;
+  const sidebar = document.getElementById('game-sidebar');
+  if (sidebar) sidebar.classList.toggle('hidden', rows.length <= 1);
   bar.innerHTML = rows.map(p=>`<span class="game-player-chip">${p.avatar_url?`<img src="${escapeHtml(p.avatar_url)}" class="player-avatar" alt="">`:''}${escapeHtml(p.name)}<span class="gp-score">${p.score}</span></span>`).join('');
 }
 
