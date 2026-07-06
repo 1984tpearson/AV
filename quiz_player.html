@@ -4,6 +4,10 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Quiz — Join Game</title>
+<script>
+// Apply saved theme immediately to prevent flash (needed by nav.js sidebar/modal)
+(function(){const t=localStorage.getItem('av_theme');if(t&&t!=='default')document.documentElement.setAttribute('data-theme',t);})();
+</script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;800;900&family=Space+Mono:wght@700&display=swap" rel="stylesheet">
@@ -12,6 +16,18 @@
   --bg:#0B0E1A; --bg2:#141931; --card:#1B2140;
   --gold:#FFC93C; --magenta:#FF3D7F; --teal:#2FE6C4; --violet:#7B61FF;
   --ink:#F5F5FA; --muted:#8B93A8; --line:rgba(255,255,255,0.08);
+}
+/* Variables below are consumed by nav.js (shared hamburger/settings sidebar) —
+   not used by the quiz UI itself. Values match the app's default theme in
+   scenario.html so the sidebar/modal look consistent across the whole suite. */
+:root{
+  --navy:#1C3A6E; --navy-dark:#122849; --navy-light:#2A4F8F;
+  --red:#C0392B; --red-light:#FDEDEC;
+  --amber:#E8921A; --amber-light:#FEF5E7; --btn-accent:#E8921A; --green:#27833A; --green-light:#EAFAF1;
+  --blue:#2E86C1; --blue-light:#EBF5FB;
+  --purple:#7D3C98; --purple-light:#F5EEF8;
+  --grey:#6C7A89; --light:#F4F6F9; --white:#FFFFFF; --text:#1A1A2E; --border:#D5D8DC;
+  --shadow:0 2px 8px rgba(28,58,110,0.10);
 }
 *{box-sizing:border-box;margin:0;padding:0;}
 body{
