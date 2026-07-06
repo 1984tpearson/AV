@@ -21,7 +21,7 @@ body{
     radial-gradient(circle at 90% 20%, rgba(255,61,127,0.12), transparent 50%),
     radial-gradient(circle at 10% 80%, rgba(47,230,196,0.10), transparent 50%);
 }
-.stage-bar{background:linear-gradient(90deg,var(--bg2),var(--card)); border-bottom:2px solid var(--gold); color:var(--gold); padding:16px 20px; font-weight:900; font-size:18px;}
+.stage-bar{background:linear-gradient(90deg,var(--bg2),var(--card)); border-bottom:2px solid var(--gold); color:var(--gold); padding:16px 20px; font-weight:900; font-size:18px; display:flex; align-items:center; gap:12px;}
 .wrap{max-width:480px;margin:0 auto;padding:20px;width:100%;flex:1;}
 .card{background:var(--card); border:1px solid var(--line); border-radius:18px; padding:24px; box-shadow:0 12px 30px rgba(0,0,0,0.35);}
 label{display:block;font-size:12px;font-weight:700;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.5px;}
@@ -64,7 +64,7 @@ input{width:100%;padding:14px;border:1px solid var(--line);border-radius:10px;fo
 </style>
 </head>
 <body>
-<div class="stage-bar">🎙️ QUIZ NIGHT</div>
+<div class="stage-bar"><div id="avnav-slot"></div><span>🎙️ QUIZ NIGHT</span></div>
 <button id="sound-toggle" onclick="toggleSound()" title="Toggle sound" style="position:fixed;top:12px;right:12px;z-index:1000;background:var(--card);border:1px solid var(--line);border-radius:50%;width:42px;height:42px;font-size:18px;cursor:pointer;color:var(--ink);">🔇</button>
 <div class="wrap">
   <div id="screen-join" class="card">
@@ -108,6 +108,7 @@ input{width:100%;padding:14px;border:1px solid var(--line);border-radius:10px;fo
 const SUPABASE_URL = 'https://befsjenbaruxqrntuhpn.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJlZnNqZW5iYXJ1eHFybnR1aHBuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI2MjA5MjAsImV4cCI6MjA4ODE5NjkyMH0.hOFFbIvd1wAgu-QyghupQ-7ttSpg7sxz_UsJbXyXztA';
 const _sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+window.__avSupabaseClient = _sb; // shared with nav.js — avoids duplicate GoTrueClient instances
 let _session=null, _profile=null, _room=null, _player=null, _roomChannel=null, _lastSeenIndex=-1, _timerInterval=null;
 let _soundEnabled = false;
 const QUESTION_PALETTE = [
@@ -368,5 +369,6 @@ async function submitAnswer(questionId, selectedIndex, correctIndex) {
   document.getElementById('score-line').textContent = '';
 }
 </script>
+<script src="nav.js"></script>
 </body>
 </html>
