@@ -290,17 +290,18 @@ function hslToHex(h, s, l) {
   return '#'+toHex(r)+toHex(g)+toHex(b);
 }
 
-// Mirrors quiz_host.html's applyQuizTheme — derives the full Quizotron palette from
-// the room's AI-suggested topic colours so players see the same theme as the host.
-function applyQuizTheme(primary, secondary) {
-  if (!isValidHex(primary) || !isValidHex(secondary)) return;
+// Mirrors quiz_host.html's applyQuizTheme — applies the AI-suggested 4-colour palette
+// directly (no hue-rotation math) so players see the same genuinely-distinct theme colours
+// as the host, derived from the room row instead of a separate AI call.
+function applyQuizTheme(primary, secondary, tertiary, quaternary) {
+  if (!isValidHex(primary) || !isValidHex(secondary) || !isValidHex(tertiary) || !isValidHex(quaternary)) return;
   try {
-    const p = hexToHsl(primary), s2 = hexToHsl(secondary);
+    const p = hexToHsl(primary);
     const root = document.documentElement.style;
     root.setProperty('--gold', primary);
     root.setProperty('--magenta', secondary);
-    root.setProperty('--teal', hslToHex(p.h + 130, Math.max(55, p.s), Math.min(65, Math.max(45, p.l))));
-    root.setProperty('--violet', hslToHex(s2.h + 140, Math.max(45, s2.s), Math.min(65, Math.max(45, s2.l))));
+    root.setProperty('--teal', tertiary);
+    root.setProperty('--violet', quaternary);
     root.setProperty('--bg', hslToHex(p.h, 35, 8));
     root.setProperty('--bg2', hslToHex(p.h, 30, 12));
     root.setProperty('--card', hslToHex(p.h, 26, 17));
@@ -330,7 +331,7 @@ async function joinRoom() {
     const rooms = await sbFetch(`quiz_rooms?code=eq.${code}&status=in.(lobby,live)&select=*`);
     if (!rooms.length) throw new Error('Room not found or already ended.');
     _room = rooms[0];
-    applyQuizTheme(_room.theme_primary, _room.theme_secondary);
+    applyQuizTheme(_room.theme_primary, _room.theme_secondary, _room.theme_tertiary, _room.theme_quaternary);
     const name = (_profile && _profile.display_name) || _session.user.email;
     const avatarUrl = (_profile && _profile.avatar_url) || null;
     const rows = await sbFetch(`quiz_players?on_conflict=room_id,user_id`, { method:'POST',

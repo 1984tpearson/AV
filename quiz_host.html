@@ -173,7 +173,7 @@ textarea::placeholder{color:var(--muted);}
       <summary>Quiz settings</summary>
       <div class="adv-box-body">
         <label>Number of questions</label>
-        <input type="number" id="num-questions" min="3" max="15" value="5">
+        <input type="number" id="num-questions" min="3" max="30" value="5">
         <label>Time per question (seconds)</label>
         <input type="number" id="q-duration" min="5" max="60" value="20">
       </div>
@@ -549,18 +549,21 @@ function hslToHex(h, s, l) {
   return '#'+toHex(r)+toHex(g)+toHex(b);
 }
 
-// Derives the full Quizotron palette (gold/magenta/teal/violet + backgrounds) from
-// two AI-suggested topic colours, and applies it as CSS variable overrides on :root.
-// Falls back silently to the default neon arcade palette if colours are missing/invalid.
-function applyQuizTheme(primary, secondary) {
-  if (!isValidHex(primary) || !isValidHex(secondary)) return;
+// Applies the AI-suggested 4-colour palette directly as CSS variable overrides on :root
+// (no hue-rotation math — the AI picks all 4 accent colours itself so they're guaranteed
+// to be genuinely distinct, rather than being derived and risking clustering in one hue
+// range). Background shades are still derived from the primary colour's hue at low
+// saturation/lightness. Falls back silently to the default neon arcade palette if any
+// colour is missing/invalid.
+function applyQuizTheme(primary, secondary, tertiary, quaternary) {
+  if (!isValidHex(primary) || !isValidHex(secondary) || !isValidHex(tertiary) || !isValidHex(quaternary)) return;
   try {
-    const p = hexToHsl(primary), s2 = hexToHsl(secondary);
+    const p = hexToHsl(primary);
     const root = document.documentElement.style;
     root.setProperty('--gold', primary);
     root.setProperty('--magenta', secondary);
-    root.setProperty('--teal', hslToHex(p.h + 130, Math.max(55, p.s), Math.min(65, Math.max(45, p.l))));
-    root.setProperty('--violet', hslToHex(s2.h + 140, Math.max(45, s2.s), Math.min(65, Math.max(45, s2.l))));
+    root.setProperty('--teal', tertiary);
+    root.setProperty('--violet', quaternary);
     root.setProperty('--bg', hslToHex(p.h, 35, 8));
     root.setProperty('--bg2', hslToHex(p.h, 30, 12));
     root.setProperty('--card', hslToHex(p.h, 26, 17));
@@ -629,8 +632,8 @@ function buildSystemPrompt(count, wantTheme, avoidList) {
   const searchRule = mode === 'topic'
     ? ' (5) If the topic involves recent, current, or time-sensitive information (e.g. "current events", ongoing tournaments or competitions, recent news), use the web search tool to verify facts before writing questions. For timeless or historical topics, rely on your own knowledge without searching. Only include facts you are confident are accurate — do not invent statistics, dates, or names.'
     : '';
-  const themeFormatPart = wantTheme ? '"theme":{"primary":"#RRGGBB","secondary":"#RRGGBB"},' : '';
-  const themeRule = wantTheme ? ` (7) theme.primary and theme.secondary must be vivid, punchy hex colours (not muddy or pastel) that evoke the subject matter visually. Pick colours that would look good as bold neon accents on a dark background.` : '';
+  const themeFormatPart = wantTheme ? '"theme":{"primary":"#RRGGBB","secondary":"#RRGGBB","tertiary":"#RRGGBB","quaternary":"#RRGGBB"},' : '';
+  const themeRule = wantTheme ? ` (7) theme.primary, theme.secondary, theme.tertiary and theme.quaternary must be 4 vivid, punchy hex colours (not muddy or pastel) that evoke the subject matter visually and are clearly distinct from each other — spread around the colour wheel rather than clustered near the same hue. Pick colours that would look good as bold neon accents on a dark background.` : '';
   const avoidRule = (avoidList && avoidList.length)
     ? ` (${wantTheme?8:7}) Do not repeat any question already used in this quiz — avoid duplicating the fact, angle, or specific detail tested by these existing questions: ${avoidList.map(t=>`"${t}"`).join('; ')}.`
     : '';
@@ -717,18 +720,20 @@ async function generateQuiz() {
     _questions = parsed.questions.map((q,i)=>({ order_index:i, question_text:q.question, options:q.options, correct_index:q.correct_index }));
     const themePrimary = (parsed.theme && isValidHex(parsed.theme.primary)) ? parsed.theme.primary : null;
     const themeSecondary = (parsed.theme && isValidHex(parsed.theme.secondary)) ? parsed.theme.secondary : null;
+    const themeTertiary = (parsed.theme && isValidHex(parsed.theme.tertiary)) ? parsed.theme.tertiary : null;
+    const themeQuaternary = (parsed.theme && isValidHex(parsed.theme.quaternary)) ? parsed.theme.quaternary : null;
 
     setGenProgress(90, 'Creating room…');
     let code, room;
     for (let attempt=0; attempt<5; attempt++) {
       code = genRoomCode();
       try {
-        const rows = await sbFetch('quiz_rooms', { method:'POST', body: JSON.stringify({ code, host_user_id:_session.user.id, package_source: sourceSummary.slice(0,2000), status:'lobby', current_question_index:-1, question_duration_seconds:_questionDuration, theme_primary:themePrimary, theme_secondary:themeSecondary }) });
+        const rows = await sbFetch('quiz_rooms', { method:'POST', body: JSON.stringify({ code, host_user_id:_session.user.id, package_source: sourceSummary.slice(0,2000), status:'lobby', current_question_index:-1, question_duration_seconds:_questionDuration, theme_primary:themePrimary, theme_secondary:themeSecondary, theme_tertiary:themeTertiary, theme_quaternary:themeQuaternary }) });
         room = rows[0]; break;
       } catch(e) { if (attempt===4) throw e; }
     }
     _room = room;
-    applyQuizTheme(_room.theme_primary, _room.theme_secondary);
+    applyQuizTheme(_room.theme_primary, _room.theme_secondary, _room.theme_tertiary, _room.theme_quaternary);
     setGenProgress(95, 'Saving questions…');
     const insertedRows = await sbFetch('quiz_questions', { method:'POST', body: JSON.stringify(_questions.map(q=>({ room_id:_room.id, order_index:q.order_index, question_text:q.question_text, options:q.options, correct_index:q.correct_index }))) });
     insertedRows.forEach((row,i) => { _questions[i].id = row.id; });
