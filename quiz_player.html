@@ -99,7 +99,7 @@ input{width:100%;padding:14px;border:1px solid var(--line);border-radius:10px;fo
   <div id="screen-end" class="card hidden">
     <h2 style="color:var(--gold);margin-bottom:12px;text-transform:uppercase;letter-spacing:1px;font-size:16px">🏁 Game Over</h2>
     <div id="podium" class="podium"></div>
-    <div id="leaderboard"></div>
+    <div id="your-score" class="status-line" style="margin-top:10px;font-size:15px;"></div>
   </div>
 
 </div>
@@ -211,10 +211,15 @@ async function checkForQuestion() {
     hideAllGameScreens();
     document.getElementById('screen-end').classList.remove('hidden');
     if (_roomChannel) _sb.removeChannel(_roomChannel);
-    const rows = await sbFetch(`quiz_players?room_id=eq.${_room.id}&select=name,score&order=score.desc`);
-    const top3 = rows.slice(0,3), rest = rows.slice(3);
+    const rows = await sbFetch(`quiz_players?room_id=eq.${_room.id}&select=id,name,score&order=score.desc`);
+    const top3 = rows.slice(0,3);
     document.getElementById('podium').innerHTML = top3.map((p,i)=>`<div class="pod-step pod-${i+1}"><div class="pname">${escapeHtml(p.name)}</div><div class="pscore">${p.score}</div></div>`).join('');
-    document.getElementById('leaderboard').innerHTML = rest.map((p,i)=>`<div class="lb-row"><span><span class="lb-rank">#${i+4}</span>${escapeHtml(p.name)}</span><span>${p.score} pts</span></div>`).join('');
+    const myRank = rows.findIndex(p => p.id === _player.id) + 1;
+    const mine = rows.find(p => p.id === _player.id);
+    const yourScoreEl = document.getElementById('your-score');
+    if (mine) {
+      yourScoreEl.textContent = myRank <= 3 ? `You placed #${myRank} with ${mine.score} pts! 🎉` : `You placed #${myRank} with ${mine.score} pts.`;
+    }
     return;
   }
   if (_room.status !== 'live' || _room.current_question_index === _lastSeenIndex) return;

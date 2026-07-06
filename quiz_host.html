@@ -309,6 +309,15 @@ function genRoomCode() {
   return c;
 }
 
+async function joinHostAsPlayer() {
+  const hName = (_profile && _profile.display_name) || _session.user.email;
+  const hAvatar = (_profile && _profile.avatar_url) || null;
+  const hprows = await sbFetch(`quiz_players?on_conflict=room_id,user_id`, { method:'POST',
+    headers:{ 'Prefer':'resolution=merge-duplicates,return=representation' },
+    body: JSON.stringify({ room_id:_room.id, user_id:_session.user.id, name:hName, avatar_url:hAvatar }) });
+  _hostPlayerId = hprows[0].id;
+}
+
 function escapeHtml(s){ return String(s==null?'':s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 
 async function generateQuiz() {
@@ -379,12 +388,7 @@ async function generateQuiz() {
     _hostPlays = document.getElementById('host-mode').value === 'play';
     _scoringMode = document.getElementById('scoring-mode').value;
     if (_hostPlays) {
-      const hName = (_profile && _profile.display_name) || _session.user.email;
-      const hAvatar = (_profile && _profile.avatar_url) || null;
-      const hprows = await sbFetch(`quiz_players?on_conflict=room_id,user_id`, { method:'POST',
-        headers:{ 'Prefer':'resolution=merge-duplicates,return=representation' },
-        body: JSON.stringify({ room_id:_room.id, user_id:_session.user.id, name:hName, avatar_url:hAvatar }) });
-      _hostPlayerId = hprows[0].id;
+      await joinHostAsPlayer();
     }
 
     document.getElementById('screen-setup').classList.add('hidden');
@@ -456,6 +460,14 @@ function startTimerUI(startedAtISO, durationSec) {
 }
 
 async function startGame() {
+  if (!_hostPlays) {
+    const playerRows = await sbFetch(`quiz_players?room_id=eq.${_room.id}&select=user_id`);
+    const otherPlayers = playerRows.filter(p => p.user_id !== _session.user.id);
+    if (!otherPlayers.length) {
+      _hostPlays = true;
+      await joinHostAsPlayer();
+    }
+  }
   const startedAt = new Date().toISOString();
   await sbFetch(`quiz_rooms?id=eq.${_room.id}`, { method:'PATCH', prefer:'return=minimal', body: JSON.stringify({ status:'live', current_question_index:0, question_started_at:startedAt, question_duration_seconds:_questionDuration }) });
   _room.question_started_at = startedAt; _room.question_duration_seconds = _questionDuration;
@@ -639,11 +651,8 @@ async function nextQuestion() {
 async function showLeaderboard() {
   document.getElementById('screen-game').classList.add('hidden');
   document.getElementById('screen-end').classList.remove('hidden');
-  const rows = await sbFetch(`quiz_players?room_id=eq.${_room.id}&select=name,score,avatar_url&order=score.desc`);
-  const top3 = rows.slice(0,3);
-  const rest = rows.slice(3);
-  document.getElementById('podium').innerHTML = top3.map((p,i)=>`<div class="pod-step pod-${i+1}">${p.avatar_url?`<img src="${escapeHtml(p.avatar_url)}" class="pod-avatar" alt="">`:''}<div class="pname">${escapeHtml(p.name)}</div><div class="pscore">${p.score}</div></div>`).join('');
-  document.getElementById('leaderboard').innerHTML = rest.map((p,i)=>`<div class="lb-row" style="animation-delay:${i*0.05}s"><span>${p.avatar_url?`<img src="${escapeHtml(p.avatar_url)}" class="lb-avatar" alt="">`:''}<span class="lb-rank">#${i+4}</span>${escapeHtml(p.name)}</span><span>${p.score} pts</span></div>`).join('');
+  const rows = await sbFetch(`quiz_players?room_id=eq.${_room.id}&select=name,score,avatar_url&order=score.desc&limit=3`);
+  document.getElementById('podium').innerHTML = rows.map((p,i)=>`<div class="pod-step pod-${i+1}">${p.avatar_url?`<img src="${escapeHtml(p.avatar_url)}" class="pod-avatar" alt="">`:''}<div class="pname">${escapeHtml(p.name)}</div><div class="pscore">${p.score}</div></div>`).join('');
 }
 </script>
 </body>
