@@ -156,9 +156,13 @@ textarea::placeholder{color:var(--muted);}
       <option value="extreme">Extreme</option>
     </select>
     <label style="display:flex;align-items:center;gap:8px;cursor:pointer;text-transform:none;letter-spacing:normal;font-weight:600;color:var(--ink);">
-      <input type="checkbox" id="voice-enabled" checked style="width:18px;height:18px;padding:0;margin:0;flex-shrink:0;">
+      <input type="checkbox" id="voice-enabled" style="width:18px;height:18px;padding:0;margin:0;flex-shrink:0;">
       🔊 Read questions aloud (this device)
     </label>
+    <label>Voice</label>
+    <select id="voice-select">
+      <option value="">Browser default</option>
+    </select>
     <div id="setup-err" class="err hidden"></div>
     <button class="btn btn-full" id="gen-btn" onclick="generateQuiz()">✦ Generate Quiz</button>
     <div id="gen-progress-wrap" class="hidden" style="margin-top:14px;">
@@ -221,7 +225,8 @@ let _session=null, _room=null, _questions=[], _curIdx=-1, _playersChannel=null, 
 let _autoAdvanceTimer=null, _autoAdvanceCountdownInterval=null, _advancing=false;
 let _profile=null, _hostPlays=false, _hostPlayerId=null, _hostAnswered=false;
 let _scoringMode='standard';
-let _voiceEnabled = true;
+let _voiceEnabled = false;
+let _voiceIndex = '';
 
 function speakQuestion(text) {
   if (!_voiceEnabled || !window.speechSynthesis) return;
@@ -229,8 +234,28 @@ function speakQuestion(text) {
     window.speechSynthesis.cancel();
     const utter = new SpeechSynthesisUtterance(text);
     utter.rate = 0.95;
+    if (_voiceIndex !== '') {
+      const voices = window.speechSynthesis.getVoices();
+      const v = voices[parseInt(_voiceIndex)];
+      if (v) utter.voice = v;
+    }
     window.speechSynthesis.speak(utter);
   } catch(e) {}
+}
+
+function populateVoices() {
+  if (!window.speechSynthesis) return;
+  const voices = window.speechSynthesis.getVoices();
+  if (!voices.length) return;
+  const sel = document.getElementById('voice-select');
+  const current = sel.value;
+  sel.innerHTML = '<option value="">Browser default</option>' +
+    voices.map((v,i)=>`<option value="${i}">${escapeHtml(v.name)} (${v.lang})</option>`).join('');
+  sel.value = current || '';
+}
+if (window.speechSynthesis) {
+  populateVoices();
+  window.speechSynthesis.onvoiceschanged = populateVoices;
 }
 
 async function requireAuth() {
@@ -553,6 +578,7 @@ async function generateQuiz() {
     _hostPlays = document.getElementById('host-mode').value === 'play';
     _scoringMode = document.getElementById('scoring-mode').value;
     _voiceEnabled = document.getElementById('voice-enabled').checked;
+    _voiceIndex = document.getElementById('voice-select').value;
     if (_hostPlays) {
       await joinHostAsPlayer();
     }
