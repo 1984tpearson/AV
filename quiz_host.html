@@ -132,6 +132,13 @@ textarea::placeholder{color:var(--muted);}
       <option value="standard">Standard (everyone correct gets 10)</option>
       <option value="speed">Speed (fastest correct wins big)</option>
     </select>
+    <label>Difficulty</label>
+    <select id="difficulty">
+      <option value="easy">Easy</option>
+      <option value="standard" selected>Standard</option>
+      <option value="hard">Hard</option>
+      <option value="extreme">Extreme</option>
+    </select>
     <div id="setup-err" class="err hidden"></div>
     <button class="btn btn-full" id="gen-btn" onclick="generateQuiz()">✦ Generate Quiz</button>
   </div>
@@ -329,6 +336,14 @@ async function generateQuiz() {
   const uploadFiles = Array.from(document.getElementById('upload-files').files || []);
   const numQ = parseInt(document.getElementById('num-questions').value) || 5;
   _questionDuration = parseInt(document.getElementById('q-duration').value) || 20;
+  const difficulty = document.getElementById('difficulty').value;
+  const DIFFICULTY_TEXT = {
+    easy: 'Keep questions easy — straightforward recall of clearly-stated facts, simple wording, and distractors that are obviously wrong.',
+    standard: 'Use a standard difficulty — a normal mix of recall and light application, with plausible but fair distractors.',
+    hard: 'Make questions hard — require applying concepts rather than pure recall, with distractors that are plausible and require real understanding to rule out.',
+    extreme: 'Make questions extremely difficult — nuanced edge cases, closely-related distractors that differ only in fine detail, and questions that demand deep, precise understanding rather than surface familiarity.'
+  };
+  const difficultyInstruction = DIFFICULTY_TEXT[difficulty] || DIFFICULTY_TEXT.standard;
 
   if (mode === 'upload' && !uploadFiles.length) { errEl.textContent='Upload at least one file first.'; errEl.classList.remove('hidden'); return; }
   if (mode === 'topic' && !topicText) { errEl.textContent='Enter a topic first.'; errEl.classList.remove('hidden'); return; }
@@ -341,11 +356,11 @@ async function generateQuiz() {
     let systemPrompt, userContent, sourceSummary;
 
     if (mode === 'topic') {
-      systemPrompt = `You write multiple-choice quiz questions on a given topic, drawing on your own general knowledge. Respond with valid JSON only — no markdown, no preamble. Format: [{"question":"...","options":["a","b","c","d"],"correct_index":0}, ...]. Rules: (1) Generate exactly ${numQ} questions. (2) Each question has exactly 4 options. (3) correct_index is 0-based and must be factually correct. (4) Vary question difficulty and style (recall, application, scenario-based) where the topic supports it. (5) Only include facts you are confident are accurate — do not invent statistics, dates, or names.`;
+      systemPrompt = `You write multiple-choice quiz questions on a given topic, drawing on your own general knowledge. Respond with valid JSON only — no markdown, no preamble. Format: [{"question":"...","options":["a","b","c","d"],"correct_index":0}, ...]. Rules: (1) Generate exactly ${numQ} questions. (2) Each question has exactly 4 options. (3) correct_index is 0-based and must be factually correct. (4) Vary question style (recall, application, scenario-based) where the topic supports it. (5) Only include facts you are confident are accurate — do not invent statistics, dates, or names. (6) ${difficultyInstruction}`;
       userContent = `Topic: ${topicText}\n\nGenerate the quiz as JSON.`;
       sourceSummary = `Topic: ${topicText}`;
     } else if (mode === 'upload') {
-      systemPrompt = `You write multiple-choice quiz questions from reference material supplied as documents/images${packageText ? ' and additional instructions' : ''}. Respond with valid JSON only — no markdown, no preamble. Format: [{"question":"...","options":["a","b","c","d"],"correct_index":0}, ...]. Rules: (1) Generate exactly ${numQ} questions. (2) Each question has exactly 4 options. (3) correct_index is 0-based and must be accurate per the source material. (4) Questions must be answerable strictly from the material provided — do not invent facts. (5) Vary question style (recall, application, scenario-based) where the material supports it.`;
+      systemPrompt = `You write multiple-choice quiz questions from reference material supplied as documents/images${packageText ? ' and additional instructions' : ''}. Respond with valid JSON only — no markdown, no preamble. Format: [{"question":"...","options":["a","b","c","d"],"correct_index":0}, ...]. Rules: (1) Generate exactly ${numQ} questions. (2) Each question has exactly 4 options. (3) correct_index is 0-based and must be accurate per the source material. (4) Questions must be answerable strictly from the material provided — do not invent facts. (5) Vary question style (recall, application, scenario-based) where the material supports it. (6) ${difficultyInstruction}`;
       const blocks = [];
       for (const file of uploadFiles) {
         const b64 = await fileToBase64(file);
@@ -357,7 +372,7 @@ async function generateQuiz() {
       userContent = blocks;
       sourceSummary = `Uploaded: ${uploadFiles.map(f=>f.name).join(', ')}` + (packageText ? ` + notes: ${packageText.slice(0,500)}` : '');
     } else {
-      systemPrompt = `You write multiple-choice quiz questions from reference material. Respond with valid JSON only — no markdown, no preamble. Format: [{"question":"...","options":["a","b","c","d"],"correct_index":0}, ...]. Rules: (1) Generate exactly ${numQ} questions. (2) Each question has exactly 4 options. (3) correct_index is 0-based and must be accurate per the source material. (4) Questions must be answerable strictly from the material provided — do not invent facts. (5) Vary question style (recall, application, scenario-based) where the material supports it.`;
+      systemPrompt = `You write multiple-choice quiz questions from reference material. Respond with valid JSON only — no markdown, no preamble. Format: [{"question":"...","options":["a","b","c","d"],"correct_index":0}, ...]. Rules: (1) Generate exactly ${numQ} questions. (2) Each question has exactly 4 options. (3) correct_index is 0-based and must be accurate per the source material. (4) Questions must be answerable strictly from the material provided — do not invent facts. (5) Vary question style (recall, application, scenario-based) where the material supports it. (6) ${difficultyInstruction}`;
       userContent = `Reference material:\n\n${packageText}\n\nGenerate the quiz as JSON.`;
       sourceSummary = packageText.slice(0,2000);
     }
