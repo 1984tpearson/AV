@@ -464,7 +464,7 @@ async function generateQuiz() {
     let systemPrompt, userContent, sourceSummary;
 
     if (mode === 'topic') {
-      systemPrompt = `You write multiple-choice quiz questions on a given topic, drawing on your own general knowledge. Respond with valid JSON only — no markdown, no preamble. Format: [{"question":"...","options":["a","b","c","d"],"correct_index":0}, ...]. Rules: (1) Generate exactly ${numQ} questions. (2) Each question has exactly 4 options. (3) correct_index is 0-based and must be factually correct. (4) Vary question style (recall, application, scenario-based) where the topic supports it. (5) Only include facts you are confident are accurate — do not invent statistics, dates, or names. (6) ${difficultyInstruction}`;
+      systemPrompt = `You write multiple-choice quiz questions on a given topic. Respond with valid JSON only — no markdown, no preamble, no commentary before or after the JSON. Format: [{"question":"...","options":["a","b","c","d"],"correct_index":0}, ...]. Rules: (1) Generate exactly ${numQ} questions. (2) Each question has exactly 4 options. (3) correct_index is 0-based and must be factually correct. (4) Vary question style (recall, application, scenario-based) where the topic supports it. (5) If the topic involves recent, current, or time-sensitive information (e.g. "current events", ongoing tournaments or competitions, recent news), use the web search tool to verify facts before writing questions. For timeless or historical topics, rely on your own knowledge without searching. (6) Only include facts you are confident are accurate — do not invent statistics, dates, or names. (7) ${difficultyInstruction}`;
       userContent = `Topic: ${topicText}\n\nGenerate the quiz as JSON.`;
       sourceSummary = `Topic: ${topicText}`;
     } else if (mode === 'upload') {
@@ -488,10 +488,14 @@ async function generateQuiz() {
     }
 
     startGenTrickle(30, 82, '✦ Calling AI…');
+    const requestBody = { model:'claude-sonnet-4-6', max_tokens: 4000, system: systemPrompt, messages:[{role:'user', content:userContent}] };
+    if (mode === 'topic') {
+      requestBody.tools = [{ type:'web_search_20250305', name:'web_search', max_uses:5 }];
+    }
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method:'POST',
       headers:{ 'Content-Type':'application/json', 'x-api-key':apiKey, 'anthropic-version':'2023-06-01', 'anthropic-dangerous-direct-browser-access':'true' },
-      body: JSON.stringify({ model:'claude-sonnet-4-6', max_tokens: 4000, system: systemPrompt, messages:[{role:'user', content:userContent}] })
+      body: JSON.stringify(requestBody)
     });
     stopGenTrickle();
     if (!response.ok) throw new Error('AI request failed: ' + response.status);
