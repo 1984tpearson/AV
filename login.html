@@ -85,9 +85,9 @@ const SUPABASE_URL = 'https://befsjenbaruxqrntuhpn.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJlZnNqZW5iYXJ1eHFybnR1aHBuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI2MjA5MjAsImV4cCI6MjA4ODE5NjkyMH0.hOFFbIvd1wAgu-QyghupQ-7ttSpg7sxz_UsJbXyXztA';
 const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-// Where to go after login — passed as ?redirect= or default to scenario.html
+// Where to go after login — passed as ?redirect= or default to index.html
 const params = new URLSearchParams(window.location.search);
-const redirectTo = params.get('redirect') || 'scenario.html';
+const redirectTo = params.get('redirect') || 'index.html';
 const fullRedirect = new URL(redirectTo, window.location.href).href;
 
 // If already logged in, go straight there
