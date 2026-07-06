@@ -129,10 +129,18 @@ const oauthCallback = window.location.origin + window.location.pathname;
 // If already logged in, go straight to the intended destination
 (async () => {
   const { data: { session } } = await _supabase.auth.getSession();
+  const statusEl = document.getElementById('status');
+  // TEMP DEBUG — shows exactly what this page computed before it redirects.
+  // Remove once the redirect issue is confirmed fixed.
+  console.log('[login debug] query redirect param:', redirectParam);
+  console.log('[login debug] sessionStorage value:', sessionStorage.getItem('av_login_redirect'));
+  console.log('[login debug] session present:', !!session);
   if (session) {
     const dest = destinationUrl();
+    console.log('[login debug] computed destination:', dest);
+    if (statusEl) statusEl.textContent = 'Debug: redirecting to ' + dest + ' in 2s…';
     sessionStorage.removeItem('av_login_redirect');
-    window.location.href = dest;
+    setTimeout(() => { window.location.href = dest; }, 2000);
   }
 })();
 
