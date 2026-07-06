@@ -697,7 +697,8 @@
 
   async function signOut() {
     await _sb.auth.signOut();
-    window.location.href = 'login.html';
+    var page = window.location.pathname.split('/').pop() || 'index.html';
+    window.location.href = 'login.html?redirect=' + encodeURIComponent(page);
   }
 
   async function refreshProfile() {
