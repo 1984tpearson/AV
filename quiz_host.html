@@ -155,6 +155,10 @@ textarea::placeholder{color:var(--muted);}
       <option value="hard">Hard</option>
       <option value="extreme">Extreme</option>
     </select>
+    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;text-transform:none;letter-spacing:normal;font-weight:600;color:var(--ink);">
+      <input type="checkbox" id="voice-enabled" checked style="width:18px;height:18px;padding:0;margin:0;flex-shrink:0;">
+      🔊 Read questions aloud (this device)
+    </label>
     <div id="setup-err" class="err hidden"></div>
     <button class="btn btn-full" id="gen-btn" onclick="generateQuiz()">✦ Generate Quiz</button>
     <div id="gen-progress-wrap" class="hidden" style="margin-top:14px;">
@@ -217,6 +221,17 @@ let _session=null, _room=null, _questions=[], _curIdx=-1, _playersChannel=null, 
 let _autoAdvanceTimer=null, _autoAdvanceCountdownInterval=null, _advancing=false;
 let _profile=null, _hostPlays=false, _hostPlayerId=null, _hostAnswered=false;
 let _scoringMode='standard';
+let _voiceEnabled = true;
+
+function speakQuestion(text) {
+  if (!_voiceEnabled || !window.speechSynthesis) return;
+  try {
+    window.speechSynthesis.cancel();
+    const utter = new SpeechSynthesisUtterance(text);
+    utter.rate = 0.95;
+    window.speechSynthesis.speak(utter);
+  } catch(e) {}
+}
 
 async function requireAuth() {
   const { data: { session } } = await _sb.auth.getSession();
@@ -537,6 +552,7 @@ async function generateQuiz() {
 
     _hostPlays = document.getElementById('host-mode').value === 'play';
     _scoringMode = document.getElementById('scoring-mode').value;
+    _voiceEnabled = document.getElementById('voice-enabled').checked;
     if (_hostPlays) {
       await joinHostAsPlayer();
     }
@@ -660,6 +676,7 @@ function showQuestion() {
   optsEl.style.setProperty('--qtext', pal[2]);
   document.getElementById('game-progress').textContent = `Question ${_curIdx+1} of ${_questions.length}`;
   document.getElementById('q-text').textContent = q.question_text;
+  speakQuestion(q.question_text);
   optsEl.innerHTML = q.options.map((o,i)=>`<div class="opt-row" id="opt-${i}"><span class="shape">${shapes[i]}</span>${escapeHtml(o)}<span class="opt-count" id="opt-count-${i}"></span></div>`).join('');
   optsEl.classList.toggle('hidden', _hostPlays);
   document.getElementById('answer-count').textContent = '';
@@ -729,6 +746,7 @@ async function submitHostAnswer(selectedIndex) {
 
 async function revealAnswer() {
   clearInterval(_timerInterval);
+  if (window.speechSynthesis) window.speechSynthesis.cancel();
   const q = _questions[_curIdx];
   const qid = await currentQuestionId();
   const answers = await sbFetch(`quiz_answers?question_id=eq.${qid}&select=selected_index,player_id,answered_at&order=answered_at.asc`);
