@@ -300,6 +300,79 @@ async function getAnthropicKey() {
   throw new Error('AI generation is temporarily unavailable.');
 }
 
+let _audioCtx = null;
+function getAudioCtx() {
+  if (!_audioCtx) _audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  return _audioCtx;
+}
+function playTone(freq, duration, type='sine', volume=0.2) {
+  try {
+    const ctx = getAudioCtx();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = type;
+    osc.frequency.value = freq;
+    gain.gain.setValueAtTime(volume, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start();
+    osc.stop(ctx.currentTime + duration);
+  } catch(e) {}
+}
+function playTick(urgent) { playTone(urgent ? 1200 : 800, 0.08, 'square', 0.12); }
+function playChime(correct) {
+  if (correct) { playTone(880, 0.15); setTimeout(()=>playTone(1320, 0.2), 100); }
+  else { playTone(220, 0.25, 'sawtooth', 0.15); }
+}
+function playFanfare() {
+  const notes = [523.25, 659.25, 783.99, 1046.5];
+  notes.forEach((f,i) => setTimeout(()=>playTone(f, 0.3, 'triangle', 0.18), i*120));
+}
+
+function fireConfetti(intensity) {
+  const count = intensity === 'big' ? 140 : intensity === 'medium' ? 70 : 30;
+  let canvas = document.getElementById('confetti-canvas');
+  if (!canvas) {
+    canvas = document.createElement('canvas');
+    canvas.id = 'confetti-canvas';
+    canvas.style.cssText = 'position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:9999;';
+    document.body.appendChild(canvas);
+  }
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+  const ctx = canvas.getContext('2d');
+  const colors = ['#FFC93C','#FF3D7F','#2FE6C4','#7B61FF'];
+  const particles = Array.from({length:count}, () => ({
+    x: Math.random()*canvas.width,
+    y: -20 - Math.random()*canvas.height*0.3,
+    r: 4 + Math.random()*5,
+    color: colors[Math.floor(Math.random()*colors.length)],
+    vy: 2 + Math.random()*3,
+    vx: (Math.random()-0.5)*2,
+    rot: Math.random()*360,
+    vrot: (Math.random()-0.5)*10
+  }));
+  const start = Date.now();
+  const duration = 3500;
+  function frame() {
+    const elapsed = Date.now() - start;
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    particles.forEach(p=>{
+      p.x += p.vx; p.y += p.vy; p.rot += p.vrot;
+      ctx.save();
+      ctx.translate(p.x,p.y);
+      ctx.rotate(p.rot*Math.PI/180);
+      ctx.fillStyle = p.color;
+      ctx.fillRect(-p.r/2,-p.r/2,p.r,p.r*0.6);
+      ctx.restore();
+    });
+    if (elapsed < duration) requestAnimationFrame(frame);
+    else { ctx.clearRect(0,0,canvas.width,canvas.height); canvas.remove(); }
+  }
+  requestAnimationFrame(frame);
+}
+
 function parseFirstJSONArray(raw) {
   let s = raw.replace(/```json|```/g,'').trim();
   const start = s.indexOf('[');
@@ -458,13 +531,19 @@ function startTimerUI(startedAtISO, durationSec) {
   const numEl = document.getElementById('timer-num');
   const circumference = 2 * Math.PI * 42;
   circle.style.strokeDasharray = circumference;
+  let _lastWholeSecond = null;
   function tick() {
     const elapsed = (Date.now() - new Date(startedAtISO).getTime()) / 1000;
     const remaining = Math.max(0, durationSec - elapsed);
     const frac = remaining / durationSec;
     circle.style.strokeDashoffset = circumference * (1 - frac);
     circle.style.stroke = remaining <= 5 ? 'var(--magenta)' : 'var(--teal)';
-    numEl.textContent = Math.ceil(remaining);
+    const wholeRemaining = Math.ceil(remaining);
+    numEl.textContent = wholeRemaining;
+    if (wholeRemaining !== _lastWholeSecond && wholeRemaining > 0) {
+      _lastWholeSecond = wholeRemaining;
+      playTick(wholeRemaining <= 5);
+    }
     if (remaining <= 0) {
       clearInterval(_timerInterval);
       if (!_revealing) { _revealing = true; revealAnswer(); }
@@ -589,6 +668,12 @@ async function revealAnswer() {
   const q = _questions[_curIdx];
   const qid = await currentQuestionId();
   const answers = await sbFetch(`quiz_answers?question_id=eq.${qid}&select=selected_index,player_id,answered_at&order=answered_at.asc`);
+  if (_hostPlays && _hostPlayerId) {
+    const hostAnswer = answers.find(a => a.player_id === _hostPlayerId);
+    playChime(!!hostAnswer && hostAnswer.selected_index === q.correct_index);
+  } else {
+    playChime(true);
+  }
   const counts = q.options.map((_,i)=> answers.filter(a=>a.selected_index===i).length);
   counts.forEach((c,i)=>{ document.getElementById('opt-count-'+i).textContent = c; });
   q.options.forEach((_,i)=>{
@@ -668,6 +753,8 @@ async function showLeaderboard() {
   document.getElementById('screen-end').classList.remove('hidden');
   const rows = await sbFetch(`quiz_players?room_id=eq.${_room.id}&select=name,score,avatar_url&order=score.desc&limit=3`);
   document.getElementById('podium').innerHTML = rows.map((p,i)=>`<div class="pod-step pod-${i+1}">${p.avatar_url?`<img src="${escapeHtml(p.avatar_url)}" class="pod-avatar" alt="">`:''}<div class="pname">${escapeHtml(p.name)}</div><div class="pscore">${p.score}</div></div>`).join('');
+  playFanfare();
+  fireConfetti('big');
 }
 </script>
 </body>
