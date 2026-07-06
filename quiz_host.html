@@ -114,6 +114,11 @@ textarea::placeholder{color:var(--muted);}
       <option value="display">Display Only</option>
       <option value="play">Play Along</option>
     </select>
+    <label>Scoring mode</label>
+    <select id="scoring-mode">
+      <option value="standard">Standard (everyone correct gets 10)</option>
+      <option value="speed">Speed (fastest correct wins big)</option>
+    </select>
     <div id="setup-err" class="err hidden"></div>
     <button class="btn btn-full" id="gen-btn" onclick="generateQuiz()">✦ Generate Quiz</button>
   </div>
@@ -168,6 +173,7 @@ const _sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 let _session=null, _room=null, _questions=[], _curIdx=-1, _playersChannel=null, _answersChannel=null, _revealing=false, _timerInterval=null, _questionDuration=20;
 let _autoAdvanceTimer=null, _autoAdvanceCountdownInterval=null, _advancing=false;
 let _profile=null, _hostPlays=false, _hostPlayerId=null, _hostAnswered=false;
+let _scoringMode='standard';
 
 async function requireAuth() {
   const { data: { session } } = await _sb.auth.getSession();
@@ -301,6 +307,7 @@ async function generateQuiz() {
     await sbFetch('quiz_questions', { method:'POST', prefer:'return=minimal', body: JSON.stringify(_questions.map(q=>({ room_id:_room.id, order_index:q.order_index, question_text:q.question_text, options:q.options, correct_index:q.correct_index }))) });
 
     _hostPlays = document.getElementById('host-mode').value === 'play';
+    _scoringMode = document.getElementById('scoring-mode').value;
     if (_hostPlays) {
       const hName = (_profile && _profile.display_name) || _session.user.email;
       const hAvatar = (_profile && _profile.avatar_url) || null;
@@ -483,7 +490,7 @@ async function revealAnswer() {
   clearInterval(_timerInterval);
   const q = _questions[_curIdx];
   const qid = await currentQuestionId();
-  const answers = await sbFetch(`quiz_answers?question_id=eq.${qid}&select=selected_index,player_id`);
+  const answers = await sbFetch(`quiz_answers?question_id=eq.${qid}&select=selected_index,player_id,answered_at&order=answered_at.asc`);
   const counts = q.options.map((_,i)=> answers.filter(a=>a.selected_index===i).length);
   counts.forEach((c,i)=>{ document.getElementById('opt-count-'+i).textContent = c; });
   q.options.forEach((_,i)=>{
@@ -496,11 +503,24 @@ async function revealAnswer() {
     }
   });
 
-  const correctPlayerIds = answers.filter(a=>a.selected_index===q.correct_index).map(a=>a.player_id);
-  for (const pid of correctPlayerIds) {
+  const deltas = {};
+  if (_scoringMode === 'speed') {
+    const allPlayers = await sbFetch(`quiz_players?room_id=eq.${_room.id}&select=id`);
+    const answeredIds = new Set(answers.map(a=>a.player_id));
+    const correctOrdered = answers.filter(a=>a.selected_index===q.correct_index);
+    correctOrdered.forEach((a,i)=>{ deltas[a.player_id] = i===0 ? 10 : (i===1 ? 5 : 0); });
+    answers.filter(a=>a.selected_index!==q.correct_index).forEach(a=>{ deltas[a.player_id] = -5; });
+    allPlayers.forEach(p=>{ if (!answeredIds.has(p.id)) deltas[p.id] = -5; });
+  } else {
+    answers.filter(a=>a.selected_index===q.correct_index).forEach(a=>{ deltas[a.player_id] = 10; });
+  }
+
+  for (const pid of Object.keys(deltas)) {
+    const delta = deltas[pid];
+    if (!delta) continue;
     const rows = await sbFetch(`quiz_players?id=eq.${pid}&select=score`);
     const cur = (rows[0] && rows[0].score) || 0;
-    await sbFetch(`quiz_players?id=eq.${pid}`, { method:'PATCH', prefer:'return=minimal', body: JSON.stringify({ score: cur+10 }) });
+    await sbFetch(`quiz_players?id=eq.${pid}`, { method:'PATCH', prefer:'return=minimal', body: JSON.stringify({ score: cur+delta }) });
   }
   renderGamePlayers();
 
