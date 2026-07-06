@@ -85,22 +85,38 @@ const SUPABASE_URL = 'https://befsjenbaruxqrntuhpn.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJlZnNqZW5iYXJ1eHFybnR1aHBuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI2MjA5MjAsImV4cCI6MjA4ODE5NjkyMH0.hOFFbIvd1wAgu-QyghupQ-7ttSpg7sxz_UsJbXyXztA';
 const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-// Where to go after login — passed as ?redirect= or default to index.html
+// Where to go after login — passed as ?redirect=, remembered across the
+// Google round-trip via sessionStorage (since the OAuth callback always
+// comes back to THIS page, not the final destination — see below).
 const params = new URLSearchParams(window.location.search);
-const redirectTo = params.get('redirect') || 'index.html';
-const fullRedirect = new URL(redirectTo, window.location.href).href;
+const redirectParam = params.get('redirect');
+if (redirectParam) sessionStorage.setItem('av_login_redirect', redirectParam);
 
-// If already logged in, go straight there
+function destinationUrl() {
+  const stored = sessionStorage.getItem('av_login_redirect') || 'index.html';
+  return new URL(stored, window.location.href).href;
+}
+
+// Always tell Supabase to send the OAuth callback back to login.html itself.
+// login.html is the one URL guaranteed to be in the Supabase Redirect URLs
+// allow-list, so this avoids depending on wildcard matching for every page.
+const oauthCallback = window.location.origin + window.location.pathname;
+
+// If already logged in, go straight to the intended destination
 (async () => {
   const { data: { session } } = await _supabase.auth.getSession();
-  if (session) window.location.href = fullRedirect;
+  if (session) {
+    const dest = destinationUrl();
+    sessionStorage.removeItem('av_login_redirect');
+    window.location.href = dest;
+  }
 })();
 
 async function signIn() {
   document.getElementById('status').textContent = 'Redirecting to Google…';
   await _supabase.auth.signInWithOAuth({
     provider: 'google',
-    options: { redirectTo: fullRedirect }
+    options: { redirectTo: oauthCallback }
   });
 }
 </script>
