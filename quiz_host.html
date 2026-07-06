@@ -26,7 +26,7 @@ body{
 }
 .stage-bar{background:linear-gradient(90deg,var(--bg2),var(--card));border-bottom:2px solid var(--gold); color:var(--gold); padding:16px 22px; font-weight:900; font-size:19px; display:flex; align-items:center; justify-content:space-between; letter-spacing:0.5px;}
 .host-tag{font-family:'Space Mono',monospace; font-size:12px; color:var(--muted); font-weight:400;}
-.wrap{max-width:720px;margin:0 auto;padding:24px 20px 60px;}
+.wrap{max-width:820px;margin:0 auto;padding:24px 20px 60px;}
 .card{background:var(--card); border:1px solid var(--line); border-radius:18px; padding:26px; box-shadow:0 12px 30px rgba(0,0,0,0.35); margin-bottom:18px;}
 h2{color:var(--gold); font-size:16px; font-weight:800; margin-bottom:14px; text-transform:uppercase; letter-spacing:1px;}
 label{display:block;font-size:12px;font-weight:700;color:var(--muted);margin-bottom:6px; text-transform:uppercase; letter-spacing:0.5px;}
@@ -52,7 +52,7 @@ textarea::placeholder{color:var(--muted);}
 .game-player-chip .gp-score{font-family:'Space Mono',monospace;color:var(--gold);font-size:15px;}
 .game-layout{display:flex;gap:22px;align-items:flex-start;}
 .game-main{flex:1;min-width:0;}
-.game-sidebar{width:150px;flex-shrink:0;}
+.game-sidebar{width:190px;flex-shrink:0;padding:18px 14px;}
 .game-sidebar-title{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:1px;color:var(--muted);text-align:center;margin-bottom:12px;}
 @keyframes popIn{from{transform:scale(0.5);opacity:0}to{transform:scale(1);opacity:1}}
 .q-progress{text-align:center;color:var(--muted);font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;}
@@ -151,9 +151,9 @@ textarea::placeholder{color:var(--muted);}
     <div id="lobby-players" style="text-align:center;"></div>
     <button class="btn btn-full btn-amber" onclick="startGame()">▶ Start Game</button>
   </div>
-  <div id="screen-game" class="card hidden">
+  <div id="screen-game" class="hidden">
     <div class="game-layout">
-      <div class="game-main">
+      <div class="game-main card">
         <div class="q-progress" id="game-progress"></div>
         <div class="timer-wrap">
           <div class="timer-ring">
@@ -171,7 +171,7 @@ textarea::placeholder{color:var(--muted);}
         <button class="btn btn-full" id="reveal-btn" onclick="manualReveal()">👁 Reveal Answer</button>
         <button class="btn btn-full btn-amber hidden" id="next-btn" onclick="triggerNext()">Next Question ▶</button>
       </div>
-      <div class="game-sidebar">
+      <div class="game-sidebar card">
         <div class="game-sidebar-title">🏆 Leaderboard</div>
         <div id="game-players-bar" class="game-players-bar"></div>
       </div>
@@ -542,7 +542,7 @@ function startTimerUI(startedAtISO, durationSec) {
     numEl.textContent = wholeRemaining;
     if (wholeRemaining !== _lastWholeSecond && wholeRemaining > 0) {
       _lastWholeSecond = wholeRemaining;
-      playTick(wholeRemaining <= 5);
+      if (wholeRemaining <= 5) playTick(true);
     }
     if (remaining <= 0) {
       clearInterval(_timerInterval);

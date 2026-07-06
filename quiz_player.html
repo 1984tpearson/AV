@@ -339,7 +339,7 @@ function startTimerBar(startedAtISO, durationSec) {
     const wholeRemaining = Math.ceil(remaining);
     if (wholeRemaining !== _lastWholeSecond && wholeRemaining > 0) {
       _lastWholeSecond = wholeRemaining;
-      playTick(wholeRemaining <= 5);
+      if (wholeRemaining <= 5) playTick(true);
     }
     if (remaining <= 0) {
       clearInterval(_timerInterval);
