@@ -104,6 +104,17 @@ textarea::placeholder{color:var(--muted);}
 .lb-row{display:flex;justify-content:space-between;padding:10px 4px;border-bottom:1px solid var(--line);font-size:15px;animation:slideUp .4s ease backwards;}
 .lb-rank{font-weight:800;color:var(--gold);margin-right:10px;font-family:'Space Mono',monospace;}
 .err{color:var(--magenta);font-size:13px;margin-top:-8px;margin-bottom:12px;font-weight:600;}
+.adv-box{border:1px solid var(--line);border-radius:10px;margin-bottom:14px;background:#0F1428;overflow:hidden;}
+.adv-box summary{list-style:none;cursor:pointer;padding:12px 13px;font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;user-select:none;}
+.adv-box summary::-webkit-details-marker{display:none;}
+.adv-box summary::before{content:'▸ ';color:var(--gold);}
+.adv-box[open] summary::before{content:'▾ ';}
+.adv-box-body{padding:0 13px 13px;}
+.adv-box-body input,.adv-box-body select{margin-bottom:12px;}
+.adv-box-body label:first-child{margin-top:0;}
+.mode-toggle{display:flex;gap:10px;margin-bottom:14px;}
+.mode-btn{flex:1;padding:12px 10px;border:1px solid var(--line);border-radius:10px;background:#0F1428;color:var(--ink);font-family:inherit;font-weight:800;font-size:14px;cursor:pointer;transition:all .15s;}
+.mode-btn.selected{background:var(--gold);color:#1B1400;border-color:var(--gold);}
 @media (max-width: 640px) {
   .game-layout{flex-direction:column;}
   .game-sidebar{width:100%;padding:10px 12px;}
@@ -121,7 +132,7 @@ textarea::placeholder{color:var(--muted);}
     <h2>Build Your Quiz</h2>
     <label>Package source</label>
     <select id="package-preset" onchange="onPresetChange()">
-      <option value="topic" selected>Topic (AI uses its own knowledge)</option>
+      <option value="topic" selected>Type a topic</option>
       <option value="custom">— Paste your own text —</option>
       <option value="cpg">CPG Package (single condition)</option>
       <option value="upload">Upload File(s)</option>
@@ -142,20 +153,6 @@ textarea::placeholder{color:var(--muted);}
       <input type="text" id="topic-input" placeholder="e.g. Asthma, WWII, French Revolution">
     </div>
     <textarea id="package-text" placeholder="Paste any reference material here — the AI will write quiz questions from it."></textarea>
-    <label>Number of questions</label>
-    <input type="number" id="num-questions" min="3" max="15" value="5">
-    <label>Time per question (seconds)</label>
-    <input type="number" id="q-duration" min="5" max="60" value="20">
-    <label>Host device mode</label>
-    <select id="host-mode">
-      <option value="display">Display Only</option>
-      <option value="play">Play Along</option>
-    </select>
-    <label>Scoring mode</label>
-    <select id="scoring-mode">
-      <option value="standard">Standard (everyone correct gets 10)</option>
-      <option value="speed">Speed (fastest correct wins big)</option>
-    </select>
     <label>Difficulty</label>
     <select id="difficulty">
       <option value="easy">Easy</option>
@@ -163,6 +160,26 @@ textarea::placeholder{color:var(--muted);}
       <option value="hard">Hard</option>
       <option value="extreme">Extreme</option>
     </select>
+    <details class="adv-box">
+      <summary>Quiz settings</summary>
+      <div class="adv-box-body">
+        <label>Number of questions</label>
+        <input type="number" id="num-questions" min="3" max="15" value="5">
+        <label>Time per question (seconds)</label>
+        <input type="number" id="q-duration" min="5" max="60" value="20">
+        <label>Host device mode</label>
+        <select id="host-mode">
+          <option value="display">Display Only</option>
+          <option value="play">Play Along</option>
+        </select>
+      </div>
+    </details>
+    <label style="margin-top:14px;">Game mode</label>
+    <input type="hidden" id="scoring-mode" value="standard">
+    <div class="mode-toggle">
+      <button type="button" class="mode-btn selected" data-mode="standard" title="Everyone who answers correctly gets the same points." onclick="selectGameMode(this)">Standard</button>
+      <button type="button" class="mode-btn" data-mode="speed" title="Correct answers score more the faster you buzz in — quickest correct answer wins the most points." onclick="selectGameMode(this)">Speed</button>
+    </div>
     <label style="display:flex;align-items:center;gap:8px;cursor:pointer;text-transform:none;letter-spacing:normal;font-weight:600;color:var(--ink);">
       <input type="checkbox" id="voice-enabled" style="width:18px;height:18px;padding:0;margin:0;flex-shrink:0;">
       🔊 Read questions aloud (this device)
@@ -235,6 +252,12 @@ let _profile=null, _hostPlays=false, _hostPlayerId=null, _hostAnswered=false;
 let _scoringMode='standard';
 let _voiceEnabled = false;
 let _voiceIndex = '';
+
+function selectGameMode(btn) {
+  document.querySelectorAll('.mode-toggle .mode-btn').forEach(b => b.classList.remove('selected'));
+  btn.classList.add('selected');
+  document.getElementById('scoring-mode').value = btn.dataset.mode;
+}
 
 function speakQuestion(text) {
   if (!_voiceEnabled || !window.speechSynthesis) return;
