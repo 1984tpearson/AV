@@ -141,6 +141,12 @@ textarea::placeholder{color:var(--muted);}
     </select>
     <div id="setup-err" class="err hidden"></div>
     <button class="btn btn-full" id="gen-btn" onclick="generateQuiz()">✦ Generate Quiz</button>
+    <div id="gen-progress-wrap" class="hidden" style="margin-top:14px;">
+      <div class="status-line" id="gen-progress-label" style="margin-bottom:6px;">Preparing…</div>
+      <div style="background:#0F1428;border-radius:8px;overflow:hidden;height:10px;border:1px solid var(--line);">
+        <div id="gen-progress-bar" style="height:100%;width:0%;background:linear-gradient(90deg,var(--teal),var(--gold));transition:width 0.3s ease;"></div>
+      </div>
+    </div>
   </div>
 
   <div id="screen-lobby" class="card hidden">
@@ -389,6 +395,31 @@ function genRoomCode() {
   return c;
 }
 
+let _genTrickleInterval = null;
+function setGenProgress(pct, label) {
+  document.getElementById('gen-progress-wrap').classList.remove('hidden');
+  document.getElementById('gen-progress-bar').style.width = pct + '%';
+  document.getElementById('gen-progress-label').textContent = label;
+}
+function startGenTrickle(from, ceiling, label) {
+  clearInterval(_genTrickleInterval);
+  let pct = from;
+  setGenProgress(pct, label);
+  _genTrickleInterval = setInterval(() => {
+    pct += (ceiling - pct) * 0.06;
+    setGenProgress(pct, label);
+  }, 400);
+}
+function stopGenTrickle() {
+  clearInterval(_genTrickleInterval);
+  _genTrickleInterval = null;
+}
+function resetGenProgress() {
+  stopGenTrickle();
+  document.getElementById('gen-progress-wrap').classList.add('hidden');
+  document.getElementById('gen-progress-bar').style.width = '0%';
+}
+
 async function joinHostAsPlayer() {
   const hName = (_profile && _profile.display_name) || _session.user.email;
   const hAvatar = (_profile && _profile.avatar_url) || null;
@@ -424,6 +455,8 @@ async function generateQuiz() {
 
   const btn = document.getElementById('gen-btn');
   btn.disabled = true; btn.textContent = '✦ Generating…';
+  resetGenProgress();
+  setGenProgress(5, 'Preparing…');
   try {
     const apiKey = await getAnthropicKey();
     let systemPrompt, userContent, sourceSummary;
@@ -435,7 +468,9 @@ async function generateQuiz() {
     } else if (mode === 'upload') {
       systemPrompt = `You write multiple-choice quiz questions from reference material supplied as documents/images${packageText ? ' and additional instructions' : ''}. Respond with valid JSON only — no markdown, no preamble. Format: [{"question":"...","options":["a","b","c","d"],"correct_index":0}, ...]. Rules: (1) Generate exactly ${numQ} questions. (2) Each question has exactly 4 options. (3) correct_index is 0-based and must be accurate per the source material. (4) Questions must be answerable strictly from the material provided — do not invent facts. (5) Vary question style (recall, application, scenario-based) where the material supports it. (6) ${difficultyInstruction}`;
       const blocks = [];
-      for (const file of uploadFiles) {
+      for (let i=0; i<uploadFiles.length; i++) {
+        const file = uploadFiles[i];
+        setGenProgress(8 + (i / uploadFiles.length) * 15, `Reading files… (${i+1}/${uploadFiles.length})`);
         const b64 = await fileToBase64(file);
         if (file.type === 'application/pdf') blocks.push({ type:'document', source:{ type:'base64', media_type:'application/pdf', data:b64 } });
         else blocks.push({ type:'image', source:{ type:'base64', media_type: file.type || 'image/png', data:b64 } });
@@ -450,18 +485,22 @@ async function generateQuiz() {
       sourceSummary = packageText.slice(0,2000);
     }
 
+    startGenTrickle(30, 82, '✦ Calling AI…');
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method:'POST',
       headers:{ 'Content-Type':'application/json', 'x-api-key':apiKey, 'anthropic-version':'2023-06-01', 'anthropic-dangerous-direct-browser-access':'true' },
       body: JSON.stringify({ model:'claude-sonnet-4-6', max_tokens: 4000, system: systemPrompt, messages:[{role:'user', content:userContent}] })
     });
+    stopGenTrickle();
     if (!response.ok) throw new Error('AI request failed: ' + response.status);
+    setGenProgress(85, 'Parsing response…');
     const data = await response.json();
     const text = (data.content||[]).map(b=>b.text||'').join('');
     const parsed = parseFirstJSONArray(text);
     if (!Array.isArray(parsed) || !parsed.length) throw new Error('AI returned no questions');
     _questions = parsed.map((q,i)=>({ order_index:i, question_text:q.question, options:q.options, correct_index:q.correct_index }));
 
+    setGenProgress(90, 'Creating room…');
     let code, room;
     for (let attempt=0; attempt<5; attempt++) {
       code = genRoomCode();
@@ -471,6 +510,7 @@ async function generateQuiz() {
       } catch(e) { if (attempt===4) throw e; }
     }
     _room = room;
+    setGenProgress(95, 'Saving questions…');
     await sbFetch('quiz_questions', { method:'POST', prefer:'return=minimal', body: JSON.stringify(_questions.map(q=>({ room_id:_room.id, order_index:q.order_index, question_text:q.question_text, options:q.options, correct_index:q.correct_index }))) });
 
     _hostPlays = document.getElementById('host-mode').value === 'play';
@@ -478,6 +518,7 @@ async function generateQuiz() {
     if (_hostPlays) {
       await joinHostAsPlayer();
     }
+    setGenProgress(100, 'Done!');
 
     document.getElementById('screen-setup').classList.add('hidden');
     document.getElementById('screen-lobby').classList.remove('hidden');
@@ -485,6 +526,7 @@ async function generateQuiz() {
     renderJoinQR();
     subscribeLobby();
   } catch(e) {
+    resetGenProgress();
     errEl.textContent = e.message; errEl.classList.remove('hidden');
   } finally {
     btn.disabled=false; btn.textContent='✦ Generate Quiz';
