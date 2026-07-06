@@ -79,6 +79,8 @@ textarea::placeholder{color:var(--muted);}
 .pod-step{flex:1;max-width:110px;border-radius:12px 12px 0 0;text-align:center;padding:14px 6px 10px;position:relative;animation:slideUp .5s ease backwards;}
 .pod-step .pname{font-weight:800;font-size:13px;margin-bottom:4px;}
 .pod-step .pscore{font-family:'Space Mono',monospace;font-weight:700;font-size:15px;}
+.pod-avatar{width:56px;height:56px;border-radius:50%;object-fit:cover;border:2px solid rgba(255,255,255,0.75);display:block;margin:0 auto 8px;}
+.lb-avatar{width:28px;height:28px;border-radius:50%;object-fit:cover;vertical-align:middle;margin-right:8px;}
 .pod-1{background:linear-gradient(180deg,var(--gold),#B8890A);height:150px;order:2;color:#1B1400;}
 .pod-2{background:linear-gradient(180deg,#C7CEDB,#8A93A6);height:110px;order:1;color:#12162A;}
 .pod-3{background:linear-gradient(180deg,#D98A4B,#9C5A26);height:85px;order:3;color:#1B1400;}
@@ -421,6 +423,7 @@ function showQuestion() {
   document.getElementById('game-progress').textContent = `Question ${_curIdx+1} of ${_questions.length}`;
   document.getElementById('q-text').textContent = q.question_text;
   optsEl.innerHTML = q.options.map((o,i)=>`<div class="opt-row" id="opt-${i}"><span class="shape">${shapes[i]}</span>${escapeHtml(o)}<span class="opt-count" id="opt-count-${i}"></span></div>`).join('');
+  optsEl.classList.toggle('hidden', _hostPlays);
   document.getElementById('answer-count').textContent = '';
   document.getElementById('reveal-btn').classList.remove('hidden');
   document.getElementById('next-btn').classList.add('hidden');
@@ -568,11 +571,11 @@ async function nextQuestion() {
 async function showLeaderboard() {
   document.getElementById('screen-game').classList.add('hidden');
   document.getElementById('screen-end').classList.remove('hidden');
-  const rows = await sbFetch(`quiz_players?room_id=eq.${_room.id}&select=name,score&order=score.desc`);
+  const rows = await sbFetch(`quiz_players?room_id=eq.${_room.id}&select=name,score,avatar_url&order=score.desc`);
   const top3 = rows.slice(0,3);
   const rest = rows.slice(3);
-  document.getElementById('podium').innerHTML = top3.map((p,i)=>`<div class="pod-step pod-${i+1}"><div class="pname">${escapeHtml(p.name)}</div><div class="pscore">${p.score}</div></div>`).join('');
-  document.getElementById('leaderboard').innerHTML = rest.map((p,i)=>`<div class="lb-row" style="animation-delay:${i*0.05}s"><span><span class="lb-rank">#${i+4}</span>${escapeHtml(p.name)}</span><span>${p.score} pts</span></div>`).join('');
+  document.getElementById('podium').innerHTML = top3.map((p,i)=>`<div class="pod-step pod-${i+1}">${p.avatar_url?`<img src="${escapeHtml(p.avatar_url)}" class="pod-avatar" alt="">`:''}<div class="pname">${escapeHtml(p.name)}</div><div class="pscore">${p.score}</div></div>`).join('');
+  document.getElementById('leaderboard').innerHTML = rest.map((p,i)=>`<div class="lb-row" style="animation-delay:${i*0.05}s"><span>${p.avatar_url?`<img src="${escapeHtml(p.avatar_url)}" class="lb-avatar" alt="">`:''}<span class="lb-rank">#${i+4}</span>${escapeHtml(p.name)}</span><span>${p.score} pts</span></div>`).join('');
 }
 </script>
 </body>
