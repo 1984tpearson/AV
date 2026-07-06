@@ -191,18 +191,24 @@ textarea::placeholder{color:var(--muted);}
     <div class="marquee-frame"><div class="room-code" id="room-code-display"></div></div>
     <div id="qr-code" style="display:flex;justify-content:center;margin-bottom:16px"></div>
     <div id="lobby-players" style="text-align:center;"></div>
-    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;text-transform:none;letter-spacing:normal;font-weight:600;color:var(--ink);margin-top:6px;">
-      <input type="checkbox" id="host-plays-checkbox" style="width:18px;height:18px;padding:0;margin:0;flex-shrink:0;">
-      🎮 Play along on this device
-    </label>
-    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;text-transform:none;letter-spacing:normal;font-weight:600;color:var(--ink);">
-      <input type="checkbox" id="voice-enabled" style="width:18px;height:18px;padding:0;margin:0;flex-shrink:0;">
-      🔊 Read questions aloud (this device)
-    </label>
-    <label>Voice</label>
-    <select id="voice-select">
-      <option value="">Browser default</option>
-    </select>
+    <label style="margin-top:6px;">Host device mode</label>
+    <input type="hidden" id="host-mode-value" value="display">
+    <div class="mode-toggle">
+      <button type="button" class="mode-btn selected" data-mode="display" onclick="selectHostMode(this)">Display Only</button>
+      <button type="button" class="mode-btn" data-mode="play" onclick="selectHostMode(this)">Play Along</button>
+    </div>
+    <label>Read questions aloud</label>
+    <input type="hidden" id="voice-mode-value" value="off">
+    <div class="mode-toggle">
+      <button type="button" class="mode-btn selected" data-mode="off" onclick="selectVoiceMode(this)">Off</button>
+      <button type="button" class="mode-btn" data-mode="on" onclick="selectVoiceMode(this)">On</button>
+    </div>
+    <div id="voice-select-wrap" class="hidden">
+      <label>Voice</label>
+      <select id="voice-select">
+        <option value="">Browser default</option>
+      </select>
+    </div>
     <button class="btn btn-full btn-amber" onclick="startGame()">▶ Start Game</button>
   </div>
   <div id="screen-game" class="hidden">
@@ -253,9 +259,22 @@ let _voiceEnabled = false;
 let _voiceIndex = '';
 
 function selectGameMode(btn) {
-  document.querySelectorAll('.mode-toggle .mode-btn').forEach(b => b.classList.remove('selected'));
+  btn.closest('.mode-toggle').querySelectorAll('.mode-btn').forEach(b => b.classList.remove('selected'));
   btn.classList.add('selected');
   document.getElementById('scoring-mode').value = btn.dataset.mode;
+}
+
+function selectHostMode(btn) {
+  btn.closest('.mode-toggle').querySelectorAll('.mode-btn').forEach(b => b.classList.remove('selected'));
+  btn.classList.add('selected');
+  document.getElementById('host-mode-value').value = btn.dataset.mode;
+}
+
+function selectVoiceMode(btn) {
+  btn.closest('.mode-toggle').querySelectorAll('.mode-btn').forEach(b => b.classList.remove('selected'));
+  btn.classList.add('selected');
+  document.getElementById('voice-mode-value').value = btn.dataset.mode;
+  document.getElementById('voice-select-wrap').classList.toggle('hidden', btn.dataset.mode !== 'on');
 }
 
 function speakQuestion(text) {
@@ -747,9 +766,9 @@ function startTimerUI(startedAtISO, durationSec) {
 }
 
 async function startGame() {
-  _voiceEnabled = document.getElementById('voice-enabled').checked;
+  _voiceEnabled = document.getElementById('voice-mode-value').value === 'on';
   _voiceIndex = document.getElementById('voice-select').value;
-  _hostPlays = document.getElementById('host-plays-checkbox').checked;
+  _hostPlays = document.getElementById('host-mode-value').value === 'play';
   if (!_hostPlays) {
     const playerRows = await sbFetch(`quiz_players?room_id=eq.${_room.id}&select=user_id`);
     const otherPlayers = playerRows.filter(p => p.user_id !== _session.user.id);
