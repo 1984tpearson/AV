@@ -117,6 +117,13 @@ textarea::placeholder{color:var(--muted);}
 .mode-btn.selected{background:var(--gold);color:#1B1400;border-color:var(--gold);}
 .toggle-btn{width:100%;padding:12px 10px;border:1px solid var(--line);border-radius:10px;background:#0F1428;color:var(--ink);font-family:inherit;font-weight:800;font-size:14px;cursor:pointer;transition:all .15s;margin-bottom:14px;}
 .toggle-btn.active{background:var(--gold);color:#1B1400;border-color:var(--gold);}
+.question-row{border:1px solid var(--line);border-radius:10px;padding:12px 13px;margin-bottom:10px;background:#161C36;}
+.question-row-text{font-weight:700;font-size:14px;margin-bottom:8px;}
+.question-row-opts{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px;}
+.question-row-opt{font-size:12px;padding:6px 8px;border-radius:6px;background:#0F1428;border:1px solid var(--line);color:var(--muted);}
+.question-row-opt.correct{border-color:var(--teal);color:var(--teal);font-weight:700;}
+.q-regen-btn{width:100%;padding:8px;font-size:12px;background:#0F1428;color:var(--ink);border:1px solid var(--line);}
+.q-regen-btn:hover{border-color:var(--gold);}
 @media (max-width: 640px) {
   .game-layout{flex-direction:column;}
   .game-sidebar{width:100%;padding:10px 12px;}
@@ -193,6 +200,13 @@ textarea::placeholder{color:var(--muted);}
     <div class="marquee-frame"><div class="room-code" id="room-code-display"></div></div>
     <div id="qr-code" style="display:flex;justify-content:center;margin-bottom:16px"></div>
     <div id="lobby-players" style="text-align:center;"></div>
+    <details class="adv-box">
+      <summary>Questions (<span id="questions-count">0</span>)</summary>
+      <div class="adv-box-body">
+        <button type="button" class="btn btn-full" id="regen-all-btn" onclick="regenerateAllQuestions()" style="margin-bottom:12px;">↻ Regenerate All</button>
+        <div id="questions-list"></div>
+      </div>
+    </details>
     <label style="margin-top:6px;">Host device mode</label>
     <input type="hidden" id="host-mode-value" value="display">
     <button type="button" class="toggle-btn" id="host-mode-btn" onclick="toggleHostMode()">Display Only</button>
@@ -595,6 +609,60 @@ async function joinHostAsPlayer() {
 
 function escapeHtml(s){ return String(s==null?'':s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 
+let _genContext = null; // { mode, topicText, packageText, uploadBlocks, difficultyInstruction, numQ } — persists after generation so Regenerate/Regenerate All can rebuild the same prompt
+
+// Builds the system prompt for a quiz-generation call. count = how many questions to
+// request; wantTheme = whether to also ask for theme colours (only the very first
+// generation needs this — regenerations keep the existing theme); avoidList = question
+// texts already in the quiz, so regenerated questions don't repeat them.
+function buildSystemPrompt(count, wantTheme, avoidList) {
+  const mode = _genContext.mode;
+  const base = mode === 'topic'
+    ? 'You write multiple-choice quiz questions on a given topic.'
+    : `You write multiple-choice quiz questions from reference material${mode==='upload' ? ' supplied as documents/images' : ''}.`;
+  const factRule = mode === 'topic'
+    ? 'correct_index is 0-based and must be factually correct.'
+    : 'correct_index is 0-based and must be accurate per the source material.';
+  const varyRule = mode === 'topic'
+    ? 'Vary question style (recall, application, scenario-based) where the topic supports it.'
+    : 'Questions must be answerable strictly from the material provided — do not invent facts. Vary question style (recall, application, scenario-based) where the material supports it.';
+  const searchRule = mode === 'topic'
+    ? ' (5) If the topic involves recent, current, or time-sensitive information (e.g. "current events", ongoing tournaments or competitions, recent news), use the web search tool to verify facts before writing questions. For timeless or historical topics, rely on your own knowledge without searching. Only include facts you are confident are accurate — do not invent statistics, dates, or names.'
+    : '';
+  const themeFormatPart = wantTheme ? '"theme":{"primary":"#RRGGBB","secondary":"#RRGGBB"},' : '';
+  const themeRule = wantTheme ? ` (7) theme.primary and theme.secondary must be vivid, punchy hex colours (not muddy or pastel) that evoke the subject matter visually. Pick colours that would look good as bold neon accents on a dark background.` : '';
+  const avoidRule = (avoidList && avoidList.length)
+    ? ` (${wantTheme?8:7}) Do not repeat any question already used in this quiz — avoid duplicating the fact, angle, or specific detail tested by these existing questions: ${avoidList.map(t=>`"${t}"`).join('; ')}.`
+    : '';
+  return `${base} Respond with valid JSON only — no markdown, no preamble, no commentary before or after the JSON. Format: {${themeFormatPart}"questions":[{"question":"...","options":["a","b","c","d"],"correct_index":0}${count>1?', ...':''}]}. Rules: (1) Generate exactly ${count} question${count>1?'s':''}. (2) Each question has exactly 4 options. (3) ${factRule} (4) ${varyRule}${searchRule} (6) ${_genContext.difficultyInstruction}${themeRule}${avoidRule}`;
+}
+
+function buildUserContent() {
+  const { mode, topicText, packageText, uploadBlocks } = _genContext;
+  if (mode === 'topic') return `Topic: ${topicText}\n\nGenerate the quiz as JSON.`;
+  if (mode === 'upload') return uploadBlocks.concat([{ type:'text', text:'Generate the quiz as JSON from the material above.' }]);
+  return `Reference material:\n\n${packageText}\n\nGenerate the quiz as JSON.`;
+}
+
+async function callQuizAI(count, wantTheme, avoidList) {
+  const apiKey = await getAnthropicKey();
+  const systemPrompt = buildSystemPrompt(count, wantTheme, avoidList);
+  const userContent = buildUserContent();
+  const requestBody = { model:'claude-sonnet-4-6', max_tokens: wantTheme ? 4000 : Math.max(1200, count*500), system: systemPrompt, messages:[{role:'user', content:userContent}] };
+  if (_genContext.mode === 'topic') requestBody.tools = [{ type:'web_search_20250305', name:'web_search', max_uses:5 }];
+  const response = await fetch('https://api.anthropic.com/v1/messages', {
+    method:'POST',
+    headers:{ 'Content-Type':'application/json', 'x-api-key':apiKey, 'anthropic-version':'2023-06-01', 'anthropic-dangerous-direct-browser-access':'true' },
+    body: JSON.stringify(requestBody)
+  });
+  if (!response.ok) throw new Error('AI request failed: ' + response.status);
+  const data = await response.json();
+  const text = (data.content||[]).map(b=>b.text||'').join('');
+  const parsed = parseFirstJSONObject(text);
+  if (!parsed || !Array.isArray(parsed.questions) || !parsed.questions.length) throw new Error('AI returned no questions');
+  return parsed;
+}
+
 async function generateQuiz() {
   const errEl = document.getElementById('setup-err');
   errEl.classList.add('hidden');
@@ -622,50 +690,30 @@ async function generateQuiz() {
   resetGenProgress();
   setGenProgress(5, 'Preparing…');
   try {
-    const apiKey = await getAnthropicKey();
-    let systemPrompt, userContent, sourceSummary;
-
-    if (mode === 'topic') {
-      systemPrompt = `You write multiple-choice quiz questions on a given topic. Respond with valid JSON only — no markdown, no preamble, no commentary before or after the JSON. Format: {"theme":{"primary":"#RRGGBB","secondary":"#RRGGBB"},"questions":[{"question":"...","options":["a","b","c","d"],"correct_index":0}, ...]}. Rules: (1) Generate exactly ${numQ} questions. (2) Each question has exactly 4 options. (3) correct_index is 0-based and must be factually correct. (4) Vary question style (recall, application, scenario-based) where the topic supports it. (5) If the topic involves recent, current, or time-sensitive information (e.g. "current events", ongoing tournaments or competitions, recent news), use the web search tool to verify facts before writing questions. For timeless or historical topics, rely on your own knowledge without searching. (6) Only include facts you are confident are accurate — do not invent statistics, dates, or names. (7) ${difficultyInstruction} (8) theme.primary and theme.secondary must be vivid, punchy hex colours (not muddy or pastel) that evoke the topic visually — e.g. a strawberry topic might suggest a pink/red primary and green secondary, a tree frog topic a green primary and a contrasting accent secondary. Pick colours that would look good as bold neon accents on a dark background.`;
-      userContent = `Topic: ${topicText}\n\nGenerate the quiz as JSON.`;
-      sourceSummary = `Topic: ${topicText}`;
-    } else if (mode === 'upload') {
-      systemPrompt = `You write multiple-choice quiz questions from reference material supplied as documents/images${packageText ? ' and additional instructions' : ''}. Respond with valid JSON only — no markdown, no preamble. Format: {"theme":{"primary":"#RRGGBB","secondary":"#RRGGBB"},"questions":[{"question":"...","options":["a","b","c","d"],"correct_index":0}, ...]}. Rules: (1) Generate exactly ${numQ} questions. (2) Each question has exactly 4 options. (3) correct_index is 0-based and must be accurate per the source material. (4) Questions must be answerable strictly from the material provided — do not invent facts. (5) Vary question style (recall, application, scenario-based) where the material supports it. (6) ${difficultyInstruction} (7) theme.primary and theme.secondary must be vivid, punchy hex colours (not muddy or pastel) that evoke the subject matter visually. Pick colours that would look good as bold neon accents on a dark background.`;
-      const blocks = [];
+    let uploadBlocks = [];
+    let sourceSummary;
+    if (mode === 'upload') {
       for (let i=0; i<uploadFiles.length; i++) {
         const file = uploadFiles[i];
         setGenProgress(8 + (i / uploadFiles.length) * 15, `Reading files… (${i+1}/${uploadFiles.length})`);
         const b64 = await fileToBase64(file);
-        if (file.type === 'application/pdf') blocks.push({ type:'document', source:{ type:'base64', media_type:'application/pdf', data:b64 } });
-        else blocks.push({ type:'image', source:{ type:'base64', media_type: file.type || 'image/png', data:b64 } });
+        if (file.type === 'application/pdf') uploadBlocks.push({ type:'document', source:{ type:'base64', media_type:'application/pdf', data:b64 } });
+        else uploadBlocks.push({ type:'image', source:{ type:'base64', media_type: file.type || 'image/png', data:b64 } });
       }
-      if (packageText) blocks.push({ type:'text', text: packageText });
-      blocks.push({ type:'text', text:'Generate the quiz as JSON from the material above.' });
-      userContent = blocks;
+      if (packageText) uploadBlocks.push({ type:'text', text: packageText });
       sourceSummary = `Uploaded: ${uploadFiles.map(f=>f.name).join(', ')}` + (packageText ? ` + notes: ${packageText.slice(0,500)}` : '');
+    } else if (mode === 'topic') {
+      sourceSummary = `Topic: ${topicText}`;
     } else {
-      systemPrompt = `You write multiple-choice quiz questions from reference material. Respond with valid JSON only — no markdown, no preamble. Format: {"theme":{"primary":"#RRGGBB","secondary":"#RRGGBB"},"questions":[{"question":"...","options":["a","b","c","d"],"correct_index":0}, ...]}. Rules: (1) Generate exactly ${numQ} questions. (2) Each question has exactly 4 options. (3) correct_index is 0-based and must be accurate per the source material. (4) Questions must be answerable strictly from the material provided — do not invent facts. (5) Vary question style (recall, application, scenario-based) where the material supports it. (6) ${difficultyInstruction} (7) theme.primary and theme.secondary must be vivid, punchy hex colours (not muddy or pastel) that evoke the subject matter visually. Pick colours that would look good as bold neon accents on a dark background.`;
-      userContent = `Reference material:\n\n${packageText}\n\nGenerate the quiz as JSON.`;
       sourceSummary = packageText.slice(0,2000);
     }
 
+    _genContext = { mode, topicText, packageText, uploadBlocks, difficultyInstruction, numQ };
+
     startGenTrickle(30, 82, '✦ Calling AI…');
-    const requestBody = { model:'claude-sonnet-4-6', max_tokens: 4000, system: systemPrompt, messages:[{role:'user', content:userContent}] };
-    if (mode === 'topic') {
-      requestBody.tools = [{ type:'web_search_20250305', name:'web_search', max_uses:5 }];
-    }
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
-      method:'POST',
-      headers:{ 'Content-Type':'application/json', 'x-api-key':apiKey, 'anthropic-version':'2023-06-01', 'anthropic-dangerous-direct-browser-access':'true' },
-      body: JSON.stringify(requestBody)
-    });
+    const parsed = await callQuizAI(numQ, true, null);
     stopGenTrickle();
-    if (!response.ok) throw new Error('AI request failed: ' + response.status);
     setGenProgress(85, 'Parsing response…');
-    const data = await response.json();
-    const text = (data.content||[]).map(b=>b.text||'').join('');
-    const parsed = parseFirstJSONObject(text);
-    if (!parsed || !Array.isArray(parsed.questions) || !parsed.questions.length) throw new Error('AI returned no questions');
     _questions = parsed.questions.map((q,i)=>({ order_index:i, question_text:q.question, options:q.options, correct_index:q.correct_index }));
     const themePrimary = (parsed.theme && isValidHex(parsed.theme.primary)) ? parsed.theme.primary : null;
     const themeSecondary = (parsed.theme && isValidHex(parsed.theme.secondary)) ? parsed.theme.secondary : null;
@@ -682,7 +730,8 @@ async function generateQuiz() {
     _room = room;
     applyQuizTheme(_room.theme_primary, _room.theme_secondary);
     setGenProgress(95, 'Saving questions…');
-    await sbFetch('quiz_questions', { method:'POST', prefer:'return=minimal', body: JSON.stringify(_questions.map(q=>({ room_id:_room.id, order_index:q.order_index, question_text:q.question_text, options:q.options, correct_index:q.correct_index }))) });
+    const insertedRows = await sbFetch('quiz_questions', { method:'POST', body: JSON.stringify(_questions.map(q=>({ room_id:_room.id, order_index:q.order_index, question_text:q.question_text, options:q.options, correct_index:q.correct_index }))) });
+    insertedRows.forEach((row,i) => { _questions[i].id = row.id; });
 
     _scoringMode = document.getElementById('scoring-mode').value;
     setGenProgress(100, 'Done!');
@@ -691,6 +740,7 @@ async function generateQuiz() {
     document.getElementById('screen-lobby').classList.remove('hidden');
     document.getElementById('room-code-display').textContent = _room.code;
     renderJoinQR();
+    renderQuestionsList();
     subscribeLobby();
   } catch(e) {
     resetGenProgress();
@@ -698,6 +748,61 @@ async function generateQuiz() {
   } finally {
     btn.disabled=false; btn.textContent='✦ Generate Quiz';
   }
+}
+
+async function regenerateQuestion(index) {
+  const btn = document.getElementById(`regen-btn-${index}`);
+  if (btn) { btn.disabled = true; btn.textContent = '…'; }
+  try {
+    const avoidList = _questions.map(q => q.question_text);
+    const parsed = await callQuizAI(1, false, avoidList);
+    const newQ = parsed.questions[0];
+    const q = _questions[index];
+    q.question_text = newQ.question; q.options = newQ.options; q.correct_index = newQ.correct_index;
+    await sbFetch(`quiz_questions?id=eq.${q.id}`, { method:'PATCH', prefer:'return=minimal', body: JSON.stringify({ question_text:q.question_text, options:q.options, correct_index:q.correct_index }) });
+    renderQuestionsList();
+  } catch(e) {
+    console.error(e);
+    if (btn) { btn.disabled = false; btn.textContent = 'Failed — retry'; }
+    return;
+  }
+}
+
+async function regenerateAllQuestions() {
+  const btn = document.getElementById('regen-all-btn');
+  btn.disabled = true; btn.textContent = 'Regenerating…';
+  document.querySelectorAll('.q-regen-btn').forEach(b => b.disabled = true);
+  let ok = true;
+  try {
+    const parsed = await callQuizAI(_genContext.numQ, false, null);
+    const newQuestions = parsed.questions.map((q,i)=>({ order_index:i, question_text:q.question, options:q.options, correct_index:q.correct_index }));
+    await sbFetch(`quiz_questions?room_id=eq.${_room.id}`, { method:'DELETE', prefer:'return=minimal' });
+    const inserted = await sbFetch('quiz_questions', { method:'POST', body: JSON.stringify(newQuestions.map(q=>({ room_id:_room.id, order_index:q.order_index, question_text:q.question_text, options:q.options, correct_index:q.correct_index }))) });
+    newQuestions.forEach((q,i) => { q.id = inserted[i].id; });
+    _questions = newQuestions;
+    renderQuestionsList();
+  } catch(e) {
+    console.error(e);
+    ok = false;
+  }
+  btn.disabled = false;
+  btn.textContent = ok ? '↻ Regenerate All' : 'Failed — try again';
+}
+
+function renderQuestionsList() {
+  const list = document.getElementById('questions-list');
+  const countEl = document.getElementById('questions-count');
+  if (!list || !countEl) return;
+  countEl.textContent = _questions.length;
+  list.innerHTML = _questions.map((q,i) => `
+    <div class="question-row">
+      <div class="question-row-text">${i+1}. ${escapeHtml(q.question_text)}</div>
+      <div class="question-row-opts">
+        ${q.options.map((o,oi)=>`<div class="question-row-opt${oi===q.correct_index?' correct':''}">${escapeHtml(o)}</div>`).join('')}
+      </div>
+      <button type="button" class="btn q-regen-btn" id="regen-btn-${i}" onclick="regenerateQuestion(${i})">Regenerate</button>
+    </div>
+  `).join('');
 }
 
 function subscribeLobby() {
