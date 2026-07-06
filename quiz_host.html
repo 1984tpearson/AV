@@ -115,6 +115,8 @@ textarea::placeholder{color:var(--muted);}
 .mode-toggle{display:flex;gap:10px;margin-bottom:14px;}
 .mode-btn{flex:1;padding:12px 10px;border:1px solid var(--line);border-radius:10px;background:#0F1428;color:var(--ink);font-family:inherit;font-weight:800;font-size:14px;cursor:pointer;transition:all .15s;}
 .mode-btn.selected{background:var(--gold);color:#1B1400;border-color:var(--gold);}
+.toggle-btn{width:100%;padding:12px 10px;border:1px solid var(--line);border-radius:10px;background:#0F1428;color:var(--ink);font-family:inherit;font-weight:800;font-size:14px;cursor:pointer;transition:all .15s;margin-bottom:14px;}
+.toggle-btn.active{background:var(--gold);color:#1B1400;border-color:var(--gold);}
 @media (max-width: 640px) {
   .game-layout{flex-direction:column;}
   .game-sidebar{width:100%;padding:10px 12px;}
@@ -160,7 +162,7 @@ textarea::placeholder{color:var(--muted);}
       <option value="hard">Hard</option>
       <option value="extreme">Extreme</option>
     </select>
-    <details class="adv-box">
+    <details class="adv-box" open>
       <summary>Quiz settings</summary>
       <div class="adv-box-body">
         <label>Number of questions</label>
@@ -193,16 +195,10 @@ textarea::placeholder{color:var(--muted);}
     <div id="lobby-players" style="text-align:center;"></div>
     <label style="margin-top:6px;">Host device mode</label>
     <input type="hidden" id="host-mode-value" value="display">
-    <div class="mode-toggle">
-      <button type="button" class="mode-btn selected" data-mode="display" onclick="selectHostMode(this)">Display Only</button>
-      <button type="button" class="mode-btn" data-mode="play" onclick="selectHostMode(this)">Play Along</button>
-    </div>
+    <button type="button" class="toggle-btn" id="host-mode-btn" onclick="toggleHostMode()">Display Only</button>
     <label>Read questions aloud</label>
     <input type="hidden" id="voice-mode-value" value="off">
-    <div class="mode-toggle">
-      <button type="button" class="mode-btn selected" data-mode="off" onclick="selectVoiceMode(this)">Off</button>
-      <button type="button" class="mode-btn" data-mode="on" onclick="selectVoiceMode(this)">On</button>
-    </div>
+    <button type="button" class="toggle-btn" id="voice-mode-btn" onclick="toggleVoiceMode()">Off</button>
     <div id="voice-select-wrap" class="hidden">
       <label>Voice</label>
       <select id="voice-select">
@@ -264,17 +260,23 @@ function selectGameMode(btn) {
   document.getElementById('scoring-mode').value = btn.dataset.mode;
 }
 
-function selectHostMode(btn) {
-  btn.closest('.mode-toggle').querySelectorAll('.mode-btn').forEach(b => b.classList.remove('selected'));
-  btn.classList.add('selected');
-  document.getElementById('host-mode-value').value = btn.dataset.mode;
+function toggleHostMode() {
+  const hidden = document.getElementById('host-mode-value');
+  const btn = document.getElementById('host-mode-btn');
+  const nowPlay = hidden.value !== 'play';
+  hidden.value = nowPlay ? 'play' : 'display';
+  btn.textContent = nowPlay ? 'Play Along' : 'Display Only';
+  btn.classList.toggle('active', nowPlay);
 }
 
-function selectVoiceMode(btn) {
-  btn.closest('.mode-toggle').querySelectorAll('.mode-btn').forEach(b => b.classList.remove('selected'));
-  btn.classList.add('selected');
-  document.getElementById('voice-mode-value').value = btn.dataset.mode;
-  document.getElementById('voice-select-wrap').classList.toggle('hidden', btn.dataset.mode !== 'on');
+function toggleVoiceMode() {
+  const hidden = document.getElementById('voice-mode-value');
+  const btn = document.getElementById('voice-mode-btn');
+  const nowOn = hidden.value !== 'on';
+  hidden.value = nowOn ? 'on' : 'off';
+  btn.textContent = nowOn ? 'On' : 'Off';
+  btn.classList.toggle('active', nowOn);
+  document.getElementById('voice-select-wrap').classList.toggle('hidden', !nowOn);
 }
 
 function speakQuestion(text) {
