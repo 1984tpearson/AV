@@ -124,6 +124,8 @@ textarea::placeholder{color:var(--muted);}
 .question-row-opt.correct{border-color:var(--teal);color:var(--teal);font-weight:700;}
 .q-regen-btn{width:100%;padding:8px;font-size:12px;background:#0F1428;color:var(--ink);border:1px solid var(--line);}
 .q-regen-btn:hover{border-color:var(--gold);}
+#q-image-wrap{text-align:center;margin-bottom:16px;}
+#q-image-wrap img{max-width:100%;max-height:220px;border-radius:12px;border:1px solid var(--line);}
 @media (max-width: 640px) {
   .game-layout{flex-direction:column;}
   .game-sidebar{width:100%;padding:10px 12px;}
@@ -219,6 +221,9 @@ textarea::placeholder{color:var(--muted);}
         <option value="">Browser default</option>
       </select>
     </div>
+    <label>Show question images (this device)</label>
+    <input type="hidden" id="images-mode-value" value="off">
+    <button type="button" class="toggle-btn" id="images-mode-btn" onclick="toggleImagesMode()">Off</button>
     <button class="btn btn-full btn-amber" onclick="startGame()">▶ Start Game</button>
   </div>
   <div id="screen-game" class="hidden">
@@ -232,6 +237,7 @@ textarea::placeholder{color:var(--muted);}
           </div>
         </div>
         <div class="q-text" id="q-text"></div>
+        <div id="q-image-wrap" class="hidden"><img id="q-image" alt=""></div>
         <div id="q-options"></div>
         <div id="host-play-panel" class="hidden">
           <h2 style="margin-top:6px">Your Answer</h2>
@@ -291,6 +297,53 @@ function toggleVoiceMode() {
   btn.textContent = nowOn ? 'On' : 'Off';
   btn.classList.toggle('active', nowOn);
   document.getElementById('voice-select-wrap').classList.toggle('hidden', !nowOn);
+}
+
+function toggleImagesMode() {
+  const hidden = document.getElementById('images-mode-value');
+  const btn = document.getElementById('images-mode-btn');
+  const nowOn = hidden.value !== 'on';
+  hidden.value = nowOn ? 'on' : 'off';
+  btn.textContent = nowOn ? 'On' : 'Off';
+  btn.classList.toggle('active', nowOn);
+  if (nowOn) resolveAllQuestionImages();
+}
+
+// Resolves a question's image_query to an actual image URL via Wikipedia's public API —
+// no API key, no LLM tokens, single combined search+thumbnail request. Leaves image_url
+// as null (silently, no image shown) if nothing decent comes back.
+async function resolveQuestionImage(index) {
+  const q = _questions[index];
+  if (!q || !q.image_query || q.image_url !== null) return; // already resolved (or no query)
+  try {
+    const url = `https://en.wikipedia.org/w/api.php?action=query&generator=search&gsrsearch=${encodeURIComponent(q.image_query)}&gsrlimit=1&prop=pageimages&piprop=thumbnail&pithumbsize=500&format=json&origin=*`;
+    const res = await fetch(url);
+    const data = await res.json();
+    const pages = data && data.query && data.query.pages;
+    const page = pages ? Object.values(pages)[0] : null;
+    q.image_url = (page && page.thumbnail && page.thumbnail.source) || undefined; // undefined = "tried, nothing found" (distinct from null = "not yet tried")
+  } catch(e) {
+    q.image_url = undefined;
+  }
+  if (_questions[_curIdx] === q) updateQuestionImageDisplay();
+}
+
+async function resolveAllQuestionImages() {
+  await Promise.all(_questions.map((q,i) => q.image_url === null ? resolveQuestionImage(i) : Promise.resolve()));
+}
+
+function updateQuestionImageDisplay() {
+  const wrap = document.getElementById('q-image-wrap');
+  const img = document.getElementById('q-image');
+  const q = _questions[_curIdx];
+  const showImages = document.getElementById('images-mode-value').value === 'on';
+  if (showImages && q && q.image_url) {
+    img.src = q.image_url;
+    wrap.classList.remove('hidden');
+  } else {
+    wrap.classList.add('hidden');
+    img.src = '';
+  }
 }
 
 function speakQuestion(text) {
@@ -637,7 +690,7 @@ function buildSystemPrompt(count, wantTheme, avoidList) {
   const avoidRule = (avoidList && avoidList.length)
     ? ` (${wantTheme?8:7}) Do not repeat any question already used in this quiz — avoid duplicating the fact, angle, or specific detail tested by these existing questions: ${avoidList.map(t=>`"${t}"`).join('; ')}.`
     : '';
-  return `${base} Respond with valid JSON only — no markdown, no preamble, no commentary before or after the JSON. Format: {${themeFormatPart}"questions":[{"question":"...","options":["a","b","c","d"],"correct_index":0}${count>1?', ...':''}]}. Rules: (1) Generate exactly ${count} question${count>1?'s':''}. (2) Each question has exactly 4 options. (3) ${factRule} (4) ${varyRule}${searchRule} (6) ${_genContext.difficultyInstruction}${themeRule}${avoidRule}`;
+  return `${base} Respond with valid JSON only — no markdown, no preamble, no commentary before or after the JSON. Format: {${themeFormatPart}"questions":[{"question":"...","options":["a","b","c","d"],"correct_index":0,"image_query":"..."}${count>1?', ...':''}]}. Rules: (1) Generate exactly ${count} question${count>1?'s':''}. (2) Each question has exactly 4 options. (3) ${factRule} (4) ${varyRule}${searchRule} (6) ${_genContext.difficultyInstruction} (9) image_query is a short 2-4 word phrase naming a concrete, photographable subject connected to that question (e.g. "ripe strawberry", "Mount Everest summit") — avoid abstract or overly specific medical/technical phrasing that a stock photo search wouldn't match.${themeRule}${avoidRule}`;
 }
 
 function buildUserContent() {
@@ -717,7 +770,7 @@ async function generateQuiz() {
     const parsed = await callQuizAI(numQ, true, null);
     stopGenTrickle();
     setGenProgress(85, 'Parsing response…');
-    _questions = parsed.questions.map((q,i)=>({ order_index:i, question_text:q.question, options:q.options, correct_index:q.correct_index }));
+    _questions = parsed.questions.map((q,i)=>({ order_index:i, question_text:q.question, options:q.options, correct_index:q.correct_index, image_query:q.image_query||null, image_url:null }));
     const themePrimary = (parsed.theme && isValidHex(parsed.theme.primary)) ? parsed.theme.primary : null;
     const themeSecondary = (parsed.theme && isValidHex(parsed.theme.secondary)) ? parsed.theme.secondary : null;
     const themeTertiary = (parsed.theme && isValidHex(parsed.theme.tertiary)) ? parsed.theme.tertiary : null;
@@ -764,8 +817,10 @@ async function regenerateQuestion(index) {
     const newQ = parsed.questions[0];
     const q = _questions[index];
     q.question_text = newQ.question; q.options = newQ.options; q.correct_index = newQ.correct_index;
+    q.image_query = newQ.image_query || null; q.image_url = null;
     await sbFetch(`quiz_questions?id=eq.${q.id}`, { method:'PATCH', prefer:'return=minimal', body: JSON.stringify({ question_text:q.question_text, options:q.options, correct_index:q.correct_index }) });
     renderQuestionsList();
+    if (document.getElementById('images-mode-value').value === 'on') resolveQuestionImage(index);
   } catch(e) {
     console.error(e);
     if (btn) { btn.disabled = false; btn.textContent = 'Failed — retry'; }
@@ -780,12 +835,13 @@ async function regenerateAllQuestions() {
   let ok = true;
   try {
     const parsed = await callQuizAI(_genContext.numQ, false, null);
-    const newQuestions = parsed.questions.map((q,i)=>({ order_index:i, question_text:q.question, options:q.options, correct_index:q.correct_index }));
+    const newQuestions = parsed.questions.map((q,i)=>({ order_index:i, question_text:q.question, options:q.options, correct_index:q.correct_index, image_query:q.image_query||null, image_url:null }));
     await sbFetch(`quiz_questions?room_id=eq.${_room.id}`, { method:'DELETE', prefer:'return=minimal' });
     const inserted = await sbFetch('quiz_questions', { method:'POST', body: JSON.stringify(newQuestions.map(q=>({ room_id:_room.id, order_index:q.order_index, question_text:q.question_text, options:q.options, correct_index:q.correct_index }))) });
     newQuestions.forEach((q,i) => { q.id = inserted[i].id; });
     _questions = newQuestions;
     renderQuestionsList();
+    if (document.getElementById('images-mode-value').value === 'on') resolveAllQuestionImages();
   } catch(e) {
     console.error(e);
     ok = false;
@@ -938,6 +994,7 @@ function showQuestion() {
   optsEl.style.setProperty('--qtext', pal[2]);
   document.getElementById('game-progress').textContent = `Question ${_curIdx+1} of ${_questions.length}`;
   document.getElementById('q-text').textContent = q.question_text;
+  updateQuestionImageDisplay();
   speakQuestion(q.question_text);
   optsEl.innerHTML = q.options.map((o,i)=>`<div class="opt-row" id="opt-${i}"><span class="shape">${shapes[i]}</span>${escapeHtml(o)}<span class="opt-count" id="opt-count-${i}"></span></div>`).join('');
   optsEl.classList.toggle('hidden', _hostPlays);
