@@ -70,6 +70,9 @@ textarea::placeholder{color:var(--muted);}
 .opt-row.faded{opacity:0.35;transform:scale(0.98);}
 @keyframes pulseGlow{0%,100%{box-shadow:0 0 0 rgba(47,230,196,0.5);}50%{box-shadow:0 0 28px 6px rgba(47,230,196,0.6);}}
 .opt-count{margin-left:auto;font-family:'Space Mono',monospace;font-weight:700;font-size:15px;}
+.opt-row.clickable{cursor:pointer;border:none;width:100%;text-align:left;font-family:inherit;}
+.opt-row.clickable:disabled{opacity:0.6;cursor:default;}
+.opt-row.selected{outline:3px solid var(--gold);outline-offset:2px;}
 .status-line{text-align:center;color:var(--muted);font-size:13px;margin-bottom:12px;}
 .hidden{display:none;}
 .podium{display:flex;align-items:flex-end;justify-content:center;gap:10px;margin:20px 0 24px;}
@@ -106,6 +109,11 @@ textarea::placeholder{color:var(--muted);}
     <input type="number" id="num-questions" min="3" max="15" value="5">
     <label>Time per question (seconds)</label>
     <input type="number" id="q-duration" min="5" max="60" value="20">
+    <label>Host device mode</label>
+    <select id="host-mode">
+      <option value="display">Display Only</option>
+      <option value="play">Play Along</option>
+    </select>
     <div id="setup-err" class="err hidden"></div>
     <button class="btn btn-full" id="gen-btn" onclick="generateQuiz()">✦ Generate Quiz</button>
   </div>
@@ -130,6 +138,10 @@ textarea::placeholder{color:var(--muted);}
         </div>
         <div class="q-text" id="q-text"></div>
         <div id="q-options"></div>
+        <div id="host-play-panel" class="hidden">
+          <h2 style="margin-top:6px">Your Answer</h2>
+          <div id="host-options"></div>
+        </div>
         <div class="status-line" id="answer-count"></div>
         <button class="btn btn-full" id="reveal-btn" onclick="manualReveal()">👁 Reveal Answer</button>
         <button class="btn btn-full btn-amber hidden" id="next-btn" onclick="triggerNext()">Next Question ▶</button>
@@ -155,6 +167,7 @@ const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
 const _sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 let _session=null, _room=null, _questions=[], _curIdx=-1, _playersChannel=null, _answersChannel=null, _revealing=false, _timerInterval=null, _questionDuration=20;
 let _autoAdvanceTimer=null, _autoAdvanceCountdownInterval=null, _advancing=false;
+let _profile=null, _hostPlays=false, _hostPlayerId=null, _hostAnswered=false;
 
 async function requireAuth() {
   const { data: { session } } = await _sb.auth.getSession();
@@ -165,7 +178,8 @@ async function requireAuth() {
 async function init() {
   _session = await requireAuth();
   if (!_session) return;
-  const { data: profile } = await _sb.from('profiles').select('display_name').eq('id', _session.user.id).single();
+  const { data: profile } = await _sb.from('profiles').select('display_name, avatar_url').eq('id', _session.user.id).single();
+  _profile = profile;
   document.getElementById('host-name').textContent = (profile && profile.display_name) || _session.user.email;
 }
 init();
@@ -286,6 +300,16 @@ async function generateQuiz() {
     _room = room;
     await sbFetch('quiz_questions', { method:'POST', prefer:'return=minimal', body: JSON.stringify(_questions.map(q=>({ room_id:_room.id, order_index:q.order_index, question_text:q.question_text, options:q.options, correct_index:q.correct_index }))) });
 
+    _hostPlays = document.getElementById('host-mode').value === 'play';
+    if (_hostPlays) {
+      const hName = (_profile && _profile.display_name) || _session.user.email;
+      const hAvatar = (_profile && _profile.avatar_url) || null;
+      const hprows = await sbFetch(`quiz_players?on_conflict=room_id,user_id`, { method:'POST',
+        headers:{ 'Prefer':'resolution=merge-duplicates,return=representation' },
+        body: JSON.stringify({ room_id:_room.id, user_id:_session.user.id, name:hName, avatar_url:hAvatar }) });
+      _hostPlayerId = hprows[0].id;
+    }
+
     document.getElementById('screen-setup').classList.add('hidden');
     document.getElementById('screen-lobby').classList.remove('hidden');
     document.getElementById('room-code-display').textContent = _room.code;
@@ -393,6 +417,18 @@ function showQuestion() {
   document.getElementById('answer-count').textContent = '';
   document.getElementById('reveal-btn').classList.remove('hidden');
   document.getElementById('next-btn').classList.add('hidden');
+  _hostAnswered = false;
+  const hostPanel = document.getElementById('host-play-panel');
+  if (_hostPlays) {
+    hostPanel.classList.remove('hidden');
+    const hostOptsEl = document.getElementById('host-options');
+    hostOptsEl.style.setProperty('--qc1', pal[0]);
+    hostOptsEl.style.setProperty('--qc2', pal[1]);
+    hostOptsEl.style.setProperty('--qtext', pal[2]);
+    hostOptsEl.innerHTML = q.options.map((o,i)=>`<button type="button" class="opt-row clickable" id="host-opt-${i}" onclick="submitHostAnswer(${i})"><span class="shape">${shapes[i]}</span>${escapeHtml(o)}</button>`).join('');
+  } else {
+    hostPanel.classList.add('hidden');
+  }
   startTimerUI(_room.question_started_at, _room.question_duration_seconds);
 }
 
@@ -431,6 +467,18 @@ function manualReveal() {
   revealAnswer();
 }
 
+async function submitHostAnswer(selectedIndex) {
+  if (_hostAnswered || !_hostPlayerId) return;
+  _hostAnswered = true;
+  document.querySelectorAll('#host-options .opt-row').forEach((el,i)=>{ el.disabled = true; if (i===selectedIndex) el.classList.add('selected'); });
+  const qid = await currentQuestionId();
+  const q = _questions[_curIdx];
+  try {
+    await sbFetch('quiz_answers', { method:'POST', prefer:'return=minimal',
+      body: JSON.stringify({ room_id:_room.id, question_id:qid, player_id:_hostPlayerId, selected_index:selectedIndex, is_correct: selectedIndex===q.correct_index }) });
+  } catch(e) { /* likely already answered — ignore */ }
+}
+
 async function revealAnswer() {
   clearInterval(_timerInterval);
   const q = _questions[_curIdx];
@@ -441,6 +489,11 @@ async function revealAnswer() {
   q.options.forEach((_,i)=>{
     const el = document.getElementById('opt-'+i);
     if (i === q.correct_index) el.classList.add('correct'); else el.classList.add('faded');
+    const hostEl = document.getElementById('host-opt-'+i);
+    if (hostEl) {
+      hostEl.disabled = true;
+      if (i === q.correct_index) hostEl.classList.add('correct'); else hostEl.classList.add('faded');
+    }
   });
 
   const correctPlayerIds = answers.filter(a=>a.selected_index===q.correct_index).map(a=>a.player_id);
