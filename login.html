@@ -56,6 +56,14 @@ h1 { font-size: 22px; font-weight: 800; color: #1C3A6E; margin-bottom: 4px; }
 }
 .google-btn:hover { background: #f5f5f5; }
 .status { margin-top: 14px; font-size: 13px; color: #6C7A89; min-height: 20px; }
+.webview-warning {
+  display: none;
+  background: #FDECEA; border: 1px solid #F5B7B1;
+  border-radius: 8px; padding: 12px 14px;
+  margin-bottom: 20px;
+  font-size: 12.5px; color: #7B241C; line-height: 1.5; text-align: left;
+}
+.webview-warning strong { display: block; margin-bottom: 4px; font-size: 13px; }
 </style>
 </head>
 <body>
@@ -68,7 +76,11 @@ h1 { font-size: 22px; font-weight: 800; color: #1C3A6E; margin-bottom: 4px; }
   </div>
   <h1>Paramedic Assessment Tools</h1>
   <p class="subtitle">Sign in to continue</p>
-  <button class="google-btn" onclick="signIn()" style="margin-top:8px">
+  <div class="webview-warning" id="webview-warning">
+    <strong>⚠ Open in your browser to sign in</strong>
+    Google blocks sign-in from in-app browsers (Messenger, Instagram, TikTok, etc.). Tap the ••• or share icon above and choose "Open in Safari" / "Open in Browser", then try again.
+  </div>
+  <button class="google-btn" id="google-signin-btn" onclick="signIn()" style="margin-top:8px">
     <svg width="20" height="20" viewBox="0 0 48 48">
       <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
       <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
@@ -84,6 +96,18 @@ h1 { font-size: 22px; font-weight: 800; color: #1C3A6E; margin-bottom: 4px; }
 const SUPABASE_URL = 'https://befsjenbaruxqrntuhpn.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJlZnNqZW5iYXJ1eHFybnR1aHBuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI2MjA5MjAsImV4cCI6MjA4ODE5NjkyMH0.hOFFbIvd1wAgu-QyghupQ-7ttSpg7sxz_UsJbXyXztA';
 const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+// Detect known in-app browsers (Messenger, Instagram, Facebook, TikTok, etc.)
+// Google's OAuth blocks sign-in from these WebViews with a 403 disallowed_useragent
+// error, so warn up front instead of letting the person hit that dead end.
+function isInAppBrowser() {
+  const ua = navigator.userAgent || navigator.vendor || window.opera || '';
+  return /FBAN|FBAV|FB_IAB|Instagram|Line\/|MicroMessenger|TikTok|musical_ly|BytedanceWebview|Snapchat|LinkedInApp|Pinterest|Twitter/i.test(ua);
+}
+if (isInAppBrowser()) {
+  document.getElementById('webview-warning').style.display = 'block';
+  document.getElementById('google-signin-btn').style.display = 'none';
+}
 
 // Where to go after login — passed as ?redirect=, remembered across the
 // Google round-trip via sessionStorage (since the OAuth callback always
