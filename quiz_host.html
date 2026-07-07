@@ -818,9 +818,10 @@ async function generateQuiz() {
           if (searchStatusEl) searchStatusEl.textContent = 'Daily web search limit reached (2/2 today) — generating from existing knowledge instead.';
         } else if (window.AVNav && AVNav.confirmModal) {
           if (searchStatusEl) searchStatusEl.textContent = '';
+          const capNote = isAdminUser ? '' : ` (${usedToday}/2 used today)`;
           const proceed = await AVNav.confirmModal({
             title: '🔎 Web search available',
-            message: `"${topicText}" looks like it may need current/real-time info to write an accurate quiz. Use web search? (adds a small per-search cost)`,
+            message: `"${topicText}" may need current info. Use web search?${capNote}`,
             confirmLabel: 'Use web search',
             cancelLabel: 'Skip — use existing knowledge'
           });
