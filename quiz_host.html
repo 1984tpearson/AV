@@ -225,7 +225,7 @@ textarea::placeholder{color:var(--muted);}
     <label>Show question images (this device)</label>
     <input type="hidden" id="images-mode-value" value="off">
     <button type="button" class="toggle-btn" id="images-mode-btn" onclick="toggleImagesMode()">Off</button>
-    <button class="btn btn-full btn-amber" onclick="startGame()">▶ Start Game</button>
+    <button class="btn btn-full btn-amber" id="start-game-btn" onclick="startGame()">▶ Start Game</button>
   </div>
   <div id="screen-game" class="hidden">
     <div class="game-layout">
@@ -952,6 +952,8 @@ async function refreshLobbyPlayers() {
   document.getElementById('lobby-players').innerHTML = rows.length
     ? rows.map((p,i)=>`<span class="player-chip" style="background:${colors[i%4]};${textDark[i%4]}">${p.avatar_url?`<img src="${escapeHtml(p.avatar_url)}" class="player-avatar" alt="">`:''}${escapeHtml(p.name)}</span>`).join('')
     : '<div class="status-line">Waiting for players…</div>';
+  const startBtn = document.getElementById('start-game-btn');
+  if (startBtn) startBtn.textContent = rows.length ? '▶ Start Game' : '▶ Start Game (Single Player)';
 }
 
 async function renderGamePlayers() {
