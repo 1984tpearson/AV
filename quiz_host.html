@@ -194,8 +194,12 @@ textarea::placeholder{color:var(--muted);}
       <button type="button" class="mode-btn" data-mode="speed" title="Correct answers score more the faster you buzz in — quickest correct answer wins the most points." onclick="selectGameMode(this)">Speed</button>
     </div>
     <label style="margin-top:14px;">Picture Mode</label>
-    <input type="hidden" id="picture-mode-value" value="off">
-    <button type="button" class="toggle-btn" id="picture-mode-btn" title="Every question either shows a picture with text answers, or a word/description with picture answers to click." onclick="togglePictureMode()">Off</button>
+    <input type="hidden" id="picture-mode-value" value="text">
+    <div class="mode-toggle">
+      <button type="button" class="mode-btn selected" data-picmode="text" title="Standard text questions and answers, no images." onclick="selectPictureMode(this)">Text Only</button>
+      <button type="button" class="mode-btn" data-picmode="picture" title="Every question either shows a picture with text answers, or a word/description with picture answers to click." onclick="selectPictureMode(this)">Picture Only</button>
+      <button type="button" class="mode-btn" data-picmode="mixed" title="A random mix of standard text questions and picture questions/answers." onclick="selectPictureMode(this)">Mixed</button>
+    </div>
     <div id="setup-err" class="err hidden"></div>
     <button class="btn btn-full" id="gen-btn" onclick="generateQuiz()">✦ Generate Quiz</button>
     <div id="gen-progress-wrap" class="hidden" style="margin-top:14px;">
@@ -306,13 +310,10 @@ function toggleVoiceMode() {
   document.getElementById('voice-select-wrap').classList.toggle('hidden', !nowOn);
 }
 
-function togglePictureMode() {
-  const hidden = document.getElementById('picture-mode-value');
-  const btn = document.getElementById('picture-mode-btn');
-  const nowOn = hidden.value !== 'on';
-  hidden.value = nowOn ? 'on' : 'off';
-  btn.textContent = nowOn ? 'On' : 'Off';
-  btn.classList.toggle('active', nowOn);
+function selectPictureMode(btn) {
+  btn.closest('.mode-toggle').querySelectorAll('.mode-btn').forEach(b => b.classList.remove('selected'));
+  btn.classList.add('selected');
+  document.getElementById('picture-mode-value').value = btn.dataset.picmode;
 }
 
 // Resolves a single image_query to an actual image URL via Wikipedia's public API —
@@ -358,6 +359,42 @@ async function resolveAllQuestionImages() {
     if (q.option_image_queries && q.option_image_queries.length) tasks.push(resolveOptionImages(i));
     return Promise.all(tasks);
   }));
+}
+
+// If the AI can't find a decent real image for a picture question (obscure topics often
+// have poor Wikipedia thumbnail coverage), showing a broken/missing image or a picture_answer
+// grid where most tiles fall back to plain text labels looks broken. Rather than leave it
+// half-working, we re-ask the AI for a plain text replacement of that specific question so
+// the quiz stays coherent.
+async function convertQuestionToText(index, avoidList) {
+  const savedMode = _genContext.pictureMode;
+  _genContext.pictureMode = 'text';
+  try {
+    const parsed = await callQuizAI(1, false, avoidList);
+    const newQ = parsed.questions[0];
+    const q = _questions[index];
+    q.question_text = newQ.question; q.options = newQ.options; q.correct_index = newQ.correct_index;
+    q.question_type = 'text';
+    q.image_query = null; q.image_url = null;
+    q.option_image_queries = null; q.option_image_urls = null;
+  } finally {
+    _genContext.pictureMode = savedMode;
+  }
+}
+
+// Resolves all images, then checks for any picture question that came back with unusable
+// images (no main image for picture_question, or any missing option image for picture_answer
+// — a partially-filled image grid looks worse than a clean text question) and swaps those
+// specific questions over to plain text.
+async function resolveImagesWithFallback() {
+  await resolveAllQuestionImages();
+  const avoidList = _questions.map(q => q.question_text);
+  for (let i = 0; i < _questions.length; i++) {
+    const q = _questions[i];
+    const broken = (q.question_type === 'picture_question' && !q.image_url)
+      || (q.question_type === 'picture_answer' && q.option_image_urls && !q.option_image_urls.every(Boolean));
+    if (broken) await convertQuestionToText(i, avoidList);
+  }
 }
 
 function updateQuestionImageDisplay() {
@@ -739,12 +776,17 @@ function buildSystemPrompt(count, wantTheme, avoidList) {
   const avoidRule = (avoidList && avoidList.length)
     ? ` Do not repeat any of these previously used questions — avoid duplicating the fact, angle, or specific detail tested by them, and actively pick different sub-topics/examples where possible: ${avoidList.map(t=>`"${t}"`).join('; ')}.`
     : '';
-  const pictureMode = !!_genContext.pictureMode;
-  const pictureFormatPart = pictureMode ? ',"question_type":"picture_question or picture_answer","option_image_queries":[null,null,null,null] or ["...","...","...","..."]' : '';
-  const pictureRule = pictureMode
-    ? ` (10) Picture mode is enabled: every question must have question_type set to either "picture_question" or "picture_answer" — mix the two roughly evenly and randomly across the quiz, never use plain text-only questions. For "picture_question": phrase the question as something answerable by looking at an image (e.g. "What is shown in this image?", "Which rhythm is this?"), set image_query to a short 2-4 word phrase naming the concrete subject the image should depict, and set option_image_queries to null. For "picture_answer": phrase the question as a word, name, or short description to identify (e.g. "Which of these is a fire ant?"), keep options as short text labels (2-4 words each, used as fallback if an image fails to load) naming what each option's image depicts, set option_image_queries to an array of exactly 4 short concrete photographable phrases index-aligned with options, and set image_query to null. Every image query (image_query and each option_image_queries item) must name a distinct, clearly photographable real-world subject — avoid abstract concepts.`
-    : '';
-  return `${base} Respond with valid JSON only — no markdown, no preamble, no commentary before or after the JSON. Format: {${themeFormatPart}"questions":[{"question":"...","options":["a","b","c","d"],"correct_index":0,"image_query":"..."${pictureFormatPart}}${count>1?', ...':''}]}. Rules: (1) Generate exactly ${count} question${count>1?'s':''}. (2) Each question has exactly 4 options. (3) ${factRule} (4) ${varyRule}${searchRule} (6) ${_genContext.difficultyInstruction} (9) image_query is a short 2-4 word phrase naming a concrete, photographable subject connected to that question (e.g. "ripe strawberry", "Mount Everest summit") — avoid abstract or overly specific medical/technical phrasing that a stock photo search wouldn't match.${themeRule}${pictureRule}${avoidRule}`;
+  const pictureSetting = _genContext.pictureMode || 'text'; // 'text' | 'picture' | 'mixed'
+  const pictureActive = pictureSetting !== 'text';
+  const pictureFormatPart = pictureActive ? ',"question_type":"text, picture_question, or picture_answer","image_query":"... or null","option_image_queries":null or ["...","...","...","..."]' : '';
+  const pictureTypeGuidance = `For "picture_question": phrase the question as something answerable by looking at an image (e.g. "What is shown in this image?", "Which rhythm is this?"), set image_query to a short 2-4 word phrase naming the concrete subject the image should depict, and set option_image_queries to null. For "picture_answer": phrase the question as a word, name, or short description to identify (e.g. "Which of these is a fire ant?"), keep options as short text labels (2-4 words each, used as fallback if an image fails to load) naming what each option's image depicts, set option_image_queries to an array of exactly 4 short concrete photographable phrases index-aligned with options, and set image_query to null. For "text", set both image_query and option_image_queries to null. Every image query (image_query and each option_image_queries item) must name a distinct, clearly photographable real-world subject — avoid abstract concepts.`;
+  let pictureRule = '';
+  if (pictureSetting === 'picture') {
+    pictureRule = ` (10) Picture mode is enabled: every question must have question_type set to either "picture_question" or "picture_answer" — mix the two roughly evenly and randomly across the quiz, never use plain text-only questions. ${pictureTypeGuidance}`;
+  } else if (pictureSetting === 'mixed') {
+    pictureRule = ` (10) Mixed mode is enabled: randomly assign each question's question_type to "text", "picture_question", or "picture_answer", spread roughly evenly across the quiz (aim for roughly a third each). ${pictureTypeGuidance}`;
+  }
+  return `${base} Respond with valid JSON only — no markdown, no preamble, no commentary before or after the JSON. Format: {${themeFormatPart}"questions":[{"question":"...","options":["a","b","c","d"],"correct_index":0${pictureFormatPart}}${count>1?', ...':''}]}. Rules: (1) Generate exactly ${count} question${count>1?'s':''}. (2) Each question has exactly 4 options. (3) ${factRule} (4) ${varyRule}${searchRule} (6) ${_genContext.difficultyInstruction}${themeRule}${pictureRule}${avoidRule}`;
 }
 
 function buildUserContent() {
@@ -889,7 +931,7 @@ async function generateQuiz() {
       }
     }
 
-    const pictureMode = document.getElementById('picture-mode-value').value === 'on';
+    const pictureMode = document.getElementById('picture-mode-value').value; // 'text' | 'picture' | 'mixed'
     _genContext = { mode, topicText, packageText, uploadBlocks, difficultyInstruction, numQ, webSearchEnabled, pictureMode };
 
     const historyKey = topicHistoryKey(sourceSummary);
@@ -907,9 +949,9 @@ async function generateQuiz() {
       option_image_urls: (q.option_image_queries && q.option_image_queries.length) ? q.option_image_queries.map(()=>null) : null
     }));
     saveTopicHistory(historyKey, _questions.map(q=>q.question_text));
-    if (pictureMode) {
+    if (pictureMode !== 'text') {
       setGenProgress(87, 'Fetching images…');
-      await resolveAllQuestionImages();
+      await resolveImagesWithFallback();
     }
     const themePrimary = (parsed.theme && isValidHex(parsed.theme.primary)) ? parsed.theme.primary : null;
     const themeSecondary = (parsed.theme && isValidHex(parsed.theme.secondary)) ? parsed.theme.secondary : null;
@@ -961,7 +1003,7 @@ async function regenerateQuestion(index) {
     q.image_query = newQ.image_query || null; q.image_url = null;
     q.option_image_queries = (newQ.option_image_queries && newQ.option_image_queries.length) ? newQ.option_image_queries : null;
     q.option_image_urls = q.option_image_queries ? q.option_image_queries.map(()=>null) : null;
-    if (_genContext.pictureMode) await resolveAllQuestionImages();
+    if (_genContext.pictureMode !== 'text') await resolveImagesWithFallback();
     await sbFetch(`quiz_questions?id=eq.${q.id}`, { method:'PATCH', prefer:'return=minimal', body: JSON.stringify({ question_text:q.question_text, options:q.options, correct_index:q.correct_index, question_type:q.question_type, image_query:q.image_query, image_url:q.image_url, option_image_queries:q.option_image_queries, option_image_urls:q.option_image_urls }) });
     renderQuestionsList();
   } catch(e) {
@@ -986,7 +1028,7 @@ async function regenerateAllQuestions() {
       option_image_urls: (q.option_image_queries && q.option_image_queries.length) ? q.option_image_queries.map(()=>null) : null
     }));
     _questions = newQuestions;
-    if (_genContext.pictureMode) await resolveAllQuestionImages();
+    if (_genContext.pictureMode !== 'text') await resolveImagesWithFallback();
     await sbFetch(`quiz_questions?room_id=eq.${_room.id}`, { method:'DELETE', prefer:'return=minimal' });
     const inserted = await sbFetch('quiz_questions', { method:'POST', body: JSON.stringify(newQuestions.map(q=>({ room_id:_room.id, order_index:q.order_index, question_text:q.question_text, options:q.options, correct_index:q.correct_index, question_type:q.question_type||'text', image_query:q.image_query||null, image_url:q.image_url||null, option_image_queries:q.option_image_queries||null, option_image_urls:q.option_image_urls||null }))) });
     newQuestions.forEach((q,i) => { q.id = inserted[i].id; });
