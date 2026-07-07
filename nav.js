@@ -21,6 +21,14 @@
   var SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJlZnNqZW5iYXJ1eHFybnR1aHBuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI2MjA5MjAsImV4cCI6MjA4ODE5NjkyMH0.hOFFbIvd1wAgu-QyghupQ-7ttSpg7sxz_UsJbXyXztA';
   var ADMIN_UUID = 'fe1f2d3f-2139-44ec-bbe0-14ad6bb748ac';
 
+  // Per-million-token USD pricing for AI usage cost tracking.
+  // Add a new entry here whenever a new model is used anywhere in the suite.
+  var MODEL_PRICING = {
+    'claude-sonnet-4-6': { input: 3, output: 15 },
+    'claude-haiku-4-5-20251001': { input: 1, output: 5 }
+  };
+  var SEARCH_COST = 0.01; // per web_search call
+
   if (typeof supabase === 'undefined') {
     console.error('nav.js: supabase-js must be loaded before nav.js');
     return;
@@ -92,6 +100,38 @@
 
   function isAdmin() {
     return (_profile && _profile.role === 'admin') || (_session && _session.user.id === ADMIN_UUID);
+  }
+
+  // Shared AI usage/cost logger. Call after any Anthropic API call from any
+  // tool in the suite. Fire-and-forget: never throws, never blocks the caller.
+  //   AVNav.logAIUsage({ source: 'generator', model: 'claude-sonnet-4-6',
+  //     input_tokens, output_tokens, search_count, label: 'optional context' })
+  async function logAIUsage(opts) {
+    try {
+      opts = opts || {};
+      var pricing = MODEL_PRICING[opts.model] || { input: 0, output: 0 };
+      var inTok = opts.input_tokens || 0;
+      var outTok = opts.output_tokens || 0;
+      var searches = opts.search_count || 0;
+      var cost = (inTok / 1e6 * pricing.input) + (outTok / 1e6 * pricing.output) + (searches * SEARCH_COST);
+      await sbFetch('ai_usage_log', {
+        method: 'POST',
+        prefer: 'return=minimal',
+        body: JSON.stringify({
+          source: opts.source || 'unknown',
+          label: opts.label || null,
+          model: opts.model || 'unknown',
+          input_tokens: inTok,
+          output_tokens: outTok,
+          search_count: searches,
+          cost_usd: Number(cost.toFixed(5)),
+          user_id: _session ? _session.user.id : null,
+          user_name: (_profile && _profile.display_name) || (_session && _session.user.email) || null
+        })
+      });
+    } catch (e) {
+      console.error('AVNav.logAIUsage failed:', e.message);
+    }
   }
 
   function identity() {
@@ -255,6 +295,7 @@
           '<div class="avnav-link" onclick="AVNav.openMyScenarios()"><span class="avnav-icon">📁</span> My Scenarios</div>' +
           '<div class="avnav-link" onclick="AVNav.openManageMine()"><span class="avnav-icon">⚙</span> Manage My Scenarios</div>' +
           '<div class="avnav-link" id="avnav-users-link" style="display:none" onclick="AVNav.openUsers()"><span class="avnav-icon">👥</span> Users</div>' +
+          '<div class="avnav-link" id="avnav-usage-link" style="display:none" onclick="AVNav.openUsageLog()"><span class="avnav-icon">💲</span> Usage &amp; Costs</div>' +
           '<a class="avnav-link" id="avnav-cpg-link" href="cpg_editor.html" style="display:none"><span class="avnav-icon">📖</span> CPG Editor</a>' +
         '</div>' +
         '<div class="avnav-bottom"><button class="avnav-signout-btn" onclick="AVNav.signOut()">⎋ Sign out</button></div>' +
@@ -338,6 +379,8 @@
     if (badge) badge.style.display = isAdmin() ? 'inline-block' : 'none';
     var usersLink = document.getElementById('avnav-users-link');
     if (usersLink) usersLink.style.display = isAdmin() ? 'flex' : 'none';
+    var usageLink = document.getElementById('avnav-usage-link');
+    if (usageLink) usageLink.style.display = isAdmin() ? 'flex' : 'none';
     var cpgLink = document.getElementById('avnav-cpg-link');
     if (cpgLink) cpgLink.style.display = isAdmin() ? 'flex' : 'none';
     renderAvatarInto('avnav-avatar', id);
@@ -631,6 +674,71 @@
     if (arrow) arrow.textContent = willOpen ? '▾' : '▸';
   }
 
+  async function openUsageLog() {
+    close();
+    if (!isAdmin()) return;
+    var modal = ensureModal('avnav-usage-modal', '💲 Usage &amp; Costs');
+    var body = modal.querySelector('.avnav-modal-body');
+    body.innerHTML = '<p style="text-align:center;color:var(--grey);padding:20px">Loading…</p>';
+    modal.classList.add('open');
+    try {
+      var rows = await sbFetch('ai_usage_log?select=*&order=created_at.desc&limit=500');
+      renderUsageLog(rows);
+    } catch (e) {
+      body.innerHTML = '<p style="color:var(--red);padding:16px">Failed to load: ' + escapeHtml(e.message) + '</p>';
+    }
+  }
+
+  function renderUsageLog(rows) {
+    var modal = document.getElementById('avnav-usage-modal');
+    if (!modal) return;
+    var body = modal.querySelector('.avnav-modal-body');
+    if (!rows.length) {
+      body.innerHTML = '<div style="text-align:center;padding:24px;color:var(--grey)"><div style="font-size:36px;margin-bottom:12px">💲</div><p>No AI usage logged yet.</p></div>';
+      return;
+    }
+    var totalCost = 0, bySource = {};
+    rows.forEach(function (r) {
+      totalCost += Number(r.cost_usd) || 0;
+      var s = r.source || 'unknown';
+      bySource[s] = (bySource[s] || 0) + (Number(r.cost_usd) || 0);
+    });
+    var summaryHtml = '<div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:16px">' +
+      '<div style="flex:1;min-width:120px;padding:10px 14px;border:2px solid var(--border);border-radius:10px">' +
+        '<div style="font-size:11px;color:var(--grey)">Total (last ' + rows.length + ')</div>' +
+        '<div style="font-size:18px;font-weight:700">$' + totalCost.toFixed(4) + '</div></div>' +
+      Object.keys(bySource).sort().map(function (s) {
+        return '<div style="flex:1;min-width:120px;padding:10px 14px;border:2px solid var(--border);border-radius:10px">' +
+          '<div style="font-size:11px;color:var(--grey)">' + escapeHtml(s) + '</div>' +
+          '<div style="font-size:18px;font-weight:700">$' + bySource[s].toFixed(4) + '</div></div>';
+      }).join('') +
+      '</div>';
+    var rowsHtml = '<div style="max-height:60vh;overflow-y:auto">' +
+      '<table style="width:100%;border-collapse:collapse;font-size:12px">' +
+      '<thead><tr style="text-align:left;border-bottom:2px solid var(--border)">' +
+        '<th style="padding:6px 8px">When</th><th style="padding:6px 8px">Source</th>' +
+        '<th style="padding:6px 8px">User</th><th style="padding:6px 8px">Model</th>' +
+        '<th style="padding:6px 8px">Label</th><th style="padding:6px 8px">In</th>' +
+        '<th style="padding:6px 8px">Out</th><th style="padding:6px 8px">Searches</th>' +
+        '<th style="padding:6px 8px">Cost</th></tr></thead><tbody>' +
+      rows.map(function (r) {
+        var when = new Date(r.created_at).toLocaleString();
+        return '<tr style="border-bottom:1px solid var(--border)">' +
+          '<td style="padding:6px 8px;white-space:nowrap">' + escapeHtml(when) + '</td>' +
+          '<td style="padding:6px 8px">' + escapeHtml(r.source || '') + '</td>' +
+          '<td style="padding:6px 8px">' + escapeHtml(r.user_name || 'Unknown') + '</td>' +
+          '<td style="padding:6px 8px">' + escapeHtml(r.model || '') + '</td>' +
+          '<td style="padding:6px 8px">' + escapeHtml(r.label || '') + '</td>' +
+          '<td style="padding:6px 8px">' + (r.input_tokens || 0) + '</td>' +
+          '<td style="padding:6px 8px">' + (r.output_tokens || 0) + '</td>' +
+          '<td style="padding:6px 8px">' + (r.search_count || 0) + '</td>' +
+          '<td style="padding:6px 8px">$' + Number(r.cost_usd || 0).toFixed(4) + '</td>' +
+        '</tr>';
+      }).join('') +
+      '</tbody></table></div>';
+    body.innerHTML = summaryHtml + rowsHtml;
+  }
+
   function openEditUser(userId) {
     var p = _adminUsers.filter(function (u) { return u.id === userId; })[0];
     if (!p) return;
@@ -760,6 +868,8 @@
     openMyScenarios: openMyScenarios,
     openManageMine: openManageMine,
     openUsers: openUsers,
+    openUsageLog: openUsageLog,
+    logAIUsage: logAIUsage,
     toggleUserScenarios: toggleUserScenarios,
     openEditUser: openEditUser,
     saveEditUser: saveEditUser,

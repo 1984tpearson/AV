@@ -1103,6 +1103,9 @@ async function classifyCPGFromText(freeText) {
     });
     if (!response.ok) return [];
     const data = await response.json();
+    if (data.usage && window.AVNav && AVNav.logAIUsage) {
+      AVNav.logAIUsage({ source:'generator', model:'claude-haiku-4-5-20251001', input_tokens:data.usage.input_tokens, output_tokens:data.usage.output_tokens, label:'CPG classification' });
+    }
     const text = (data.content || []).map(b => b.text || '').join('');
     const parsed = parseFirstJSON(text);
     const validKeys = new Set(Object.keys(CPG_SUBTYPE_LABELS));
@@ -1418,6 +1421,7 @@ async function generateWithAnthropic(apiKey, systemPrompt, userPrompt) {
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
   let accumulated = '';
+  let _usageIn = 0, _usageOut = 0;
 
   while (true) {
     const { done, value } = await reader.read();
@@ -1433,9 +1437,18 @@ async function generateWithAnthropic(apiKey, systemPrompt, userPrompt) {
         if (evt.type === 'content_block_delta' && evt.delta?.type === 'text_delta') {
           accumulated += evt.delta.text;
           _updateStreamCard(card, accumulated);
+        } else if (evt.type === 'message_start' && evt.message?.usage) {
+          _usageIn = evt.message.usage.input_tokens || 0;
+          _usageOut = evt.message.usage.output_tokens || 0;
+        } else if (evt.type === 'message_delta' && evt.usage) {
+          _usageOut = evt.usage.output_tokens || _usageOut;
         }
       } catch(e) { /* ignore parse errors on partial lines */ }
     }
+  }
+
+  if (window.AVNav && AVNav.logAIUsage) {
+    AVNav.logAIUsage({ source:'generator', model:'claude-sonnet-4-6', input_tokens:_usageIn, output_tokens:_usageOut, label: userPrompt.slice(0, 80) });
   }
 
   if (card) {
