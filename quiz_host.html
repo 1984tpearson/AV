@@ -90,7 +90,7 @@ textarea::placeholder{color:var(--muted);}
 .opt-row.clickable:disabled{opacity:0.6;cursor:default;}
 .opt-row.selected{outline:3px solid var(--gold);outline-offset:2px;}
 .status-line{text-align:center;color:var(--muted);font-size:13px;margin-bottom:12px;}
-.hidden{display:none !important;}
+.hidden{display:none;}
 .podium{display:flex;align-items:flex-end;justify-content:center;gap:14px;margin:20px 0 24px;}
 .pod-step{flex:1;max-width:170px;border-radius:12px 12px 0 0;text-align:center;padding:14px 6px 10px;position:relative;animation:slideUp .5s ease backwards;}
 .pod-step .pname{font-weight:800;font-size:13px;margin-bottom:4px;}
@@ -1176,6 +1176,7 @@ function showQuestion() {
     optsEl.innerHTML = q.options.map((o,i)=>`<div class="opt-row" id="opt-${i}"><span class="shape">${shapes[i]}</span>${escapeHtml(o)}<span class="opt-count" id="opt-count-${i}"></span></div>`).join('');
   }
   optsEl.classList.toggle('hidden', _hostPlays);
+  optsEl.style.display = _hostPlays ? 'none' : ''; // belt-and-suspenders: guarantees hiding regardless of pic-grid's higher-specificity display:grid rule
   document.getElementById('answer-count').textContent = '';
   document.getElementById('reveal-btn').classList.remove('hidden');
   document.getElementById('next-btn').classList.add('hidden');
