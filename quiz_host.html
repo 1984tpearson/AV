@@ -143,7 +143,7 @@ textarea::placeholder{color:var(--muted);}
 </style>
 </head>
 <body>
-<div class="stage-bar"><div id="avnav-slot"></div><span>🎙️ QUIZOTRON 5000</span><span id="host-name" class="host-tag"></span></div>
+<div class="stage-bar"><div id="avnav-slot"></div><a href="quizotron.html" style="color:inherit;text-decoration:none;"><span>🎙️ QUIZOTRON 5000</span></a><span id="host-name" class="host-tag"></span></div>
 <div class="wrap">
   <div id="screen-setup" class="card">
     <h2>Build Your Quiz</h2>
@@ -710,6 +710,27 @@ function escapeHtml(s){ return String(s==null?'':s).replace(/[&<>"']/g, c=>({'&'
 
 let _genContext = null; // { mode, topicText, packageText, uploadBlocks, difficultyInstruction, numQ } — persists after generation so Regenerate/Regenerate All can rebuild the same prompt
 
+// Cross-session repeat prevention: keyed by a hash of the quiz source (topic text or
+// reference material), we keep a rolling list of question texts previously generated
+// for that same source in localStorage, and feed them back in as an avoid-list on the
+// NEXT fresh generation — so "same topic, same settings" quizzes actually mix it up
+// instead of the AI defaulting to the same "obvious" facts every time.
+function topicHistoryKey(sourceSummary) {
+  const norm = (sourceSummary || '').toLowerCase().trim().replace(/\s+/g, ' ').slice(0, 300);
+  let hash = 0;
+  for (let i = 0; i < norm.length; i++) { hash = ((hash << 5) - hash + norm.charCodeAt(i)) | 0; }
+  return `quiz_topic_history_${hash}`;
+}
+function loadTopicHistory(key) {
+  try { return JSON.parse(localStorage.getItem(key) || '[]'); } catch(e) { return []; }
+}
+function saveTopicHistory(key, newTexts) {
+  try {
+    const merged = loadTopicHistory(key).concat(newTexts).slice(-60); // cap so the prompt doesn't grow unbounded
+    localStorage.setItem(key, JSON.stringify(merged));
+  } catch(e) { /* localStorage full/unavailable — non-critical, just skip dedup this time */ }
+}
+
 // Builds the system prompt for a quiz-generation call. count = how many questions to
 // request; wantTheme = whether to also ask for theme colours (only the very first
 // generation needs this — regenerations keep the existing theme); avoidList = question
@@ -731,7 +752,7 @@ function buildSystemPrompt(count, wantTheme, avoidList) {
   const themeFormatPart = wantTheme ? '"theme":{"primary":"#RRGGBB","secondary":"#RRGGBB","tertiary":"#RRGGBB","quaternary":"#RRGGBB"},' : '';
   const themeRule = wantTheme ? ` (7) theme.primary, theme.secondary, theme.tertiary and theme.quaternary must be 4 vivid, punchy hex colours (not muddy or pastel) that evoke the subject matter visually and are clearly distinct from each other — spread around the colour wheel rather than clustered near the same hue. Pick colours that would look good as bold neon accents on a dark background.` : '';
   const avoidRule = (avoidList && avoidList.length)
-    ? ` Do not repeat any question already used in this quiz — avoid duplicating the fact, angle, or specific detail tested by these existing questions: ${avoidList.map(t=>`"${t}"`).join('; ')}.`
+    ? ` Do not repeat any of these previously used questions — avoid duplicating the fact, angle, or specific detail tested by them, and actively pick different sub-topics/examples where possible: ${avoidList.map(t=>`"${t}"`).join('; ')}.`
     : '';
   const pictureMode = !!_genContext.pictureMode;
   const pictureFormatPart = pictureMode ? ',"question_type":"picture_question or picture_answer","option_image_queries":[null,null,null,null] or ["...","...","...","..."]' : '';
@@ -886,8 +907,11 @@ async function generateQuiz() {
     const pictureMode = document.getElementById('picture-mode-value').value === 'on';
     _genContext = { mode, topicText, packageText, uploadBlocks, difficultyInstruction, numQ, webSearchEnabled, pictureMode };
 
+    const historyKey = topicHistoryKey(sourceSummary);
+    const priorQuestions = loadTopicHistory(historyKey);
+
     startGenTrickle(30, 82, '✦ Calling AI…');
-    const parsed = await callQuizAI(numQ, true, null);
+    const parsed = await callQuizAI(numQ, true, priorQuestions.length ? priorQuestions : null);
     stopGenTrickle();
     setGenProgress(85, 'Parsing response…');
     _questions = parsed.questions.map((q,i)=>({
@@ -897,6 +921,7 @@ async function generateQuiz() {
       option_image_queries: (q.option_image_queries && q.option_image_queries.length) ? q.option_image_queries : null,
       option_image_urls: (q.option_image_queries && q.option_image_queries.length) ? q.option_image_queries.map(()=>null) : null
     }));
+    saveTopicHistory(historyKey, _questions.map(q=>q.question_text));
     if (pictureMode) {
       setGenProgress(87, 'Fetching images…');
       await resolveAllQuestionImages();
