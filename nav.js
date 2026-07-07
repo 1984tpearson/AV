@@ -50,6 +50,9 @@
     ['PE', 'Paramedic Educator (PE)'],
     ['GAP', 'Graduate Ambulance Paramedic (GAP)'],
     ['CSO', 'Clinical Support Officer (CSO)'],
+    ['OnRoad', 'On Road'],
+    ['UniStudent', 'University Student'],
+    ['NonAV', 'Non-AV'],
     ['Other', 'Other']
   ];
 
@@ -58,7 +61,8 @@
     ['MICA', 'MICA'],
     ['ALS', 'ALS'],
     ['ACO', 'ACO'],
-    ['CERT', 'CERT']
+    ['CERT', 'CERT'],
+    ['NA', 'Other/NA']
   ];
 
   function escapeHtml(s) {
@@ -333,7 +337,7 @@
             '</div>' +
             '<div class="avnav-form-group"><label>Email</label><div id="avnav-settings-email" class="avnav-readonly"></div></div>' +
             '<div class="avnav-form-group"><label>Display Name</label><input type="text" id="avnav-settings-name" maxlength="60"></div>' +
-            '<div class="avnav-form-group"><label>Service Number *</label><input type="text" id="avnav-settings-svcnum" maxlength="20"></div>' +
+            '<div class="avnav-form-group"><label>Service Number</label><input type="text" id="avnav-settings-svcnum" maxlength="20"></div>' +
             '<div class="avnav-form-group"><label>Role *</label><select id="avnav-settings-role">' + optionsHtml(AV_ROLES, '') + '</select></div>' +
             '<div class="avnav-form-group"><label>Level *</label><select id="avnav-settings-level">' + optionsHtml(AV_LEVELS, '') + '</select></div>' +
             '<div class="avnav-form-group"><label>Branch / Location</label><input type="text" id="avnav-settings-branch" maxlength="60"></div>' +
@@ -427,18 +431,17 @@
     var avRole = (document.getElementById('avnav-settings-role').value || '').trim();
     var level = (document.getElementById('avnav-settings-level').value || '').trim();
     var branch = (document.getElementById('avnav-settings-branch').value || '').trim();
-    if (!svcNum) { alert('Please enter your service number'); return; }
     if (!avRole) { alert('Please select your role'); return; }
     if (!level) { alert('Please select your level'); return; }
     if (!_session) { alert('No active session — please reload'); return; }
     try {
       await sbFetch('profiles?id=eq.' + _session.user.id, {
         method: 'PATCH',
-        body: JSON.stringify({ display_name: displayName || null, svc_num: svcNum, av_role: avRole, level: level, branch: branch || null })
+        body: JSON.stringify({ display_name: displayName || null, svc_num: svcNum || null, av_role: avRole, level: level, branch: branch || null })
       });
       if (_profile) {
         _profile.display_name = displayName || null;
-        _profile.svc_num = svcNum;
+        _profile.svc_num = svcNum || null;
         _profile.av_role = avRole;
         _profile.level = level;
         _profile.branch = branch || null;
