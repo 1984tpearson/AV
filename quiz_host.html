@@ -231,9 +231,6 @@ textarea::placeholder{color:var(--muted);}
         <option value="">Browser default</option>
       </select>
     </div>
-    <label>Show question images (this device)</label>
-    <input type="hidden" id="images-mode-value" value="off">
-    <button type="button" class="toggle-btn" id="images-mode-btn" onclick="toggleImagesMode()">Off</button>
     <button class="btn btn-full btn-amber" id="start-game-btn" onclick="startGame()">▶ Start Game</button>
   </div>
   <div id="screen-game" class="hidden">
@@ -309,16 +306,6 @@ function toggleVoiceMode() {
   document.getElementById('voice-select-wrap').classList.toggle('hidden', !nowOn);
 }
 
-function toggleImagesMode() {
-  const hidden = document.getElementById('images-mode-value');
-  const btn = document.getElementById('images-mode-btn');
-  const nowOn = hidden.value !== 'on';
-  hidden.value = nowOn ? 'on' : 'off';
-  btn.textContent = nowOn ? 'On' : 'Off';
-  btn.classList.toggle('active', nowOn);
-  if (nowOn) resolveAllQuestionImages();
-}
-
 function togglePictureMode() {
   const hidden = document.getElementById('picture-mode-value');
   const btn = document.getElementById('picture-mode-btn');
@@ -377,9 +364,7 @@ function updateQuestionImageDisplay() {
   const wrap = document.getElementById('q-image-wrap');
   const img = document.getElementById('q-image');
   const q = _questions[_curIdx];
-  const decorativeOn = document.getElementById('images-mode-value').value === 'on';
-  const mandatory = q && q.question_type === 'picture_question';
-  const showImages = mandatory || decorativeOn;
+  const showImages = q && q.question_type === 'picture_question';
   if (showImages && q && q.image_url) {
     img.src = q.image_url;
     wrap.classList.remove('hidden');
@@ -979,7 +964,6 @@ async function regenerateQuestion(index) {
     if (_genContext.pictureMode) await resolveAllQuestionImages();
     await sbFetch(`quiz_questions?id=eq.${q.id}`, { method:'PATCH', prefer:'return=minimal', body: JSON.stringify({ question_text:q.question_text, options:q.options, correct_index:q.correct_index, question_type:q.question_type, image_query:q.image_query, image_url:q.image_url, option_image_queries:q.option_image_queries, option_image_urls:q.option_image_urls }) });
     renderQuestionsList();
-    if (!_genContext.pictureMode && document.getElementById('images-mode-value').value === 'on') resolveQuestionImage(index);
   } catch(e) {
     console.error(e);
     if (btn) { btn.disabled = false; btn.textContent = 'Failed — retry'; }
@@ -1007,7 +991,6 @@ async function regenerateAllQuestions() {
     const inserted = await sbFetch('quiz_questions', { method:'POST', body: JSON.stringify(newQuestions.map(q=>({ room_id:_room.id, order_index:q.order_index, question_text:q.question_text, options:q.options, correct_index:q.correct_index, question_type:q.question_type||'text', image_query:q.image_query||null, image_url:q.image_url||null, option_image_queries:q.option_image_queries||null, option_image_urls:q.option_image_urls||null }))) });
     newQuestions.forEach((q,i) => { q.id = inserted[i].id; });
     renderQuestionsList();
-    if (!_genContext.pictureMode && document.getElementById('images-mode-value').value === 'on') resolveAllQuestionImages();
   } catch(e) {
     console.error(e);
     ok = false;
