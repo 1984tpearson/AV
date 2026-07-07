@@ -162,10 +162,7 @@ textarea::placeholder{color:var(--muted);}
     <div id="topic-picker" class="hidden">
       <label>Topic</label>
       <input type="text" id="topic-input" placeholder="e.g. Asthma, WWII, French Revolution">
-      <label class="checkbox-label" style="display:flex;align-items:center;gap:8px;margin-top:8px;font-weight:400;">
-        <input type="checkbox" id="web-search-toggle" checked style="width:auto;">
-        Allow web search for current info (adds cost per search)
-      </label>
+      <div id="web-search-status" class="status-line" style="margin-top:6px;"></div>
     </div>
     <textarea id="package-text" placeholder="Paste any reference material here — the AI will write quiz questions from it."></textarea>
     <label>Difficulty</label>
@@ -704,6 +701,30 @@ function buildUserContent() {
   return `Reference material:\n\n${packageText}\n\nGenerate the quiz as JSON.`;
 }
 
+// Cheap Haiku pre-check: does this topic plausibly need current/real-time info?
+// Returns false on any failure — fails closed (no search) rather than risking cost.
+async function shouldUseWebSearch(topicText) {
+  try {
+    const apiKey = await getAnthropicKey();
+    const systemPrompt = `Decide whether writing an accurate quiz on the given topic would benefit from a web search for current/real-time information, as opposed to being answerable from stable, timeless knowledge. Respond with valid JSON only, no markdown: {"needsSearch": true|false}. Say true only for topics involving recent events, ongoing situations, current statistics/records, or anything likely to have changed recently. Say false for evergreen topics (general knowledge, established history, sports rules, science, clinical/medical concepts, etc).`;
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type':'application/json', 'x-api-key':apiKey, 'anthropic-version':'2023-06-01', 'anthropic-dangerous-direct-browser-access':'true' },
+      body: JSON.stringify({ model:'claude-haiku-4-5-20251001', max_tokens: 50, system: systemPrompt, messages:[{ role:'user', content: `Topic: ${topicText}` }] })
+    });
+    if (!response.ok) return false;
+    const data = await response.json();
+    if (data.usage && window.AVNav && AVNav.logAIUsage) {
+      AVNav.logAIUsage({ source:'quiz', model:'claude-haiku-4-5-20251001', input_tokens:data.usage.input_tokens, output_tokens:data.usage.output_tokens, label:'web search check' });
+    }
+    const text = (data.content||[]).map(b=>b.text||'').join('');
+    const parsed = JSON.parse(text.match(/\{[\s\S]*\}/)?.[0] || '{}');
+    return parsed.needsSearch === true;
+  } catch (e) {
+    return false; // best-effort — never block generation
+  }
+}
+
 async function callQuizAI(count, wantTheme, avoidList) {
   const apiKey = await getAnthropicKey();
   const systemPrompt = buildSystemPrompt(count, wantTheme, avoidList);
@@ -783,7 +804,28 @@ async function generateQuiz() {
       sourceSummary = packageText.slice(0,2000);
     }
 
-    _genContext = { mode, topicText, packageText, uploadBlocks, difficultyInstruction, numQ, webSearchEnabled: document.getElementById('web-search-toggle').checked };
+    const searchStatusEl = document.getElementById('web-search-status');
+    if (searchStatusEl) searchStatusEl.textContent = '';
+    let webSearchEnabled = false;
+    if (mode === 'topic') {
+      if (searchStatusEl) searchStatusEl.textContent = 'Checking topic…';
+      const needsSearch = await shouldUseWebSearch(topicText);
+      if (needsSearch) {
+        const isAdminUser = window.AVNav && AVNav.isAdmin && AVNav.isAdmin();
+        const usedToday = isAdminUser ? 0 : (window.AVNav && AVNav.getTodaySearchCount ? await AVNav.getTodaySearchCount('quiz') : null);
+        if (!isAdminUser && (usedToday === null || usedToday >= 2)) {
+          webSearchEnabled = false;
+          if (searchStatusEl) searchStatusEl.textContent = 'Daily web search limit reached (2/2 today) — generating from existing knowledge instead.';
+        } else {
+          webSearchEnabled = true;
+          if (searchStatusEl) searchStatusEl.textContent = 'Using web search for current info';
+        }
+      } else if (searchStatusEl) {
+        searchStatusEl.textContent = '';
+      }
+    }
+
+    _genContext = { mode, topicText, packageText, uploadBlocks, difficultyInstruction, numQ, webSearchEnabled };
 
     startGenTrickle(30, 82, '✦ Calling AI…');
     const parsed = await callQuizAI(numQ, true, null);

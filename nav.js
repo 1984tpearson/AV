@@ -134,6 +134,24 @@
     }
   }
 
+  // Sums search_count logged today (local calendar day) for the current user
+  // and a given source. Returns null on failure — callers should treat null
+  // as "assume the limit is reached" (fail closed on cost control).
+  async function getTodaySearchCount(source) {
+    try {
+      var uid = _session ? _session.user.id : null;
+      if (!uid) return null;
+      var startOfDay = new Date();
+      startOfDay.setHours(0, 0, 0, 0);
+      var rows = await sbFetch('ai_usage_log?select=search_count&source=eq.' + encodeURIComponent(source) +
+        '&user_id=eq.' + encodeURIComponent(uid) + '&created_at=gte.' + encodeURIComponent(startOfDay.toISOString()));
+      return rows.reduce(function (sum, r) { return sum + (r.search_count || 0); }, 0);
+    } catch (e) {
+      console.error('AVNav.getTodaySearchCount failed:', e.message);
+      return null;
+    }
+  }
+
   function identity() {
     return {
       uuid: _session ? _session.user.id : '',
@@ -870,6 +888,7 @@
     openUsers: openUsers,
     openUsageLog: openUsageLog,
     logAIUsage: logAIUsage,
+    getTodaySearchCount: getTodaySearchCount,
     toggleUserScenarios: toggleUserScenarios,
     openEditUser: openEditUser,
     saveEditUser: saveEditUser,
