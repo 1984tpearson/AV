@@ -816,6 +816,16 @@ async function generateQuiz() {
         if (!isAdminUser && (usedToday === null || usedToday >= 2)) {
           webSearchEnabled = false;
           if (searchStatusEl) searchStatusEl.textContent = 'Daily web search limit reached (2/2 today) — generating from existing knowledge instead.';
+        } else if (window.AVNav && AVNav.confirmModal) {
+          if (searchStatusEl) searchStatusEl.textContent = '';
+          const proceed = await AVNav.confirmModal({
+            title: '🔎 Web search available',
+            message: `"${topicText}" looks like it may need current/real-time info to write an accurate quiz. Use web search? (adds a small per-search cost)`,
+            confirmLabel: 'Use web search',
+            cancelLabel: 'Skip — use existing knowledge'
+          });
+          webSearchEnabled = proceed;
+          if (searchStatusEl) searchStatusEl.textContent = proceed ? 'Using web search for current info' : 'Skipped web search — using existing knowledge.';
         } else {
           webSearchEnabled = true;
           if (searchStatusEl) searchStatusEl.textContent = 'Using web search for current info';

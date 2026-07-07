@@ -573,6 +573,49 @@
     return modal;
   }
 
+  // Generic yes/no confirm dialog. Returns a Promise<boolean> — true if the
+  // person clicked confirm, false for cancel or clicking outside the modal.
+  //   const ok = await AVNav.confirmModal({ title, message, confirmLabel, cancelLabel });
+  function confirmModal(opts) {
+    opts = opts || {};
+    return new Promise(function (resolve) {
+      var modal = document.getElementById('avnav-confirm-modal');
+      if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'avnav-confirm-modal';
+        modal.className = 'avnav-modal-overlay';
+        modal.innerHTML = '<div class="avnav-modal" style="max-width:420px">' +
+          '<div class="avnav-modal-header"><h2 id="avnav-confirm-title"></h2></div>' +
+          '<div class="avnav-modal-body">' +
+            '<p id="avnav-confirm-message" style="margin:0 0 18px;color:var(--text)"></p>' +
+            '<div style="display:flex;gap:10px;justify-content:flex-end">' +
+              '<button class="avnav-avatar-upload-btn" id="avnav-confirm-cancel-btn"></button>' +
+              '<button class="avnav-settings-btn" id="avnav-confirm-ok-btn" style="width:auto;padding:8px 16px"></button>' +
+            '</div>' +
+          '</div></div>';
+        document.body.appendChild(modal);
+      }
+      document.getElementById('avnav-confirm-title').textContent = opts.title || 'Confirm';
+      document.getElementById('avnav-confirm-message').textContent = opts.message || '';
+      var okBtn = document.getElementById('avnav-confirm-ok-btn');
+      var cancelBtn = document.getElementById('avnav-confirm-cancel-btn');
+      okBtn.textContent = opts.confirmLabel || 'Continue';
+      cancelBtn.textContent = opts.cancelLabel || 'Cancel';
+      function finish(result) {
+        modal.classList.remove('open');
+        modal.removeEventListener('click', overlayHandler);
+        okBtn.onclick = null;
+        cancelBtn.onclick = null;
+        resolve(result);
+      }
+      function overlayHandler(e) { if (e.target === modal) finish(false); }
+      okBtn.onclick = function () { finish(true); };
+      cancelBtn.onclick = function () { finish(false); };
+      modal.addEventListener('click', overlayHandler);
+      modal.classList.add('open');
+    });
+  }
+
   async function openMyScenarios() {
     close();
     var modal = ensureModal('avnav-myscenarios-modal', '📁 My Scenarios');
@@ -889,6 +932,7 @@
     openUsageLog: openUsageLog,
     logAIUsage: logAIUsage,
     getTodaySearchCount: getTodaySearchCount,
+    confirmModal: confirmModal,
     toggleUserScenarios: toggleUserScenarios,
     openEditUser: openEditUser,
     saveEditUser: saveEditUser,
