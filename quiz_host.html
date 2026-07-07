@@ -713,6 +713,15 @@ async function callQuizAI(count, wantTheme, avoidList) {
   });
   if (!response.ok) throw new Error('AI request failed: ' + response.status);
   const data = await response.json();
+  if (data.usage && window.AVNav && AVNav.isAdmin && AVNav.isAdmin()) {
+    const u = data.usage;
+    const searches = (u.server_tool_use && u.server_tool_use.web_search_requests) || 0;
+    const inCost = (u.input_tokens || 0) / 1e6 * 3;
+    const outCost = (u.output_tokens || 0) / 1e6 * 15;
+    const searchCost = searches * 0.01;
+    const total = inCost + outCost + searchCost;
+    console.log(`[Quiz cost] input:${u.input_tokens}tok ($${inCost.toFixed(4)}) output:${u.output_tokens}tok ($${outCost.toFixed(4)}) searches:${searches} ($${searchCost.toFixed(4)}) → total ~$${total.toFixed(4)}`);
+  }
   const text = (data.content||[]).map(b=>b.text||'').join('');
   const parsed = parseFirstJSONObject(text);
   if (!parsed || !Array.isArray(parsed.questions) || !parsed.questions.length) throw new Error('AI returned no questions');

@@ -766,7 +766,8 @@
     deleteScenario: deleteScenario,
     signOut: signOut,
     refreshProfile: refreshProfile,
-    applyTheme: applyTheme
+    applyTheme: applyTheme,
+    isAdmin: isAdmin
   };
 
   if (document.readyState === 'loading') {
