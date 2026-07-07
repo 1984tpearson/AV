@@ -126,6 +126,12 @@ textarea::placeholder{color:var(--muted);}
 .q-regen-btn:hover{border-color:var(--gold);}
 #q-image-wrap{text-align:center;margin-bottom:16px;}
 #q-image-wrap img{max-width:100%;max-height:220px;border-radius:12px;border:1px solid var(--line);}
+#q-options.pic-grid,#host-options.pic-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.opt-row.pic-opt{flex-direction:column;align-items:stretch;padding:8px;gap:6px;}
+.opt-row.pic-opt img{width:100%;height:120px;object-fit:cover;border-radius:8px;display:block;}
+.opt-row.pic-opt .pic-label{display:flex;align-items:center;gap:6px;font-size:13px;}
+.opt-row.pic-opt .pic-fallback{display:flex;align-items:center;justify-content:center;height:120px;border-radius:8px;background:rgba(0,0,0,0.15);font-size:13px;text-align:center;padding:6px;}
+.opt-row.pic-opt .opt-count{margin-left:auto;}
 @media (max-width: 640px) {
   .game-layout{flex-direction:column;}
   .game-sidebar{width:100%;padding:10px 12px;}
@@ -187,6 +193,9 @@ textarea::placeholder{color:var(--muted);}
       <button type="button" class="mode-btn selected" data-mode="standard" title="Everyone who answers correctly gets the same points." onclick="selectGameMode(this)">Standard</button>
       <button type="button" class="mode-btn" data-mode="speed" title="Correct answers score more the faster you buzz in — quickest correct answer wins the most points." onclick="selectGameMode(this)">Speed</button>
     </div>
+    <label style="margin-top:14px;">Picture Mode</label>
+    <input type="hidden" id="picture-mode-value" value="off">
+    <button type="button" class="toggle-btn" id="picture-mode-btn" title="Every question either shows a picture with text answers, or a word/description with picture answers to click." onclick="togglePictureMode()">Off</button>
     <div id="setup-err" class="err hidden"></div>
     <button class="btn btn-full" id="gen-btn" onclick="generateQuiz()">✦ Generate Quiz</button>
     <div id="gen-progress-wrap" class="hidden" style="margin-top:14px;">
@@ -310,34 +319,67 @@ function toggleImagesMode() {
   if (nowOn) resolveAllQuestionImages();
 }
 
-// Resolves a question's image_query to an actual image URL via Wikipedia's public API —
-// no API key, no LLM tokens, single combined search+thumbnail request. Leaves image_url
-// as null (silently, no image shown) if nothing decent comes back.
-async function resolveQuestionImage(index) {
-  const q = _questions[index];
-  if (!q || !q.image_query || q.image_url !== null) return; // already resolved (or no query)
+function togglePictureMode() {
+  const hidden = document.getElementById('picture-mode-value');
+  const btn = document.getElementById('picture-mode-btn');
+  const nowOn = hidden.value !== 'on';
+  hidden.value = nowOn ? 'on' : 'off';
+  btn.textContent = nowOn ? 'On' : 'Off';
+  btn.classList.toggle('active', nowOn);
+}
+
+// Resolves a single image_query to an actual image URL via Wikipedia's public API —
+// no API key, no LLM tokens, single combined search+thumbnail request. Returns undefined
+// (not null) if nothing decent comes back, so callers can distinguish "tried, found nothing"
+// from "not yet tried".
+async function resolveWikipediaImage(query) {
   try {
-    const url = `https://en.wikipedia.org/w/api.php?action=query&generator=search&gsrsearch=${encodeURIComponent(q.image_query)}&gsrlimit=1&prop=pageimages&piprop=thumbnail&pithumbsize=500&format=json&origin=*`;
+    const url = `https://en.wikipedia.org/w/api.php?action=query&generator=search&gsrsearch=${encodeURIComponent(query)}&gsrlimit=1&prop=pageimages&piprop=thumbnail&pithumbsize=500&format=json&origin=*`;
     const res = await fetch(url);
     const data = await res.json();
     const pages = data && data.query && data.query.pages;
     const page = pages ? Object.values(pages)[0] : null;
-    q.image_url = (page && page.thumbnail && page.thumbnail.source) || undefined; // undefined = "tried, nothing found" (distinct from null = "not yet tried")
+    return (page && page.thumbnail && page.thumbnail.source) || undefined;
   } catch(e) {
-    q.image_url = undefined;
+    return undefined;
   }
+}
+
+async function resolveQuestionImage(index) {
+  const q = _questions[index];
+  if (!q || !q.image_query || q.image_url !== null) return; // already resolved (or no query)
+  q.image_url = await resolveWikipediaImage(q.image_query);
   if (_questions[_curIdx] === q) updateQuestionImageDisplay();
 }
 
+// Resolves all 4 option images for a picture_answer question (parallel lookups).
+async function resolveOptionImages(index) {
+  const q = _questions[index];
+  if (!q || !q.option_image_queries || !q.option_image_queries.length) return;
+  if (!q.option_image_urls) q.option_image_urls = q.option_image_queries.map(()=>null);
+  await Promise.all(q.option_image_queries.map(async (query,i) => {
+    if (q.option_image_urls[i] !== null) return; // already resolved
+    q.option_image_urls[i] = await resolveWikipediaImage(query);
+  }));
+  if (_questions[_curIdx] === q) showQuestion();
+}
+
 async function resolveAllQuestionImages() {
-  await Promise.all(_questions.map((q,i) => q.image_url === null ? resolveQuestionImage(i) : Promise.resolve()));
+  await Promise.all(_questions.map((q,i) => {
+    const tasks = [];
+    if (q.image_query && q.image_url === null) tasks.push(resolveQuestionImage(i));
+    if (q.option_image_queries && q.option_image_queries.length) tasks.push(resolveOptionImages(i));
+    return Promise.all(tasks);
+  }));
 }
 
 function updateQuestionImageDisplay() {
   const wrap = document.getElementById('q-image-wrap');
   const img = document.getElementById('q-image');
   const q = _questions[_curIdx];
-  const showImages = document.getElementById('images-mode-value').value === 'on';
+  const decorativeOn = document.getElementById('images-mode-value').value === 'on';
+  const mandatory = q && q.question_type === 'picture_question';
+  const showImages = mandatory || decorativeOn;
   if (showImages && q && q.image_url) {
     img.src = q.image_url;
     wrap.classList.remove('hidden');
@@ -689,9 +731,14 @@ function buildSystemPrompt(count, wantTheme, avoidList) {
   const themeFormatPart = wantTheme ? '"theme":{"primary":"#RRGGBB","secondary":"#RRGGBB","tertiary":"#RRGGBB","quaternary":"#RRGGBB"},' : '';
   const themeRule = wantTheme ? ` (7) theme.primary, theme.secondary, theme.tertiary and theme.quaternary must be 4 vivid, punchy hex colours (not muddy or pastel) that evoke the subject matter visually and are clearly distinct from each other — spread around the colour wheel rather than clustered near the same hue. Pick colours that would look good as bold neon accents on a dark background.` : '';
   const avoidRule = (avoidList && avoidList.length)
-    ? ` (${wantTheme?8:7}) Do not repeat any question already used in this quiz — avoid duplicating the fact, angle, or specific detail tested by these existing questions: ${avoidList.map(t=>`"${t}"`).join('; ')}.`
+    ? ` Do not repeat any question already used in this quiz — avoid duplicating the fact, angle, or specific detail tested by these existing questions: ${avoidList.map(t=>`"${t}"`).join('; ')}.`
     : '';
-  return `${base} Respond with valid JSON only — no markdown, no preamble, no commentary before or after the JSON. Format: {${themeFormatPart}"questions":[{"question":"...","options":["a","b","c","d"],"correct_index":0,"image_query":"..."}${count>1?', ...':''}]}. Rules: (1) Generate exactly ${count} question${count>1?'s':''}. (2) Each question has exactly 4 options. (3) ${factRule} (4) ${varyRule}${searchRule} (6) ${_genContext.difficultyInstruction} (9) image_query is a short 2-4 word phrase naming a concrete, photographable subject connected to that question (e.g. "ripe strawberry", "Mount Everest summit") — avoid abstract or overly specific medical/technical phrasing that a stock photo search wouldn't match.${themeRule}${avoidRule}`;
+  const pictureMode = !!_genContext.pictureMode;
+  const pictureFormatPart = pictureMode ? ',"question_type":"picture_question or picture_answer","option_image_queries":[null,null,null,null] or ["...","...","...","..."]' : '';
+  const pictureRule = pictureMode
+    ? ` (10) Picture mode is enabled: every question must have question_type set to either "picture_question" or "picture_answer" — mix the two roughly evenly and randomly across the quiz, never use plain text-only questions. For "picture_question": phrase the question as something answerable by looking at an image (e.g. "What is shown in this image?", "Which rhythm is this?"), set image_query to a short 2-4 word phrase naming the concrete subject the image should depict, and set option_image_queries to null. For "picture_answer": phrase the question as a word, name, or short description to identify (e.g. "Which of these is a fire ant?"), keep options as short text labels (2-4 words each, used as fallback if an image fails to load) naming what each option's image depicts, set option_image_queries to an array of exactly 4 short concrete photographable phrases index-aligned with options, and set image_query to null. Every image query (image_query and each option_image_queries item) must name a distinct, clearly photographable real-world subject — avoid abstract concepts.`
+    : '';
+  return `${base} Respond with valid JSON only — no markdown, no preamble, no commentary before or after the JSON. Format: {${themeFormatPart}"questions":[{"question":"...","options":["a","b","c","d"],"correct_index":0,"image_query":"..."${pictureFormatPart}}${count>1?', ...':''}]}. Rules: (1) Generate exactly ${count} question${count>1?'s':''}. (2) Each question has exactly 4 options. (3) ${factRule} (4) ${varyRule}${searchRule} (6) ${_genContext.difficultyInstruction} (9) image_query is a short 2-4 word phrase naming a concrete, photographable subject connected to that question (e.g. "ripe strawberry", "Mount Everest summit") — avoid abstract or overly specific medical/technical phrasing that a stock photo search wouldn't match.${themeRule}${pictureRule}${avoidRule}`;
 }
 
 function buildUserContent() {
@@ -836,13 +883,24 @@ async function generateQuiz() {
       }
     }
 
-    _genContext = { mode, topicText, packageText, uploadBlocks, difficultyInstruction, numQ, webSearchEnabled };
+    const pictureMode = document.getElementById('picture-mode-value').value === 'on';
+    _genContext = { mode, topicText, packageText, uploadBlocks, difficultyInstruction, numQ, webSearchEnabled, pictureMode };
 
     startGenTrickle(30, 82, '✦ Calling AI…');
     const parsed = await callQuizAI(numQ, true, null);
     stopGenTrickle();
     setGenProgress(85, 'Parsing response…');
-    _questions = parsed.questions.map((q,i)=>({ order_index:i, question_text:q.question, options:q.options, correct_index:q.correct_index, image_query:q.image_query||null, image_url:null }));
+    _questions = parsed.questions.map((q,i)=>({
+      order_index:i, question_text:q.question, options:q.options, correct_index:q.correct_index,
+      question_type: q.question_type || 'text',
+      image_query: q.image_query || null, image_url: null,
+      option_image_queries: (q.option_image_queries && q.option_image_queries.length) ? q.option_image_queries : null,
+      option_image_urls: (q.option_image_queries && q.option_image_queries.length) ? q.option_image_queries.map(()=>null) : null
+    }));
+    if (pictureMode) {
+      setGenProgress(87, 'Fetching images…');
+      await resolveAllQuestionImages();
+    }
     const themePrimary = (parsed.theme && isValidHex(parsed.theme.primary)) ? parsed.theme.primary : null;
     const themeSecondary = (parsed.theme && isValidHex(parsed.theme.secondary)) ? parsed.theme.secondary : null;
     const themeTertiary = (parsed.theme && isValidHex(parsed.theme.tertiary)) ? parsed.theme.tertiary : null;
@@ -860,7 +918,7 @@ async function generateQuiz() {
     _room = room;
     applyQuizTheme(_room.theme_primary, _room.theme_secondary, _room.theme_tertiary, _room.theme_quaternary);
     setGenProgress(95, 'Saving questions…');
-    const insertedRows = await sbFetch('quiz_questions', { method:'POST', body: JSON.stringify(_questions.map(q=>({ room_id:_room.id, order_index:q.order_index, question_text:q.question_text, options:q.options, correct_index:q.correct_index }))) });
+    const insertedRows = await sbFetch('quiz_questions', { method:'POST', body: JSON.stringify(_questions.map(q=>({ room_id:_room.id, order_index:q.order_index, question_text:q.question_text, options:q.options, correct_index:q.correct_index, question_type:q.question_type||'text', image_query:q.image_query||null, image_url:q.image_url||null, option_image_queries:q.option_image_queries||null, option_image_urls:q.option_image_urls||null }))) });
     insertedRows.forEach((row,i) => { _questions[i].id = row.id; });
 
     _scoringMode = document.getElementById('scoring-mode').value;
@@ -889,10 +947,14 @@ async function regenerateQuestion(index) {
     const newQ = parsed.questions[0];
     const q = _questions[index];
     q.question_text = newQ.question; q.options = newQ.options; q.correct_index = newQ.correct_index;
+    q.question_type = newQ.question_type || 'text';
     q.image_query = newQ.image_query || null; q.image_url = null;
-    await sbFetch(`quiz_questions?id=eq.${q.id}`, { method:'PATCH', prefer:'return=minimal', body: JSON.stringify({ question_text:q.question_text, options:q.options, correct_index:q.correct_index }) });
+    q.option_image_queries = (newQ.option_image_queries && newQ.option_image_queries.length) ? newQ.option_image_queries : null;
+    q.option_image_urls = q.option_image_queries ? q.option_image_queries.map(()=>null) : null;
+    if (_genContext.pictureMode) await resolveAllQuestionImages();
+    await sbFetch(`quiz_questions?id=eq.${q.id}`, { method:'PATCH', prefer:'return=minimal', body: JSON.stringify({ question_text:q.question_text, options:q.options, correct_index:q.correct_index, question_type:q.question_type, image_query:q.image_query, image_url:q.image_url, option_image_queries:q.option_image_queries, option_image_urls:q.option_image_urls }) });
     renderQuestionsList();
-    if (document.getElementById('images-mode-value').value === 'on') resolveQuestionImage(index);
+    if (!_genContext.pictureMode && document.getElementById('images-mode-value').value === 'on') resolveQuestionImage(index);
   } catch(e) {
     console.error(e);
     if (btn) { btn.disabled = false; btn.textContent = 'Failed — retry'; }
@@ -907,13 +969,20 @@ async function regenerateAllQuestions() {
   let ok = true;
   try {
     const parsed = await callQuizAI(_genContext.numQ, false, null);
-    const newQuestions = parsed.questions.map((q,i)=>({ order_index:i, question_text:q.question, options:q.options, correct_index:q.correct_index, image_query:q.image_query||null, image_url:null }));
-    await sbFetch(`quiz_questions?room_id=eq.${_room.id}`, { method:'DELETE', prefer:'return=minimal' });
-    const inserted = await sbFetch('quiz_questions', { method:'POST', body: JSON.stringify(newQuestions.map(q=>({ room_id:_room.id, order_index:q.order_index, question_text:q.question_text, options:q.options, correct_index:q.correct_index }))) });
-    newQuestions.forEach((q,i) => { q.id = inserted[i].id; });
+    const newQuestions = parsed.questions.map((q,i)=>({
+      order_index:i, question_text:q.question, options:q.options, correct_index:q.correct_index,
+      question_type: q.question_type || 'text',
+      image_query: q.image_query || null, image_url: null,
+      option_image_queries: (q.option_image_queries && q.option_image_queries.length) ? q.option_image_queries : null,
+      option_image_urls: (q.option_image_queries && q.option_image_queries.length) ? q.option_image_queries.map(()=>null) : null
+    }));
     _questions = newQuestions;
+    if (_genContext.pictureMode) await resolveAllQuestionImages();
+    await sbFetch(`quiz_questions?room_id=eq.${_room.id}`, { method:'DELETE', prefer:'return=minimal' });
+    const inserted = await sbFetch('quiz_questions', { method:'POST', body: JSON.stringify(newQuestions.map(q=>({ room_id:_room.id, order_index:q.order_index, question_text:q.question_text, options:q.options, correct_index:q.correct_index, question_type:q.question_type||'text', image_query:q.image_query||null, image_url:q.image_url||null, option_image_queries:q.option_image_queries||null, option_image_urls:q.option_image_urls||null }))) });
+    newQuestions.forEach((q,i) => { q.id = inserted[i].id; });
     renderQuestionsList();
-    if (document.getElementById('images-mode-value').value === 'on') resolveAllQuestionImages();
+    if (!_genContext.pictureMode && document.getElementById('images-mode-value').value === 'on') resolveAllQuestionImages();
   } catch(e) {
     console.error(e);
     ok = false;
@@ -1070,7 +1139,17 @@ function showQuestion() {
   document.getElementById('q-text').textContent = q.question_text;
   updateQuestionImageDisplay();
   speakQuestion(q.question_text);
-  optsEl.innerHTML = q.options.map((o,i)=>`<div class="opt-row" id="opt-${i}"><span class="shape">${shapes[i]}</span>${escapeHtml(o)}<span class="opt-count" id="opt-count-${i}"></span></div>`).join('');
+  const isPicAnswer = q.question_type === 'picture_answer';
+  optsEl.classList.toggle('pic-grid', isPicAnswer);
+  if (isPicAnswer) {
+    optsEl.innerHTML = q.options.map((o,i)=>{
+      const url = q.option_image_urls && q.option_image_urls[i];
+      const body = url ? `<img src="${url}" alt="${escapeHtml(o)}">` : `<span class="pic-fallback">${escapeHtml(o)}</span>`;
+      return `<div class="opt-row pic-opt" id="opt-${i}"><span class="shape">${shapes[i]}</span>${body}<span class="opt-count" id="opt-count-${i}"></span></div>`;
+    }).join('');
+  } else {
+    optsEl.innerHTML = q.options.map((o,i)=>`<div class="opt-row" id="opt-${i}"><span class="shape">${shapes[i]}</span>${escapeHtml(o)}<span class="opt-count" id="opt-count-${i}"></span></div>`).join('');
+  }
   optsEl.classList.toggle('hidden', _hostPlays);
   document.getElementById('answer-count').textContent = '';
   document.getElementById('reveal-btn').classList.remove('hidden');
@@ -1083,7 +1162,16 @@ function showQuestion() {
     hostOptsEl.style.setProperty('--qc1', pal[0]);
     hostOptsEl.style.setProperty('--qc2', pal[1]);
     hostOptsEl.style.setProperty('--qtext', pal[2]);
-    hostOptsEl.innerHTML = q.options.map((o,i)=>`<button type="button" class="opt-row clickable" id="host-opt-${i}" onclick="submitHostAnswer(${i})"><span class="shape">${shapes[i]}</span>${escapeHtml(o)}</button>`).join('');
+    hostOptsEl.classList.toggle('pic-grid', isPicAnswer);
+    if (isPicAnswer) {
+      hostOptsEl.innerHTML = q.options.map((o,i)=>{
+        const url = q.option_image_urls && q.option_image_urls[i];
+        const body = url ? `<img src="${url}" alt="${escapeHtml(o)}">` : `<span class="pic-fallback">${escapeHtml(o)}</span>`;
+        return `<button type="button" class="opt-row pic-opt clickable" id="host-opt-${i}" onclick="submitHostAnswer(${i})"><span class="shape">${shapes[i]}</span>${body}</button>`;
+      }).join('');
+    } else {
+      hostOptsEl.innerHTML = q.options.map((o,i)=>`<button type="button" class="opt-row clickable" id="host-opt-${i}" onclick="submitHostAnswer(${i})"><span class="shape">${shapes[i]}</span>${escapeHtml(o)}</button>`).join('');
+    }
   } else {
     hostPanel.classList.add('hidden');
   }
