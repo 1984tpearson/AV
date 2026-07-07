@@ -590,7 +590,7 @@
             '<p id="avnav-confirm-message" style="margin:0 0 18px;color:var(--text)"></p>' +
             '<div style="display:flex;gap:10px;justify-content:flex-end">' +
               '<button class="avnav-avatar-upload-btn" id="avnav-confirm-cancel-btn"></button>' +
-              '<button class="avnav-settings-btn" id="avnav-confirm-ok-btn" style="width:auto;padding:8px 16px"></button>' +
+              '<button id="avnav-confirm-ok-btn" style="width:auto;padding:8px 16px;border-radius:8px;border:none;background:var(--amber);color:#1a1a1a;font-weight:700;font-size:13px;cursor:pointer;"></button>' +
             '</div>' +
           '</div></div>';
         document.body.appendChild(modal);
