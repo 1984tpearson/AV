@@ -3385,6 +3385,14 @@ function renderScenario(s) {
             <div class="dc-label" style="margin-top:10px">On Arrival</div>
             <div class="dc-text" style="opacity:0.85">${s.arrival_hx||'—'}</div>
           `:s.key_hx?`<div class="dc-label" style="margin-top:10px">Key History</div><div class="dc-text" style="opacity:0.85">${s.key_hx}</div>`:''}
+          ${(s.provisional||s.ddx)?`
+            <div class="ddx-block">
+              <div class="dc-label" style="margin-top:12px">Provisional Dx</div>
+              <div class="dc-text" style="opacity:0.85">${s.provisional||'—'}</div>
+              <div class="dc-label" style="margin-top:10px">DDx</div>
+              <div class="dc-text" style="opacity:0.85">${(s.ddx||[]).join(' / ')||'—'}</div>
+            </div>
+          `:''}
         </div>
       </div>
     </div>
@@ -3399,7 +3407,6 @@ function renderScenario(s) {
     </div>
     <div class="section-body open" id="sec-flags">
       <ul class="flags-list">${flagsHtml}</ul>
-      ${(s.provisional||s.ddx)?`<div class="ddx-info"><strong>Provisional Dx:</strong> ${s.provisional||'—'}<br><strong>DDx:</strong> ${(s.ddx||[]).join(' / ')||'—'}</div>`:''}
     </div>
   </div>
 
@@ -4557,7 +4564,12 @@ function toggleKeyHxPanel() {
       html += `<div class="khx-label" style="margin-top:10px">On Arrival</div><div class="khx-text">${s.arrival_hx||'—'}</div>`;
     } else if (s.key_hx) {
       html += `<div class="khx-label">Key History</div><div class="khx-text">${s.key_hx}</div>`;
-    } else {
+    }
+    if (s.provisional || s.ddx) {
+      html += `<div class="khx-label" style="margin-top:10px">Provisional Dx</div><div class="khx-text">${s.provisional||'—'}</div>`;
+      html += `<div class="khx-label" style="margin-top:10px">DDx</div><div class="khx-text">${(s.ddx||[]).join(' / ')||'—'}</div>`;
+    }
+    if (!html) {
       html = '<div style="color:var(--grey);font-style:italic">No key history recorded.</div>';
     }
     body.innerHTML = html;
@@ -7259,7 +7271,7 @@ function injectFlagButtons() {
   });
 
   // 6. DDx + PROVISIONAL
-  const ddxInfo = document.querySelector('.ddx-info');
+  const ddxInfo = document.querySelector('.ddx-block');
   if (ddxInfo) makeFlaggable(ddxInfo, 'field_provisional', 'Provisional Diagnosis', s.provisional||'');
 
   // 7. LIFE THREATS
