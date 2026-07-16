@@ -972,6 +972,10 @@ body.flag-mode-active .flaggable.has-correction:hover { outline: 2px solid var(-
 .cp-chip button { background: none; border: none; color: var(--red); font-size: 13px; cursor: pointer; line-height: 1; padding: 0 2px; font-weight: 700; }
 .cp-cpg-add-btn { display: block; width: 100%; padding: 9px; background: var(--navy); color: white; border: none; border-radius: 7px; font-size: 13px; font-weight: 700; cursor: pointer; }
 .cp-cpg-add-btn:hover { opacity: 0.9; }
+.cp-gcs-row { display: flex; gap: 8px; margin-bottom: 8px; }
+.cp-gcs-col { flex: 1; min-width: 0; }
+.cp-gcs-label { display: block; font-size: 10px; font-weight: 700; color: var(--grey); text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 3px; }
+.cp-gcs-total { font-size: 13px; font-weight: 700; color: var(--navy); background: var(--light); border-radius: 7px; padding: 8px 10px; text-align: center; }
 .cp-revert-btn:hover { opacity: 0.75; }
 #corrections-modal .modal-inner { max-width: 720px; }
 .corr-item { border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; margin-bottom: 10px; background: white; }
@@ -1248,6 +1252,25 @@ body.flag-mode-active .flaggable.has-correction:hover { outline: 2px solid var(-
         <div class="cp-chips" id="cp-cpg-chips"></div>
         <select id="cp-cpg-add-select" style="width:100%;margin-bottom:8px"></select>
         <button type="button" class="cp-cpg-add-btn" onclick="addCpgChip()">+ Add CPG</button>
+      </div>
+      <div id="cp-gcs-wrap" style="display:none">
+        <div class="cp-gcs-row">
+          <div class="cp-gcs-col">
+            <label class="cp-gcs-label">Eyes (E)</label>
+            <select class="cp-select-input" id="cp-gcs-e" onchange="onCpGcsChange()"></select>
+          </div>
+          <div class="cp-gcs-col">
+            <label class="cp-gcs-label">Verbal (V)</label>
+            <select class="cp-select-input" id="cp-gcs-v" onchange="onCpGcsChange()"></select>
+          </div>
+          <div class="cp-gcs-col">
+            <label class="cp-gcs-label">Motor (M)</label>
+            <select class="cp-select-input" id="cp-gcs-m" onchange="onCpGcsChange()"></select>
+          </div>
+        </div>
+        <div class="cp-gcs-total">Total: <span id="cp-gcs-total-val">—</span> / 15</div>
+        <label class="cp-field-label" style="margin-top:8px">Description</label>
+        <textarea class="cp-comment-input" id="cp-gcs-desc" placeholder="e.g. Eyes open to voice, confused and disoriented speech, obeys commands…" style="min-height:50px"></textarea>
       </div>
     </div>
     <div>
@@ -3489,13 +3512,14 @@ function gcsFromVitals(rawGCS) {
       display: `${total} (E${e}V${v}M${m})`,
       components: `E${e} V${v} M${m}`,
       total,
+      E: e, V: v, M: m,
       description: rawGCS.description || '',
       isObject: true
     };
   }
   // Legacy: plain number or string
   const num = parseFloat(String(rawGCS)) || 15;
-  return { num, display: String(num), components: String(num), total: num, description: '', isObject: false };
+  return { num, display: String(num), components: String(num), total: num, E: 0, V: 0, M: 0, description: '', isObject: false };
 }
 
 // Live GCS total calculator for create/edit modals (prefix = 'cv' or 'ev')
@@ -3822,10 +3846,10 @@ function renderSection1(s, isTrauma) {
             // CONSCIOUS STATE
             const conscHint = `GCS ${gcs.display} — ${avpu}`;
 
-            // GCS component hints
-            const eyesHint = gcs.isObject ? `E${gcs.E || (gcs.total>=14?4:gcs.total>=10?3:gcs.total>=6?2:1)}` : '';
-            const verbalHint = gcs.isObject ? `V${gcs.V || (gcs.total>=14?5:gcs.total>=10?3:gcs.total>=6?2:1)}` : '';
-            const motorHint = gcs.isObject ? `M${gcs.M || (gcs.total>=14?6:gcs.total>=10?5:gcs.total>=6?4:2)}` : '';
+            // GCS component hints — read directly from the object (now correctly populated by gcsFromVitals)
+            const eyesHint = gcs.isObject && gcs.E ? `E${gcs.E}` : '';
+            const verbalHint = gcs.isObject && gcs.V ? `V${gcs.V}` : '';
+            const motorHint = gcs.isObject && gcs.M ? `M${gcs.M}` : '';
 
             // WEIGHT — use AI value if present, otherwise estimate from age
             const ageNum = parseAgeFromSubtitle(s.subtitle||'');
@@ -7092,6 +7116,11 @@ const RHYTHM_DROPDOWN_OPTIONS = [
   'Other (custom)'
 ];
 
+// GCS component options — standard clinical descriptors per score
+const GCS_EYE_OPTIONS    = [{v:4,t:'4 — Spontaneous'},{v:3,t:'3 — To voice'},{v:2,t:'2 — To pain'},{v:1,t:'1 — None'}];
+const GCS_VERBAL_OPTIONS = [{v:5,t:'5 — Orientated'},{v:4,t:'4 — Confused'},{v:3,t:'3 — Inappropriate words'},{v:2,t:'2 — Incomprehensible sounds'},{v:1,t:'1 — None'}];
+const GCS_MOTOR_OPTIONS  = [{v:6,t:'6 — Obeys commands'},{v:5,t:'5 — Localises to pain'},{v:4,t:'4 — Withdraws from pain'},{v:3,t:'3 — Abnormal flexion (decorticate)'},{v:2,t:'2 — Abnormal extension (decerebrate)'},{v:1,t:'1 — None'}];
+
 // Correction field definitions — what can be flagged and how
 const CORRECTABLE_FIELDS = {
   // Vitals
@@ -7101,7 +7130,7 @@ const CORRECTABLE_FIELDS = {
   'vital_SpO2':       { label: 'SpO₂',                         getter: s => String((s.vitals||{}).SpO2||'') },
   'vital_Temp':       { label: 'Temperature',                   getter: s => String((s.vitals||{}).Temp||'') },
   'vital_BGL':        { label: 'BGL',                           getter: s => String((s.vitals||{}).BGL||'') },
-  'vital_GCS':        { label: 'GCS',                           getter: s => { const g=(s.vitals||{}).GCS; return g&&typeof g==='object'?`${g.total} (E${g.E}V${g.V}M${g.M})`:String(g||''); } },
+  'vital_GCS':        { label: 'GCS', type: 'gcs',                getter: s => { const g=(s.vitals||{}).GCS; return g&&typeof g==='object'?`${g.total} (E${g.E}V${g.V}M${g.M})${g.description?' — '+g.description:''}`:String(g||''); } },
   'vital_Rhythm':     { label: 'Rhythm', type: 'select', options: RHYTHM_DROPDOWN_OPTIONS, getter: s => String((s.vitals||{}).Rhythm||'') },
   'vital_EtCO2':      { label: 'EtCO₂',                        getter: s => String((s.vitals||{}).EtCO2||'') },
   'vital_Weight':     { label: 'Weight',                        getter: s => String((s.vitals||{}).Weight||'') },
@@ -7185,7 +7214,18 @@ function applyCorrectionsToScenario(s) {
     const fk = c.field_key;
     const cv = c.corrected_value;
 
-    if (fk.startsWith('vital_')) {
+    if (fk === 'vital_GCS') {
+      if (!patched.vitals) patched.vitals = {};
+      try {
+        const g = JSON.parse(cv);
+        const e = g.E||0, v = g.V||0, m = g.M||0;
+        patched.vitals.GCS = { total: e+v+m, E: e, V: v, M: m, description: g.description||'' };
+      } catch (err) {
+        // Backward-compat: pre-upgrade corrections may have saved a plain string
+        patched.vitals.GCS = cv;
+      }
+
+    } else if (fk.startsWith('vital_')) {
       const vk = fk.replace('vital_', '');
       if (!patched.vitals) patched.vitals = {};
       patched.vitals[vk] = cv;
@@ -7574,6 +7614,23 @@ function onCpSelectChange() {
   else { otherEl.style.display = 'none'; }
 }
 
+// GCS editor — populate E/V/M selects and keep the total live
+function populateGcsSelects() {
+  const fill = (id, opts) => {
+    document.getElementById(id).innerHTML = opts.map(o => `<option value="${o.v}">${o.t}</option>`).join('');
+  };
+  fill('cp-gcs-e', GCS_EYE_OPTIONS);
+  fill('cp-gcs-v', GCS_VERBAL_OPTIONS);
+  fill('cp-gcs-m', GCS_MOTOR_OPTIONS);
+}
+
+function onCpGcsChange() {
+  const e = parseInt(document.getElementById('cp-gcs-e').value) || 0;
+  const v = parseInt(document.getElementById('cp-gcs-v').value) || 0;
+  const m = parseInt(document.getElementById('cp-gcs-m').value) || 0;
+  document.getElementById('cp-gcs-total-val').textContent = (e + v + m) || '—';
+}
+
 // Open the correction popover
 function openCorrectionPopover(fieldKey, fieldLabel, originalValue, anchorEl, existingCorr) {
   const fieldDef = CORRECTABLE_FIELDS[fieldKey] || {};
@@ -7592,6 +7649,7 @@ function openCorrectionPopover(fieldKey, fieldLabel, originalValue, anchorEl, ex
   const textEl = document.getElementById('cp-new-val');
   const selectWrap = document.getElementById('cp-select-wrap');
   const cpgWrap = document.getElementById('cp-cpg-wrap');
+  const gcsWrap = document.getElementById('cp-gcs-wrap');
   const selectEl = document.getElementById('cp-select-val');
   const selectOtherEl = document.getElementById('cp-select-other');
 
@@ -7599,6 +7657,7 @@ function openCorrectionPopover(fieldKey, fieldLabel, originalValue, anchorEl, ex
   textEl.style.display = 'none';
   selectWrap.style.display = 'none';
   cpgWrap.style.display = 'none';
+  gcsWrap.style.display = 'none';
   selectOtherEl.style.display = 'none';
 
   const startingValue = existingCorr ? existingCorr.corrected_value : '';
@@ -7622,6 +7681,22 @@ function openCorrectionPopover(fieldKey, fieldLabel, originalValue, anchorEl, ex
     _cpgChipState = cpgStr.split(/[,/]/).map(x => x.trim()).filter(Boolean).filter(c => !c.startsWith('('));
     populateCpgAddSelect();
     renderCpgChips();
+  } else if (fieldType === 'gcs') {
+    gcsWrap.style.display = 'block';
+    populateGcsSelects();
+    let g = null;
+    if (startingValue) { try { g = JSON.parse(startingValue); } catch (e) { g = null; } }
+    if (!g) {
+      const rawG = currentScenario ? (currentScenario.vitals||{}).GCS : null;
+      g = (rawG && typeof rawG === 'object')
+        ? { E: rawG.E||4, V: rawG.V||5, M: rawG.M||6, description: rawG.description||'' }
+        : { E: 4, V: 5, M: 6, description: '' };
+    }
+    document.getElementById('cp-gcs-e').value = g.E;
+    document.getElementById('cp-gcs-v').value = g.V;
+    document.getElementById('cp-gcs-m').value = g.M;
+    document.getElementById('cp-gcs-desc').value = g.description || '';
+    onCpGcsChange();
   } else {
     textEl.style.display = 'block';
   }
@@ -7681,6 +7756,12 @@ async function saveCorrection() {
       : selectEl.value;
   } else if (fieldType === 'cpg') {
     newVal = _cpgChipState.join(', ');
+  } else if (fieldType === 'gcs') {
+    const e = parseInt(document.getElementById('cp-gcs-e').value) || 0;
+    const v = parseInt(document.getElementById('cp-gcs-v').value) || 0;
+    const m = parseInt(document.getElementById('cp-gcs-m').value) || 0;
+    const description = document.getElementById('cp-gcs-desc').value.trim();
+    newVal = JSON.stringify({ E: e, V: v, M: m, description });
   } else {
     newVal = document.getElementById('cp-new-val').value.trim();
   }
@@ -7806,6 +7887,19 @@ function filterCorrections(filter) {
   renderCorrectionsList();
 }
 
+// Format a raw corrected_value for display in the Corrections admin list
+// (GCS corrections are stored as JSON — show them readably instead of raw JSON)
+function formatCorrectionValue(fieldKey, cv) {
+  if (fieldKey === 'vital_GCS') {
+    try {
+      const g = JSON.parse(cv);
+      const total = (g.E||0) + (g.V||0) + (g.M||0);
+      return `${total} (E${g.E}V${g.V}M${g.M})${g.description ? ' — ' + g.description : ''}`;
+    } catch (e) { /* fall through to raw display for pre-upgrade plain-text values */ }
+  }
+  return cv;
+}
+
 function renderCorrectionsList() {
   const list = document.getElementById('corrections-list');
   const filtered = _corrFilter === 'all' ? _allCorrections : _allCorrections.filter(c => c.status === _corrFilter);
@@ -7830,7 +7924,7 @@ function renderCorrectionsList() {
       <div class="corr-values">
         <span class="corr-orig-val">${c.original_value||'(empty)'}</span>
         <span class="corr-arrow">→</span>
-        <span class="corr-new-val">${c.corrected_value}</span>
+        <span class="corr-new-val">${formatCorrectionValue(c.field_key, c.corrected_value)}</span>
       </div>
       ${c.comment ? `<div class="corr-comment">"${c.comment}"</div>` : ''}
       <div class="corr-meta">By ${c.corrected_by_name} (${c.corrected_by_svcnum||'no ID'}) · ${dt}</div>
