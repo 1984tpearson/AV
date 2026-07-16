@@ -1212,9 +1212,9 @@ body.flag-mode-active .flaggable.has-correction:hover { outline: 2px solid var(-
 <button id="flag-error-btn" onclick="toggleFlagMode()">🚩 Flag Error</button>
 
 <!-- Key History FAB -->
-<button id="keyhx-fab" onclick="toggleKeyHxPanel()">📋 Key History</button>
+<button id="keyhx-fab" onclick="toggleKeyHxPanel()">📋 Key Info</button>
 <div id="keyhx-panel">
-  <div id="keyhx-panel-header">📋 Key History</div>
+  <div id="keyhx-panel-header">📋 Key Info</div>
   <div id="keyhx-panel-body"></div>
 </div>
 
@@ -3371,7 +3371,7 @@ function renderScenario(s) {
   <div class="section">
     <div class="section-header open" onclick="toggleSection(this)">
       <div class="section-icon navy">📻</div>
-      <div class="section-title">Dispatch & Presentation</div>
+      <div class="section-title">Summary</div>
       <div class="section-chevron">▾</div>
     </div>
     <div class="section-body open" id="sec-dispatch">
@@ -3628,6 +3628,7 @@ function renderSection1(s, isTrauma) {
     </div>
     <div class="section-body open" id="sec-patient-assessment">
 
+      ${(s.dispatch||s.caller_hx)?`<div class="ddx-info ddx-dispatch"><strong>Dispatch:</strong> ${s.dispatch||'—'}<br><strong>Caller Reports:</strong> ${s.caller_hx||'—'}</div>`:''}
       <div id="nav-prearr" class="snav-anchor"></div><div class="asmt-section-header"><div class="asmt-section-title">Pre-arrival &amp; Scene</div><button class="all-complete-btn" onclick="markGroupComplete('prearr')">✓ All Complete</button></div>
       <table class="asmt-table" data-group="prearr" data-section="sec1">
         <thead><tr><th class="left" style="width:46%">Element</th><th style="width:18%">Prompting Required</th><th style="width:18%">Sub-section Incomplete</th><th style="width:18%">All Complete</th></tr></thead>
@@ -3640,6 +3641,7 @@ function renderSection1(s, isTrauma) {
         </tbody>
       </table>
 
+      ${s.arrival_hx?`<div class="ddx-info ddx-arrival"><strong>On Arrival:</strong> ${s.arrival_hx}</div>`:''}
       <div id="nav-rabcde" class="snav-anchor"></div><div class="asmt-section-header"><div class="asmt-section-title">Primary Survey — RABCDE</div><button class="all-complete-btn" onclick="markGroupComplete('rabcde')">✓ All Complete</button></div>
       <table class="asmt-table" data-group="rabcde" data-section="sec1">
         <thead><tr><th class="left">Element</th><th>Prompting</th><th>Incomplete</th><th>Complete</th></tr></thead>
@@ -4048,6 +4050,7 @@ function renderSection2(s) {
         </tbody>
       </table>
 
+      ${(s.provisional||s.ddx)?`<div class="ddx-info ddx-provisional-sec2"><strong>Provisional Dx:</strong> ${s.provisional||'—'}<br><strong>DDx:</strong> ${(s.ddx||[]).join(' / ')||'—'}</div>`:''}
       <div id="nav-care" class="snav-anchor"></div><div class="asmt-section-header"><div class="asmt-section-title diagnosis">Care Pathways — Plan</div><button class="all-complete-btn" onclick="markGroupComplete('care')">✓ All Complete</button></div>
       <table class="asmt-table" data-group="care" data-section="sec2">
         <thead><tr><th class="left">Element</th><th>Prompting</th><th>Incomplete</th><th>Complete</th></tr></thead>
@@ -7273,6 +7276,9 @@ function injectFlagButtons() {
   // 6. DDx + PROVISIONAL
   const ddxInfo = document.querySelector('.ddx-block');
   if (ddxInfo) makeFlaggable(ddxInfo, 'field_provisional', 'Provisional Diagnosis', s.provisional||'');
+  document.querySelectorAll('.ddx-dispatch').forEach(el => makeFlaggable(el, 'field_dispatch', 'Dispatch', s.dispatch||''));
+  document.querySelectorAll('.ddx-arrival').forEach(el => makeFlaggable(el, 'field_arrival_hx', 'On Arrival', s.arrival_hx||''));
+  document.querySelectorAll('.ddx-provisional-sec2').forEach(el => makeFlaggable(el, 'field_provisional', 'Provisional Diagnosis', s.provisional||''));
 
   // 7. LIFE THREATS
   document.querySelectorAll('tr[data-row-id^="lt"]').forEach((tr, i) => {
