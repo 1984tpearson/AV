@@ -4035,7 +4035,7 @@ function renderSection2(s) {
       <table class="asmt-table" data-group="risk" data-section="sec2">
         <thead><tr><th class="left" style="width:46%">Element</th><th style="width:18%">Prompting Required</th><th style="width:18%">Sub-section Incomplete</th><th style="width:18%">All Complete</th></tr></thead>
         <tbody>
-          ${mkRow('flags-id', `Clinical flags / Patient Safety (CPG A0/P0108)${flagsHint ? infoHint(flagsHint) : ''}`)}
+          ${mkRow('flags-id', `Clinical flags / Patient Safety (CPG A0/P0108)${flagsHint ? `<span class="vital-hint" id="flags-summary-hint" style="background:#2E4057;max-width:220px;white-space:normal;line-height:1.3;vertical-align:top">${flagsHint}</span>` : ''}`)}
           ${mkRow('frailty','Frailty status considered',true)}
           ${mkRow('triage','Trauma Triage / Paediatric Time Critical (if applicable)',true)}
         </tbody>
@@ -4063,7 +4063,7 @@ function renderSection2(s) {
               <input class="ddx-input" style="width:calc(100% - 130px);display:inline-block" placeholder="Relevant clinical problems identified…">
             </td>
           </tr>
-          ${mkRow('provdx', `Provisional Diagnosis${provisionalHint ? infoHint(provisionalHint) : ''}`)}
+          ${mkRow('provdx', `Provisional Diagnosis${provisionalHint ? `<span class="vital-hint" id="provdx-summary-hint" style="background:#2E4057;max-width:220px;white-space:normal;line-height:1.3;vertical-align:top">${provisionalHint}</span>` : ''}`)}
         </tbody>
       </table>
 
@@ -7147,6 +7147,8 @@ const CORRECTABLE_FIELDS = {
   'field_ps_haem':      { label: 'Primary Survey — Haemorrhage', getter: s => (s.overrides&&s.overrides.ps_haem) || '(auto-calculated — click to override)' },
   // Rapid Assessment — Well/Unwell
   'field_wellunwell':   { label: 'Well / Unwell', type: 'select', options: ['Well','UNWELL'], getter: s => (s.overrides&&s.overrides.wellunwell) || '(auto-calculated — click to override)' },
+  // Clinical flags — full list, edited together (separate entries with ; )
+  'field_flags_all':    { label: 'Clinical Flags (all)', getter: s => (s.flags||[]).filter(Boolean).join('; ') },
   // Diagnosis
   'field_provisional':  { label: 'Provisional Diagnosis',       getter: s => s.provisional||'' },
 };
@@ -7189,6 +7191,7 @@ function applyCorrectionsToScenario(s) {
     } else if (fk === 'field_subtitle')    { patched.subtitle = cv;
     } else if (fk === 'field_cpg')         { patched.cpg = cv;
     } else if (fk === 'field_medications') { patched.medications = cv.split(',').map(x=>x.trim());
+    } else if (fk === 'field_flags_all')   { patched.flags = cv.split(';').map(x=>x.trim()).filter(Boolean);
     } else if (fk === 'field_allergies')   { patched.allergies = cv;
     } else if (fk === 'field_social')      { patched.social = cv;
     } else if (fk === 'field_ps_exposure') { patched.ps_exposure = cv;
@@ -7326,7 +7329,7 @@ function injectFlagButtons() {
     phmeds:'field_medications', phallergies:'field_allergies', phsocial:'field_social',
     wob1:'field_ra_wob', skin1:'field_ra_skin',
     appearance:'field_rsa_appearance', speech:'field_rsa_speech',
-    breathsounds:'field_rsa_breath', rrrhythm:'field_rsa_rhythm', wob2:'field_rsa_wob',
+    breathsounds:'field_rsa_breath', rrhythm:'field_rsa_rhythm', wob2:'field_rsa_wob',
   };
   document.querySelectorAll('tr[data-row-id]').forEach(tr => {
     const fk = infoRowMap[tr.dataset.rowId];
@@ -7421,6 +7424,20 @@ function injectFlagButtons() {
     const hintEl = wellTr.querySelector('.vital-hint');
     if (hintEl) makeFlaggable(hintEl, 'field_wellunwell', CORRECTABLE_FIELDS['field_wellunwell'].label, CORRECTABLE_FIELDS['field_wellunwell'].getter(s));
   }
+
+  // 15. CLINICAL FLAGS SUMMARY + PROVISIONAL DX SUMMARY (Section 2 preview badges)
+  const flagsSummaryHint = document.getElementById('flags-summary-hint');
+  if (flagsSummaryHint) makeFlaggable(flagsSummaryHint, 'field_flags_all', CORRECTABLE_FIELDS['field_flags_all'].label, CORRECTABLE_FIELDS['field_flags_all'].getter(s));
+  const provdxSummaryHint = document.getElementById('provdx-summary-hint');
+  if (provdxSummaryHint) makeFlaggable(provdxSummaryHint, 'field_provisional', CORRECTABLE_FIELDS['field_provisional'].label, CORRECTABLE_FIELDS['field_provisional'].getter(s));
+
+  // 16. GCS-DERIVED ROWS (Conscious State, Eyes, Verbal, Motor) — reuse the GCS correction
+  ['conscstate','eyes','verbal','motor'].forEach(rid => {
+    const tr = document.querySelector(`tr[data-row-id="${rid}"]`);
+    if (!tr) return;
+    const hintEl = tr.querySelector('.vital-hint');
+    if (hintEl) makeFlaggable(hintEl, 'vital_GCS', CORRECTABLE_FIELDS['vital_GCS'].label, CORRECTABLE_FIELDS['vital_GCS'].getter(s));
+  });
 }
 
 // Re-initialise ECG after a scenario re-render (e.g. after correction saved)
