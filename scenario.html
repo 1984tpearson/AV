@@ -965,6 +965,14 @@ body.flag-mode-active .flaggable.has-correction:hover { outline: 2px solid var(-
 .cp-save-btn:active { opacity: 0.85; }
 .cp-cancel-btn { padding: 10px 14px; background: white; color: var(--grey); border: 1px solid var(--border); border-radius: 7px; font-weight: 600; font-size: 12px; cursor: pointer; }
 .cp-revert-btn { font-size: 11px; color: var(--red); background: none; border: none; cursor: pointer; text-decoration: underline; padding: 0; font-weight: 600; }
+.cp-select-input { width: 100%; padding: 8px 10px; border: 1.5px solid var(--red); border-radius: 7px; font-size: 13px; outline: none; background: white; }
+.cp-select-input:focus { border-color: #922B21; box-shadow: 0 0 0 2px rgba(192,57,43,0.12); }
+.cp-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+.cp-chip { display: inline-flex; align-items: center; gap: 6px; background: var(--light); border: 1px solid var(--border); border-radius: 14px; padding: 4px 6px 4px 10px; font-size: 12px; font-weight: 600; }
+.cp-chip button { background: none; border: none; color: var(--red); font-size: 13px; cursor: pointer; line-height: 1; padding: 0 2px; font-weight: 700; }
+.cp-cpg-add-row { display: flex; gap: 6px; }
+.cp-cpg-add-row select { flex: 1; }
+.cp-cpg-add-row button { padding: 8px 12px; background: var(--navy); color: white; border: none; border-radius: 7px; font-size: 12px; font-weight: 700; cursor: pointer; white-space: nowrap; }
 .cp-revert-btn:hover { opacity: 0.75; }
 #corrections-modal .modal-inner { max-width: 720px; }
 .corr-item { border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; margin-bottom: 10px; background: white; }
@@ -1232,6 +1240,17 @@ body.flag-mode-active .flaggable.has-correction:hover { outline: 2px solid var(-
     <div id="cp-edit-section">
       <div class="cp-field-label">Corrected Value</div>
       <input class="cp-new-input" id="cp-new-val" type="text" placeholder="Enter corrected value…">
+      <div id="cp-select-wrap" style="display:none">
+        <select class="cp-select-input" id="cp-select-val" onchange="onCpSelectChange()"></select>
+        <input class="cp-new-input" id="cp-select-other" type="text" placeholder="Enter custom value…" style="display:none;margin-top:8px">
+      </div>
+      <div id="cp-cpg-wrap" style="display:none">
+        <div class="cp-chips" id="cp-cpg-chips"></div>
+        <div class="cp-cpg-add-row">
+          <select id="cp-cpg-add-select"></select>
+          <button type="button" onclick="addCpgChip()">+ Add</button>
+        </div>
+      </div>
     </div>
     <div>
       <div class="cp-field-label">Comment <span style="font-weight:400;text-transform:none">(optional — why is this wrong?)</span></div>
@@ -3317,7 +3336,7 @@ function renderScenario(s) {
     ${paedAgeSelector}
     <div class="sh-badges">
       <span class="badge" style="background:${catBg[s.category]||'#1C3A6E'}">${s.category}${s.subcategory ? ' — '+s.subcategory : ''}</span>
-      ${_primaryCpgStr?`<span class="badge amber-badge">${getCPGLabel(_primaryCpgStr)}</span>`:''}
+      ${_primaryCpgStr?`<span class="badge amber-badge" id="sh-cpg-badge">${getCPGLabel(_primaryCpgStr)}</span>`:''}
       <select id="grad-level" onchange="applyLevel(this.value)" style="appearance:auto;-webkit-appearance:auto;background:rgba(255,255,255,0.18);border:1px solid rgba(255,255,255,0.35);color:white;padding:3px 8px;border-radius:14px;font-size:11px;font-weight:700;cursor:pointer;outline:none"><option value="A" style="color:#1a1a2e">Level A</option><option value="B" style="color:#1a1a2e">Level B</option><option value="C" style="color:#1a1a2e">Level C</option><option value="D" selected style="color:#1a1a2e">Level D</option></select>
       ${s.ai_generated?`<span class="ai-generated-badge">✦ AI</span>${s.created_at ? `<span style="font-size:10px;color:rgba(255,255,255,0.4);font-weight:400;margin-left:1px">${(d => d.getDate().toString().padStart(2,'0')+'/'+(d.getMonth()+1).toString().padStart(2,'0')+'/'+(d.getFullYear().toString().slice(2)))(new Date(s.created_at))}</span>` : ''}`:'' }
       ${s.custom&&!s.ai_generated?'<span class="badge custom-badge">Custom</span>':''}
@@ -3519,7 +3538,7 @@ function renderSection1(s, isTrauma) {
   const immediateLifeThreat = gcsNum <= 8 || sbp < 80 || spo2N < 85 || rrN > 40 || rrN < 6
     || String(v.Rhythm||'').toLowerCase().match(/vf|vt\b|asystole|pea|arrest/)
     || String(v.Rhythm||'').toLowerCase().includes('arrest');
-  const wellHint = immediateLifeThreat ? 'UNWELL' : 'Well';
+  const wellHint = (s.overrides&&s.overrides.wellunwell) || (immediateLifeThreat ? 'UNWELL' : 'Well');
   const dispatchShort = (s.dispatch||'').split('.')[0].replace(/^Responded to [^.]+\. /,'').slice(0,60);
   // Prefer structured fields; fall back to key_hx for legacy built-in scenarios
   const condList = (s.medical_conditions||[]).filter(Boolean);
@@ -3645,46 +3664,52 @@ function renderSection1(s, isTrauma) {
               : avpu === 'V' ? 'Responds to voice'
               : avpu === 'P' ? 'Responds to pain'
               : 'Unresponsive';
-            const responseHint = `${avpu} — ${avpuLabel}`;
+            const _ov = s.overrides || {};
+            const responseHint = _ov.ps_response || `${avpu} — ${avpuLabel}`;
+            const responseAbn = _ov.ps_response ? false : (avpu !== 'A');
 
             // AIRWAY — context-aware
             const airwayOccluded = /\b(obstruct|foreign body|fb|airway block|choking|occlu|vomit|secretion|blood in airway|haemoptysis)\b/.test(allText);
             const airwayPartial = /\b(stridor|partial|gurgling|snoring|tongue|positional|unconscious|unresponsive|reduced gcs|overdose|od\b|obtunded|seizure|post-ictal|postictal|anaphylaxis|angioedema|epiglottitis|croup)\b/.test(allText) && gcsNum < 12;
-            const airwayHint = airwayOccluded ? 'Occluded'
+            const airwayHint = _ov.ps_airway || (airwayOccluded ? 'Occluded'
               : airwayPartial ? 'Partial occlusion'
-              : 'Patent';
-            const airwayAbn = airwayHint !== 'Patent';
+              : 'Patent');
+            const airwayAbn = _ov.ps_airway ? false : (airwayHint !== 'Patent');
 
             // CERVICAL SPINE
             const cspineRelevant = isTrauma || /\b(trauma|mvc|mva|fall|mechanism|neck|c.?spine|cervical|rolled|ejected|struck|assault|biker|cyclist|pedestrian)\b/.test(allText);
-            const cspineHint = cspineRelevant ? 'Consider C-spine precautions' : 'N/A';
-            const cspineAbn = cspineRelevant;
+            const cspineHint = _ov.ps_cspine || (cspineRelevant ? 'Consider C-spine precautions' : 'N/A');
+            const cspineAbn = _ov.ps_cspine ? false : cspineRelevant;
 
             // BREATHING — Adequate/Inadequate (adults); RR + SpO₂ for paeds
             const isArrest = String(v.Rhythm||'').toLowerCase().match(/vf|vt\b|asystole|pea|arrest/) || rrNum < 1;
             const breathingInadequate = isArrest || rrNum < 8;
             let breathingHint;
-            if (isPaed) {
+            if (_ov.ps_breathing) {
+              breathingHint = _ov.ps_breathing;
+            } else if (isPaed) {
               breathingHint = v.RR ? `RR ${v.RR}${v.SpO2 ? `, SpO₂ ${v.SpO2}` : ''}` : '';
             } else {
               breathingHint = breathingInadequate ? 'Inadequate' : 'Adequate';
             }
-            const breathingAbn = isPaed ? false : breathingInadequate;
+            const breathingAbn = _ov.ps_breathing ? false : (isPaed ? false : breathingInadequate);
 
             // CIRCULATION — Pulse present/absent (adults); HR for paeds
             const noCirc = isArrest || sbp < 40;
             let circHint;
-            if (isPaed) {
+            if (_ov.ps_circ) {
+              circHint = _ov.ps_circ;
+            } else if (isPaed) {
               circHint = v.HR ? `HR ${v.HR}` : '';
             } else {
               circHint = noCirc ? 'No pulse' : 'Pulse present';
             }
-            const circAbn = noCirc;
+            const circAbn = _ov.ps_circ ? false : noCirc;
 
             // HAEMORRHAGE — life-threatening bleed context
             const lifeThreateningBleed = /\b(amput|haemorrhage|hemorrhage|major bleed|arterial|exsanguinat|tourniquet|limb loss|penetrating|impalement|stab|shoot|gunshot|blast|eviscerat)\b/.test(allText);
-            const haemHint = lifeThreateningBleed ? 'Life-threatening haemorrhage present' : 'No life-threatening haemorrhage';
-            const haemAbn = lifeThreateningBleed;
+            const haemHint = _ov.ps_haem || (lifeThreateningBleed ? 'Life-threatening haemorrhage present' : 'No life-threatening haemorrhage');
+            const haemAbn = _ov.ps_haem ? false : lifeThreateningBleed;
 
             // EXPOSURE — relevant only if environmental/hazmat/anaphylaxis context
             const exposureRelevant = /\b(hypoth|hypertherm|heat stroke|cold|burns|chemical|hazmat|haz.?mat|toxin|anaphylaxis|allergen|antigen|sting|bite|rash|environ)\b/.test(allText);
@@ -3703,7 +3728,7 @@ function renderSection1(s, isTrauma) {
             return `
           ${mkRow('ps-primary','Primary Survey')}
           <tr data-row-id="ps-response" data-parent="ps-primary">
-            <td class="elem-label indent">Response${mkHint(responseHint, avpu !== 'A')}</td>
+            <td class="elem-label indent">Response${mkHint(responseHint, responseAbn)}</td>
             <td class="tick-col"><button class="sub-tick-btn" id="sub-ps-response-prompted" onclick="toggleSubTick('ps-response','prompted','ps-primary')" title="Prompting Required">—</button></td>
             <td class="tick-col"><button class="sub-tick-btn" id="sub-ps-response-incomplete" onclick="toggleSubTick('ps-response','incomplete','ps-primary')" title="Incomplete/Incorrect">—</button></td>
             <td class="tick-col"><button class="sub-tick-btn" id="sub-ps-response-complete" onclick="toggleSubTick('ps-response','complete','ps-primary')" title="Complete">—</button></td>
@@ -7051,6 +7076,24 @@ let _corrections = []; // array of correction objects from Supabase
 let _flagModeActive = false;
 let _popoverState = null; // { fieldKey, fieldLabel, originalValue, correctionId|null, anchorEl }
 
+// Rhythm names offered in the Rhythm correction dropdown — canonical phrases that
+// ECGEngine's mapRhythm() regex matching will resolve to the correct visual rhythm.
+const RHYTHM_DROPDOWN_OPTIONS = [
+  'Normal sinus rhythm', 'Sinus tachycardia', 'Sinus bradycardia', 'Sinus arrhythmia',
+  'Atrial fibrillation', 'Atrial flutter', 'Supraventricular tachycardia (SVT)',
+  'Ventricular tachycardia (VT)', 'Ventricular fibrillation (VF)', 'Torsades de pointes',
+  'Asystole', 'Complete heart block (3rd degree)', 'Wenckebach (Mobitz I)',
+  'Mobitz II (2nd degree)', 'First degree heart block', 'Junctional rhythm',
+  'WPW (Wolff-Parkinson-White)', 'PVC / Bigeminy', 'Idioventricular rhythm (AIVR)',
+  'Hyperkalaemia changes', 'Hypokalaemia changes', 'Prolonged QT', 'Pericarditis',
+  'NSTEMI', 'Pulmonary embolism pattern', 'Brugada syndrome',
+  'Inferior STEMI', 'Anterior STEMI', 'Lateral STEMI', 'Posterior STEMI',
+  'Left bundle branch block (LBBB)', 'Right bundle branch block (RBBB)',
+  'PEA (Pulseless electrical activity)', 'Hypothermia changes',
+  'Paced rhythm (VVI)', 'Paced rhythm (AAI)', 'Paced rhythm (DDD)',
+  'Other (custom)'
+];
+
 // Correction field definitions — what can be flagged and how
 const CORRECTABLE_FIELDS = {
   // Vitals
@@ -7061,14 +7104,14 @@ const CORRECTABLE_FIELDS = {
   'vital_Temp':       { label: 'Temperature',                   getter: s => String((s.vitals||{}).Temp||'') },
   'vital_BGL':        { label: 'BGL',                           getter: s => String((s.vitals||{}).BGL||'') },
   'vital_GCS':        { label: 'GCS',                           getter: s => { const g=(s.vitals||{}).GCS; return g&&typeof g==='object'?`${g.total} (E${g.E}V${g.V}M${g.M})`:String(g||''); } },
-  'vital_Rhythm':     { label: 'Rhythm',                        getter: s => String((s.vitals||{}).Rhythm||'') },
+  'vital_Rhythm':     { label: 'Rhythm', type: 'select', options: RHYTHM_DROPDOWN_OPTIONS, getter: s => String((s.vitals||{}).Rhythm||'') },
   'vital_EtCO2':      { label: 'EtCO₂',                        getter: s => String((s.vitals||{}).EtCO2||'') },
   'vital_Weight':     { label: 'Weight',                        getter: s => String((s.vitals||{}).Weight||'') },
   'vital_Ketones':    { label: 'Ketones',                       getter: s => String((s.vitals||{}).Ketones||'') },
   // Scenario header
   'field_title':      { label: 'Scenario Title',                getter: s => s.title||'' },
   'field_subtitle':   { label: 'Subtitle / Demographics',       getter: s => s.subtitle||'' },
-  'field_cpg':        { label: 'CPG Code',                      getter: s => s.cpg||'' },
+  'field_cpg':        { label: 'CPG Code(s)', type: 'cpg',       getter: s => s.cpg||'' },
   // Dispatch / history
   'field_dispatch':   { label: 'Dispatch',                       getter: s => s.dispatch||'' },
   'field_caller_hx':  { label: 'Caller Reports',                 getter: s => s.caller_hx||'' },
@@ -7095,9 +7138,33 @@ const CORRECTABLE_FIELDS = {
   'field_rsa_breath':      { label: 'RSA — Breath Sounds',     getter: s => (s.rsa||{}).breath_sounds||'' },
   'field_rsa_rhythm':      { label: 'RSA — Respiratory Rhythm',getter: s => (s.rsa||{}).rhythm||'' },
   'field_rsa_wob':         { label: 'RSA — Work of Breathing', getter: s => (s.rsa||{}).wob||'' },
+  // Primary Survey (RABCDE) — computed hints; corrections are stored as overrides
+  'field_ps_response':  { label: 'Primary Survey — Response (AVPU)', type: 'select', options: ['A — Alert','V — Responds to voice','P — Responds to pain','U — Unresponsive','Other (custom)'], getter: s => (s.overrides&&s.overrides.ps_response) || '(auto-calculated from GCS — click to override)' },
+  'field_ps_airway':    { label: 'Primary Survey — Airway', type: 'select', options: ['Patent','Partial occlusion','Occluded','Other (custom)'], getter: s => (s.overrides&&s.overrides.ps_airway) || '(auto-calculated — click to override)' },
+  'field_ps_cspine':    { label: 'Primary Survey — Cervical Spine', getter: s => (s.overrides&&s.overrides.ps_cspine) || '(auto-calculated — click to override)' },
+  'field_ps_breathing': { label: 'Primary Survey — Breathing', type: 'select', options: ['Adequate','Inadequate','Other (custom)'], getter: s => (s.overrides&&s.overrides.ps_breathing) || '(auto-calculated — click to override)' },
+  'field_ps_circ':      { label: 'Primary Survey — Circulation', type: 'select', options: ['Pulse present','No pulse','Other (custom)'], getter: s => (s.overrides&&s.overrides.ps_circ) || '(auto-calculated — click to override)' },
+  'field_ps_haem':      { label: 'Primary Survey — Haemorrhage', getter: s => (s.overrides&&s.overrides.ps_haem) || '(auto-calculated — click to override)' },
+  // Rapid Assessment — Well/Unwell
+  'field_wellunwell':   { label: 'Well / Unwell', type: 'select', options: ['Well','UNWELL'], getter: s => (s.overrides&&s.overrides.wellunwell) || '(auto-calculated — click to override)' },
   // Diagnosis
   'field_provisional':  { label: 'Provisional Diagnosis',       getter: s => s.provisional||'' },
 };
+
+// Secondary Survey — Body Systems / Trauma Head-to-Toe. Same key set covers both
+// variants (only one renders per scenario, based on isTrauma).
+const SS_FIELD_LABELS = {
+  head: 'Head and face', neck: 'Neck', chest: 'Chest', abdomen: 'Abdomen', back: 'Back',
+  pelvis: 'Pelvis', limbs: 'Limbs', neuro: 'Neurological', cardio: 'Cardiovascular',
+  resp: 'Respiratory', gi: 'Gastrointestinal', gu: 'Genitourinary', msk: 'Musculoskeletal',
+  skin: 'Integumentary/Skin', other: 'Other/consideration'
+};
+Object.keys(SS_FIELD_LABELS).forEach(k => {
+  CORRECTABLE_FIELDS['field_ss_' + k] = {
+    label: 'Secondary Survey — ' + SS_FIELD_LABELS[k],
+    getter: s => { const e = (s.secondary_survey||{})[k]; return e && typeof e === 'object' ? (e.finding||'') : (e||''); }
+  };
+});
 
 // Apply active corrections to a scenario object before rendering
 function applyCorrectionsToScenario(s) {
@@ -7125,6 +7192,22 @@ function applyCorrectionsToScenario(s) {
     } else if (fk === 'field_allergies')   { patched.allergies = cv;
     } else if (fk === 'field_social')      { patched.social = cv;
     } else if (fk === 'field_ps_exposure') { patched.ps_exposure = cv;
+
+    } else if (fk === 'field_wellunwell') {
+      if (!patched.overrides) patched.overrides = {};
+      patched.overrides.wellunwell = cv;
+
+    } else if (fk.startsWith('field_ps_')) {
+      const pk = fk.replace('field_ps_', '');
+      if (!patched.overrides) patched.overrides = {};
+      patched.overrides['ps_' + pk] = cv;
+
+    } else if (fk.startsWith('field_ss_')) {
+      const ssk = fk.replace('field_ss_', '');
+      if (!patched.secondary_survey) patched.secondary_survey = {};
+      const orig = patched.secondary_survey[ssk];
+      if (orig && typeof orig === 'object') patched.secondary_survey[ssk] = { ...orig, finding: cv };
+      else patched.secondary_survey[ssk] = cv;
 
     } else if (fk.startsWith('field_hx_')) {
       const hxk = fk.replace('field_hx_', '');
@@ -7301,6 +7384,41 @@ function injectFlagButtons() {
   if (titleEl) makeFlaggable(titleEl, 'field_title', 'Scenario Title', s.title||'');
   const subtitleEl = document.getElementById('sh-subtitle-display');
   if (subtitleEl) makeFlaggable(subtitleEl, 'field_subtitle', 'Subtitle / Demographics', s.subtitle||'');
+  const cpgBadge = document.getElementById('sh-cpg-badge');
+  if (cpgBadge) makeFlaggable(cpgBadge, 'field_cpg', CORRECTABLE_FIELDS['field_cpg'].label, CORRECTABLE_FIELDS['field_cpg'].getter(s));
+
+  // 12. PRIMARY SURVEY (RABCDE) HINTS
+  const psFieldMap = {
+    'ps-response':'field_ps_response', 'ps-airway':'field_ps_airway', 'ps-cspine':'field_ps_cspine',
+    'ps-breathing':'field_ps_breathing', 'ps-circ':'field_ps_circ', 'ps-haem':'field_ps_haem',
+    'ps-disability':'vital_GCS', 'ps-exposure':'field_ps_exposure'
+  };
+  document.querySelectorAll('tr[data-row-id^="ps-"]').forEach(tr => {
+    const fk = psFieldMap[tr.dataset.rowId];
+    if (!fk || !CORRECTABLE_FIELDS[fk]) return;
+    const hintEl = tr.querySelector('.vital-hint');
+    if (hintEl) makeFlaggable(hintEl, fk, CORRECTABLE_FIELDS[fk].label, CORRECTABLE_FIELDS[fk].getter(s));
+  });
+
+  // 13. SECONDARY SURVEY HINTS
+  document.querySelectorAll('tr[data-row-id^="ss-"]').forEach(tr => {
+    const fk = 'field_ss_' + tr.dataset.rowId.replace('ss-', '');
+    if (!CORRECTABLE_FIELDS[fk]) return;
+    const hintEl = tr.querySelector('.vital-hint');
+    if (hintEl) makeFlaggable(hintEl, fk, CORRECTABLE_FIELDS[fk].label, CORRECTABLE_FIELDS[fk].getter(s));
+  });
+
+  // 14. ALERTNESS (reuses vital_GCS) + WELL/UNWELL
+  const alertnessTr = document.querySelector('tr[data-row-id="alertness"]');
+  if (alertnessTr) {
+    const hintEl = alertnessTr.querySelector('.vital-hint');
+    if (hintEl) makeFlaggable(hintEl, 'vital_GCS', CORRECTABLE_FIELDS['vital_GCS'].label, CORRECTABLE_FIELDS['vital_GCS'].getter(s));
+  }
+  const wellTr = document.querySelector('tr[data-row-id="wellunwell"]');
+  if (wellTr) {
+    const hintEl = wellTr.querySelector('.vital-hint');
+    if (hintEl) makeFlaggable(hintEl, 'field_wellunwell', CORRECTABLE_FIELDS['field_wellunwell'].label, CORRECTABLE_FIELDS['field_wellunwell'].getter(s));
+  }
 }
 
 // Re-initialise ECG after a scenario re-render (e.g. after correction saved)
@@ -7339,8 +7457,52 @@ function toggleFlagMode(forceOff = false) {
 }
 
 // Open the correction popover
+// CPG chips state for the field_cpg 'cpg' editor type
+let _cpgChipState = [];
+
+function getCpgOptionsList() {
+  if (typeof CPG_PACKAGES === 'undefined') return [];
+  return Object.values(CPG_PACKAGES).filter(p => p && p.cpg)
+    .map(p => ({ code: p.cpg, title: p.title }))
+    .sort((a, b) => a.code.localeCompare(b.code));
+}
+
+function populateCpgAddSelect() {
+  const sel = document.getElementById('cp-cpg-add-select');
+  sel.innerHTML = getCpgOptionsList().map(o => `<option value="${o.code}">${o.code} — ${o.title}</option>`).join('');
+}
+
+function renderCpgChips() {
+  const wrap = document.getElementById('cp-cpg-chips');
+  if (!_cpgChipState.length) { wrap.innerHTML = '<span style="font-size:12px;color:var(--grey)">No CPGs selected — add one below</span>'; return; }
+  wrap.innerHTML = _cpgChipState.map((code, i) =>
+    `<span class="cp-chip">${code}<button type="button" onclick="removeCpgChip(${i})" title="Remove">✕</button></span>`
+  ).join('');
+}
+
+function addCpgChip() {
+  const sel = document.getElementById('cp-cpg-add-select');
+  const code = sel.value;
+  if (code && !_cpgChipState.includes(code)) { _cpgChipState.push(code); renderCpgChips(); }
+}
+
+function removeCpgChip(i) {
+  _cpgChipState.splice(i, 1);
+  renderCpgChips();
+}
+
+function onCpSelectChange() {
+  const selectEl = document.getElementById('cp-select-val');
+  const otherEl = document.getElementById('cp-select-other');
+  if (selectEl.value === 'Other (custom)') { otherEl.style.display = 'block'; otherEl.focus(); }
+  else { otherEl.style.display = 'none'; }
+}
+
+// Open the correction popover
 function openCorrectionPopover(fieldKey, fieldLabel, originalValue, anchorEl, existingCorr) {
-  _popoverState = { fieldKey, fieldLabel, originalValue, correctionId: existingCorr ? existingCorr.id : null, anchorEl };
+  const fieldDef = CORRECTABLE_FIELDS[fieldKey] || {};
+  const fieldType = fieldDef.type || 'text';
+  _popoverState = { fieldKey, fieldLabel, originalValue, fieldType, correctionId: existingCorr ? existingCorr.id : null, anchorEl };
   const pop = document.getElementById('correction-popover');
   const id = getIdentity();
 
@@ -7351,11 +7513,46 @@ function openCorrectionPopover(fieldKey, fieldLabel, originalValue, anchorEl, ex
   const editSec = document.getElementById('cp-edit-section');
   const viewSec = document.getElementById('cp-view-section');
   const saveBtn = document.getElementById('cp-save-btn');
+  const textEl = document.getElementById('cp-new-val');
+  const selectWrap = document.getElementById('cp-select-wrap');
+  const cpgWrap = document.getElementById('cp-cpg-wrap');
+  const selectEl = document.getElementById('cp-select-val');
+  const selectOtherEl = document.getElementById('cp-select-other');
+
+  // Hide all editors first, then show the one matching this field's type
+  textEl.style.display = 'none';
+  selectWrap.style.display = 'none';
+  cpgWrap.style.display = 'none';
+  selectOtherEl.style.display = 'none';
+
+  const startingValue = existingCorr ? existingCorr.corrected_value : '';
+
+  if (fieldType === 'select') {
+    selectWrap.style.display = 'block';
+    const opts = fieldDef.options || [];
+    selectEl.innerHTML = '<option value="">— Select —</option>' + opts.map(o => `<option value="${o.replace(/"/g,'&quot;')}">${o}</option>`).join('');
+    if (startingValue && opts.includes(startingValue)) {
+      selectEl.value = startingValue;
+    } else if (startingValue) {
+      selectEl.value = 'Other (custom)';
+      selectOtherEl.style.display = 'block';
+      selectOtherEl.value = startingValue;
+    } else {
+      selectEl.value = '';
+    }
+  } else if (fieldType === 'cpg') {
+    cpgWrap.style.display = 'block';
+    const cpgStr = startingValue || originalValue || '';
+    _cpgChipState = cpgStr.split(/[,/]/).map(x => x.trim()).filter(Boolean).filter(c => !c.startsWith('('));
+    populateCpgAddSelect();
+    renderCpgChips();
+  } else {
+    textEl.style.display = 'block';
+  }
 
   if (existingCorr) {
-    // Viewing an existing correction — show both edit and revert options
     document.getElementById('cp-title').textContent = '✏️ Edit Correction';
-    document.getElementById('cp-new-val').value = existingCorr.corrected_value;
+    textEl.value = existingCorr.corrected_value;
     document.getElementById('cp-comment').value = existingCorr.comment || '';
     document.getElementById('cp-view-by').textContent = `${existingCorr.corrected_by_name} (${existingCorr.corrected_by_svcnum})`;
     editSec.style.display = 'block';
@@ -7363,7 +7560,7 @@ function openCorrectionPopover(fieldKey, fieldLabel, originalValue, anchorEl, ex
     saveBtn.textContent = '💾 Update Correction';
   } else {
     document.getElementById('cp-title').textContent = '🚩 Flag an Error';
-    document.getElementById('cp-new-val').value = originalValue || '';
+    textEl.value = (fieldType === 'text') ? (originalValue || '') : '';
     document.getElementById('cp-comment').value = '';
     editSec.style.display = 'block';
     viewSec.style.display = 'none';
@@ -7385,7 +7582,10 @@ function openCorrectionPopover(fieldKey, fieldLabel, originalValue, anchorEl, ex
   pop.style.left = left + 'px';
   pop.style.top = top + 'px';
 
-  setTimeout(() => document.getElementById('cp-new-val').focus(), 50);
+  setTimeout(() => {
+    if (fieldType === 'select') selectEl.focus();
+    else if (fieldType === 'text') textEl.focus();
+  }, 50);
 }
 
 function closeCorrectionPopover() {
@@ -7396,10 +7596,20 @@ function closeCorrectionPopover() {
 // Save a correction to Supabase
 async function saveCorrection() {
   if (!_popoverState || !currentScenario) return;
-  const { fieldKey, fieldLabel, originalValue, correctionId } = _popoverState;
-  const newVal = document.getElementById('cp-new-val').value.trim();
+  const { fieldKey, fieldLabel, originalValue, correctionId, fieldType } = _popoverState;
+  let newVal;
+  if (fieldType === 'select') {
+    const selectEl = document.getElementById('cp-select-val');
+    newVal = selectEl.value === 'Other (custom)'
+      ? document.getElementById('cp-select-other').value.trim()
+      : selectEl.value;
+  } else if (fieldType === 'cpg') {
+    newVal = _cpgChipState.join(', ');
+  } else {
+    newVal = document.getElementById('cp-new-val').value.trim();
+  }
   const comment = document.getElementById('cp-comment').value.trim();
-  if (!newVal) { showToast('⚠️ Please enter a corrected value'); return; }
+  if (!newVal) { showToast(fieldType === 'cpg' ? '⚠️ Please select at least one CPG' : '⚠️ Please enter/select a corrected value'); return; }
   const id = getIdentity();
   const saveBtn = document.getElementById('cp-save-btn');
   saveBtn.disabled = true; saveBtn.textContent = 'Saving…';
