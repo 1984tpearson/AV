@@ -4017,11 +4017,10 @@ function renderSection2(s) {
       </table>
 
       <div id="nav-flags" class="snav-anchor"></div>
-      <div class="section-header" style="margin:12px -16px 0; border-top:1px solid var(--border)">
-        <div class="section-icon red">⚑</div>
-        <div class="section-title">Clinical Flags</div>
+      <div class="ddx-info">
+        <strong style="color:var(--red)">⚑ Clinical Flags</strong>
+        <ul class="flags-list" style="margin:6px 0 0">${(s.flags||[]).map(f=>`<li class="flag-item"><div class="flag-dot"></div>${f}</li>`).join('')}</ul>
       </div>
-      <ul class="flags-list" style="margin-top:10px">${(s.flags||[]).map(f=>`<li class="flag-item"><div class="flag-dot"></div>${f}</li>`).join('')}</ul>
 
       <div id="nav-ddx" class="snav-anchor"></div><div class="asmt-section-header"><div class="asmt-section-title diagnosis">Differential Diagnosis</div><button class="all-complete-btn" onclick="markGroupComplete('ddxgrp')">✓ All Complete</button></div>
       <table class="asmt-table" data-group="ddxgrp" data-section="sec2">
