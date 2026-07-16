@@ -3528,7 +3528,7 @@ function renderSection1(s, isTrauma) {
   const gcsNum = gcs.num;
   const avpu = gcsNum >= 14 ? 'A' : gcsNum >= 10 ? 'V' : gcsNum >= 6 ? 'P' : 'U';
   const rrNum = parseFloat(String(v.RR)) || 16;
-  const wobHint = v.SpO2 && parseFloat(v.SpO2) < 94 ? `SpO₂ ${v.SpO2}` : v.RR && (rrNum > 25 || rrNum < 10) ? `RR ${v.RR}` : '';
+  const wobHint = (s.overrides&&s.overrides.ra_wob_alert) || (v.SpO2 && parseFloat(v.SpO2) < 94 ? `SpO₂ ${v.SpO2}` : v.RR && (rrNum > 25 || rrNum < 10) ? `RR ${v.RR}` : '');
   // Well/Unwell — only UNWELL if immediate life threat present
   const sbp = (() => { const m = String(v.BP||'').match(/(\d+)\//); return m ? parseInt(m[1]) : 120; })();
   const rrN = parseFloat(String(v.RR)) || 16;
@@ -3914,9 +3914,9 @@ function renderSection1(s, isTrauma) {
             const _ecgKey = _ecgMapped.key || null;
             const _ecgChar = ECG_CHARS[_ecgKey] || {};
             const _bbb = _ecgMapped.bbbMode || '';
-            const _qrsVal = _bbb === 'lbbb' ? '>120ms (LBBB — broad)' : _bbb === 'rbbb' ? '>120ms (RBBB — broad)' : (_ecgChar.qrs || '');
-            const _pw  = _ecgChar.pwave || '';
-            const _pr  = _ecgChar.pr    || '';
+            const _qrsVal = (s.overrides&&s.overrides.mon_qrs) || (_bbb === 'lbbb' ? '>120ms (LBBB — broad)' : _bbb === 'rbbb' ? '>120ms (RBBB — broad)' : (_ecgChar.qrs || ''));
+            const _pw  = (s.overrides&&s.overrides.mon_pwave) || (_ecgChar.pwave || '');
+            const _pr  = (s.overrides&&s.overrides.mon_pr) || (_ecgChar.pr    || '');
             const hintBadge = (val) => val ? '<span class="vital-hint" style="background:var(--navy)">' + val + '</span>' : '';
             return mkSubRow('vrhythm', 'Ventricular Rhythm' + hint(v.Rhythm||'','Rhythm'), '','','','monitor')
               + mkSubRow('vrate',  'Ventricular Rate (\u00b110bpm)', v.HR||'','','','monitor')
@@ -7151,6 +7151,12 @@ const CORRECTABLE_FIELDS = {
   'field_vss_skin':     { label: 'Circulatory — Skin', getter: s => (s.overrides&&s.overrides.vss_skin) || '(auto-calculated — click to override)' },
   // History — Medical Conditions summary
   'field_medical_conditions': { label: 'Medical Conditions', getter: s => (s.medical_conditions||[]).filter(Boolean).join(', ') || s.key_hx || '' },
+  // Monitor — ECG component characteristics (computed from Rhythm; corrections stored as overrides)
+  'field_mon_pwave': { label: 'P Wave', getter: s => (s.overrides&&s.overrides.mon_pwave) || '(auto-calculated from Rhythm — click to override)' },
+  'field_mon_pr':    { label: 'PR Interval', getter: s => (s.overrides&&s.overrides.mon_pr) || '(auto-calculated from Rhythm — click to override)' },
+  'field_mon_qrs':   { label: 'QRS Duration', getter: s => (s.overrides&&s.overrides.mon_qrs) || '(auto-calculated from Rhythm — click to override)' },
+  // Rapid Assessment — WOB abnormality alert (computed from SpO2/RR; distinct from the stored field_ra_wob description)
+  'field_ra_wob_alert': { label: 'Work of Breathing — Alert', getter: s => (s.overrides&&s.overrides.ra_wob_alert) || '(auto-calculated from SpO2/RR — click to override)' },
   // Diagnosis
   'field_provisional':  { label: 'Provisional Diagnosis',       getter: s => s.provisional||'' },
 };
@@ -7198,6 +7204,12 @@ function applyCorrectionsToScenario(s) {
     } else if (fk === 'field_vss_skin') {
       if (!patched.overrides) patched.overrides = {};
       patched.overrides.vss_skin = cv;
+    } else if (fk === 'field_mon_pwave' || fk === 'field_mon_pr' || fk === 'field_mon_qrs') {
+      if (!patched.overrides) patched.overrides = {};
+      patched.overrides['mon_' + fk.replace('field_mon_', '')] = cv;
+    } else if (fk === 'field_ra_wob_alert') {
+      if (!patched.overrides) patched.overrides = {};
+      patched.overrides.ra_wob_alert = cv;
     } else if (fk === 'field_allergies')   { patched.allergies = cv;
     } else if (fk === 'field_social')      { patched.social = cv;
     } else if (fk === 'field_ps_exposure') { patched.ps_exposure = cv;
@@ -7319,7 +7331,8 @@ function injectFlagButtons() {
   // 2. VSS VITAL HINT BADGES
   const vssRowMap = { rr:'vital_RR', hr:'vital_HR', bp:'vital_BP', spo2:'vital_SpO2',
     temp:'vital_Temp', bgl:'vital_BGL', gcstotal:'vital_GCS', vrhythm:'vital_Rhythm',
-    etco2:'vital_EtCO2', weight:'vital_Weight', ketones:'vital_Ketones' };
+    etco2:'vital_EtCO2', weight:'vital_Weight', ketones:'vital_Ketones',
+    vrate:'vital_HR', interp:'vital_Rhythm' };
   document.querySelectorAll('tr[data-row-id]').forEach(tr => {
     const fk = vssRowMap[tr.dataset.rowId];
     if (!fk) return;
@@ -7461,6 +7474,26 @@ function injectFlagButtons() {
   if (medCondTr) {
     const hintEl = medCondTr.querySelector('.vital-hint');
     if (hintEl) makeFlaggable(hintEl, 'field_medical_conditions', CORRECTABLE_FIELDS['field_medical_conditions'].label, CORRECTABLE_FIELDS['field_medical_conditions'].getter(s));
+  }
+
+  // 18. MONITOR — P WAVE / PR INTERVAL / QRS DURATION (computed from Rhythm)
+  const monFieldMap = { pwave:'field_mon_pwave', pr:'field_mon_pr', qrs:'field_mon_qrs' };
+  Object.keys(monFieldMap).forEach(rid => {
+    const tr = document.querySelector(`tr[data-row-id="${rid}"]`);
+    if (!tr) return;
+    const fk = monFieldMap[rid];
+    const hintEl = tr.querySelector('.vital-hint');
+    if (hintEl) makeFlaggable(hintEl, fk, CORRECTABLE_FIELDS[fk].label, CORRECTABLE_FIELDS[fk].getter(s));
+  });
+
+  // 19. WOB1 — second stacked hint (SpO2/RR abnormality alert), distinct from field_ra_wob
+  const wob1Tr = document.querySelector('tr[data-row-id="wob1"]');
+  if (wob1Tr) {
+    const hints = wob1Tr.querySelectorAll('.vital-hint');
+    const alertHint = hints[hints.length - 1];
+    if (alertHint && !alertHint.dataset.fk) {
+      makeFlaggable(alertHint, 'field_ra_wob_alert', CORRECTABLE_FIELDS['field_ra_wob_alert'].label, CORRECTABLE_FIELDS['field_ra_wob_alert'].getter(s));
+    }
   }
 }
 
