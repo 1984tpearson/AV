@@ -5340,7 +5340,7 @@ function renderCPGCollapsibles(mgmtResult, extraCodes) {
   if (primaryPkgs.length) {
     const { buttonsHtml, contentHtml } = buildGroup(primaryPkgs, false);
     primarySectionHtml = `<div class="cpg-group-section">
-      <div class="cpg-group-header">${primaryPkgs.length > 1 ? 'Primary CPGs' : 'Primary CPG'}</div>
+      <div class="cpg-group-header" id="cpg-primary-header">${primaryPkgs.length > 1 ? 'Primary CPGs' : 'Primary CPG'}</div>
       <div class="cpg-group-body">
         <div class="cpg-toggle-row">${buttonsHtml}</div>${contentHtml}
       </div>
@@ -7386,6 +7386,8 @@ function injectFlagButtons() {
   if (subtitleEl) makeFlaggable(subtitleEl, 'field_subtitle', 'Subtitle / Demographics', s.subtitle||'');
   const cpgBadge = document.getElementById('sh-cpg-badge');
   if (cpgBadge) makeFlaggable(cpgBadge, 'field_cpg', CORRECTABLE_FIELDS['field_cpg'].label, CORRECTABLE_FIELDS['field_cpg'].getter(s));
+  const cpgPrimaryHeader = document.getElementById('cpg-primary-header');
+  if (cpgPrimaryHeader) makeFlaggable(cpgPrimaryHeader, 'field_cpg', CORRECTABLE_FIELDS['field_cpg'].label, CORRECTABLE_FIELDS['field_cpg'].getter(s));
 
   // 12. PRIMARY SURVEY (RABCDE) HINTS
   const psFieldMap = {
