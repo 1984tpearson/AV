@@ -970,9 +970,8 @@ body.flag-mode-active .flaggable.has-correction:hover { outline: 2px solid var(-
 .cp-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
 .cp-chip { display: inline-flex; align-items: center; gap: 6px; background: var(--light); border: 1px solid var(--border); border-radius: 14px; padding: 4px 6px 4px 10px; font-size: 12px; font-weight: 600; }
 .cp-chip button { background: none; border: none; color: var(--red); font-size: 13px; cursor: pointer; line-height: 1; padding: 0 2px; font-weight: 700; }
-.cp-cpg-add-row { display: flex; gap: 6px; }
-.cp-cpg-add-row select { flex: 1; }
-.cp-cpg-add-row button { padding: 8px 12px; background: var(--navy); color: white; border: none; border-radius: 7px; font-size: 12px; font-weight: 700; cursor: pointer; white-space: nowrap; }
+.cp-cpg-add-btn { display: block; width: 100%; padding: 9px; background: var(--navy); color: white; border: none; border-radius: 7px; font-size: 13px; font-weight: 700; cursor: pointer; }
+.cp-cpg-add-btn:hover { opacity: 0.9; }
 .cp-revert-btn:hover { opacity: 0.75; }
 #corrections-modal .modal-inner { max-width: 720px; }
 .corr-item { border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; margin-bottom: 10px; background: white; }
@@ -1245,11 +1244,10 @@ body.flag-mode-active .flaggable.has-correction:hover { outline: 2px solid var(-
         <input class="cp-new-input" id="cp-select-other" type="text" placeholder="Enter custom value…" style="display:none;margin-top:8px">
       </div>
       <div id="cp-cpg-wrap" style="display:none">
+        <div style="font-size:11px;color:var(--grey);margin-bottom:6px">These chips are the <strong>complete</strong> CPG list for this scenario. Remove a wrong code with ✕, pick a replacement/addition below and press <strong>+ Add CPG</strong>, then Save. Saving replaces the whole list with exactly the chips shown.</div>
         <div class="cp-chips" id="cp-cpg-chips"></div>
-        <div class="cp-cpg-add-row">
-          <select id="cp-cpg-add-select"></select>
-          <button type="button" onclick="addCpgChip()">+ Add</button>
-        </div>
+        <select id="cp-cpg-add-select" style="width:100%;margin-bottom:8px"></select>
+        <button type="button" class="cp-cpg-add-btn" onclick="addCpgChip()">+ Add CPG</button>
       </div>
     </div>
     <div>
@@ -3808,7 +3806,7 @@ function renderSection1(s, isTrauma) {
           ${(()=>{
             // SKIN — context-derived
             const allTextVss = ((s.flags||[]).join(' ') + ' ' + (s.dispatch||'') + ' ' + (s.title||'') + ' ' + (s.provisional||'')).toLowerCase();
-            const skinHint = (() => {
+            const skinHint = (s.overrides&&s.overrides.vss_skin) || (() => {
               if (/\b(vf|vt\b|asystole|pea|cardiac arrest|arrest)\b/.test(String(v.Rhythm||'').toLowerCase())) return 'Pale, cyanotic, mottled';
               if (sbp < 90 || (/\b(shock|haemorrhage|hemorrhage|sepsis|septic)\b/.test(allTextVss))) return 'Pale, diaphoretic';
               if (/\b(anaphylaxis|allergic|urticaria|hives|flush)\b/.test(allTextVss)) return 'Flushed, urticarial';
@@ -3819,7 +3817,7 @@ function renderSection1(s, isTrauma) {
               if (/\b(diabet|dka|hyperglycaem)\b/.test(allTextVss)) return 'Dry, flushed';
               return 'Normal — warm, dry, pink';
             })();
-            const skinAbn = skinHint !== 'Normal — warm, dry, pink';
+            const skinAbn = (s.overrides&&s.overrides.vss_skin) ? false : (skinHint !== 'Normal — warm, dry, pink');
 
             // CONSCIOUS STATE
             const conscHint = `GCS ${gcs.display} — ${avpu}`;
@@ -7149,6 +7147,10 @@ const CORRECTABLE_FIELDS = {
   'field_wellunwell':   { label: 'Well / Unwell', type: 'select', options: ['Well','UNWELL'], getter: s => (s.overrides&&s.overrides.wellunwell) || '(auto-calculated — click to override)' },
   // Clinical flags — full list, edited together (separate entries with ; )
   'field_flags_all':    { label: 'Clinical Flags (all)', getter: s => (s.flags||[]).filter(Boolean).join('; ') },
+  // VSS — Skin (computed, context-derived — corrections stored as override)
+  'field_vss_skin':     { label: 'Circulatory — Skin', getter: s => (s.overrides&&s.overrides.vss_skin) || '(auto-calculated — click to override)' },
+  // History — Medical Conditions summary
+  'field_medical_conditions': { label: 'Medical Conditions', getter: s => (s.medical_conditions||[]).filter(Boolean).join(', ') || s.key_hx || '' },
   // Diagnosis
   'field_provisional':  { label: 'Provisional Diagnosis',       getter: s => s.provisional||'' },
 };
@@ -7192,6 +7194,10 @@ function applyCorrectionsToScenario(s) {
     } else if (fk === 'field_cpg')         { patched.cpg = cv;
     } else if (fk === 'field_medications') { patched.medications = cv.split(',').map(x=>x.trim());
     } else if (fk === 'field_flags_all')   { patched.flags = cv.split(';').map(x=>x.trim()).filter(Boolean);
+    } else if (fk === 'field_medical_conditions') { patched.medical_conditions = cv.split(',').map(x=>x.trim()).filter(Boolean);
+    } else if (fk === 'field_vss_skin') {
+      if (!patched.overrides) patched.overrides = {};
+      patched.overrides.vss_skin = cv;
     } else if (fk === 'field_allergies')   { patched.allergies = cv;
     } else if (fk === 'field_social')      { patched.social = cv;
     } else if (fk === 'field_ps_exposure') { patched.ps_exposure = cv;
@@ -7365,7 +7371,13 @@ function injectFlagButtons() {
   });
 
   // 8. MANAGEMENT STEPS
-  document.querySelectorAll('.treatment-box li, .treatment-mica-box li, .cpg-typed-step').forEach((li, i) => {
+  document.querySelectorAll(
+    '.treatment-box li, .treatment-mica-box li, ' +
+    '.cpg-collapsible-content .cpg-step-body li, ' +
+    '.cpg-collapsible-content .cpg-step-stop span:last-child, ' +
+    '.cpg-collapsible-content .cpg-step-header, ' +
+    '.cpg-collapsible-content .cpg-step-subheader-action'
+  ).forEach((li, i) => {
     makeFlaggable(li, `mgmt_${i}`, `Management Step ${i+1}`, li.textContent.replace(/\(edited\)/g,'').trim());
   });
 
@@ -7438,6 +7450,18 @@ function injectFlagButtons() {
     const hintEl = tr.querySelector('.vital-hint');
     if (hintEl) makeFlaggable(hintEl, 'vital_GCS', CORRECTABLE_FIELDS['vital_GCS'].label, CORRECTABLE_FIELDS['vital_GCS'].getter(s));
   });
+
+  // 17. VSS SKIN (computed) + MEDICAL CONDITIONS SUMMARY
+  const skinTr = document.querySelector('tr[data-row-id="skin2"]');
+  if (skinTr) {
+    const hintEl = skinTr.querySelector('.vital-hint');
+    if (hintEl) makeFlaggable(hintEl, 'field_vss_skin', CORRECTABLE_FIELDS['field_vss_skin'].label, CORRECTABLE_FIELDS['field_vss_skin'].getter(s));
+  }
+  const medCondTr = document.querySelector('tr[data-row-id="phmedical"]');
+  if (medCondTr) {
+    const hintEl = medCondTr.querySelector('.vital-hint');
+    if (hintEl) makeFlaggable(hintEl, 'field_medical_conditions', CORRECTABLE_FIELDS['field_medical_conditions'].label, CORRECTABLE_FIELDS['field_medical_conditions'].getter(s));
+  }
 }
 
 // Re-initialise ECG after a scenario re-render (e.g. after correction saved)
