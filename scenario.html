@@ -2897,7 +2897,7 @@ function loadScenario(id) {
   view.innerHTML = renderScenario(s);
   showScreen('scenario-view');
   // Open key sections immediately (will be re-opened after corrections load too)
-  ['sec-dispatch','sec-flags','sec-patient-assessment','sec-diagnosis','sec-implement'].forEach(sid => {
+  ['sec-dispatch','sec-patient-assessment','sec-diagnosis','sec-implement'].forEach(sid => {
     const b0 = document.getElementById(sid); const h0 = b0 && b0.previousElementSibling;
     if (b0) b0.classList.add('open'); if (h0) h0.classList.add('open');
   });
@@ -2909,7 +2909,7 @@ function loadScenario(id) {
     view.innerHTML = renderScenario(patched);
     injectFlagButtons();
     // Re-open key sections, update score, sticky bar
-    ['sec-dispatch','sec-flags','sec-patient-assessment','sec-diagnosis','sec-implement'].forEach(sid => {
+    ['sec-dispatch','sec-patient-assessment','sec-diagnosis','sec-implement'].forEach(sid => {
       const b2 = document.getElementById(sid); const h2 = b2 && b2.previousElementSibling;
       if (b2) b2.classList.add('open'); if (h2) h2.classList.add('open');
     });
@@ -3261,8 +3261,6 @@ function renderScenario(s) {
 
 
 
-  const flagsHtml = (s.flags||[]).map(f=>`<li class="flag-item"><div class="flag-dot"></div>${f}</li>`).join('');
-
   const kqHtml = (s.kq||[]).map((q,i) => {
     const scoreButtons = Array.from({length:q.max+1},(_,n) => `<button class="kq-score-btn" id="kqs-${i}-${n}" onclick="setKQScore(${i},${n},${q.max})">${n}</button>`).join('');
     const criteria = q.max === 2
@@ -3395,18 +3393,6 @@ function renderScenario(s) {
           `:''}
         </div>
       </div>
-    </div>
-  </div>
-
-  <!-- FLAGS -->
-  <div class="section">
-    <div class="section-header open" onclick="toggleSection(this)">
-      <div class="section-icon red">⚑</div>
-      <div class="section-title">Clinical Flags & Assessor Notes</div>
-      <div class="section-chevron">▾</div>
-    </div>
-    <div class="section-body open" id="sec-flags">
-      <ul class="flags-list">${flagsHtml}</ul>
     </div>
   </div>
 
@@ -4029,6 +4015,9 @@ function renderSection2(s) {
           ${mkRow('triage','Trauma Triage / Paediatric Time Critical (if applicable)',true)}
         </tbody>
       </table>
+
+      <div id="nav-flags" class="snav-anchor"></div><div class="asmt-section-header"><div class="asmt-section-title diagnosis">Clinical Flags</div></div>
+      <ul class="flags-list">${(s.flags||[]).map(f=>`<li class="flag-item"><div class="flag-dot"></div>${f}</li>`).join('')}</ul>
 
       <div id="nav-ddx" class="snav-anchor"></div><div class="asmt-section-header"><div class="asmt-section-title diagnosis">Differential Diagnosis</div><button class="all-complete-btn" onclick="markGroupComplete('ddxgrp')">✓ All Complete</button></div>
       <table class="asmt-table" data-group="ddxgrp" data-section="sec2">
@@ -6614,7 +6603,7 @@ async function saveEditedScenario() {
   // Embed ECG
   const ecgImgE = document.getElementById('ecg-img-' + edited.id);
   if (ecgImgE) { const ecgE = getECGImage(edited.vitals && edited.vitals.Rhythm); if (ecgE) embedECGImage(ecgImgE, ecgE.url); }
-  ['sec-dispatch','sec-flags','sec-patient-assessment','sec-diagnosis','sec-implement'].forEach(sid => {
+  ['sec-dispatch','sec-patient-assessment','sec-diagnosis','sec-implement'].forEach(sid => {
     const b = document.getElementById(sid);
     const h = b && b.previousElementSibling;
     if (b) b.classList.add('open');
@@ -6645,7 +6634,7 @@ async function revertScenarioEdits() {
     currentScenario = orig;
     const view = document.getElementById('scenario-view');
     view.innerHTML = renderScenario(orig);
-    ['sec-dispatch','sec-flags','sec-patient-assessment','sec-diagnosis','sec-implement'].forEach(sid => {
+    ['sec-dispatch','sec-patient-assessment','sec-diagnosis','sec-implement'].forEach(sid => {
       const b = document.getElementById(sid);
       const h = b && b.previousElementSibling;
       if (b) b.classList.add('open');
@@ -7443,7 +7432,7 @@ async function saveCorrection() {
     await loadCorrectionsForScenario(currentScenario.id);
     const patched = applyCorrectionsToScenario(currentScenario);
     document.getElementById('scenario-view').innerHTML = renderScenario(patched);
-    ['sec-dispatch','sec-flags','sec-patient-assessment','sec-diagnosis','sec-implement'].forEach(sid => {
+    ['sec-dispatch','sec-patient-assessment','sec-diagnosis','sec-implement'].forEach(sid => {
       const b = document.getElementById(sid); const h = b && b.previousElementSibling;
       if (b) b.classList.add('open'); if (h) h.classList.add('open');
     });
@@ -7473,7 +7462,7 @@ async function revertCorrection() {
     await loadCorrectionsForScenario(currentScenario.id);
     const patched2 = applyCorrectionsToScenario(currentScenario);
     document.getElementById('scenario-view').innerHTML = renderScenario(patched2);
-    ['sec-dispatch','sec-flags','sec-patient-assessment','sec-diagnosis','sec-implement'].forEach(sid => {
+    ['sec-dispatch','sec-patient-assessment','sec-diagnosis','sec-implement'].forEach(sid => {
       const b = document.getElementById(sid); const h = b && b.previousElementSibling;
       if (b) b.classList.add('open'); if (h) h.classList.add('open');
     });
