@@ -2594,6 +2594,76 @@ const CPG_PACKAGES = {
     "management_mica": [],
     "notes": ""
   },
+
+
+  elderly_frail_non_injury_fall: {
+    "title": "Elderly / Frail Non-Injury Fall",
+    "cpg": "A0808",
+    "careObjectives": [],
+    "management": [
+      {
+        "type": "note",
+        "text": "Do not use this guideline for: Pt with injury; Pt with risk of serious injury, e.g.: Head strike and on anti-coagulant Rx (manage as per CPG A0803 Traumatic Head Injury); Poor memory recall of fall"
+      },
+      {
+        "type": "header",
+        "text": "Assess risk of subsequent falls"
+      },
+      {
+        "type": "assess",
+        "items": [
+          "Determine cause of fall and whether risk of further falls can be adequately controlled or eliminated",
+          "Pt ability to recover from another fall / call for help"
+        ]
+      },
+      {
+        "type": "header",
+        "text": "High-risk of subsequent falls"
+      },
+      {
+        "type": "action",
+        "text": "Tx to nearest appropriate hospital"
+      },
+      {
+        "type": "action",
+        "text": "Consider non-emergency Tx if within reasonable timeframe"
+      },
+      {
+        "type": "action",
+        "text": "If Pt refuses, contact Pt's GP directly to initiate Falls Assessment and request Pt consent to contact family member or friend to support Pt"
+      },
+      {
+        "type": "header",
+        "text": "Low-risk of subsequent falls"
+      },
+      {
+        "type": "action",
+        "text": "Contact Pt's GP directly to initiate Falls Assessment and request Pt consent to contact family member or friend to support Pt"
+      },
+      {
+        "type": "action",
+        "text": "Mx as High-risk if Pt has limited ability to connect with GP due to social isolation or geographical location"
+      },
+      {
+        "type": "header",
+        "text": "Notes"
+      },
+      {
+        "type": "note",
+        "text": "Possible causes of fall to consider: Environmental/mechanical (e.g. trip/slip hazards, uneven ground, stairs, poor lighting, inappropriate footwear, mobility issues/aids or past Hx of falls); Known medical/pharmacological factor (e.g. Postural hypotension, poor gait, cognitive/sensory impairment, medication change or cardiovascular medications); Unanticipated medical factor (e.g. AMI, seizure)"
+      },
+      {
+        "type": "note",
+        "text": "Assess for complications of prolonged time spent on ground such as dehydration and pressure sores"
+      },
+      {
+        "type": "note",
+        "text": "Any fall that occurs in AV care must be reported via Riskman"
+      }
+    ],
+    "management_mica": [],
+    "notes": "Possible causes of fall to consider: Environmental/mechanical (e.g. trip/slip hazards, uneven ground, stairs, poor lighting, inappropriate footwear, mobility issues/aids or past Hx of falls); Known medical/pharmacological factor (e.g. Postural hypotension, poor gait, cognitive/sensory impairment, medication change or cardiovascular medications); Unanticipated medical factor (e.g. AMI, seizure). Assess for complications of prolonged time spent on ground such as dehydration and pressure sores. Any fall that occurs in AV care must be reported via Riskman."
+  },
 };
 
 // Export for use in application
