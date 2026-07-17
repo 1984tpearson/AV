@@ -7200,7 +7200,7 @@ const CORRECTABLE_FIELDS = {
   // Rapid Assessment — Well/Unwell
   'field_wellunwell':   { label: 'Well / Unwell', type: 'select', options: ['Well','UNWELL'], getter: s => (s.overrides&&s.overrides.wellunwell) || '(auto-calculated — click to override)' },
   // Clinical flags — full list, edited together (separate entries with ; )
-  'field_flags_all':    { label: 'Clinical Flags (all)', getter: s => (s.flags||[]).filter(Boolean).join('; ') },
+  'field_flags_all':    { label: 'Clinical Flags (all)', getter: s => [...(s.flags?.red||[]), ...(s.flags?.yellow||[])].filter(Boolean).join('; ') },
   // VSS — Skin (computed, context-derived — corrections stored as override)
   'field_vss_skin':     { label: 'Circulatory — Skin', getter: s => (s.overrides&&s.overrides.vss_skin) || '(auto-calculated — click to override)' },
   // History — Medical Conditions summary
@@ -7431,8 +7431,9 @@ function injectFlagButtons() {
   });
 
   // 5. CLINICAL FLAGS
+  const flatFlags = [...(s.flags?.red||[]), ...(s.flags?.yellow||[])];
   document.querySelectorAll('.flag-item').forEach((item, i) => {
-    makeFlaggable(item, `flag_${i}`, `Clinical Flag ${i+1}`, (s.flags||[])[i]||'');
+    makeFlaggable(item, `flag_${i}`, `Clinical Flag ${i+1}`, flatFlags[i]||'');
   });
 
   // 6. DDx + PROVISIONAL
