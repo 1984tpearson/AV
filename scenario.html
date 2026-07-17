@@ -1839,6 +1839,18 @@ async function sbFetch(path, opts = {}) {
   return text ? JSON.parse(text) : [];
 }
 
+// Normalise flags to {red:[],yellow:[]} — handles new object shape and legacy flat-array scenarios
+function normaliseFlags(f) {
+  if (Array.isArray(f)) return { red: f.filter(Boolean), yellow: [] };
+  if (f && typeof f === 'object') {
+    return {
+      red: Array.isArray(f.red) ? f.red.filter(Boolean) : [],
+      yellow: Array.isArray(f.yellow) ? f.yellow.filter(Boolean) : []
+    };
+  }
+  return { red: [], yellow: [] };
+}
+
 // Convert a JS scenario object → Supabase row shape
 function toRow(s, overrides = {}) {
   return {
@@ -1866,7 +1878,7 @@ function toRow(s, overrides = {}) {
     secondary_survey: s.secondary_survey || {},
     ps_exposure:  s.ps_exposure || '',
     social:       s.social || '',
-    flags:        s.flags || [],
+    flags:        normaliseFlags(s.flags),
     ddx:          s.ddx || [],
     provisional:  s.provisional || '',
     treatment_als: s.treatment_als || s.treatment || [],
@@ -1912,7 +1924,7 @@ function fromRow(r) {
     secondary_survey: r.secondary_survey || {},
     ps_exposure:  r.ps_exposure || '',
     social:       r.social || '',
-    flags:        r.flags || [],
+    flags:        normaliseFlags(r.flags),
     ddx:          r.ddx || [],
     provisional:  r.provisional,
     treatment_als: r.treatment_als || r.treatment || [],
@@ -3568,7 +3580,7 @@ function renderSection1(s, isTrauma) {
   const keyHxShort = condList.length
     ? condList.join(', ')
     : (s.key_hx||'').slice(0, 160);
-  const flagsHint = (s.flags||[]).slice(0,2).join('; ');
+  const flagsHint = [...(s.flags?.red||[]), ...(s.flags?.yellow||[])].slice(0,2).join('; ');
   const ddxHint = (s.ddx||[]).slice(0,3).join(', ');
   const provisionalHint = s.provisional || '';
 
@@ -4009,7 +4021,7 @@ function renderSection2(s) {
   };
   const infoHint = (val) => val ? `<span class="vital-hint" style="background:#2E4057;max-width:220px;white-space:normal;line-height:1.3;vertical-align:top">${val}</span>` : '';
 
-  const flagsHint = (s.flags||[]).filter(Boolean).slice(0,2).join('; ');
+  const flagsHint = [...(s.flags?.red||[]), ...(s.flags?.yellow||[])].filter(Boolean).slice(0,2).join('; ');
   const ddxHint = (s.ddx||[]).filter(Boolean).slice(0,3).join(', ');
   const provisionalHint = s.provisional || '';
 
@@ -4064,10 +4076,18 @@ function renderSection2(s) {
       </table>
 
       <div id="nav-flags" class="snav-anchor"></div>
+      ${(() => {
+        const redFlags = (s.flags?.red||[]).filter(Boolean);
+        const yellowFlags = (s.flags?.yellow||[]).filter(Boolean);
+        if (!redFlags.length && !yellowFlags.length) return '';
+        const list = (items, color) => `<ul class="flags-list" style="margin:6px 0 0">${items.map(f=>`<li class="flag-item"><div class="flag-dot" style="background:${color}"></div>${f}</li>`).join('')}</ul>`;
+        return `
       <div class="ddx-info">
-        <strong style="color:var(--red)">⚑ Clinical Flags</strong>
-        <ul class="flags-list" style="margin:6px 0 0">${(s.flags||[]).map(f=>`<li class="flag-item"><div class="flag-dot"></div>${f}</li>`).join('')}</ul>
-      </div>
+        ${redFlags.length ? `<strong style="color:var(--red)">⚑ Red Flags</strong>${list(redFlags,'var(--red)')}` : ''}
+        ${redFlags.length && yellowFlags.length ? '<div style="margin-top:10px"></div>' : ''}
+        ${yellowFlags.length ? `<strong style="color:var(--amber)">⚑ Yellow Flags</strong>${list(yellowFlags,'var(--amber)')}` : ''}
+      </div>`;
+      })()}
 
       <div id="nav-ddx" class="snav-anchor"></div><div class="asmt-section-header"><div class="asmt-section-title diagnosis">Differential Diagnosis</div><button class="all-complete-btn" onclick="markGroupComplete('ddxgrp')">✓ All Complete</button></div>
       <table class="asmt-table" data-group="ddxgrp" data-section="sec2">
