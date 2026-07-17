@@ -3687,7 +3687,7 @@ function renderSection1(s, isTrauma) {
         <tbody>
           ${(()=>{
             const isPaed = s.category === 'Paediatric' || s.category === 'Newborn';
-            const flagsText = (s.flags||[]).join(' ').toLowerCase();
+            const flagsText = [...(s.flags?.red||[]), ...(s.flags?.yellow||[])].join(' ').toLowerCase();
             const dispatchText = (s.dispatch||'').toLowerCase();
             const titleText = (s.title||'').toLowerCase();
             const provisionalText = (s.provisional||'').toLowerCase();
@@ -3841,7 +3841,7 @@ function renderSection1(s, isTrauma) {
           ${mkRow('psa','PSA — Circulatory')}
           ${(()=>{
             // SKIN — context-derived
-            const allTextVss = ((s.flags||[]).join(' ') + ' ' + (s.dispatch||'') + ' ' + (s.title||'') + ' ' + (s.provisional||'')).toLowerCase();
+            const allTextVss = ([...(s.flags?.red||[]), ...(s.flags?.yellow||[])].join(' ') + ' ' + (s.dispatch||'') + ' ' + (s.title||'') + ' ' + (s.provisional||'')).toLowerCase();
             const skinHint = (s.overrides&&s.overrides.vss_skin) || (() => {
               if (/\b(vf|vt\b|asystole|pea|cardiac arrest|arrest)\b/.test(String(v.Rhythm||'').toLowerCase())) return 'Pale, cyanotic, mottled';
               if (sbp < 90 || (/\b(shock|haemorrhage|hemorrhage|sepsis|septic)\b/.test(allTextVss))) return 'Pale, diaphoretic';
@@ -6357,7 +6357,7 @@ function openEditModal() {
   document.getElementById('ev-bgl').value = v.BGL || '';
   document.getElementById('ev-rhythm').value = v.Rhythm || '';
 
-  (s.flags || []).forEach(f => addRepItemTo('e-flags-list', 'flag', f));
+  [...(s.flags?.red||[]), ...(s.flags?.yellow||[])].forEach(f => addRepItemTo('e-flags-list', 'flag', f));
   (s.ddx || []).forEach(d => addRepItemTo('e-ddx-list', 'ddx', d));
   (s.treatment_als || s.treatment || []).forEach(t => addRepItemTo('e-treatment-list', 'treatment', t));
   (s.kq || []).forEach(q => addEditKQBlock(q));
@@ -6619,7 +6619,12 @@ async function saveEditedScenario() {
       BGL: document.getElementById('ev-bgl').value.trim() || orig.vitals?.BGL || '—',
       Rhythm: document.getElementById('ev-rhythm').value.trim() || orig.vitals?.Rhythm || '—',
     },
-    flags: getRepListValues('e-flags-list'),
+    flags: (() => {
+      const items = getRepListValues('e-flags-list').filter(Boolean);
+      const red = [], yellow = [];
+      items.forEach(f => (f.trim().startsWith('🟡') ? yellow : red).push(f));
+      return { red, yellow };
+    })(),
     ddx: getRepListValues('e-ddx-list'),
     treatment: getRepListValues('e-treatment-list'),
     kq: Array.from({length: editKQCount}, (_, i) => {
