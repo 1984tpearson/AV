@@ -2121,36 +2121,89 @@ const CPG_PACKAGES = {
   // A0401 Acute Coronary Syndromes
   // -----------------------------------------------------------
   acs: {
-    cpg: "A0401",
-    title: "Acute Coronary Syndromes",
-    careObjectives: [
+    "cpg": "A0401",
+    "title": "Acute Coronary Syndromes",
+    "careObjectives": [
       "Rapid identification of STEMI to facilitate timely reperfusion (PCI or PHT).",
       "Provision of antiplatelet therapy (aspirin).",
       "Reduce cardiac workload by treating associated symptoms (e.g. nausea, pain)."
     ],
-    management: [
-      { type: "assess", items: [
-        "Signs and symptoms",
-        "12-lead ECG (within 10 minutes)",
-        "Medications already administered (e.g. aspirin, GTN)"
-      ]},
-      { type: "stop", text: "Request early MICA / aeromedical support in suspected STEMI and provide early hospital notification" },
-      { type: "header", text: "Antiplatelet Rx" },
-      { type: "action", text: "Aspirin 300 mg oral if not already administered" },
-      { type: "header", text: "Pain Relief" },
-      { type: "action", text: "GTN 600 mcg S/L if SBP > 100 mmHg, OR GTN 300 mcg S/L if no previous admin, borderline BP or small (≤ 60 kg), elderly or frail patient" },
-      { type: "action", text: "Repeat 300 or 600 mcg S/L @ 5 minute intervals titrated to pain or side effects" },
-      { type: "action", text: "GTN patch 50 mg (0.4 mg/hr) upper torso / arms — remove patch if BP falls < 100 mmHg" },
-      { type: "note", items: ["Inadequate response or nitrates C/I: treat with opioids as per CPG A0501 Pain Relief"] },
-      { type: "header", text: "Isolated Hypertension (SBP > 160 or DBP > 100 mmHg)" },
-      { type: "mica", text: "GTN 300 mcg S/L — repeat 300 mcg @ 5 minute intervals if hypertension persists" },
-      { type: "header", text: "STEMI (onset < 12 hours)" },
-      { type: "action", text: "Continue Rx as per CPG A0408 STEMI Management" },
-      { type: "note", items: ["If onset > 12 hours: transmit 12-lead ECG and provide hospital notification", "Notify ARV via clinician where secondary transfer may be required"] },
-      { type: "header", text: "NSTEACS / Unstable Angina" },
-      { type: "action", text: "Transport to appropriate facility" }
+    "management": [
+      {
+        "type": "assess",
+        "items": [
+          "Signs and symptoms",
+          "12-lead ECG (within 10 minutes)",
+          "Medications already administered (e.g. aspirin, GTN)"
+        ]
+      },
+      {
+        "type": "stop",
+        "text": "Request early MICA / aeromedical support in suspected STEMI and provide early hospital notification"
+      },
+      {
+        "type": "header",
+        "text": "Antiplatelet Rx"
+      },
+      {
+        "type": "action",
+        "text": "Aspirin 300 mg oral if not already administered"
+      },
+      {
+        "type": "header",
+        "text": "Pain Relief"
+      },
+      {
+        "type": "action",
+        "text": "GTN 600 mcg S/L if SBP > 100 mmHg, OR GTN 300 mcg S/L if no previous admin, borderline BP or small (≤ 60 kg), elderly or frail patient"
+      },
+      {
+        "type": "action",
+        "text": "Repeat 300 or 600 mcg S/L @ 5 minute intervals titrated to pain or side effects"
+      },
+      {
+        "type": "action",
+        "text": "GTN patch 50 mg (0.4 mg/hr) upper torso / arms — remove patch if BP falls < 100 mmHg"
+      },
+      {
+        "type": "note",
+        "items": [
+          "Inadequate response or nitrates C/I: treat with opioids as per CPG A0501 Pain Relief"
+        ]
+      },
+      {
+        "type": "header",
+        "text": "Isolated Hypertension (SBP > 160 or DBP > 100 mmHg)"
+      },
+      {
+        "type": "mica",
+        "text": "GTN 300 mcg S/L — repeat 300 mcg @ 5 minute intervals if hypertension persists"
+      },
+      {
+        "type": "header",
+        "text": "STEMI (onset < 12 hours)"
+      },
+      {
+        "type": "action",
+        "text": "Continue Rx as per CPG A0408 STEMI Management"
+      },
+      {
+        "type": "note",
+        "items": [
+          "If onset > 12 hours: transmit 12-lead ECG and provide hospital notification",
+          "Notify ARV via clinician where secondary transfer may be required"
+        ]
+      },
+      {
+        "type": "header",
+        "text": "NSTEACS / Unstable Angina"
+      },
+      {
+        "type": "action",
+        "text": "Transport to appropriate facility"
+      }
     ],
-    notes: "Not all ACS patients present with pain (e.g. elderly, female, diabetes). Absence of ischaemic ECG changes does not exclude AMI. Hyperoxaemia is detrimental in STEMI — oxygen only as per CPG A0001. GTN S/L can be substituted with buccal if required. Aspirin dose may be supplemented to 300 mg if lower dose already given."
+    "notes": "Not all ACS patients present with pain (e.g. elderly, female, diabetes). Absence of ischaemic ECG changes does not exclude AMI. Hyperoxaemia is detrimental in STEMI — oxygen only as per CPG A0001. GTN S/L can be substituted with buccal if required. Aspirin dose may be supplemented to 300 mg if lower dose already given.\n\nACS spectrum and diagnosis: The ACS spectrum encompasses unstable angina, NSTEACS, and STEMI. AMI cannot be excluded by a normal or non-ischaemic ECG alone — diagnosis requires integrating the presenting history with serial ECGs and serial cardiac enzyme tests. Suspected ACS-related pain that has spontaneously resolved still warrants hospital investigation and should not be dismissed.\n\nAtypical presentations: Not all ACS patients present with chest pain. Populations more likely to have atypical or painless presentations include the elderly, females, and patients with a history of diabetes. This is a key pitfall in prehospital assessment.\n\nOxygen therapy rationale: Hyperoxaemia has been shown to be detrimental specifically in STEMI patients. Routine oxygen is therefore not indicated in ACS generally; it should only be provided according to the Oxygen Therapy CPG. This is a common misconception to probe in assessment questions.\n\nNitrate contraindication rationale: Nitrates are contraindicated in bradycardia (HR < 50 bpm) because the patient cannot compensate for nitrate-induced reduction in venous return by increasing heart rate to maintain cardiac output. The physiological basis cited is: Cardiac Output = Heart Rate x Stroke Volume. Buccal administration of GTN is an acceptable substitute for sublingual where required.\n\nAspirin dosing nuance: If a patient has already received a lower-than-target dose of aspirin before paramedic arrival, it is appropriate to supplement the dose to as close to 300 mg as possible rather than withhold or repeat a full dose.\n\nAnalgesia intent and limits: The goal of analgesia in ACS is patient comfort, not necessarily complete pain relief. Pursuing complete pain freedom can be detrimental if it requires excessive opioid doses. Nitrates are the first-line analgesic approach, with opioids used only if nitrates are inadequate or contraindicated.\n\nBleeding risk consideration: In patients who may be candidates for thrombolysis, invasive procedures should only be performed based on clinical need, with awareness of the increased bleeding risk that thrombolysis creates.\n\nAssociated complications: ACS can be complicated by LVF, inadequate perfusion, nausea/vomiting, and dysrhythmias, each managed via their respective CPGs. These are important differentials and co-morbidities to recognise during ACS assessment.\n\nSTEMI onset timing: The flowchart distinguishes management based on symptom onset — less than 12 hours versus greater than 12 hours — which influences the pathway toward active reperfusion. MICA or aeromedical support should be requested early in suspected STEMI with early hospital notification.\n\nIsolated hypertension in ACS: Isolated systolic BP > 160 mmHg or diastolic BP > 100 mmHg is a recognised finding in ACS that has its own GTN-based management approach within this CPG.\n\nChest pain following mRNA vaccination: Chest pain occurring within 1–10 days of an mRNA vaccine (Pfizer or Moderna) is more common in males aged 12–29. It typically self-resolves within 24–48 hours and is not usually associated with serious adverse outcomes. However, serious differentials — particularly pulmonary embolism and myocardial infarction — must still be considered and excluded. Severe myocarditis post-mRNA vaccine is very rare but has been reported; these patients will have ECG changes and other concerning features that independently warrant transport. Paramedics do not need to specifically diagnose or label severe myocarditis. Low-risk patients (age under 35, non-ischaemic chest pain, no more than one cardiovascular risk factor, normal vital signs, normal 12-lead ECG, no serious associated symptoms such as SOB/syncope/dizziness, no history of coronary artery disease including AMI/CABG/PCI, and no prior PE or thromboembolic events) can be referred to their GP within 24 hours rather than transported to an emergency department, with a copy of the ECG and safety netting information provided. This pathway must NOT be applied to COVID-positive patients. Cardiovascular risk factors listed in this CPG are: current smoking, diabetes, hypertension, hypercholesterolaemia, and family history of premature coronary artery disease (AMI, CABG, or PCI in a first-degree relative)."
   },
 
   // -----------------------------------------------------------
