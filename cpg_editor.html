@@ -1190,12 +1190,14 @@ function buildTestCPGContext(key) {
     (pkg.notes ? `Additional clinical context: ${pkg.notes}\n` : '');
 }
 
-const TEST_QUESTIONS_SYSTEM_PROMPT = `You write knowledge-assessment questions for Ambulance Victoria paramedic training, testing a student's understanding of one specific Clinical Practice Guideline. Respond with valid JSON only — no markdown, no commentary.
+const TEST_QUESTIONS_SYSTEM_PROMPT = `You write short-answer knowledge-recall questions for Ambulance Victoria paramedic training, testing a student's direct factual knowledge of one specific Clinical Practice Guideline. Respond with valid JSON only — no markdown, no commentary.
 
 CRITICAL RULES:
+- Do NOT write clinical vignettes or case scenarios. Never start a question with a patient description (e.g. "A 74-year-old female presents with..."). These are direct recall questions, not scenario-based ones.
+- Ask directly for facts from the CPG: doses and routes, thresholds/criteria, contraindications, indications, definitions, number of steps in a sequence, what to do in a specific defined situation named in the CPG (e.g. "What is the adult dose of X?", "Name three contraindications to Y.", "At what SpO2 threshold should Z be considered?", "What does the CPG define as [term]?").
 - All clinical content must be drawn exclusively from the CPG content provided below — do not add doses, steps, or facts from your own training knowledge.
-- Write exactly 3 questions, varying in focus and difficulty (e.g. indications, management priorities, red flags/pitfalls, drug doses if present, contraindications). If additional clinical context is supplied, use it to vary and enrich the questions beyond just the management steps.
-- Each answer should be a concise model answer a clinical instructor could compare a student's spoken answer against.
+- Write exactly 3 questions, varying in focus (e.g. one on doses/thresholds, one on contraindications/indications, one on definitions/procedure). If additional clinical context is supplied, use it to vary and enrich the questions beyond just the management steps.
+- Each answer should be a short, direct model answer a clinical instructor could compare a student's spoken answer against — not a paragraph of reasoning.
 
 Return ONLY a valid JSON object:
 {"questions":[{"q":"...","answer":"..."},{"q":"...","answer":"..."},{"q":"...","answer":"..."}]}`;
