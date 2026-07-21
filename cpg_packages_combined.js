@@ -2395,37 +2395,80 @@ const CPG_PACKAGES = {
   // A0402 Bradycardia
   // -----------------------------------------------------------
   bradycardia: {
-    cpg: "A0402",
-    title: "Bradycardia",
-    careObjectives: [
+    "cpg": "A0402",
+    "title": "Bradycardia",
+    "careObjectives": [
       "To increase heart rate where bradycardia is causing haemodynamic compromise, heart failure or life threatening arrhythmia."
     ],
-    management: [
-      { type: "assess", items: [
-        "Perfusion status",
-        "Cardiac rhythm",
-        "Heart failure",
-        "Ischaemic chest pain"
-      ]},
-      { type: "header", text: "Unstable bradycardia" },
-      { type: "note", items: [
-        "Less than adequate perfusion (including acute STEMI and ischaemic chest pain)",
-        "Profound bradycardia (HR < 40 bpm) and APO",
-        "Runs of VT or ventricular escape rhythms",
-        "HR < 20 bpm"
-      ]},
-      { type: "mica", text: "Atropine 600 mcg IV" },
-      { type: "mica", text: "Repeat 1200 mcg after 3\u20135 minutes if inadequate response" },
-      { type: "header", text: "Adequate response" },
-      { type: "mica", text: "Continue Atropine 600 mcg IV at 3\u20135 minute intervals as required (max. 3000 mcg)" },
-      { type: "note", items: ["Manage as per Inadequate response if patient deteriorates"] },
-      { type: "header", text: "Inadequate response (after Atropine 1800 mcg IV)" },
-      { type: "mica", text: "Adrenaline infusion 5 mcg/minute \u2014 increase to 10 mcg/minute if required" },
-      { type: "note", items: ["Adrenaline infusion: Adrenaline 3 mg added to make 50 mL with D5W or Normal Saline; 1 mL/hr = 1 mcg/min"] },
-      { type: "header", text: "Extremely poor perfusion (altered conscious state/unconscious AND HR < 50 AND BP < 60)" },
-      { type: "mica", text: "Transthoracic pacing \u2014 Midazolam 1\u20132 mg IV and Fentanyl 50 mcg IV as required; commence pacing at 30 mA and a heart rate of 70/min" }
+    "management": [
+      {
+        "type": "assess",
+        "items": [
+          "Perfusion status",
+          "Cardiac rhythm",
+          "Heart failure",
+          "Ischaemic chest pain"
+        ]
+      },
+      {
+        "type": "header",
+        "text": "Unstable bradycardia"
+      },
+      {
+        "type": "note",
+        "items": [
+          "Less than adequate perfusion (including acute STEMI and ischaemic chest pain)",
+          "Profound bradycardia (HR < 40 bpm) and APO",
+          "Runs of VT or ventricular escape rhythms",
+          "HR < 20 bpm"
+        ]
+      },
+      {
+        "type": "mica",
+        "text": "Atropine 600 mcg IV"
+      },
+      {
+        "type": "mica",
+        "text": "Repeat 1200 mcg after 3–5 minutes if inadequate response"
+      },
+      {
+        "type": "header",
+        "text": "Adequate response"
+      },
+      {
+        "type": "mica",
+        "text": "Continue Atropine 600 mcg IV at 3–5 minute intervals as required (max. 3000 mcg)"
+      },
+      {
+        "type": "note",
+        "items": [
+          "Manage as per Inadequate response if patient deteriorates"
+        ]
+      },
+      {
+        "type": "header",
+        "text": "Inadequate response (after Atropine 1800 mcg IV)"
+      },
+      {
+        "type": "mica",
+        "text": "Adrenaline infusion 5 mcg/minute — increase to 10 mcg/minute if required"
+      },
+      {
+        "type": "note",
+        "items": [
+          "Adrenaline infusion: Adrenaline 3 mg added to make 50 mL with D5W or Normal Saline; 1 mL/hr = 1 mcg/min"
+        ]
+      },
+      {
+        "type": "header",
+        "text": "Extremely poor perfusion (altered conscious state/unconscious AND HR < 50 AND BP < 60)"
+      },
+      {
+        "type": "mica",
+        "text": "Transthoracic pacing — Midazolam 1–2 mg IV and Fentanyl 50 mcg IV as required; commence pacing at 30 mA and a heart rate of 70/min"
+      }
     ],
-    notes: "Atropine unlikely to be effective in Mobitz II or complete heart block but should still be given. Max total Atropine 3000 mcg. Titrate Adrenaline to response \u2014 if no HR increase after 10 mcg/min, commence pacing. Atropine ineffective and potentially harmful post cardiac transplant."
+    "notes": "Bradycardia is formally defined as HR < 60 bpm, but the practical management threshold is 50 bpm, as many patients have a normal resting rate between 50–60 bpm. Asymptomatic patients with adequate perfusion and HR > 20 bpm may need monitoring and transport only, without active intervention.\n\nInstability indicators that trigger active management include: less than adequate perfusion (including acute STEMI and ischaemic chest pain), profound bradycardia (HR < 40 bpm) with acute pulmonary oedema (APO), runs of ventricular tachycardia or ventricular escape rhythms, and HR < 20 bpm.\n\nAtropine pharmacology nuances: Atropine works via vagolytic (anticholinergic) mechanism and is therefore unlikely to be effective in 2nd degree Mobitz type II or 3rd degree (complete) heart block, because these blocks are structural/infranodal rather than vagally mediated — yet the CPG still directs clinicians to administer it. This is a key conceptual distinction. Atropine is contraindicated in cardiac transplant patients (the denervated heart has no vagal tone, and paradoxical worsening may result). Atropine should be used cautiously in the context of myocardial infarction, as the resulting heart rate increase can worsen myocardial ischaemia by increasing oxygen demand.\n\nAdrenaline infusion is used when atropine produces inadequate response. The rationale for titrating adrenaline is chronotropic support; if no heart rate increase is achieved at 10 mcg/min, this signals failure of pharmacological chronotropy and transcutaneous pacing should be commenced. If side effects develop during the infusion, it should be ceased and restarted once resolved, or pacing commenced instead.\n\nExtremely poor perfusion — defined as altered conscious state/unconsciousness AND HR < 50 AND BP < 60 — is the trigger for transcutaneous pacing. Pacing is initiated at 30 mA and a target rate of 70/min. Analgesia/sedation is indicated for conscious patients undergoing pacing.\n\nThe stepwise escalation logic is: atropine first → adrenaline infusion if atropine inadequate → transcutaneous pacing if extremely poor perfusion persists or adrenaline fails/causes side effects. An 'adequate response' to atropine allows continued repeat dosing at intervals rather than immediate escalation, but if the patient deteriorates, escalation follows the inadequate response pathway."
   },
 
   // -----------------------------------------------------------
