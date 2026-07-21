@@ -245,40 +245,112 @@ const CPG_PACKAGES = {
   // A0201-2 Traumatic Cardiac Arrest
   // -----------------------------------------------------------
   cardiac_arrest_traumatic: {
-    cpg: "A0201-2",
-    title: "Traumatic Cardiac Arrest",
-    careObjectives: [
+    "cpg": "A0201-2",
+    "title": "Traumatic Cardiac Arrest",
+    "careObjectives": [
       "Major haemorrhage control over all other interventions.",
       "Management of correctable causes in order of clinical need: hypoxia, tension pneumothorax, hypovolaemia.",
       "Standard cardiac arrest management concurrent to addressing correctable causes (if resources permit)."
     ],
-    management: [
-      { type: "stop", text: "Major haemorrhage control" },
-      { type: "action", text: "Attach pads / interpret rhythm" },
-      { type: "subheader", text: "Penetrating truncal trauma with PEA:" },
-      { type: "action", text: "Immediate transport and early notification if MTS within 20 minutes from loss of vital signs" },
-      { type: "header", text: "Airway" },
-      { type: "action", text: "Airway manoeuvres and positioning" },
-      { type: "action", text: "SGA" },
-      { type: "mica", text: "ETT" },
-      { type: "mica", text: "Cricothyroidotomy if trauma prevents other airway Mx" },
-      { type: "header", text: "Breathing" },
-      { type: "action", text: "Ventilation" },
-      { type: "action", text: "Needle thoracostomy bilateral" },
-      { type: "mica", text: "Finger thoracostomy bilateral (if credentialled)" },
-      { type: "header", text: "Circulation" },
-      { type: "action", text: "Normal Saline 2 L IV" },
-      { type: "action", text: "Pelvic splint" },
-      { type: "mica", text: "PRBCs in preference to normal saline if available (no max dose)" },
-      { type: "header", text: "Other cardiac arrest care" },
-      { type: "action", text: "Mx as per CPG A0201-1 Medical Cardiac Arrest (in parallel to the above if resources permit)" },
-      { type: "mica", text: "Consider ultrasound (if credentialled)" },
-      { type: "header", text: "Special circumstances" },
-      { type: "subheader", text: "Severe crush injury:" },
-      { type: "action", text: "Calcium gluconate 10% 6.6 mmol (3g) IV (slow push)" },
-      { type: "action", text: "Sodium bicarbonate 8.4% 100 mL IV" }
+    "management": [
+      {
+        "type": "stop",
+        "text": "Major haemorrhage control"
+      },
+      {
+        "type": "action",
+        "text": "Attach pads / interpret rhythm"
+      },
+      {
+        "type": "subheader",
+        "text": "Penetrating truncal trauma with PEA:"
+      },
+      {
+        "type": "action",
+        "text": "Immediate transport and early notification if MTS within 20 minutes from loss of vital signs"
+      },
+      {
+        "type": "header",
+        "text": "Airway"
+      },
+      {
+        "type": "action",
+        "text": "Airway manoeuvres and positioning"
+      },
+      {
+        "type": "action",
+        "text": "SGA"
+      },
+      {
+        "type": "mica",
+        "text": "ETT"
+      },
+      {
+        "type": "mica",
+        "text": "Cricothyroidotomy if trauma prevents other airway Mx"
+      },
+      {
+        "type": "header",
+        "text": "Breathing"
+      },
+      {
+        "type": "action",
+        "text": "Ventilation"
+      },
+      {
+        "type": "action",
+        "text": "Needle thoracostomy bilateral"
+      },
+      {
+        "type": "mica",
+        "text": "Finger thoracostomy bilateral (if credentialled)"
+      },
+      {
+        "type": "header",
+        "text": "Circulation"
+      },
+      {
+        "type": "action",
+        "text": "Normal Saline 2 L IV"
+      },
+      {
+        "type": "action",
+        "text": "Pelvic splint"
+      },
+      {
+        "type": "mica",
+        "text": "PRBCs in preference to normal saline if available (no max dose)"
+      },
+      {
+        "type": "header",
+        "text": "Other cardiac arrest care"
+      },
+      {
+        "type": "action",
+        "text": "Mx as per CPG A0201-1 Medical Cardiac Arrest (in parallel to the above if resources permit)"
+      },
+      {
+        "type": "mica",
+        "text": "Consider ultrasound (if credentialled)"
+      },
+      {
+        "type": "header",
+        "text": "Special circumstances"
+      },
+      {
+        "type": "subheader",
+        "text": "Severe crush injury:"
+      },
+      {
+        "type": "action",
+        "text": "Calcium gluconate 10% 6.6 mmol (3g) IV (slow push)"
+      },
+      {
+        "type": "action",
+        "text": "Sodium bicarbonate 8.4% 100 mL IV"
+      }
     ],
-    notes: "Haemorrhage control first. Bilateral needle thoracostomy. Address reversible traumatic causes. Standard arrest Mx runs in parallel."
+    "notes": "Traumatic cardiac arrest (TCA) applies to patients aged ≥16 years where the cause of arrest is clearly traumatic. The CPG should not be applied when a medical cause is plausible — medical arrest can produce low-energy trauma (e.g. slow-speed MVA, standing-height fall), and misclassifying these patients as TCA risks delaying defibrillation and chest compressions. VF/VT rhythms should raise strong suspicion of a primary medical cause. When doubt exists, treat as medical cardiac arrest per CPG A0201-1.\n\nThe core physiological rationale is that chest compressions are unlikely to be effective when the underlying cause is hypoxia, tension pneumothorax, or severe hypovolaemia — these correctable causes must be addressed for compressions to have meaningful effect. This does not mean compressions are withheld indefinitely; ideally all interventions are delivered simultaneously when resources allow.\n\nUndifferentiated vs obvious cause: Most TCA presentations will have an uncertain or multi-factorial cause, and applying all CPG interventions in sequence (haemorrhage, airway, breathing, circulation) with concurrent standard cardiac arrest care is the pragmatic default. Where the cause is unambiguous (e.g. traumatic amputation), interventions can be targeted — not all steps are mandatory. Any uncertainty defaults to providing all interventions.\n\nHaemorrhage control rationale: Pelvic fracture is an underappreciated cause of exsanguination in blunt trauma; a pelvic splint is normally applied after initial interventions but may be prioritised earlier if pelvic injury is clearly driving the arrest. PRBCs are preferred over normal saline for volume resuscitation — saline carries no oxygen-carrying capacity and risks dilutional coagulopathy. Important consent considerations apply to PRBCs: for patients under 18, parental/guardian consent or medical officer approval is required; for patients with a known religious objection (e.g. Jehovah's Witness) who refuse consent, PRBCs must not be given.\n\nChest decompression: Bilateral decompression is performed empirically in TCA — tension pneumothorax may be present without classic signs in arrest. Finger thoracostomy is preferred over needle thoracostomy where credentialling permits, as needle thoracostomy can fail (kinking, chest wall thickness). Needle thoracostomy is the fallback if finger thoracostomy is unavailable or delayed.\n\nPenetrating truncal trauma with PEA is a special high-priority subset: in-hospital resuscitative thoracotomy (within 20 minutes of loss of vital signs) is the definitive intervention, capable of releasing tamponade, decompressing tension pneumothorax, and controlling intrathoracic haemorrhage. This drives a scoop-and-run approach — only limited interventions (haemorrhage control, basic airway ± SGA, chest decompression) should be performed pre-hospital; MICA attendance, mCPR devices, IV access, and ETT insertion should not delay transport. Chest compressions are not required during transport in this subset.\n\nSevere crush injury introduces hyperkalaemia as a likely arrest mechanism, treated analogously to the hyperkalaemia pathway in medical cardiac arrest. ETCO2 functions as a surrogate perfusion marker — a very low or absent ETCO2 despite apparently adequate interventions may indicate a non-survivable low-flow state and can inform decisions around withholding or ceasing resuscitation (CPG A0203).\n\nPoint-of-care ultrasound (where credentialled) adds value after correctable causes have been addressed: it can detect cardiac tamponade, assess cardiac wall motion to distinguish true arrest from severe low-flow states, and confirm adequacy of chest decompression. ROSC leads to management under the Major Trauma CPG (A0810)."
   },
 
   // -----------------------------------------------------------
