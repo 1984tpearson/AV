@@ -1026,7 +1026,8 @@ function buildCPGContext(catVal1, catVal2) {
       `Management:\n${mgmtLines}\n` +
       (drugLines ? `Drugs:\n${drugLines}\n` : '') +
       (pkg.pitfalls ? `Pitfalls: ${pkg.pitfalls.join('; ')}\n` : '') +
-      (pkg.highRiskFeatures ? `High-risk features: ${pkg.highRiskFeatures.join(', ')}\n` : '');
+      (pkg.highRiskFeatures ? `High-risk features: ${pkg.highRiskFeatures.join(', ')}\n` : '') +
+      (pkg.notes ? `Additional clinical context (use this to help generate more varied, specific knowledge questions — do not treat as management steps): ${pkg.notes}\n` : '');
   }).filter(Boolean).join('\n');
 
   // Check for a combination note
@@ -2115,6 +2116,20 @@ function populateCategorySelect(selectId, prefixOption) {
 // ── INIT ──────────────────────────────────────────────────────────────────────
 buildAccordion();
 buildConditionPicker();
+
+// Pre-open the relevant category if arriving via a link from scenario.html
+// (e.g. generator.html?category=Adult&subcategory=Cardiac)
+(() => {
+  const params = new URLSearchParams(window.location.search);
+  const catParam = params.get('category');
+  if (!catParam) return;
+  const ci = CATEGORIES.findIndex(c => c.key === catParam);
+  if (ci === -1) return;
+  toggleCatRow(ci);
+  const row = document.getElementById(`acc-row-${ci}`);
+  if (row) row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+})();
+
 // Auth init — check session before allowing use
 (async () => {
   const { data: { session } } = await _supabaseClient.auth.getSession();
