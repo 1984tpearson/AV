@@ -247,6 +247,7 @@
     + '.avnav-modal-overlay.open{display:flex;}'
     + '.avnav-modal{background:var(--white);border-radius:12px;max-width:420px;width:100%;max-height:90vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,0.3);}'
     + '.avnav-modal.avnav-modal-wide{max-width:520px;}'
+    + '.avnav-modal.avnav-modal-usage{max-width:min(920px,95vw);}'
     + '.avnav-modal-header{background:var(--navy);color:white;padding:16px 20px;display:flex;align-items:center;justify-content:space-between;border-radius:12px 12px 0 0;gap:10px;}'
     + '.avnav-modal-header h2{font-size:16px;font-weight:700;}'
     + '.avnav-modal-close{background:rgba(255,255,255,0.15);border:none;color:white;width:28px;height:28px;border-radius:6px;cursor:pointer;font-size:14px;flex-shrink:0;}'
@@ -559,13 +560,13 @@
     }
   }
 
-  function ensureModal(id, title) {
+  function ensureModal(id, title, extraClass) {
     var modal = document.getElementById(id);
     if (!modal) {
       modal = document.createElement('div');
       modal.id = id;
       modal.className = 'avnav-modal-overlay';
-      modal.innerHTML = '<div class="avnav-modal avnav-modal-wide">' +
+      modal.innerHTML = '<div class="avnav-modal avnav-modal-wide' + (extraClass ? ' ' + extraClass : '') + '">' +
         '<div class="avnav-modal-header"><h2 id="' + id + '-title"></h2>' +
         '<button class="avnav-modal-close" onclick="document.getElementById(\'' + id + '\').classList.remove(\'open\')">✕</button></div>' +
         '<div class="avnav-modal-body"></div></div>';
@@ -741,7 +742,7 @@
   async function openUsageLog() {
     close();
     if (!isAdmin()) return;
-    var modal = ensureModal('avnav-usage-modal', '💲 Usage &amp; Costs');
+    var modal = ensureModal('avnav-usage-modal', '💲 Usage &amp; Costs', 'avnav-modal-usage');
     modal.classList.add('open');
     fetchUsageLog(_usageLogRange);
   }
@@ -822,22 +823,22 @@
       '<table style="width:100%;border-collapse:collapse;font-size:12px">' +
       '<thead><tr style="text-align:left;border-bottom:2px solid var(--border)">' +
         '<th style="padding:6px 8px">When</th><th style="padding:6px 8px">Source</th>' +
-        '<th style="padding:6px 8px">User</th><th style="padding:6px 8px">Model</th>' +
-        '<th style="padding:6px 8px">Label</th><th style="padding:6px 8px">In</th>' +
-        '<th style="padding:6px 8px">Out</th><th style="padding:6px 8px">Searches</th>' +
-        '<th style="padding:6px 8px">Cost</th></tr></thead><tbody>' +
+        '<th style="padding:6px 8px">User</th><th style="padding:6px 8px">Cost</th>' +
+        '<th style="padding:6px 8px">Model</th><th style="padding:6px 8px">Label</th>' +
+        '<th style="padding:6px 8px">In</th><th style="padding:6px 8px">Out</th>' +
+        '<th style="padding:6px 8px">Searches</th></tr></thead><tbody>' +
       rows.map(function (r) {
         var when = new Date(r.created_at).toLocaleString();
         return '<tr style="border-bottom:1px solid var(--border)">' +
           '<td style="padding:6px 8px;white-space:nowrap">' + escapeHtml(when) + '</td>' +
           '<td style="padding:6px 8px">' + escapeHtml(r.source || '') + '</td>' +
           '<td style="padding:6px 8px">' + escapeHtml(r.user_name || 'Unknown') + '</td>' +
-          '<td style="padding:6px 8px">' + escapeHtml(r.model || '') + '</td>' +
-          '<td style="padding:6px 8px">' + escapeHtml(r.label || '') + '</td>' +
+          '<td style="padding:6px 8px;white-space:nowrap;font-weight:700">$' + Number(r.cost_usd || 0).toFixed(4) + '</td>' +
+          '<td style="padding:6px 8px;white-space:nowrap">' + escapeHtml(r.model || '') + '</td>' +
+          '<td style="padding:6px 8px;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="' + escapeHtml(r.label || '') + '">' + escapeHtml(r.label || '') + '</td>' +
           '<td style="padding:6px 8px">' + (r.input_tokens || 0) + '</td>' +
           '<td style="padding:6px 8px">' + (r.output_tokens || 0) + '</td>' +
           '<td style="padding:6px 8px">' + (r.search_count || 0) + '</td>' +
-          '<td style="padding:6px 8px">$' + Number(r.cost_usd || 0).toFixed(4) + '</td>' +
         '</tr>';
       }).join('') +
       '</tbody></table></div>';
