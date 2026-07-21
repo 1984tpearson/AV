@@ -3228,6 +3228,31 @@ function randomAustralianPatient(category) {
 // ============================================================
 // RENDER SCENARIO
 // ============================================================
+function kqBlockHTML(q, i) {
+  const scoreButtons = Array.from({length:q.max+1},(_,n) => `<button class="kq-score-btn" id="kqs-${i}-${n}" onclick="setKQScore(${i},${n},${q.max})">${n}</button>`).join('');
+  const criteria = q.max === 2
+    ? `<li><b>0:</b> Unable/unstructured/3+ prompts</li><li><b>1:</b> Partially correct/1-2 prompts</li><li><b>2:</b> All correct, no prompts</li>`
+    : `<li><b>0:</b> Unable/unstructured/2+ prompts</li><li><b>1:</b> All correct/0-1 prompts</li>`;
+  return `<div class="kq-block" id="kq-block-${i}">
+      <div class="kq-question"><div class="kq-num">${i+1}</div><div>${q.q} <small style="color:var(--grey);font-weight:400">(max ${q.max} pt${q.max>1?'s':''})</small></div></div>
+      <div class="kq-body">
+        <div class="kq-score-row">
+          <span class="kq-score-label">Score:</span>${scoreButtons}
+          <span style="font-size:11px;color:var(--grey)">/ ${q.max}</span>
+          ${q.answer?`<button class="reveal-btn" onclick="toggleAnswer(this)">Show answer</button>`:''}
+        </div>
+        <ul class="kq-criteria">${criteria}</ul>
+        ${q.answer?`<div class="kq-answer">${q.answer}</div>`:''}
+        <div class="kq-rate-row">
+          <span style="font-size:11px;color:var(--grey)">Rate this question:</span>
+          <button class="kq-rate-btn" onclick="rateKQ(${i},'good')" title="Good question">&#128077;</button>
+          <button class="kq-rate-btn" onclick="rateKQ(${i},'bad')" title="Poor question — replaces it">&#128078; Regenerate</button>
+          <span class="kq-rate-status" id="kq-rate-status-${i}"></span>
+        </div>
+      </div>
+    </div>`;
+}
+
 function renderScenario(s) {
   const isCustom = s.custom || s.ai_generated;
   // Primary CPG codes only (excludes AI-suggested extra_cpgs) — used in header badge and management row
@@ -3253,30 +3278,7 @@ function renderScenario(s) {
 
 
 
-  const kqHtml = (s.kq||[]).map((q,i) => {
-    const scoreButtons = Array.from({length:q.max+1},(_,n) => `<button class="kq-score-btn" id="kqs-${i}-${n}" onclick="setKQScore(${i},${n},${q.max})">${n}</button>`).join('');
-    const criteria = q.max === 2
-      ? `<li><b>0:</b> Unable/unstructured/3+ prompts</li><li><b>1:</b> Partially correct/1-2 prompts</li><li><b>2:</b> All correct, no prompts</li>`
-      : `<li><b>0:</b> Unable/unstructured/2+ prompts</li><li><b>1:</b> All correct/0-1 prompts</li>`;
-    return `<div class="kq-block">
-      <div class="kq-question"><div class="kq-num">${i+1}</div><div>${q.q} <small style="color:var(--grey);font-weight:400">(max ${q.max} pt${q.max>1?'s':''})</small></div></div>
-      <div class="kq-body">
-        <div class="kq-score-row">
-          <span class="kq-score-label">Score:</span>${scoreButtons}
-          <span style="font-size:11px;color:var(--grey)">/ ${q.max}</span>
-          ${q.answer?`<button class="reveal-btn" onclick="toggleAnswer(this)">Show answer</button>`:''}
-        </div>
-        <ul class="kq-criteria">${criteria}</ul>
-        ${q.answer?`<div class="kq-answer">${q.answer}</div>`:''}
-        <div class="kq-rate-row">
-          <span style="font-size:11px;color:var(--grey)">Rate this question:</span>
-          <button class="kq-rate-btn" onclick="rateKQ(${i},'good')" title="Good question">&#128077;</button>
-          <button class="kq-rate-btn" onclick="rateKQ(${i},'bad')" title="Poor question — replaces it">&#128078;</button>
-          <span class="kq-rate-status" id="kq-rate-status-${i}"></span>
-        </div>
-      </div>
-    </div>`;
-  }).join('');
+  const kqHtml = (s.kq||[]).map((q,i) => kqBlockHTML(q,i)).join('');
 
   const treatmentHtml = (s.treatment_als||s.treatment||[]).filter(Boolean).map(t=>`<li>${t}</li>`).join('');
 
@@ -4522,7 +4524,11 @@ async function rateKQ(index, rating) {
       body: JSON.stringify({
         model: 'claude-sonnet-4-6',
         max_tokens: 500,
-        system: `You write a single knowledge-assessment question for Ambulance Victoria paramedic training, testing understanding of one specific CPG. All clinical content must come exclusively from the CPG content provided — no invented facts. The question must NOT reference this specific patient or scenario in any way (no patient name, no reusing this scenario's exact vitals/presentation). The student already applied this CPG to that case — this question tests broader knowledge of the same guideline beyond it, so pose it as a general or alternate-situation question (e.g. a different age, a different presentation of the same condition, a dose/threshold/contraindication question posed generally). Respond with valid JSON only, no markdown: {"q":"...","answer":"..."}`,
+        system: `You write a single short-answer knowledge-recall question for Ambulance Victoria paramedic training, testing direct factual knowledge of one specific CPG. All clinical content must come exclusively from the CPG content provided — no invented facts.
+
+Do NOT write a clinical vignette or case presentation. Never start with a patient description (e.g. "A 65-year-old presents with..."). Ask directly for the fact instead: a dose/route, a threshold/criterion, a contraindication, an indication, a definition, or what to do in a specific named situation from the CPG (e.g. "What is the adult dose of X?", "Name two contraindications to Y.", "At what SpO2 threshold should Z be considered?"). If it's genuinely useful to pose an alternate scenario, keep it to a short clause, not a narrative (e.g. "For a 65-year-old with the same presentation, what dose applies?") — but a direct factual question is preferred by default.
+
+The answer should be short and direct, not a paragraph. Respond with valid JSON only, no markdown: {"q":"...","answer":"..."}`,
         messages: [{ role: 'user', content:
           `${context}\nThe following question was rated poor quality and needs replacing: "${q.q}"\n` +
           (otherQs.length ? `Other questions already used in this scenario (avoid overlapping with these): ${otherQs.join(' | ')}\n` : '') +
@@ -4539,7 +4545,25 @@ async function rateKQ(index, rating) {
 
     s.kq[index] = { q: replacement.q, answer: replacement.answer, max: q.max, cpgCode };
     await updateScenarioInCloud(s);
-    renderScenario(s); // full re-render so the new question + fresh rating UI shows
+
+    // Targeted swap of just this question's block — a full renderScenario() would
+    // collapse any other sections the assessor currently has open.
+    const blockEl = document.getElementById(`kq-block-${index}`);
+    if (blockEl) blockEl.outerHTML = kqBlockHTML(s.kq[index], index);
+    delete kqScores[index];
+    const kqMax = s.kq.reduce((a,qq)=>a+qq.max,0);
+    const kqRaw = Object.values(kqScores).reduce((a,v)=>a+(v||0),0);
+    const badge = document.getElementById('s3-badge');
+    if (badge) badge.textContent = `${kqRaw}/${kqMax} pts`;
+    const s3Score = kqRaw > 0 ? kqRawToSec3(kqRaw) : null;
+    [1,2,3,4,5].forEach(n => {
+      const btn = document.getElementById(`s3-btn-${n}`);
+      if (btn) btn.className = 'score-radio-btn' + (s3Score===n ? ` sel-${n}` : '');
+    });
+    const s3Note = document.getElementById('s3-auto-note');
+    if (s3Note) s3Note.textContent = kqRaw > 0 ? `Auto: ${s3Score}/5 (${kqRaw}/${kqMax} pts)` : 'Auto-calculated from knowledge question points';
+    updateScoreSheet();
+
     showToast('\ud83d\udc4e Question replaced and saved');
   } catch (e) {
     if (statusEl) { statusEl.className = 'kq-rate-status err'; statusEl.textContent = 'Failed: ' + e.message; }
