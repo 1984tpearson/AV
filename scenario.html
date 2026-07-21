@@ -595,6 +595,14 @@ body.snav-active #content { padding-left: 60px; }
 .reveal-btn:active { background: var(--navy); color: white; }
 .kq-answer { background: var(--green-light); border: 1px solid #A9DFBF; border-radius: 7px; padding: 10px 14px; font-size: 12px; line-height: 1.5; margin-top: 8px; display: none; }
 .kq-answer.visible { display: block; }
+.kq-rate-row { display: flex; align-items: center; gap: 8px; margin-top: 10px; padding-top: 8px; border-top: 1px solid #f0f0f0; }
+.kq-rate-btn { background: none; border: 1px solid var(--border); border-radius: 6px; padding: 4px 9px; font-size: 13px; cursor: pointer; line-height: 1; }
+.kq-rate-btn:active { background: var(--light); }
+.kq-rate-btn.active-good { background: var(--green-light); border-color: var(--green); }
+.kq-rate-btn.active-bad { background: var(--red-light); border-color: var(--red); }
+.kq-rate-status { font-size: 11px; color: var(--grey); }
+.kq-rate-status.err { color: var(--red); }
+.kq-rate-status.ok { color: var(--green); font-weight: 600; }
 
 /* ============================================================ FLAGS */
 .flags-list { list-style: none; }
@@ -3260,6 +3268,12 @@ function renderScenario(s) {
         </div>
         <ul class="kq-criteria">${criteria}</ul>
         ${q.answer?`<div class="kq-answer">${q.answer}</div>`:''}
+        <div class="kq-rate-row">
+          <span style="font-size:11px;color:var(--grey)">Rate this question:</span>
+          <button class="kq-rate-btn" onclick="rateKQ(${i},'good')" title="Good question">&#128077;</button>
+          <button class="kq-rate-btn" onclick="rateKQ(${i},'bad')" title="Poor question — replaces it">&#128078;</button>
+          <span class="kq-rate-status" id="kq-rate-status-${i}"></span>
+        </div>
       </div>
     </div>`;
   }).join('');
@@ -4411,6 +4425,125 @@ function setKQScore(idx, score, max) {
       : 'Auto-calculated from knowledge question points';
   }
   updateScoreSheet();
+}
+
+// ============================================================
+// KNOWLEDGE QUESTION RATING (thumbs up/down)
+// ============================================================
+let _cachedAnthropicKeyKQ = null;
+async function getAnthropicKeyForKQ() {
+  if (_cachedAnthropicKeyKQ) return _cachedAnthropicKeyKQ;
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/app_config?key=eq.anthropic_api_key&select=value`, {
+    headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
+  });
+  if (res.ok) {
+    const data = await res.json();
+    if (data && data[0] && data[0].value) { _cachedAnthropicKeyKQ = data[0].value; return _cachedAnthropicKeyKQ; }
+  }
+  throw new Error('AI is temporarily unavailable — contact the administrator.');
+}
+
+// Builds a compact single-CPG context block, same shape as generator.html's buildCPGContext
+function buildSingleCPGContext(pkg) {
+  if (!pkg) return '';
+  let mgmtLines = '';
+  if (Array.isArray(pkg.management) && pkg.management.length && typeof pkg.management[0] === 'object') {
+    mgmtLines = pkg.management.map(step => {
+      if (!step || !step.type) return '';
+      switch (step.type) {
+        case 'assess': return `  ASSESS: ${(step.items||[]).join(', ')}`;
+        case 'stop':   return `  STOP: ${step.text}`;
+        case 'header': return `  [${step.text}]`;
+        case 'subheader': return `    (${step.text})`;
+        case 'action': return step.items ? `  - ${step.items.join('; ')}` : `  - ${step.text}`;
+        case 'note':   return step.items ? `  NOTE: ${step.items.join('; ')}` : `  NOTE: ${step.text}`;
+        case 'mica':   return step.items ? `  MICA: ${step.items.join('; ')}` : `  MICA: ${step.text}`;
+        default: return '';
+      }
+    }).filter(Boolean).join('\n');
+  } else if (Array.isArray(pkg.management)) {
+    mgmtLines = pkg.management.filter(Boolean).map(s => `  - ${s}`).join('\n');
+  }
+  const drugLines = Object.entries(pkg.drugs || {}).map(([dk, dv]) => `  ${dk}: ${dv}`).join('\n');
+  return `--- CPG: ${pkg.title || ''} (${pkg.cpg || ''}) ---\n` +
+    `Care objectives: ${(pkg.careObjectives||[]).join('; ')}\n` +
+    `Management:\n${mgmtLines}\n` +
+    (drugLines ? `Drugs:\n${drugLines}\n` : '') +
+    (pkg.pitfalls ? `Pitfalls: ${pkg.pitfalls.join('; ')}\n` : '') +
+    (pkg.highRiskFeatures ? `High-risk features: ${pkg.highRiskFeatures.join(', ')}\n` : '') +
+    (pkg.notes ? `Additional clinical context: ${pkg.notes}\n` : '');
+}
+
+async function rateKQ(index, rating) {
+  const s = currentScenario;
+  if (!s || !s.kq || !s.kq[index]) return;
+  const q = s.kq[index];
+  const statusEl = document.getElementById(`kq-rate-status-${index}`);
+  const uuid = _authSession?.user?.id;
+  if (!uuid) { if (statusEl) { statusEl.className = 'kq-rate-status err'; statusEl.textContent = 'Sign in to rate questions.'; } return; }
+
+  const cpgCode = q.cpgCode || '';
+  const cpgKey = cpgCode ? Object.keys(CPG_PACKAGES || {}).find(k => CPG_PACKAGES[k]?.cpg === cpgCode) : null;
+  const cpgTitle = cpgKey ? CPG_PACKAGES[cpgKey].title : null;
+
+  if (statusEl) { statusEl.className = 'kq-rate-status'; statusEl.textContent = rating === 'good' ? 'Saving…' : 'Saving & regenerating…'; }
+  try {
+    await sbFetch('kq_feedback', {
+      method: 'POST',
+      prefer: 'return=minimal',
+      body: JSON.stringify({
+        scenario_id: String(s.id),
+        scenario_title: s.title || '',
+        cpg_code: cpgCode,
+        cpg_key: cpgKey || null,
+        cpg_title: cpgTitle || null,
+        question: q.q,
+        answer: q.answer || '',
+        max_points: q.max,
+        rating,
+        rated_by: uuid
+      })
+    });
+
+    if (rating === 'good') {
+      if (statusEl) { statusEl.className = 'kq-rate-status ok'; statusEl.textContent = '\u2713 Thanks!'; }
+      return;
+    }
+
+    // Bad rating: regenerate this one question using only its own CPG's content
+    if (!cpgKey) throw new Error('Can\'t regenerate — this question has no linked CPG (it predates CPG tagging).');
+    const pkg = CPG_PACKAGES[cpgKey];
+    const context = buildSingleCPGContext(pkg);
+    const otherQs = s.kq.filter((_, i) => i !== index).map(o => o.q);
+    const apiKey = await getAnthropicKeyForKQ();
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 500,
+        system: `You write a single knowledge-assessment question for Ambulance Victoria paramedic training, testing understanding of one specific CPG. All clinical content must come exclusively from the CPG content provided — no invented facts. The question must NOT reference this specific patient or scenario in any way (no patient name, no reusing this scenario's exact vitals/presentation). The student already applied this CPG to that case — this question tests broader knowledge of the same guideline beyond it, so pose it as a general or alternate-situation question (e.g. a different age, a different presentation of the same condition, a dose/threshold/contraindication question posed generally). Respond with valid JSON only, no markdown: {"q":"...","answer":"..."}`,
+        messages: [{ role: 'user', content:
+          `${context}\nThe following question was rated poor quality and needs replacing: "${q.q}"\n` +
+          (otherQs.length ? `Other questions already used in this scenario (avoid overlapping with these): ${otherQs.join(' | ')}\n` : '') +
+          `Write one new, different, well-formed knowledge question (and model answer) for this CPG now.`
+        }]
+      })
+    });
+    if (!response.ok) { const e = await response.json().catch(() => ({})); throw new Error(e.error?.message || ('API error ' + response.status)); }
+    const data = await response.json();
+    const rawText = (data.content || []).filter(b => b.type === 'text').map(b => b.text).join('');
+    const cleaned = rawText.replace(/```json|```/g, '').trim();
+    const replacement = JSON.parse(cleaned);
+    if (!replacement.q || !replacement.answer) throw new Error('AI did not return a valid replacement question.');
+
+    s.kq[index] = { q: replacement.q, answer: replacement.answer, max: q.max, cpgCode };
+    await updateScenarioInCloud(s);
+    renderScenario(s); // full re-render so the new question + fresh rating UI shows
+    showToast('\ud83d\udc4e Question replaced and saved');
+  } catch (e) {
+    if (statusEl) { statusEl.className = 'kq-rate-status err'; statusEl.textContent = 'Failed: ' + e.message; }
+  }
 }
 
 function toggleAnswer(btn) {
