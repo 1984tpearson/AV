@@ -1042,6 +1042,37 @@ function updateExFileList() {
     : '';
 }
 
+// Robustly extract the first valid JSON object from an AI response — handles cases where
+// the model adds preamble/trailing prose around the JSON despite being told not to, or
+// includes trailing commas / stray comments. Same approach used in generator.html.
+function parseFirstJSON(raw) {
+  let s = raw.replace(/```json|```/g, '').trim();
+  const start = s.indexOf('{');
+  if (start === -1) throw new Error('No JSON object found in the AI response.');
+  let depth = 0, end = -1;
+  for (let i = start; i < s.length; i++) {
+    if (s[i] === '{') depth++;
+    else if (s[i] === '}') { depth--; if (depth === 0) { end = i; break; } }
+  }
+  if (end === -1) throw new Error('The AI response was cut off mid-JSON — try again, or with less/clearer material.');
+  let jsonStr = s.slice(start, end + 1);
+  try { return JSON.parse(jsonStr); } catch(e1) {}
+  try {
+    const stripped = jsonStr.replace(/\/\/[^\n\r"]*/g, '');
+    return JSON.parse(stripped);
+  } catch(e2) {}
+  try {
+    const fixed = jsonStr
+      .replace(/([{,\s])'([^']+)'\s*:/g, '$1"$2":')
+      .replace(/:\s*'([^']*)'/g, ': "$1"')
+      .replace(/,\s*}/g, '}')
+      .replace(/,\s*]/g, ']');
+    return JSON.parse(fixed);
+  } catch(e3) {
+    throw new Error('AI returned malformed JSON — try again, or with clearer material.');
+  }
+}
+
 // ── ADD TO NOTES (separate from full CPG extraction, embedded per-card) ─
 function toggleNxPanel(key) {
   const panel = document.getElementById('nx-panel-' + key);
@@ -1120,10 +1151,7 @@ async function runNotesExtraction(key) {
     if (!response.ok) { const e = await response.json().catch(() => ({})); throw new Error(e.error?.message || ('API error ' + response.status)); }
     const data = await response.json();
     const rawText = (data.content || []).filter(b => b.type === 'text').map(b => b.text).join('');
-    const cleaned = rawText.replace(/```json|```/g, '').trim();
-    let extracted;
-    try { extracted = JSON.parse(cleaned); }
-    catch (e) { throw new Error('AI did not return valid JSON. Try again, or with clearer material.'); }
+    const extracted = parseFirstJSON(rawText);
 
     const newNotes = (extracted.notes || '').trim();
     if (!newNotes) {
@@ -1224,10 +1252,7 @@ async function generateTestQuestions(key) {
     if (!response.ok) { const e = await response.json().catch(() => ({})); throw new Error(e.error?.message || ('API error ' + response.status)); }
     const data = await response.json();
     const rawText = (data.content || []).filter(b => b.type === 'text').map(b => b.text).join('');
-    const cleaned = rawText.replace(/```json|```/g, '').trim();
-    let parsed;
-    try { parsed = JSON.parse(cleaned); }
-    catch (e) { throw new Error('AI did not return valid JSON. Try again.'); }
+    const parsed = parseFirstJSON(rawText);
     const qs = Array.isArray(parsed.questions) ? parsed.questions : [];
     if (!qs.length) throw new Error('AI returned no questions.');
     panel.innerHTML =
@@ -1333,11 +1358,7 @@ async function runExtraction() {
     if (!response.ok) { const e = await response.json().catch(() => ({})); throw new Error(e.error?.message || ('API error ' + response.status)); }
     const data = await response.json();
     const rawText = (data.content || []).filter(b => b.type === 'text').map(b => b.text).join('');
-    const cleaned = rawText.replace(/```json|```/g, '').trim();
-    let extracted;
-    try { extracted = JSON.parse(cleaned); }
-    catch (e) { throw new Error('AI did not return valid JSON. Try again, or with a clearer image.'); }
-
+    const extracted = parseFirstJSON(rawText);
     finalizeExtractedPackage(extracted);
     statusEl.className = 'ex-status ok';
     statusEl.textContent = '\u2713 Extracted — review the opened card below.';
