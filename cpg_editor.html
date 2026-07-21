@@ -175,7 +175,6 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #f0f2f5; colo
   <input class="search-box" type="text" id="search" placeholder="Search by title, CPG code or key&hellip;" oninput="renderCards()">
   <button class="filter-btn" style="background:#27833A;color:white;border-color:#27833A" onclick="addNewPackage()">+ New CPG</button>
   <button class="filter-btn" style="background:#7D3C98;color:white;border-color:#7D3C98" onclick="openExtractModal()">&#129302; Extract from Document</button>
-  <button class="filter-btn" style="background:#1C3A6E;color:white;border-color:#1C3A6E" onclick="openNotesExtractModal()">&#128221; Add to Notes</button>
   <button class="filter-btn" onclick="changeGithubToken()" title="Update GitHub token">&#128273; Token</button>
 </div>
 
@@ -194,34 +193,6 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #f0f2f5; colo
       <textarea class="ex-textarea" id="ex-pasted-text" placeholder="Optionally paste CPG text here instead of / in addition to uploading&hellip;"></textarea>
       <button class="btn btn-save" style="width:100%" id="ex-run-btn" onclick="runExtraction()">&#129302; Extract</button>
       <div class="ex-status" id="ex-status"></div>
-    </div>
-  </div>
-</div>
-
-<div class="ex-modal-overlay" id="nx-modal">
-  <div class="ex-modal">
-    <div class="ex-modal-header">
-      <h2>&#128221; Add Context to Notes</h2>
-      <button class="ex-modal-close" onclick="closeNotesExtractModal()">&#10005;</button>
-    </div>
-    <div class="ex-modal-body">
-      <div class="ex-hint">This does <strong>not</strong> touch the CPG's structured content (management steps, drugs, etc). It only tops up the "Notes (AI context only)" field for an existing CPG &mdash; extra clinical background the AI can draw on when writing more varied knowledge questions for scenarios based on this CPG.</div>
-      <div class="field-row" style="margin-top:0;margin-bottom:14px">
-        <label>Target CPG</label>
-        <select class="field-input" id="nx-cpg-select"></select>
-      </div>
-      <input type="file" id="nx-files" class="ex-file-input" accept="image/*,application/pdf" multiple onchange="updateNxFileList()">
-      <div class="ex-filelist" id="nx-filelist"></div>
-      <textarea class="ex-textarea" id="nx-pasted-text" placeholder="Optionally paste text here instead of / in addition to uploading&hellip;"></textarea>
-      <div class="field-row" style="margin-top:0;margin-bottom:14px">
-        <label>If this CPG already has notes</label>
-        <select class="field-input" id="nx-mode">
-          <option value="append">Append to existing notes</option>
-          <option value="replace">Replace existing notes</option>
-        </select>
-      </div>
-      <button class="btn btn-save" style="width:100%" id="nx-run-btn" onclick="runNotesExtraction()">&#128221; Extract &amp; Add to Notes</button>
-      <div class="ex-status" id="nx-status"></div>
     </div>
   </div>
 </div>
@@ -480,8 +451,21 @@ function renderCardBody(key, pkg) {
 
     <!-- Notes -->
     <div class="field-row">
-      <label>Notes (AI context only)</label>
-      <textarea class="field-input field-textarea" onchange="setField('${key}','notes',this.value)">${esc(pkg.notes||'')}</textarea>
+      <label>Question-Writing Context (AI use only)</label>
+      <textarea class="field-input field-textarea" id="notes-${key}" onchange="setField('${key}','notes',this.value)">${esc(pkg.notes||'')}</textarea>
+      <button class="filter-btn" style="font-size:11px;padding:5px 10px;align-self:flex-start" onclick="toggleNxPanel('${key}')">&#129302; Add context from document</button>
+      <div class="nx-panel" id="nx-panel-${key}" style="display:none;margin-top:6px;padding:12px;background:#f7f8fa;border:1px solid #dde1e7;border-radius:8px">
+        <div class="ex-hint" style="margin-bottom:8px">Doesn't touch management steps or drugs &mdash; only tops up this context field. Upload/paste something, and it'll extract background, indications, pitfalls and nuance for the question-writer AI to draw on &mdash; not doses or steps, those already live above.</div>
+        <input type="file" id="nx-files-${key}" class="ex-file-input" accept="image/*,application/pdf" multiple onchange="updateNxFileList('${key}')">
+        <div class="ex-filelist" id="nx-filelist-${key}"></div>
+        <textarea class="ex-textarea" id="nx-pasted-${key}" style="min-height:70px" placeholder="Optionally paste text here instead of / in addition to uploading&hellip;"></textarea>
+        <select class="field-input" id="nx-mode-${key}" style="margin-bottom:10px">
+          <option value="append">Append to existing context</option>
+          <option value="replace">Replace existing context</option>
+        </select>
+        <button class="btn btn-save" style="width:100%" id="nx-run-btn-${key}" onclick="runNotesExtraction('${key}')">&#129302; Extract &amp; Add</button>
+        <div class="ex-status" id="nx-status-${key}"></div>
+      </div>
     </div>
 
     <!-- Save bar -->
@@ -987,27 +971,24 @@ function updateExFileList() {
     : '';
 }
 
-// ── ADD TO NOTES (separate from full CPG extraction) ────────────
-function openNotesExtractModal() {
-  const select = document.getElementById('nx-cpg-select');
-  const sorted = Object.entries(DATA).sort((a,b) => (a[1].title||a[0]).localeCompare(b[1].title||b[0]));
-  select.innerHTML = sorted.map(([key, pkg]) =>
-    `<option value="${key}">${esc(pkg.title || key)}${pkg.cpg ? ' (' + esc(pkg.cpg) + ')' : ''}${pkg.notes ? ' — has notes' : ''}</option>`
-  ).join('');
-  document.getElementById('nx-files').value = '';
-  document.getElementById('nx-pasted-text').value = '';
-  document.getElementById('nx-filelist').textContent = '';
-  document.getElementById('nx-mode').value = 'append';
-  document.getElementById('nx-status').className = 'ex-status';
-  document.getElementById('nx-status').textContent = '';
-  document.getElementById('nx-modal').classList.add('open');
+// ── ADD TO NOTES (separate from full CPG extraction, embedded per-card) ─
+function toggleNxPanel(key) {
+  const panel = document.getElementById('nx-panel-' + key);
+  if (!panel) return;
+  const opening = panel.style.display === 'none';
+  panel.style.display = opening ? 'block' : 'none';
+  if (opening) {
+    document.getElementById('nx-files-' + key).value = '';
+    document.getElementById('nx-pasted-' + key).value = '';
+    document.getElementById('nx-filelist-' + key).textContent = '';
+    document.getElementById('nx-mode-' + key).value = 'append';
+    document.getElementById('nx-status-' + key).className = 'ex-status';
+    document.getElementById('nx-status-' + key).textContent = '';
+  }
 }
-function closeNotesExtractModal() {
-  document.getElementById('nx-modal').classList.remove('open');
-}
-function updateNxFileList() {
-  const files = document.getElementById('nx-files').files;
-  document.getElementById('nx-filelist').textContent = files.length
+function updateNxFileList(key) {
+  const files = document.getElementById('nx-files-' + key).files;
+  document.getElementById('nx-filelist-' + key).textContent = files.length
     ? Array.from(files).map(f => f.name).join(', ')
     : '';
 }
@@ -1026,18 +1007,12 @@ Return ONLY a single valid JSON object, no markdown fences, no commentary:
   "caveats": "Your notes to the human reviewer about extraction quality/uncertainty. Empty string if none."
 }`;
 
-async function runNotesExtraction() {
-  const btn = document.getElementById('nx-run-btn');
-  const statusEl = document.getElementById('nx-status');
-  const targetKey = document.getElementById('nx-cpg-select').value;
-  const mode = document.getElementById('nx-mode').value;
-  const files = Array.from(document.getElementById('nx-files').files);
-  const pastedText = document.getElementById('nx-pasted-text').value.trim();
-  if (!targetKey) {
-    statusEl.className = 'ex-status err';
-    statusEl.textContent = 'Pick a target CPG first.';
-    return;
-  }
+async function runNotesExtraction(key) {
+  const btn = document.getElementById('nx-run-btn-' + key);
+  const statusEl = document.getElementById('nx-status-' + key);
+  const mode = document.getElementById('nx-mode-' + key).value;
+  const files = Array.from(document.getElementById('nx-files-' + key).files);
+  const pastedText = document.getElementById('nx-pasted-' + key).value.trim();
   if (!files.length && !pastedText) {
     statusEl.className = 'ex-status err';
     statusEl.textContent = 'Upload at least one file or paste some text.';
@@ -1057,7 +1032,7 @@ async function runNotesExtraction() {
       }
     }
     if (pastedText) content.push({ type: 'text', text: pastedText });
-    content.push({ type: 'text', text: `This context relates to the "${DATA[targetKey].title || targetKey}" CPG. Extract the supplementary clinical context now.` });
+    content.push({ type: 'text', text: `This context relates to the "${DATA[key].title || key}" CPG. Extract the supplementary clinical context now.` });
 
     statusEl.textContent = 'Calling AI…';
     const apiKey = await getAnthropicKey();
@@ -1083,23 +1058,18 @@ async function runNotesExtraction() {
     if (!newNotes) {
       statusEl.className = 'ex-status err';
       statusEl.textContent = 'AI found nothing useful to add — nothing was changed.';
-      btn.disabled = false; btn.textContent = '\ud83d\udcdd Extract & Add to Notes';
+      btn.disabled = false; btn.textContent = '\ud83e\udd16 Extract & Add';
       return;
     }
-    const existing = (DATA[targetKey].notes || '').trim();
-    DATA[targetKey].notes = (mode === 'append' && existing) ? `${existing}\n\n${newNotes}` : newNotes;
-    markDirty(targetKey);
+    const existing = (DATA[key].notes || '').trim();
+    DATA[key].notes = (mode === 'append' && existing) ? `${existing}\n\n${newNotes}` : newNotes;
+    markDirty(key);
+    const notesBox = document.getElementById('notes-' + key);
+    if (notesBox) notesBox.value = DATA[key].notes;
 
-    closeNotesExtractModal();
-    revealCard(targetKey);
-    renderCards();
-    const card = document.getElementById('card-' + targetKey);
-    if (card) {
-      card.classList.add('open', 'dirty');
-      card.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      const notesBox = card.querySelector('textarea.field-textarea');
-      if (notesBox) notesBox.value = DATA[targetKey].notes;
-    }
+    // Panel intentionally stays open so the success message below is visible
+    statusEl.className = 'ex-status ok';
+    statusEl.textContent = '\u2713 Added — remember to Save to file when you\'re happy with it.';
     if (extracted.caveats) {
       alert('\u26a0\ufe0f AI flagged something about this extraction (not saved — for your review only):\n\n' + extracted.caveats);
     }
@@ -1107,7 +1077,7 @@ async function runNotesExtraction() {
     statusEl.className = 'ex-status err';
     statusEl.textContent = 'Extraction failed: ' + e.message;
   }
-  btn.disabled = false; btn.textContent = '\ud83d\udcdd Extract & Add to Notes';
+  btn.disabled = false; btn.textContent = '\ud83e\udd16 Extract & Add';
 }
 
 function fileToBase64(file) {
