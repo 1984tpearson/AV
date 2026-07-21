@@ -159,6 +159,12 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #f0f2f5; colo
 .cpg-subcat-body { display:none; padding:10px 12px; }
 .cpg-subcat-body.open { display:block; }
 
+/* CROSS-REFERENCE CHIP */
+.cpg-crossref { display:flex; align-items:center; gap:10px; padding:9px 12px; margin-bottom:6px; cursor:pointer; background:white; border:1px dashed #dde; border-radius:6px; font-size:12px; transition:background .1s; }
+.cpg-crossref:hover { background:#f8f9fc; border-color:#1C3A6E; }
+.crossref-title { flex:1; color:#555; font-weight:600; }
+.crossref-loc { font-size:11px; color:#aaa; white-space:nowrap; }
+
 </style>
 </head>
 <body>
@@ -281,12 +287,17 @@ const TOP_CATEGORIES = [
 
 const _openCats = new Set();    // top-level category keys currently expanded
 const _openSubcats = new Set(); // 'Cat|Subcat' keys currently expanded
+const _dragAttached = new Set(); // CPG keys whose step rows currently have drag listeners attached
 
+// Same TOP_CATEGORIES-first traversal order as renderCards(), so this always
+// agrees with which location renderCards() treats as the "primary" one.
 function findCategoryPathForKey(key) {
-  for (const catSubKey of Object.keys(CATEGORY_TO_CPG)) {
-    if (CATEGORY_TO_CPG[catSubKey].includes(key)) {
-      const [cat, sub] = catSubKey.split('|');
-      return { cat, sub, catSubKey };
+  for (const cat of TOP_CATEGORIES) {
+    const subKeys = Object.keys(CATEGORY_TO_CPG).filter(k => k.startsWith(cat.key + '|'));
+    for (const catSubKey of subKeys) {
+      if (CATEGORY_TO_CPG[catSubKey].includes(key)) {
+        return { cat: cat.key, sub: catSubKey.split('|')[1], catSubKey };
+      }
     }
   }
   return null;
@@ -300,12 +311,16 @@ function matchesSearch(key, pkg, q) {
 }
 
 // ── RENDER ACCORDION ──────────────────────────────────────────
+let _cardPrimaryLocation = {}; // key -> {cat, sub, catSubKey} — the ONE place each card is fully rendered
+
 function renderCards() {
   const q = document.getElementById('search').value.trim();
   const allEntries = Object.entries(DATA);
   document.getElementById('pkg-count').textContent = allEntries.length + ' packages';
 
   const usedKeys = new Set();
+  _cardPrimaryLocation = {};
+  _dragAttached.clear(); // grid is being rebuilt from scratch — every card's DOM node is new
   const sections = [];
 
   TOP_CATEGORIES.forEach(cat => {
@@ -313,10 +328,25 @@ function renderCards() {
     const subcats = [];
     subKeys.forEach(catSubKey => {
       const sub = catSubKey.split('|')[1];
-      const entries = CATEGORY_TO_CPG[catSubKey]
+      const entries = [];
+      const crossRefs = [];
+      CATEGORY_TO_CPG[catSubKey]
         .filter(k => DATA[k] && matchesSearch(k, DATA[k], q))
-        .map(k => { usedKeys.add(k); return [k, DATA[k]]; });
-      if (entries.length) subcats.push({ sub, catSubKey, entries });
+        .forEach(k => {
+          // A CPG can legitimately belong to several categories (e.g. seizures under
+          // Adult, Paediatric AND Maternity/Pre-eclampsia) — that mapping is correct and
+          // used by the scenario generator. But we only ever render the FULL editable
+          // card once (its first/primary location), to avoid duplicate DOM ids. Every
+          // other location gets a small cross-reference chip that jumps to it instead.
+          if (usedKeys.has(k)) {
+            crossRefs.push([k, DATA[k]]);
+          } else {
+            usedKeys.add(k);
+            _cardPrimaryLocation[k] = { cat: cat.key, sub, catSubKey };
+            entries.push([k, DATA[k]]);
+          }
+        });
+      if (entries.length || crossRefs.length) subcats.push({ sub, catSubKey, entries, crossRefs });
     });
     if (subcats.length) sections.push({ cat, subcats });
   });
@@ -330,18 +360,19 @@ function renderCards() {
   const autoExpand = !!q; // auto-open groups with matches while searching
 
   let html = sections.map(({ cat, subcats }) => {
-    const total = subcats.reduce((s, sc) => s + sc.entries.length, 0);
+    const total = subcats.reduce((s, sc) => s + sc.entries.length + sc.crossRefs.length, 0);
     const catOpen = _openCats.has(cat.key) || autoExpand;
-    const subcatsHtml = subcats.map(({ sub, catSubKey, entries }) => {
+    const subcatsHtml = subcats.map(({ sub, catSubKey, entries, crossRefs }) => {
       const subOpen = _openSubcats.has(catSubKey) || autoExpand;
       return `<div class="cpg-subcat">
         <div class="cpg-subcat-row" onclick="toggleSubcat('${catSubKey.replace(/'/g,"\\'")}')">
           <span class="cpg-subcat-chevron${subOpen ? ' open' : ''}">&#9656;</span>
           <span class="cpg-subcat-label">${esc(sub)}</span>
-          <span class="cpg-subcat-count">${entries.length}</span>
+          <span class="cpg-subcat-count">${entries.length + crossRefs.length}</span>
         </div>
         <div class="cpg-subcat-body${subOpen ? ' open' : ''}">
           ${entries.map(([k,v]) => cardHTML(k,v)).join('')}
+          ${crossRefs.map(([k,v]) => crossRefHTML(k,v)).join('')}
         </div>
       </div>`;
     }).join('');
@@ -372,7 +403,6 @@ function renderCards() {
   }
 
   grid.innerHTML = html;
-  allEntries.forEach(([k]) => attachDrag(k));
 }
 
 function toggleCat(catKey) {
@@ -384,10 +414,35 @@ function toggleSubcat(catSubKey) {
   renderCards();
 }
 
+// Jump to a card's primary (fully-rendered) location — used by cross-reference chips
+function scrollToCard(key) {
+  const loc = _cardPrimaryLocation[key];
+  if (loc) { _openCats.add(loc.cat); _openSubcats.add(loc.catSubKey); }
+  renderCards();
+  const card = document.getElementById('card-' + key);
+  if (!card) return;
+  card.classList.add('open');
+  if (!_dragAttached.has(key)) attachDrag(key);
+  card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  card.style.outline = '2px solid #E8921A';
+  setTimeout(() => { card.style.outline = ''; }, 1200);
+}
+
 function revealCard(key) {
   const path = findCategoryPathForKey(key);
   if (path) { _openCats.add(path.cat); _openSubcats.add(path.catSubKey); }
   else { _openCats.add('__uncategorized__'); }
+}
+
+// ── CROSS-REFERENCE CHIP (for CPGs shared across multiple categories) ──
+function crossRefHTML(key, pkg) {
+  const loc = _cardPrimaryLocation[key];
+  const locLabel = loc ? `${loc.cat} \u25b8 ${loc.sub}` : '';
+  return `<div class="cpg-crossref" onclick="scrollToCard('${key}')">
+    <span class="cpg-code">${esc(pkg.cpg||'?')}</span>
+    <span class="crossref-title">${esc(pkg.title||key)}</span>
+    <span class="crossref-loc">also under ${esc(locLabel)} &#8250;</span>
+  </div>`;
 }
 
 // ── CARD HTML ──────────────────────────────────────────────────
@@ -642,6 +697,7 @@ function markDirty(key) {
 let dragSrc = null;
 
 function attachDrag(key) {
+  _dragAttached.add(key);
   ['management','management_mica'].forEach(field => {
     const container = document.getElementById('steps-' + field + '-' + key);
     if (!container) return;
@@ -677,7 +733,13 @@ function attachDrag(key) {
 
 // ── TOGGLE CARD ───────────────────────────────────────────────
 function toggleCard(key) {
-  document.getElementById('card-' + key).classList.toggle('open');
+  const card = document.getElementById('card-' + key);
+  if (!card) return;
+  const opening = !card.classList.contains('open');
+  card.classList.toggle('open');
+  // Lazily wire up drag-and-drop only once, the first time a card is actually opened —
+  // avoids re-attaching listeners to every CPG's steps on every render.
+  if (opening && !_dragAttached.has(key)) attachDrag(key);
 }
 
 // ── RESET ─────────────────────────────────────────────────────
