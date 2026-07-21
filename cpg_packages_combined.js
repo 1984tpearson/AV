@@ -79,53 +79,166 @@ const CPG_PACKAGES = {
   // A0201-1 Medical Cardiac Arrest
   // -----------------------------------------------------------
   cardiac_arrest_medical: {
-    cpg: "A0201-1",
-    title: "Medical Cardiac Arrest",
-    careObjectives: [
+    "cpg": "A0201-1",
+    "title": "Medical Cardiac Arrest",
+    "careObjectives": [
       "High quality chest compressions with minimal interruptions.",
       "Rapid defibrillation of VF / pulseless VT (if in doubt, shock).",
       "Advanced care (e.g. adrenaline, antiarrhythmics, intubation) where it does not interrupt high-quality compressions / defibrillation.",
       "Address correctable causes where possible."
     ],
-    management: [
-      { type: "note", items: ["Unconscious and pulseless OR unsure of the presence of a pulse in the setting of gasping / agonal respirations", "If history, mechanism or injuries suggest traumatic cause of cardiac arrest — manage as per CPG A0201-2 Traumatic Cardiac Arrest"] },
-      { type: "stop", text: "HP-CPR: High quality compressions / minimise interruptions. Charge defibrillator during chest compressions. On-screen interpretation in manual mode. Pulse checks only for potentially perfusing rhythms." },
-      { type: "header", text: "VF / Pulseless VT \u2014 Prioritise HP-CPR and timely defibrillation" },
-      { type: "action", text: "Defibrillate 200 J" },
-      { type: "action", text: "Immediately recommence chest compressions \u2014 2-minute cycle finishes" },
-      { type: "action", text: "Amiodarone 300 mg IV if VF / VT after 3rd shock" },
-      { type: "action", text: "Lidocaine 100 mg IV if VF / VT after 5th shock" },
-      { type: "action", text: "Amiodarone 150 mg IV if VF / VT after 7th shock" },
-      { type: "action", text: "Lidocaine 50 mg IV if VF / VT after 9th shock" },
-      { type: "header", text: "Asystole / PEA \u2014 Prioritise HP-CPR" },
-      { type: "action", text: "Disarm" },
-      { type: "action", text: "Immediately recommence chest compressions" },
-      { type: "note", items: ["PEA: Consider reversible causes \u2014 Hypovolaemia, Hypoxia, Hyperkalaemia, Hypothermia, Anaphylaxis, Asthma, Upper airway obstruction, Tension pneumothorax, Pulmonary embolism, Toxins"] },
-      { type: "header", text: "All cardiac arrest patients" },
-      { type: "action", text: "SGA (CPR ratio 15:1 post insertion)" },
-      { type: "action", text: "IV access / Normal saline TKVO" },
-      { type: "action", text: "Adrenaline 1 mg IV repeat every 2nd cycle (every 4 minutes) \u2014 Shockable: after 2nd shock; Non-shockable: as soon as resources permit" },
-      { type: "action", text: "Flush all medications with 20\u201330 mL Normal saline" },
-      { type: "action", text: "ETCO\u2082 and OG tube through SGA (where time permits)" },
-      { type: "mica", text: "ETT if placement can be achieved with NO additional pause in compressions; early ETT if copious vomitus or SGA failure" },
-      { type: "header", text: "Special circumstances" },
-      { type: "subheader", text: "Hypovolaemia / anaphylaxis / asthma:" },
-      { type: "action", text: "Normal saline 1000\u20132000 mL IV" },
-      { type: "subheader", text: "Witnessed arrest and known or strongly suspected PE:" },
-      { type: "mica", text: "Thrombolysis following consultation with AV Medical Advisor and if sufficient resources are available to continue HP-CPR uninterrupted" },
-      { type: "subheader", text: "Interfering CPR-induced consciousness:" },
-      { type: "mica", text: "Ketamine 50\u2013100 mg IV every 1\u20132 minutes (no max. dose)" },
-      { type: "mica", text: "Ketamine 200 mg IM if no IV access (single dose)" },
-      { type: "mica", text: "Consider Rocuronium 150 mg IV following at least 1.5 mg/kg Ketamine, if required to facilitate intubation" },
-      { type: "subheader", text: "Hyperkalaemia or significant crush injury:" },
-      { type: "action", text: "Calcium gluconate 10% 6.6 mmol (3g) IV (slow push)" },
-      { type: "action", text: "Sodium bicarbonate 8.4% 100 mL IV" },
-      { type: "subheader", text: "TCA toxicity:" },
-      { type: "action", text: "Sodium bicarbonate 8.4% 100 mL IV" },
-      { type: "subheader", text: "Calcium channel blocker toxicity:" },
-      { type: "action", text: "Calcium gluconate 10% 6.6 mmol (3g) IV (slow push)" }
+    "management": [
+      {
+        "type": "note",
+        "items": [
+          "Unconscious and pulseless OR unsure of the presence of a pulse in the setting of gasping / agonal respirations",
+          "If history, mechanism or injuries suggest traumatic cause of cardiac arrest — manage as per CPG A0201-2 Traumatic Cardiac Arrest"
+        ]
+      },
+      {
+        "type": "stop",
+        "text": "HP-CPR: High quality compressions / minimise interruptions. Charge defibrillator during chest compressions. On-screen interpretation in manual mode. Pulse checks only for potentially perfusing rhythms."
+      },
+      {
+        "type": "header",
+        "text": "VF / Pulseless VT — Prioritise HP-CPR and timely defibrillation"
+      },
+      {
+        "type": "action",
+        "text": "Defibrillate 200 J"
+      },
+      {
+        "type": "action",
+        "text": "Immediately recommence chest compressions — 2-minute cycle finishes"
+      },
+      {
+        "type": "action",
+        "text": "Amiodarone 300 mg IV if VF / VT after 3rd shock"
+      },
+      {
+        "type": "action",
+        "text": "Lidocaine 100 mg IV if VF / VT after 5th shock"
+      },
+      {
+        "type": "action",
+        "text": "Amiodarone 150 mg IV if VF / VT after 7th shock"
+      },
+      {
+        "type": "action",
+        "text": "Lidocaine 50 mg IV if VF / VT after 9th shock"
+      },
+      {
+        "type": "header",
+        "text": "Asystole / PEA — Prioritise HP-CPR"
+      },
+      {
+        "type": "action",
+        "text": "Disarm"
+      },
+      {
+        "type": "action",
+        "text": "Immediately recommence chest compressions"
+      },
+      {
+        "type": "note",
+        "items": [
+          "PEA: Consider reversible causes — Hypovolaemia, Hypoxia, Hyperkalaemia, Hypothermia, Anaphylaxis, Asthma, Upper airway obstruction, Tension pneumothorax, Pulmonary embolism, Toxins"
+        ]
+      },
+      {
+        "type": "header",
+        "text": "All cardiac arrest patients"
+      },
+      {
+        "type": "action",
+        "text": "SGA (CPR ratio 15:1 post insertion)"
+      },
+      {
+        "type": "action",
+        "text": "IV access / Normal saline TKVO"
+      },
+      {
+        "type": "action",
+        "text": "Adrenaline 1 mg IV repeat every 2nd cycle (every 4 minutes) — Shockable: after 2nd shock; Non-shockable: as soon as resources permit"
+      },
+      {
+        "type": "action",
+        "text": "Flush all medications with 20–30 mL Normal saline"
+      },
+      {
+        "type": "action",
+        "text": "ETCO₂ and OG tube through SGA (where time permits)"
+      },
+      {
+        "type": "mica",
+        "text": "ETT if placement can be achieved with NO additional pause in compressions; early ETT if copious vomitus or SGA failure"
+      },
+      {
+        "type": "header",
+        "text": "Special circumstances"
+      },
+      {
+        "type": "subheader",
+        "text": "Hypovolaemia / anaphylaxis / asthma:"
+      },
+      {
+        "type": "action",
+        "text": "Normal saline 1000–2000 mL IV"
+      },
+      {
+        "type": "subheader",
+        "text": "Witnessed arrest and known or strongly suspected PE:"
+      },
+      {
+        "type": "mica",
+        "text": "Thrombolysis following consultation with AV Medical Advisor and if sufficient resources are available to continue HP-CPR uninterrupted"
+      },
+      {
+        "type": "subheader",
+        "text": "Interfering CPR-induced consciousness:"
+      },
+      {
+        "type": "mica",
+        "text": "Ketamine 50–100 mg IV every 1–2 minutes (no max. dose)"
+      },
+      {
+        "type": "mica",
+        "text": "Ketamine 200 mg IM if no IV access (single dose)"
+      },
+      {
+        "type": "mica",
+        "text": "Consider Rocuronium 150 mg IV following at least 1.5 mg/kg Ketamine, if required to facilitate intubation"
+      },
+      {
+        "type": "subheader",
+        "text": "Hyperkalaemia or significant crush injury:"
+      },
+      {
+        "type": "action",
+        "text": "Calcium gluconate 10% 6.6 mmol (3g) IV (slow push)"
+      },
+      {
+        "type": "action",
+        "text": "Sodium bicarbonate 8.4% 100 mL IV"
+      },
+      {
+        "type": "subheader",
+        "text": "TCA toxicity:"
+      },
+      {
+        "type": "action",
+        "text": "Sodium bicarbonate 8.4% 100 mL IV"
+      },
+      {
+        "type": "subheader",
+        "text": "Calcium channel blocker toxicity:"
+      },
+      {
+        "type": "action",
+        "text": "Calcium gluconate 10% 6.6 mmol (3g) IV (slow push)"
+      }
     ],
-    notes: "HP-CPR is the priority. Defib 200 J. Adrenaline every 2nd cycle. Double the interval for adrenaline, amiodarone and lidocaine doses if ROSC is unlikely."
+    "notes": "HP-CPR is the priority. Defib 200 J. Adrenaline every 2nd cycle. Double the interval for adrenaline, amiodarone and lidocaine doses if ROSC is unlikely.\n\nThis CPG applies to patients aged ≥16 years in medical cardiac arrest. Default to this CPG if cause of arrest is uncertain (traumatic vs medical). If any doubt about pulse presence, commence compressions immediately.\n\nCapnography rationale: ETCO2 serves as a surrogate for cardiac output and CPR quality. A gradual fall suggests compressor fatigue; a sudden rise suggests ROSC. Pulse checks are only warranted for potentially perfusing rhythms (organised QRS complexes, possibly rising ETCO2).\n\nAdrenaline controversy: While adrenaline improves ROSC rates, there is no high-quality evidence it improves neurologically intact survival to discharge. It may be arrhythmogenic, associated with poorer neurological outcomes, and contribute to post-ROSC myocardial dysfunction. This is why defibrillation is prioritised before introducing adrenaline in shockable rhythms, whereas in non-shockable rhythms it is given as early as practicable — especially when the cause is likely adrenaline-responsive (e.g. anaphylaxis, asthma).\n\nFluid caution: IV fluids in shockable rhythms may be detrimental; restrict to medication flush and TKVO only.\n\nAntiarrhythmic shock counting: The count of 3 shocks to define refractory VF/VT includes shocks from public AEDs or first responders, but excludes inadvertent shocks given during non-shockable rhythms. Antiarrhythmics and adrenaline may be given in the same CPR cycle.\n\nSee-Thru CPR pitfall: Rhythm interpretation using this mode is unreliable and should not be the basis for defibrillation decisions. Shock advisory mode is incompatible with HP-CPR.\n\nPermanent pacemaker pitfall: Pacing spikes may mimic QRS complexes, masking a shockable rhythm. Use ECG electrodes and alternate leads to differentiate.\n\nVAD patients: No palpable pulse is expected; cannot use pulse checks for arrest or ROSC determination. Do not disconnect the pump. Anterior-posterior pad placement is preferred.\n\nCPR-induced consciousness (CPRIC): A recognised phenomenon where adequate cerebral perfusion during CPR causes the patient to regain awareness, gag, resist, or become combative. Ketamine is used to regain control and recommence uninterrupted CPR; rocuronium may follow if intubation is needed.\n\nHyperkalaemia pitfall: Calcium should not be given indiscriminately — evidence associates it with harm. Restrict to confirmed or very strongly suspected hyperkalaemia (known K+ >6 mmol/L, renal failure/dialysis, or significant crush injury). A 10 mL saline flush is required between calcium gluconate and sodium bicarbonate.\n\nHypothermia (<30°C): ROSC is unlikely if >3 shocks required while severely hypothermic. Double dosing intervals for adrenaline and antiarrhythmics. Prehospital rewarming is unlikely to meaningfully raise core temperature; priority is preventing further heat loss.\n\nTension pneumothorax: CPR-induced pneumothorax is very rare and routine decompression is not indicated. Point-of-care ultrasound (if credentialled) should confirm absent lung sliding before decompression.\n\nECMO eligibility nuance: Patients who deteriorate from VF/VT to asystole remain eligible. mCPR should not be applied before 16 minutes of resuscitation as early use may worsen outcomes. The Alfred Hospital is the only 24/7 ECMO centre; others operate business hours only.\n\nIntra-arrest thrombolysis for PE: Requires AV Medical Advisor consultation and sufficient on-scene resources to sustain HP-CPR for up to 60 minutes post-administration.\n\nPregnant patients (>20 weeks): Manual uterine displacement is the primary intervention to relieve aorto-caval compression; left lateral tilt is a fallback but may compromise compression effectiveness. Resuscitative hysterotomy is a hospital-level intervention requiring early consultation with PIPER.\n\nThis CPG applies to patients aged ≥16 years in medical cardiac arrest. If cause is uncertain (trauma vs medical), default to this guideline. Compressions must begin if any doubt exists about the presence of a pulse.\n\nCapnography nuance: ETCO2 serves as a surrogate for cardiac output and compression quality; a gradual fall suggests CPR fatigue; a sudden rise suggests ROSC. Carotid pulse checks are only warranted for potentially perfusing rhythms (organised QRS ± rising ETCO2).\n\nDefibrillation pitfalls: 'See-Thru CPR' is often misleading and must not be used as the basis for a shock decision. Shock advisory mode is incompatible with HP-CPR. Refractory VF/VT is defined as remaining shockable after 3 attempts — this count includes pre-arrival AED/first-responder shocks but excludes shocks inadvertently delivered in a non-shockable rhythm. Optimal pad positioning is emphasised; for VAD patients, anterior-posterior placement is preferred and the pump must not be disconnected. For pacemaker patients, pacing spikes can mimic QRS complexes — ECG electrodes and alternative lead views help differentiate.\n\nAdrenaline controversy: While adrenaline improves ROSC rates, there is no high-quality evidence of improved neurologically intact survival. Potential harms include poorer neurological outcomes, arrhythmogenicity, and post-ROSC myocardial dysfunction. Delaying adrenaline in shockable rhythms (until after 2nd shock) is deliberate. For non-shockable rhythms, early adrenaline is favoured, especially where the cause is likely adrenaline-responsive (e.g., anaphylaxis, asthma).\n\nAntiarrhythmics: The 3-shock threshold for antiarrhythmics counts public AED and first-responder shocks. If IV access is delayed, maintain 2-shock intervals between doses. Antiarrhythmics and adrenaline may be given in the same CPR cycle.\n\nFluid caution: IV fluids in shockable rhythms may be detrimental; restrict to medication flush and TKVO.\n\nECMO/mCPR pathway: mCPR is primarily a bridge to ECPR, not a routine intervention. It should not be applied before 16 minutes of resuscitation and is contraindicated to facilitate peripheral interventions. Patients who initially arrest in VF/VT but subsequently degrade to asystole remain ECMO-eligible. Alfred Hospital is the only 24/7 ECMO centre; others operate Monday–Friday 0800–1700. Consult AV Medical Advisor if eligibility is uncertain. During transport, do not stop the vehicle for rhythm or pulse confirmation — movement artefact risk is outweighed by ECPR delay risk.\n\nSpecial populations: Pregnant patients (>20 weeks) require manual uterine displacement throughout arrest; tilting 15–30° is an inferior alternative. Hypothermic arrest (<30°C) warrants doubled drug intervals; ROSC is unlikely after >3 shocks while severely hypothermic. Calcium should not be used indiscriminately — evidence of harm exists; restrict to confirmed or strongly suspected hyperkalaemia (K+ >6 mmol/L or renal failure/dialysis/crush injury context). CPR-induced consciousness (CPRIC) is a recognised complication requiring ketamine to restore resuscitation continuity. Intra-arrest thrombolysis for PE requires Medical Advisor consultation and sufficient resources to continue HP-CPR for up to 60 minutes post-administration. Tension pneumothorax decompression in medical arrest should not be routine — use point-of-care ultrasound to confirm absent lung sliding if credentialled."
   },
 
   // -----------------------------------------------------------
