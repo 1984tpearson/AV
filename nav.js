@@ -742,23 +742,58 @@
     close();
     if (!isAdmin()) return;
     var modal = ensureModal('avnav-usage-modal', '💲 Usage &amp; Costs');
-    var body = modal.querySelector('.avnav-modal-body');
-    body.innerHTML = '<p style="text-align:center;color:var(--grey);padding:20px">Loading…</p>';
     modal.classList.add('open');
+    fetchUsageLog(_usageLogRange);
+  }
+
+  var _usageLogRange = 'all';
+
+  function usageRangeStartISO(range) {
+    var now = new Date();
+    if (range === 'today') {
+      return new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
+    }
+    if (range === 'week') {
+      var day = now.getDay();
+      var diff = (day === 0 ? 6 : day - 1); // days since Monday
+      return new Date(now.getFullYear(), now.getMonth(), now.getDate() - diff).toISOString();
+    }
+    if (range === 'month') {
+      return new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+    }
+    return null; // all time — no filter
+  }
+
+  async function fetchUsageLog(range) {
+    _usageLogRange = range;
+    var body = document.querySelector('#avnav-usage-modal .avnav-modal-body');
+    if (body) body.innerHTML = '<p style="text-align:center;color:var(--grey);padding:20px">Loading…</p>';
     try {
-      var rows = await sbFetch('ai_usage_log?select=*&order=created_at.desc&limit=500');
-      renderUsageLog(rows);
+      var startISO = usageRangeStartISO(range);
+      var query = 'ai_usage_log?select=*&order=created_at.desc&limit=5000';
+      if (startISO) query += '&created_at=gte.' + encodeURIComponent(startISO);
+      var rows = await sbFetch(query);
+      renderUsageLog(rows, range);
     } catch (e) {
-      body.innerHTML = '<p style="color:var(--red);padding:16px">Failed to load: ' + escapeHtml(e.message) + '</p>';
+      if (body) body.innerHTML = '<p style="color:var(--red);padding:16px">Failed to load: ' + escapeHtml(e.message) + '</p>';
     }
   }
 
-  function renderUsageLog(rows) {
+  function renderUsageLog(rows, range) {
     var modal = document.getElementById('avnav-usage-modal');
     if (!modal) return;
     var body = modal.querySelector('.avnav-modal-body');
+    var ranges = [['today', 'Today'], ['week', 'This week'], ['month', 'This month'], ['all', 'All time']];
+    var filterHtml = '<div style="display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap">' +
+      ranges.map(function (r) {
+        var active = r[0] === range;
+        return '<button onclick="AVNav.fetchUsageLog(\'' + r[0] + '\')" style="padding:6px 12px;border-radius:20px;font-size:12px;font-weight:700;cursor:pointer;border:1.5px solid ' +
+          (active ? 'var(--navy);background:var(--navy);color:white' : 'var(--border);background:white;color:var(--grey)') +
+          '">' + r[1] + '</button>';
+      }).join('') +
+      '</div>';
     if (!rows.length) {
-      body.innerHTML = '<div style="text-align:center;padding:24px;color:var(--grey)"><div style="font-size:36px;margin-bottom:12px">💲</div><p>No AI usage logged yet.</p></div>';
+      body.innerHTML = filterHtml + '<div style="text-align:center;padding:24px;color:var(--grey)"><div style="font-size:36px;margin-bottom:12px">💲</div><p>No AI usage logged for this period.</p></div>';
       return;
     }
     var totalCost = 0, bySource = {};
@@ -767,9 +802,15 @@
       var s = r.source || 'unknown';
       bySource[s] = (bySource[s] || 0) + (Number(r.cost_usd) || 0);
     });
-    var summaryHtml = '<div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:16px">' +
+    var avgCost = totalCost / rows.length;
+    var rangeLabel = ranges.filter(function (r) { return r[0] === range; })[0][1];
+    var cappedNote = rows.length >= 5000 ? ' (capped at 5000)' : '';
+    var summaryHtml = filterHtml + '<div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:16px">' +
+      '<div style="flex:1;min-width:120px;padding:10px 14px;border:2px solid var(--amber);border-radius:10px;background:var(--amber-light)">' +
+        '<div style="font-size:11px;color:var(--grey)">Avg / generation</div>' +
+        '<div style="font-size:18px;font-weight:700">$' + avgCost.toFixed(4) + '</div></div>' +
       '<div style="flex:1;min-width:120px;padding:10px 14px;border:2px solid var(--border);border-radius:10px">' +
-        '<div style="font-size:11px;color:var(--grey)">Total (last ' + rows.length + ')</div>' +
+        '<div style="font-size:11px;color:var(--grey)">Total (' + rangeLabel + ', ' + rows.length + ')' + cappedNote + '</div>' +
         '<div style="font-size:18px;font-weight:700">$' + totalCost.toFixed(4) + '</div></div>' +
       Object.keys(bySource).sort().map(function (s) {
         return '<div style="flex:1;min-width:120px;padding:10px 14px;border:2px solid var(--border);border-radius:10px">' +
@@ -933,6 +974,7 @@
     openManageMine: openManageMine,
     openUsers: openUsers,
     openUsageLog: openUsageLog,
+    fetchUsageLog: fetchUsageLog,
     logAIUsage: logAIUsage,
     getTodaySearchCount: getTodaySearchCount,
     confirmModal: confirmModal,
