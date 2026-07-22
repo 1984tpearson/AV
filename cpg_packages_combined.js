@@ -3238,6 +3238,90 @@ const CPG_PACKAGES = {
     "management_mica": [],
     "notes": "Possible causes of fall to consider: Environmental/mechanical (e.g. trip/slip hazards, uneven ground, stairs, poor lighting, inappropriate footwear, mobility issues/aids or past Hx of falls); Known medical/pharmacological factor (e.g. Postural hypotension, poor gait, cognitive/sensory impairment, medication change or cardiovascular medications); Unanticipated medical factor (e.g. AMI, seizure). Assess for complications of prolonged time spent on ground such as dehydration and pressure sores. Any fall that occurs in AV care must be reported via Riskman."
   },
+
+
+  choking_a0308: {
+    "title": "Choking",
+    "cpg": "A0308",
+    "careObjectives": [],
+    "management": [
+      {
+        "type": "note",
+        "text": "Not intended for use in newborns – refer to CPG N0101 Newborn Resuscitation"
+      },
+      {
+        "type": "header",
+        "text": "Suspected foreign body airway obstruction"
+      },
+      {
+        "type": "assess",
+        "items": [
+          "Witnessed foreign body airway obstruction",
+          "Very sudden onset SOB / respiratory distress",
+          "Playing / handling small objects",
+          "Unable to ventilate"
+        ]
+      },
+      {
+        "type": "header",
+        "text": "Effective cough"
+      },
+      {
+        "type": "action",
+        "text": "Encourage cough"
+      },
+      {
+        "type": "action",
+        "text": "Monitor closely for deterioration"
+      },
+      {
+        "type": "header",
+        "text": "Ineffective cough"
+      },
+      {
+        "type": "action",
+        "text": "Situation report"
+      },
+      {
+        "type": "action",
+        "text": "Back blows (up to five)"
+      },
+      {
+        "type": "action",
+        "text": "Chest thrusts (up to five)"
+      },
+      {
+        "type": "action",
+        "text": "Repeat back blows and chest thrusts"
+      },
+      {
+        "type": "header",
+        "text": "Unconscious"
+      },
+      {
+        "type": "action",
+        "text": "Escalate care"
+      },
+      {
+        "type": "action",
+        "text": "Manually clear visible obstruction"
+      },
+      {
+        "type": "action",
+        "text": "Laryngoscope and Magill's forceps"
+      },
+      {
+        "type": "action",
+        "text": "Concurrent chest thrusts or CPR as required"
+      },
+      {
+        "type": "action",
+        "text": "Prepare for cricothyroidotomy * (* Where credentialled if < 12 years)"
+      }
+    ],
+    "management_mica": [],
+    "notes": ""
+  },
 };
 
 // Export for use in application
