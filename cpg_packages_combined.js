@@ -357,32 +357,82 @@ const CPG_PACKAGES = {
   // A0202 ROSC Management
   // -----------------------------------------------------------
   rosc_management: {
-    cpg: "A0202",
-    title: "ROSC Management",
-    careObjectives: [
+    "cpg": "A0202",
+    "title": "ROSC Management",
+    "careObjectives": [
       "Optimise oxygenation and perfusion following return of spontaneous circulation.",
       "Identify and manage post-cardiac arrest complications.",
       "Determine appropriate transport destination."
     ],
-    management: [
-      { type: "note", items: ["Post cardiac arrest \u2014 Return of spontaneous circulation (ROSC)"] },
-      { type: "header", text: "Unintubated \u2014 GCS < 10 post ROSC" },
-      { type: "mica", text: "Collapse to ROSC > 10 minutes: RSI as per CPG A0302 Endotracheal Intubation" },
-      { type: "mica", text: "Collapse to ROSC < 10 minutes: RSI as per CPG A0302 Endotracheal Intubation if coma persists despite initial oxygenation and perfusion Mx" },
-      { type: "mica", text: "Target ETCO\u2082 30\u201340 mmHg" },
-      { type: "header", text: "Perfusion Mx" },
-      { type: "action", text: "Titrate Adrenaline and Normal Saline as per CPG A0407 Inadequate Perfusion (Cardiogenic causes): Target SBP 100 mmHg; Max total Normal Saline 20 mL/kg during arrest and post ROSC; Max Adrenaline infusion rate 250 mcg/min" },
-      { type: "action", text: "Accurately assess pulse during moving/loading to ensure output maintained throughout" },
-      { type: "action", text: "Mx as per appropriate CPG if condition changes" },
-      { type: "stop", text: "Do not administer Amiodarone unless breakthrough VF/VT occurs" },
-      { type: "header", text: "Consider PHT" },
-      { type: "action", text: "12 lead ECG" },
-      { type: "action", text: "Consider PHT as per CPG A0408 STEMI management" },
-      { type: "header", text: "Transport" },
-      { type: "action", text: "VF/VT arrest OR suspected cardiac cause OR post PHT: Transport to 24 hour PCI facility where available; consider AAV vs time to closest hospital" },
-      { type: "action", text: "Suspected non-cardiac cause: Transport to the closest appropriate hospital with notification" }
+    "management": [
+      {
+        "type": "note",
+        "items": [
+          "Post cardiac arrest — Return of spontaneous circulation (ROSC)"
+        ]
+      },
+      {
+        "type": "header",
+        "text": "Unintubated — GCS < 10 post ROSC"
+      },
+      {
+        "type": "mica",
+        "text": "Collapse to ROSC > 10 minutes: RSI as per CPG A0302 Endotracheal Intubation"
+      },
+      {
+        "type": "mica",
+        "text": "Collapse to ROSC < 10 minutes: RSI as per CPG A0302 Endotracheal Intubation if coma persists despite initial oxygenation and perfusion Mx"
+      },
+      {
+        "type": "mica",
+        "text": "Target ETCO₂ 30–40 mmHg"
+      },
+      {
+        "type": "header",
+        "text": "Perfusion Mx"
+      },
+      {
+        "type": "action",
+        "text": "Titrate Adrenaline and Normal Saline as per CPG A0407 Inadequate Perfusion (Cardiogenic causes): Target SBP 100 mmHg; Max total Normal Saline 20 mL/kg during arrest and post ROSC; Max Adrenaline infusion rate 250 mcg/min"
+      },
+      {
+        "type": "action",
+        "text": "Accurately assess pulse during moving/loading to ensure output maintained throughout"
+      },
+      {
+        "type": "action",
+        "text": "Mx as per appropriate CPG if condition changes"
+      },
+      {
+        "type": "stop",
+        "text": "Do not administer Amiodarone unless breakthrough VF/VT occurs"
+      },
+      {
+        "type": "header",
+        "text": "Consider PHT"
+      },
+      {
+        "type": "action",
+        "text": "12 lead ECG"
+      },
+      {
+        "type": "action",
+        "text": "Consider PHT as per CPG A0408 STEMI management"
+      },
+      {
+        "type": "header",
+        "text": "Transport"
+      },
+      {
+        "type": "action",
+        "text": "VF/VT arrest OR suspected cardiac cause OR post PHT: Transport to 24 hour PCI facility where available; consider AAV vs time to closest hospital"
+      },
+      {
+        "type": "action",
+        "text": "Suspected non-cardiac cause: Transport to the closest appropriate hospital with notification"
+      }
     ],
-    notes: "No amiodarone post-ROSC unless breakthrough VF/VT. Target SBP 100 mmHg. PCI facility for cardiac cause."
+    "notes": "No amiodarone post-ROSC unless breakthrough VF/VT. Target SBP 100 mmHg. PCI facility for cardiac cause.\n\nPost-ROSC management covers several clinically important background concepts useful for scenario-based question writing.\n\nFluid management rationale: Excessive fluid in the intra-arrest and post-ROSC period is explicitly recognised as potentially harmful, not merely neutral. The concern is heightened in VF/VT arrests, where fluid overload may worsen outcomes. The 20 mL/kg cumulative ceiling applies across the entire resuscitation episode — intra-arrest fluids plus RSI fluids plus post-ROSC fluids all count toward this total. The only exception is suspected hypovolaemia, which represents a specific reversible cause warranting more aggressive fluid replacement. This cumulative accounting is a common clinical pitfall.\n\nAssumed aetiology and transport destination: When the cause of cardiac arrest is uncertain, a cardiac aetiology should be assumed. This assumption directly drives transport destination — a 24-hour PCI-capable facility should be the target for VF/VT arrest or suspected cardiac cause, with consideration of AAV (air ambulance) versus time to nearest hospital. A suspected non-cardiac cause alters the destination to the closest appropriate hospital with notification. This distinction is clinically significant and likely to be tested in scenario questions.\n\nGlucose monitoring: BGL measurement is a secondary but important post-ROSC task. It is conditional — only after other priorities are addressed and where resources allow. Hypoglycaemia is a potentially treatable contributor to ongoing neurological depression post-ROSC and should not be missed.\n\nPost-ROSC agitation/combativeness: This is a recognised, clinically challenging post-ROSC complication. Severe agitation that obstructs oxygenation, ventilation, or preparation for RSI is the threshold for intervention — not simply any agitation. Ketamine is the agent of choice in this context. The shocked patient requires dose reduction (half dose), reflecting awareness that ketamine's sympathomimetic effects may be insufficient to compensate in a depleted catecholamine state post-arrest.\n\nVentilation target: ETCO2 target post-ROSC is 30–40 mmHg, relevant for guiding ventilation rate in intubated patients and avoiding hyperventilation-induced cerebral vasoconstriction.\n\nAmiodarone restriction: Post-ROSC, amiodarone should not be administered routinely — it is only indicated if breakthrough VF/VT occurs. This is a clear stop point and a likely source of distractor options in questions.\n\nIntubation indications: GCS less than 10 post-ROSC in an unintubated patient triggers RSI consideration. For collapse to ROSC under 10 minutes, RSI is indicated if coma persists despite initial oxygenation and perfusion management, rather than automatically. For collapse to ROSC over 10 minutes, RSI is indicated. These nuances around time-to-ROSC as a decision factor are clinically meaningful.\n\nPerfusion management: Systolic BP target is 100 mmHg, managed via adrenaline and normal saline titration. Pulse assessment during movement/loading is highlighted as important to ensure output is maintained throughout transport."
   },
 
   // -----------------------------------------------------------
