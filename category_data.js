@@ -22,7 +22,7 @@ const CATEGORIES = [
 const CATEGORY_TO_CPG = {
   // Adult
   'Adult|Cardiac Arrest': ['cardiac_arrest_medical', 'cardiac_arrest_traumatic', 'rosc_management', 'withholding_resuscitation'],
-  'Adult|Airway Management': ['essential_airway', 'endotracheal_intubation', 'difficult_airway', 'upper_airway_obstruction', 'choking', 'choking_a0308'],
+  'Adult|Airway Management': ['essential_airway', 'endotracheal_intubation', 'difficult_airway', 'upper_airway_obstruction', 'choking', 'choking_a0308', 'foreign_body_airway_obstruction'],
   'Adult|Cardiac': ['acs', 'bradycardia', 'tachycardia_narrow', 'tachycardia_broad', 'pulmonary_oedema', 'inadequate_perfusion_cardiogenic', 'stemi_management', 'hypertension'],
   'Adult|Pain Relief': ['pain_relief', 'headache'],
   'Adult|Respiratory': ['asthma', 'copd', 'upper_airway_obstruction', 'dyspnoea', 'pulmonary_embolism'],
@@ -153,6 +153,8 @@ const COND_TO_CPG_KEY = {
   'Choking': 'choking',
 
   'Choking': 'choking_a0308',
+
+  'Choking': 'foreign_body_airway_obstruction',
 };
 
 const CPG_SUBTYPE_LABELS = {
@@ -240,4 +242,6 @@ const CPG_SUBTYPE_LABELS = {
   choking: 'Choking',
 
   choking_a0308: 'Choking',
+
+  foreign_body_airway_obstruction: 'Choking',
 };
