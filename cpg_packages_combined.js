@@ -2768,38 +2768,89 @@ const CPG_PACKAGES = {
   // A0403 Tachycardia (Narrow Complex)
   // -----------------------------------------------------------
   tachycardia_narrow: {
-    cpg: "A0403",
-    title: "Tachycardia (Narrow complex)",
-    careObjectives: [
+    "cpg": "A0403",
+    "title": "Tachycardia (Narrow complex)",
+    "careObjectives": [
       "Rapid termination of life threatening arrhythmias and transport to a facility capable of definitive care.",
       "Rapid transport to facilitate the treatment of the arrhythmia where treatment is not available in the prehospital environment.",
       "Early termination of stable SVT where possible, following ECG capture."
     ],
-    management: [
-      { type: "note", items: ["Status: QRS < 0.12 sec"] },
-      { type: "stop", text: "If patient loses cardiac output at any stage: synchronised cardioversion in addition to CPG A0201 Cardiac Arrest (MICA only). Sinus tachycardia should be directed at the underlying cause and not treated using this CPG." },
-      { type: "header", text: "Stable \u2014 SVT (AVNRT or AVRT) \u2014 Exclude AF and atrial flutter" },
-      { type: "note", items: ["SBP \u2265 90 mmHg: Record 12 lead ECG prior to commencing Mx"] },
-      { type: "action", text: "Modified Valsalva or Standard Valsalva (if manual handling or environmental concern) \u2014 Repeat x2 @ 2 minute intervals (max. 3 attempts)" },
-      { type: "note", items: ["SBP < 90 mmHg or no reversion with Valsalva:"] },
-      { type: "mica", text: "Adenosine 6 mg IV" },
-      { type: "mica", text: "Adenosine 12 mg IV if no reversion after 2 minutes" },
-      { type: "mica", text: "Adenosine 12 mg IV if no reversion after a further 2 minutes" },
-      { type: "header", text: "Stable \u2014 Other rhythms (AF, atrial flutter, multifocal atrial tachycardia)" },
-      { type: "action", text: "Pain relief as per CPG A0501 Pain Relief" },
-      { type: "header", text: "Unstable and rapidly deteriorating" },
-      { type: "mica", text: "Synchronised cardioversion (MICA only): Midazolam 1\u20132 mg IV and Fentanyl 50 mcg IV as required; Cardioversion DCCS 150 J; Repeat once if required; If unsuccessful change pads to anterior-posterior vector and DCCS 200 J" },
-      { type: "header", text: "VVED referral criteria (all of):" },
-      { type: "note", items: [
-        "Reversion to sinus rhythm",
-        "Stable vital signs",
-        "No red flags remain",
-        "No paramedic concern",
-        "Paramedic-initiated VVED referral",
-        "Transmit 12 lead ECG to VVED"
-      ]}
+    "management": [
+      {
+        "type": "note",
+        "items": [
+          "Status: QRS < 0.12 sec"
+        ]
+      },
+      {
+        "type": "stop",
+        "text": "If patient loses cardiac output at any stage: synchronised cardioversion in addition to CPG A0201 Cardiac Arrest (MICA only). Sinus tachycardia should be directed at the underlying cause and not treated using this CPG."
+      },
+      {
+        "type": "header",
+        "text": "Stable — SVT (AVNRT or AVRT) — Exclude AF and atrial flutter"
+      },
+      {
+        "type": "note",
+        "items": [
+          "SBP ≥ 90 mmHg: Record 12 lead ECG prior to commencing Mx"
+        ]
+      },
+      {
+        "type": "action",
+        "text": "Modified Valsalva or Standard Valsalva (if manual handling or environmental concern) — Repeat x2 @ 2 minute intervals (max. 3 attempts)"
+      },
+      {
+        "type": "note",
+        "items": [
+          "SBP < 90 mmHg or no reversion with Valsalva:"
+        ]
+      },
+      {
+        "type": "mica",
+        "text": "Adenosine 6 mg IV"
+      },
+      {
+        "type": "mica",
+        "text": "Adenosine 12 mg IV if no reversion after 2 minutes"
+      },
+      {
+        "type": "mica",
+        "text": "Adenosine 12 mg IV if no reversion after a further 2 minutes"
+      },
+      {
+        "type": "header",
+        "text": "Stable — Other rhythms (AF, atrial flutter, multifocal atrial tachycardia)"
+      },
+      {
+        "type": "action",
+        "text": "Pain relief as per CPG A0501 Pain Relief"
+      },
+      {
+        "type": "header",
+        "text": "Unstable and rapidly deteriorating"
+      },
+      {
+        "type": "mica",
+        "text": "Synchronised cardioversion (MICA only): Midazolam 1–2 mg IV and Fentanyl 50 mcg IV as required; Cardioversion DCCS 150 J; Repeat once if required; If unsuccessful change pads to anterior-posterior vector and DCCS 200 J"
+      },
+      {
+        "type": "header",
+        "text": "VVED referral criteria (all of):"
+      },
+      {
+        "type": "note",
+        "items": [
+          "Reversion to sinus rhythm",
+          "Stable vital signs",
+          "No red flags remain",
+          "No paramedic concern",
+          "Paramedic-initiated VVED referral",
+          "Transmit 12 lead ECG to VVED"
+        ]
+      }
     ],
-    notes: "Adenosine should be administered rapidly through a large proximal vein (e.g. cubital fossa) followed by a Normal Saline bolus flush. Valsalva manoeuvre reserved for patients with SBP \u2265 90 mmHg. Modified Valsalva preferred \u2014 patient semi-recumbent 45\u00b0, forced expiration, then immediately flat with legs raised 45\u00b0 for 15 seconds. Standard Valsalva: supine, forced expiration."
+    "notes": "Adenosine should be administered rapidly through a large proximal vein (e.g. cubital fossa) followed by a Normal Saline bolus flush. Valsalva manoeuvre reserved for patients with SBP ≥ 90 mmHg. Modified Valsalva preferred — patient semi-recumbent 45°, forced expiration, then immediately flat with legs raised 45° for 15 seconds. Standard Valsalva: supine, forced expiration.\n\nNarrow complex tachycardia is defined by QRS duration less than 0.12 seconds. The CPG covers SVT (specifically AVNRT and AVRT), atrial fibrillation, atrial flutter, and multifocal atrial tachycardia — but explicitly excludes sinus tachycardia, which should be managed by treating the underlying cause (e.g. hypovolaemia, pain) rather than this pathway.\n\nStability assessment is a key decision point. Signs of instability include inadequate perfusion/shock (hypotension, pallor, diaphoresis), acutely altered or lost consciousness, ischaemic chest pain, and acute pulmonary oedema (APO). Instability is generally associated with rates ≥150 bpm, though lower rates can be destabilising in patients with impaired cardiac function. Loss of cardiac output at any point triggers immediate synchronised cardioversion and escalation to the cardiac arrest CPG (A0201, MICA only).\n\nValsalva technique nuance: The modified Valsalva (semi-recumbent forced expiration, then immediate supine with legs raised 45° for 15 seconds, then return to semi-recumbent) has evidence of superior reversion rates over the standard (supine forced expiration only). Choice between them should account for patient size, environment, and manual handling risk. The target expiratory pressure is approximately 40 mmHg, practically achieved by blowing into a 10 mL syringe hard enough to move the plunger for 15 seconds. Critically, Valsalva is only appropriate when SBP ≥ 90 mmHg — it is contraindicated below this threshold.\n\nAdenosine administration rationale: Must be given rapidly via a large proximal vein (e.g. cubital fossa) and followed immediately with a normal saline bolus flush, reflecting the drug's extremely short half-life and the need to deliver it to central circulation quickly.\n\nAF and atrial flutter are classified under 'Stable — Other rhythms' and are not candidates for Valsalva or adenosine in this pathway; they appear to be managed primarily with transport or cardioversion if unstable. AF/SVT that deteriorates to cardiac arrest is managed initially with synchronised cardioversion at 200J.\n\nPost-reversion considerations: Minor chest discomfort persisting after reversion does not automatically preclude VVED (Virtual Virtual Emergency Department or equivalent) referral. Sedation (used in cardioversion) requires continuous monitoring of respiratory effectiveness. A 12-lead ECG should be recorded before management commences unless the patient requires immediate treatment.\n\nVVED referral criteria for successfully reverted SVT require all of: reversion to sinus rhythm, stable vital signs, no red flags remaining, and no paramedic concern. The 12-lead ECG should be transmitted to VVED."
   },
 
   // -----------------------------------------------------------
