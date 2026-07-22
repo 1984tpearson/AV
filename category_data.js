@@ -12,7 +12,7 @@
  */
 
 const CATEGORIES = [
-  {key:'Adult',icon:'🧑',color:'var(--navy)',subcats:{'Cardiac Arrest':['Medical Cardiac Arrest','Traumatic Cardiac Arrest','ROSC Management','Withholding or Ceasing Resuscitation'],'Airway Management':['Essential Airway Management','Endotracheal Intubation (RSI)','Difficult Airway Guideline','Upper Airway Obstruction'],'Cardiac':['ACS / STEMI','Bradycardia','Narrow Complex Tachycardia (SVT/AF)','Broad Complex Tachycardia (VT)','Cardiogenic Pulmonary Oedema','Inadequate Perfusion (Cardiogenic)','STEMI Management','Hypertension'],'Pain Relief':['Pain Relief','Headache'],'Respiratory':['Asthma','COPD Exacerbation','Undifferentiated Dyspnoea','Pulmonary Embolism'],'Medical':['Seizures / Status Epilepticus','Hypoglycaemia','Hyperglycaemia / DKA / HHS','Suspected Stroke / TIA','Anaphylaxis','Shock','Hyperkalaemia','Adrenal Insufficiency / Crisis','Nausea and Vomiting','Syncope'],'Infection':['Sepsis','Meningococcal Septicaemia'],'Mental Health':['Acute Behavioural Disturbance','Mental Health Conditions'],'Palliative Care':['Palliative Care'],'Trauma':['Major Trauma','Traumatic Head Injury','Chest Injury','Spinal Injury','Burns','Fracture/dislocation','Elderly/Frail non injury-fall'],'Environment':['Hypothermia','Heat Stress / Heat Stroke'],'Toxicology':['Opioid Toxicity','Tricyclic Antidepressant (TCA) Overdose','Beta-Blocker Toxicity','Calcium Channel Blocker Toxicity','Organophosphate / Pesticide Toxicity','Drug-Induced Hyperthermia / Stimulant Toxidrome','Quetiapine (Antipsychotic) Toxicity','Cyanide Toxicity','Acute Alcohol Intoxication','Alcohol Withdrawal Syndrome']}},
+  {key:'Adult',icon:'🧑',color:'var(--navy)',subcats:{'Cardiac Arrest':['Medical Cardiac Arrest','Traumatic Cardiac Arrest','ROSC Management','Withholding or Ceasing Resuscitation'],'Airway Management':['Essential Airway Management','Endotracheal Intubation (RSI)','Difficult Airway Guideline','Upper Airway Obstruction','Choking'],'Cardiac':['ACS / STEMI','Bradycardia','Narrow Complex Tachycardia (SVT/AF)','Broad Complex Tachycardia (VT)','Cardiogenic Pulmonary Oedema','Inadequate Perfusion (Cardiogenic)','STEMI Management','Hypertension'],'Pain Relief':['Pain Relief','Headache'],'Respiratory':['Asthma','COPD Exacerbation','Undifferentiated Dyspnoea','Pulmonary Embolism'],'Medical':['Seizures / Status Epilepticus','Hypoglycaemia','Hyperglycaemia / DKA / HHS','Suspected Stroke / TIA','Anaphylaxis','Shock','Hyperkalaemia','Adrenal Insufficiency / Crisis','Nausea and Vomiting','Syncope'],'Infection':['Sepsis','Meningococcal Septicaemia'],'Mental Health':['Acute Behavioural Disturbance','Mental Health Conditions'],'Palliative Care':['Palliative Care'],'Trauma':['Major Trauma','Traumatic Head Injury','Chest Injury','Spinal Injury','Burns','Fracture/dislocation','Elderly/Frail non injury-fall'],'Environment':['Hypothermia','Heat Stress / Heat Stroke'],'Toxicology':['Opioid Toxicity','Tricyclic Antidepressant (TCA) Overdose','Beta-Blocker Toxicity','Calcium Channel Blocker Toxicity','Organophosphate / Pesticide Toxicity','Drug-Induced Hyperthermia / Stimulant Toxidrome','Quetiapine (Antipsychotic) Toxicity','Cyanide Toxicity','Acute Alcohol Intoxication','Alcohol Withdrawal Syndrome']}},
   {key:'Paediatric',icon:'🧒',color:'var(--blue)',subcats:{'Cardiac Arrest':['Medical Cardiac Arrest','Traumatic Cardiac Arrest','ROSC Management','Withholding or Ceasing Resuscitation'],'Airway Management':['Essential Airway Management','Endotracheal Intubation (RSI)','Difficult Airway Guideline','Upper Airway Obstruction'],'Pain Relief':['Pain Relief'],'Respiratory':['Asthma','Croup'],'Medical':['Seizures / Status Epilepticus','Hypoglycaemia','Anaphylaxis','Hyperglycaemia / DKA / HHS'],'Infection':['Sepsis'],'Trauma':['Major Trauma','Traumatic Head Injury','Chest Injury','Burns'],'Environment':['Hypothermia','Heat Stress / Heat Stroke'],'Toxicology':['Opioid Toxicity','Tricyclic Antidepressant (TCA) Overdose','Acute Alcohol Intoxication','Organophosphate / Pesticide Toxicity','Drug-Induced Hyperthermia / Stimulant Toxidrome']}},
   {key:'Maternity',icon:'🤰',color:'var(--purple)',subcats:{'Antepartum Haemorrhage':['Antepartum Haemorrhage'],'Pre-eclampsia / Eclampsia':['Pre-eclampsia / Eclampsia'],'Normal Birth':['Normal Birth'],'Breech / Compound':['Breech / Compound Presentation'],'Preterm Labour':['Preterm Labour'],'Cord Prolapse':['Cord Prolapse'],'Shoulder Dystocia':['Shoulder Dystocia'],'Primary Postpartum Haemorrhage':['Primary Postpartum Haemorrhage'],'Miscarriage':['Miscarriage']}},
   {key:'Newborn',icon:'👶',color:'var(--green)',subcats:{'Newborn Resuscitation':['Newborn Resuscitation','Newborn Assessment']}},
@@ -22,7 +22,7 @@ const CATEGORIES = [
 const CATEGORY_TO_CPG = {
   // Adult
   'Adult|Cardiac Arrest': ['cardiac_arrest_medical', 'cardiac_arrest_traumatic', 'rosc_management', 'withholding_resuscitation'],
-  'Adult|Airway Management': ['essential_airway', 'endotracheal_intubation', 'difficult_airway', 'upper_airway_obstruction'],
+  'Adult|Airway Management': ['essential_airway', 'endotracheal_intubation', 'difficult_airway', 'upper_airway_obstruction', 'choking'],
   'Adult|Cardiac': ['acs', 'bradycardia', 'tachycardia_narrow', 'tachycardia_broad', 'pulmonary_oedema', 'inadequate_perfusion_cardiogenic', 'stemi_management', 'hypertension'],
   'Adult|Pain Relief': ['pain_relief', 'headache'],
   'Adult|Respiratory': ['asthma', 'copd', 'upper_airway_obstruction', 'dyspnoea', 'pulmonary_embolism'],
@@ -149,6 +149,8 @@ const COND_TO_CPG_KEY = {
   'Fracture/dislocation': 'fracture_dislocation_a0806',
 
   'Elderly/Frail non injury-fall': 'elderly_frail_non_injury_fall',
+
+  'Choking': 'choking',
 };
 
 const CPG_SUBTYPE_LABELS = {
@@ -232,4 +234,6 @@ const CPG_SUBTYPE_LABELS = {
   epistaxis:                'Epistaxis (Treat and Refer)',
 
   elderly_frail_non_injury_fall: 'Elderly/Frail non injury-fall',
+
+  choking: 'Choking',
 };
