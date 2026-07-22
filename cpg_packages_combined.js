@@ -439,37 +439,103 @@ const CPG_PACKAGES = {
   // A0203-1 Withholding or Ceasing Resuscitation
   // -----------------------------------------------------------
   withholding_resuscitation: {
-    cpg: "A0203-1",
-    title: "Withholding or Ceasing Resuscitation",
-    careObjectives: [
+    "cpg": "A0203-1",
+    "title": "Withholding or Ceasing Resuscitation",
+    "careObjectives": [
       "Identify patients who will not benefit from resuscitation or where there is a legal requirement to withhold resuscitation.",
       "Provide guidance for the cessation of resuscitation following an unsuccessful resuscitation attempt."
     ],
-    management: [
-      { type: "header", text: "Withhold resuscitation if:" },
-      { type: "stop", text: "Obvious death: injuries incompatible with life, rigor mortis, postmortem lividity, putrefaction / decomposition, death declared by a doctor who is or was at the scene" },
-      { type: "stop", text: "Goals of care preclude resuscitation: resuscitation not consistent with patient\u2019s wishes as indicated by Advance Care Directive or Medical Treatment Decision Maker" },
-      { type: "header", text: "Prolonged cardiac arrest \u2014 Withhold if:" },
-      { type: "subheader", text: "Medical:" },
-      { type: "stop", text: "Initial presenting rhythm is asystole or agonal (HR < 20) UNLESS: bystander witnessed collapse within 10 minutes of AV arrival, OR paramedic witnessed arrest, OR received defibrillation prior to ambulance arrival" },
-      { type: "subheader", text: "Trauma:" },
-      { type: "stop", text: "Arrest not witnessed by paramedics AND initial presenting rhythm is asystole or agonal (HR < 20)" },
-      { type: "header", text: "Expected death \u2014 Withhold if:" },
-      { type: "stop", text: "Death was expected due to the progression of a specific, advanced incurable disease" },
-      { type: "header", text: "If withholding resuscitation:" },
-      { type: "action", text: "Withhold resuscitation (if unable to immediately confirm details, commence resuscitation while continuing to gather information)" },
-      { type: "action", text: "Consult the AV Clinician if there is any uncertainty" },
-      { type: "action", text: "Confirm determinants of death and consider Verification of Death form" },
-      { type: "action", text: "Provide initial bereavement support and referral if required" },
-      { type: "header", text: "Cessation of resuscitation \u2014 Cease if ALL met:" },
-      { type: "stop", text: "Minimum duration of ALS resuscitation provided: initial presenting rhythm shockable (VF/VT): 45 min; initial presenting rhythm non-shockable: 30 min" },
-      { type: "stop", text: "AND no compelling reasons to continue including: CPR-induced consciousness, spontaneous respiratory efforts, POCUS indicates cardiac contractility (if credentialled), periods of ROSC, witnessed arrests with defibrillation prior to ambulance arrival, normal or near-normal ETCO\u2082 readings, persistent narrow complex PEA" },
-      { type: "header", text: "If ceasing resuscitation:" },
-      { type: "action", text: "Cease resuscitation" },
-      { type: "action", text: "Confirm determinants of death and consider Verification of Death form" },
-      { type: "action", text: "Provide initial bereavement support and referral if required" }
+    "management": [
+      {
+        "type": "header",
+        "text": "Withhold resuscitation if:"
+      },
+      {
+        "type": "stop",
+        "text": "Obvious death: injuries incompatible with life, rigor mortis, postmortem lividity, putrefaction / decomposition, death declared by a doctor who is or was at the scene"
+      },
+      {
+        "type": "stop",
+        "text": "Goals of care preclude resuscitation: resuscitation not consistent with patient’s wishes as indicated by Advance Care Directive or Medical Treatment Decision Maker"
+      },
+      {
+        "type": "header",
+        "text": "Prolonged cardiac arrest — Withhold if:"
+      },
+      {
+        "type": "subheader",
+        "text": "Medical:"
+      },
+      {
+        "type": "stop",
+        "text": "Initial presenting rhythm is asystole or agonal (HR < 20) UNLESS: bystander witnessed collapse within 10 minutes of AV arrival, OR paramedic witnessed arrest, OR received defibrillation prior to ambulance arrival"
+      },
+      {
+        "type": "subheader",
+        "text": "Trauma:"
+      },
+      {
+        "type": "stop",
+        "text": "Arrest not witnessed by paramedics AND initial presenting rhythm is asystole or agonal (HR < 20)"
+      },
+      {
+        "type": "header",
+        "text": "Expected death — Withhold if:"
+      },
+      {
+        "type": "stop",
+        "text": "Death was expected due to the progression of a specific, advanced incurable disease"
+      },
+      {
+        "type": "header",
+        "text": "If withholding resuscitation:"
+      },
+      {
+        "type": "action",
+        "text": "Withhold resuscitation (if unable to immediately confirm details, commence resuscitation while continuing to gather information)"
+      },
+      {
+        "type": "action",
+        "text": "Consult the AV Clinician if there is any uncertainty"
+      },
+      {
+        "type": "action",
+        "text": "Confirm determinants of death and consider Verification of Death form"
+      },
+      {
+        "type": "action",
+        "text": "Provide initial bereavement support and referral if required"
+      },
+      {
+        "type": "header",
+        "text": "Cessation of resuscitation — Cease if ALL met:"
+      },
+      {
+        "type": "stop",
+        "text": "Minimum duration of ALS resuscitation provided: initial presenting rhythm shockable (VF/VT): 45 min; initial presenting rhythm non-shockable: 30 min"
+      },
+      {
+        "type": "stop",
+        "text": "AND no compelling reasons to continue including: CPR-induced consciousness, spontaneous respiratory efforts, POCUS indicates cardiac contractility (if credentialled), periods of ROSC, witnessed arrests with defibrillation prior to ambulance arrival, normal or near-normal ETCO₂ readings, persistent narrow complex PEA"
+      },
+      {
+        "type": "header",
+        "text": "If ceasing resuscitation:"
+      },
+      {
+        "type": "action",
+        "text": "Cease resuscitation"
+      },
+      {
+        "type": "action",
+        "text": "Confirm determinants of death and consider Verification of Death form"
+      },
+      {
+        "type": "action",
+        "text": "Provide initial bereavement support and referral if required"
+      }
     ],
-    notes: "Default is to commence resuscitation if in doubt. Consult AV Clinician if uncertain about withholding."
+    "notes": "Default is to commence resuscitation if in doubt. Consult AV Clinician if uncertain about withholding.\n\nThis CPG applies to patients aged ≥16 years in medical or traumatic cardiac arrest. It covers two distinct but related decisions: withholding resuscitation at the outset, and ceasing an unsuccessful resuscitation attempt.\n\n**Obvious Death:** Recognised by injuries incompatible with survival (decapitation, incineration, cranial destruction, hemicorporectomy), rigor mortis, postmortem lividity, putrefaction/decomposition, or declaration by a doctor present at scene. These signs allow immediate withholding without commencing attempts.\n\n**Default Approach Under Uncertainty:** Where it is unclear whether to withhold, the principle is to commence resuscitation while gathering further information — history, documentation review, visual observations. Emergency treatment should not be delayed while searching for an ACD or decision maker.\n\n**Advance Care Directives (ACDs):** Paramedics have a legal obligation to comply with a sighted ACD, or may accept in good faith verbal advice from bystanders that an ACD exists and reflects the patient's wishes. Crucially, an ACD must be followed even if the emergency is unrelated to the patient's pre-existing illness. Exceptions exist where the ACD demands medically futile/unethical treatment, contradicts the practitioner's code of conduct, or cannot be confidently interpreted. If wishes are unknown or documentation is in doubt, provide routine care. The medical treatment decision maker hierarchy is covered in CPG A0111.\n\n**Asystolic/Agonal Rhythms:** Survival to hospital discharge is less than 1% in this cohort. Resuscitation should only be commenced if: prior defibrillation has occurred, OR bystander-witnessed collapse with AV resuscitation commencing within 10 minutes, OR paramedic-witnessed arrest. Bystander CPR and normothermia alone are not compelling reasons to commence or continue. PEA with heart rate <20 is classified as agonal. 'Initial presenting rhythm' includes rhythm analyses by any prior provider (e.g. public access defibrillation, EMR) — a patient who received defibrillation before AV arrival is presumed to have initially presented in VF/VT. Decisions on duration of resuscitation should be based on the initial rhythm, not the current rhythm at time of review.\n\n**Traumatic Cardiac Arrest:** Patients presenting to AV in asystole following traumatic arrest not witnessed by paramedics have a 0% survival rate — commencing resuscitation is not indicated.\n\n**Expected Death:** Withholding is appropriate when death is expected due to progression of a specific, advanced incurable disease, typically preceded by days-to-weeks of deterioration. Not all end-of-life patients will have an ACD. The AV Medical Advisor (via AV Clinician) can be consulted where there is family disagreement or uncertainty.\n\n**Significant Frailty and Severe Comorbidity:** These patients (frailty score ≥7, severe COPD, chronic renal failure, advanced dementia, etc.) rarely recover from cardiac arrest but may not meet the specific criteria above for withholding. Early cessation may be considered in consultation with the AV Medical Advisor. Importantly, some patients with comorbidities may still benefit (e.g. dialysis patient awaiting transplant), so these decisions require nuance. It is appropriate to continue resuscitation while consultation occurs.\n\n**Voluntary Assisted Dying (VAD):** The VAD medication causes deep sedation and respiratory depression, usually resulting in death within one hour of oral ingestion. Where AV attends an active VAD case, there will be a documented 'no resuscitation' ACD. Paramedics must not assist with administration or provide active clinical therapy (oxygen, ventilation, IV drugs/fluids). Comfort measures and positioning are encouraged. If the dying process is prolonged, contact the VAD care navigator, specialist VAD doctor, or palliative care team.\n\n**Aeromedical Context:** Resuscitation may be ceased during air transport if arrest occurs in the setting of severe injury, quickly reversible causes have been excluded (e.g. pneumothorax, arrhythmia), and continuing chest compressions to hospital is not practical.\n\n**Mass Casualty Incidents:** Standard guidelines may differ significantly — refer to CPG F0026 for triage guidance when resources are overwhelmed.\n\n**Communication and Family Support:** Studies support allowing family members to witness resuscitation efforts, provided they are pre-briefed about what to expect (patient appearance, equipment, procedures). All team members should be informed a family member is observing. When communicating death, use the 'D-words' (dead, dying, die, death) rather than euphemisms; speak slowly in short clusters with pauses; repeat as needed; take a non-judgemental approach. The SPIKES framework and Palliative Care Advice Service (PCAS) are available resources. PCAS can provide grief counselling both on scene and later."
   },
 
   // -----------------------------------------------------------
