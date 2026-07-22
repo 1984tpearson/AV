@@ -106,6 +106,7 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #f0f2f5; colo
 .btn { padding: 8px 16px; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer; border: none; }
 .btn-save   { background: #27833A; color: white; }
 .btn-reset  { background: #eee; color: #333; }
+.btn-delete { background: #C0392B; color: white; margin-left: auto; }
 .btn:hover  { opacity: .85; }
 .save-status { font-size: 12px; color: #888; }
 .save-status.ok  { color: #27833A; font-weight: 600; }
@@ -537,6 +538,7 @@ function renderCardBody(key, pkg) {
       <button class="btn btn-save" onclick="savePkg('${key}')">&#10003; Save to file</button>
       <button class="btn btn-reset" onclick="resetPkg('${key}')">Reset</button>
       <button class="btn btn-reset" onclick="openCategoryAssign('${key}')">&#127991;&#65039; Category</button>
+      <button class="btn btn-delete" onclick="deletePkg('${key}')">&#128465;&#65039; Delete</button>
       <span class="save-status" id="status-${key}"></span>
     </div>
   `;
@@ -963,6 +965,41 @@ function spliceNewPackage(src, key, pkg) {
   const newJson = JSON.stringify(pkg, null, 2).replace(/^/gm, '  ').replace(/^  /, '');
   const insertion = (needsComma ? ',' : '') + '\n\n  ' + key + ': ' + newJson + ',\n';
   return src.slice(0, closeBraceIdx) + insertion + src.slice(closeBraceIdx);
+}
+
+// Removes an existing key: { ... } package entry entirely (including its preceding
+// banner comment, if any, and the trailing comma/newline) from CPG_PACKAGES = { ... }.
+function spliceDeletePackage(src, key) {
+  const keyPattern = new RegExp('(\\/\\/\\s*-+[\\s\\S]*?\\n\\s*)(' + ghEscapeRegex(key) + '\\s*:\\s*)(\\{)', 'm');
+  let match = keyPattern.exec(src);
+  let deleteStart;
+  if (match) {
+    deleteStart = match.index;
+  } else {
+    const simplePattern = new RegExp('(' + ghEscapeRegex(key) + '\\s*:\\s*)(\\{)', 'm');
+    match = simplePattern.exec(src);
+    if (!match) throw new Error('Key "' + key + '" not found in file');
+    deleteStart = match.index;
+  }
+  const openBraceIdx = match.index + match[0].length - 1;
+  let depth = 0, i = openBraceIdx, inStr = false, strChar = '';
+  while (i < src.length) {
+    const ch = src[i];
+    if (inStr) {
+      if (ch === '\\') { i += 2; continue; }
+      if (ch === strChar) inStr = false;
+    } else {
+      if (ch === '"' || ch === "'" || ch === '`') { inStr = true; strChar = ch; }
+      else if (ch === '{' || ch === '[') depth++;
+      else if (ch === '}' || ch === ']') { depth--; if (depth === 0) break; }
+    }
+    i++;
+  }
+  let deleteEnd = i + 1;
+  if (src[deleteEnd] === ',') deleteEnd++;
+  const lineEnd = src.indexOf('\n', deleteEnd);
+  if (lineEnd !== -1 && src.slice(deleteEnd, lineEnd).trim() === '') deleteEnd = lineEnd + 1;
+  return src.slice(0, deleteStart) + src.slice(deleteEnd);
 }
 
 function validateJs(text) {
@@ -1687,6 +1724,41 @@ function patchSubtypeLabelText(fileText, cpgKey, newLabel) {
   return fileText.slice(0, openIdx) + block + fileText.slice(closeIdx + 1);
 }
 
+// Removes a bare-identifier-key label entry from CPG_SUBTYPE_LABELS entirely (used on CPG delete).
+function deleteSubtypeLabelText(fileText, cpgKey) {
+  const declMatch = /const\s+CPG_SUBTYPE_LABELS\s*=\s*\{/.exec(fileText);
+  if (!declMatch) throw new Error('CPG_SUBTYPE_LABELS declaration not found in this file');
+  const openIdx = declMatch.index + declMatch[0].length - 1;
+  let depth = 0, i = openIdx, inStr = false, strChar = '';
+  while (i < fileText.length) {
+    const ch = fileText[i];
+    if (inStr) {
+      if (ch === '\\') { i += 2; continue; }
+      if (ch === strChar) inStr = false;
+    } else {
+      if (ch === '"' || ch === "'" || ch === '`') { inStr = true; strChar = ch; }
+      else if (ch === '{') depth++;
+      else if (ch === '}') { depth--; if (depth === 0) break; }
+    }
+    i++;
+  }
+  const closeIdx = i;
+  let block = fileText.slice(openIdx, closeIdx + 1);
+  const entryRe = /([a-zA-Z_][a-zA-Z0-9_]*)\s*:\s*'([^']*)'/g;
+  let m, foundIdx = -1, foundLen = 0;
+  while ((m = entryRe.exec(block))) {
+    if (m[1] === cpgKey) { foundIdx = m.index; foundLen = m[0].length; break; }
+  }
+  if (foundIdx !== -1) {
+    let end = foundIdx + foundLen;
+    if (block[end] === ',') end++;
+    const lineEnd = block.indexOf('\n', end);
+    if (lineEnd !== -1 && block.slice(end, lineEnd).trim() === '') end = lineEnd + 1;
+    block = block.slice(0, foundIdx) + block.slice(end);
+  }
+  return fileText.slice(0, openIdx) + block + fileText.slice(closeIdx + 1);
+}
+
 async function confirmCategoryAssign() {
   const key = _catAssignKey;
   if (!key) return;
@@ -1728,6 +1800,67 @@ async function confirmCategoryAssign() {
     statusEl.textContent = 'Failed: ' + e.message;
   }
   btn.disabled = false; btn.textContent = 'Assign';
+}
+
+// ── DELETE PACKAGE (removes from CPG_PACKAGES + all category_data.js mappings) ──
+async function deletePkg(key) {
+  const pkg = DATA[key];
+  if (!pkg) return;
+  const label = (pkg.title || key) + (pkg.cpg ? ' (' + pkg.cpg + ')' : '');
+  const allLocations = Object.keys(CATEGORY_TO_CPG).filter(csk => CATEGORY_TO_CPG[csk].includes(key));
+  const whereText = allLocations.length
+    ? ('It currently appears under: ' + allLocations.map(csk => csk.replace('|', ' \u2192 ')).join(', ') + '.')
+    : 'It is currently uncategorised.';
+  const typed = prompt(
+    'This permanently deletes "' + label + '" from CPG_PACKAGES, and strips it from every category mapping ' +
+    '(CATEGORY_TO_CPG, CATEGORIES, COND_TO_CPG_KEY, CPG_SUBTYPE_LABELS) in category_data.js.\n\n' +
+    whereText + '\n\nType the package key exactly to confirm: "' + key + '"'
+  );
+  if (typed !== key) {
+    if (typed !== null) alert('Key didn\u2019t match — nothing deleted.');
+    return;
+  }
+
+  const statusEl = document.getElementById('status-' + key);
+  const setDelStatus = (cls, msg) => { if (statusEl) { statusEl.className = 'save-status' + (cls ? ' ' + cls : ''); statusEl.textContent = msg; } };
+
+  if (_newKeys.has(key)) {
+    // Never saved to GitHub yet — just discard locally, nothing to commit.
+    delete DATA[key];
+    delete ORIGINAL[key];
+    _newKeys.delete(key);
+    Object.keys(CATEGORY_TO_CPG).forEach(csk => { CATEGORY_TO_CPG[csk] = CATEGORY_TO_CPG[csk].filter(k => k !== key); });
+    renderCards();
+    return;
+  }
+
+  try {
+    setDelStatus('', 'Deleting from cpg_packages_combined.js\u2026');
+    const pkgFile = await ghGetFile();
+    const pkgPatched = spliceDeletePackage(pkgFile.text, key);
+    validateJs(pkgPatched);
+    await ghCommitFile(pkgPatched, pkgFile.sha, 'Delete CPG: ' + (pkg.cpg || key));
+
+    setDelStatus('', 'Removing category mappings\u2026');
+    const catData = await ghGetFileAtPath('category_data.js');
+    const oldConditionName = _catAssignOldConditionName && _catAssignKey === key ? _catAssignOldConditionName : (
+      (new RegExp("'([^']+)'\\s*:\\s*'" + ghEscapeRegex(key) + "'").exec(catData.text) || [])[1] || ''
+    );
+    let catPatched = patchCategoryToCpgText(catData.text, key, null);
+    catPatched = patchCategoriesText(catPatched, oldConditionName, null, null, '');
+    catPatched = patchCondToCpgKeyText(catPatched, oldConditionName, key, '');
+    catPatched = deleteSubtypeLabelText(catPatched, key);
+    validateJs(catPatched);
+    await ghCommitFileAtPath('category_data.js', catPatched, catData.sha, 'Delete CPG category mapping: ' + key);
+
+    // Reflect immediately in this session
+    delete DATA[key];
+    delete ORIGINAL[key];
+    Object.keys(CATEGORY_TO_CPG).forEach(csk => { CATEGORY_TO_CPG[csk] = CATEGORY_TO_CPG[csk].filter(k => k !== key); });
+    renderCards();
+  } catch (e) {
+    setDelStatus('err', 'Delete failed: ' + e.message);
+  }
 }
 
 // ── INIT ──────────────────────────────────────────────────────
