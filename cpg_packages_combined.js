@@ -621,67 +621,196 @@ const CPG_PACKAGES = {
   // A0302 Endotracheal Intubation
   // -----------------------------------------------------------
   endotracheal_intubation: {
-    cpg: "A0302",
-    title: "Endotracheal Intubation",
-    careObjectives: [
+    "cpg": "A0302",
+    "title": "Endotracheal Intubation",
+    "careObjectives": [
       "To safely and effectively undertake endotracheal intubation in patients who cannot be managed with other airway techniques."
     ],
-    management: [
-      { type: "note", items: [
-        "Indications: airway not patent; respiratory failure refractory to non-invasive ventilation and medical therapies; requiring ongoing assisted manual ventilation; targeted treatment required (e.g. status epilepticus, drug-induced hyperthermia, TCA toxicity, TBI, ROSC, airway burns)"
-      ]},
-      { type: "stop", text: "Consult AV Medical Advisor via AV Clinician for patients aged 12\u201315 years where RSI is indicated due to severe chronic medical condition (e.g. lung disease)" },
-      { type: "header", text: "Patient and provider optimisation" },
-      { type: "action", text: "Equipment prepared and tested \u2014 video laryngoscopy using a Macintosh blade and a bougie is the default intubation approach; ensure access to cricothyroidotomy kit" },
-      { type: "action", text: "Position optimised \u2014 MILS if suspected c-spine injury; patient positioned \u2018ear to sternal notch\u2019 if MILS not required" },
-      { type: "action", text: "IV / IO access safely secured \u2014 consider second IV access where possible" },
-      { type: "action", text: "Perfusion optimisation \u2014 prior to intubation, prepare metaraminol and manage shock" },
-      { type: "action", text: "Pre-oxygenation \u2014 BVM with at least 5 cmH\u2082O PEEP and FiO\u2082 of 1 OR BiPAP if adequate spontaneous ventilation" },
-      { type: "action", text: "Team preparation \u2014 ensure adequate resources, identify team leader, brief team, allocate roles, and complete RSI Checklist" },
-      { type: "header", text: "Standard RSI \u2014 all other indications" },
-      { type: "mica", text: "Ketamine 2 mg/kg IV (max 200 mg)" },
-      { type: "mica", text: "Rocuronium IV: < 80 kg \u2014 Rocuronium 100 mg IV; \u2265 80 kg \u2014 Rocuronium 150 mg IV" },
-      { type: "header", text: "Dose-Adjusted RSI \u2014 physiologically difficult airway, increased frailty, active bleeding, shock index > 1" },
-      { type: "mica", text: "Metaraminol 0.5\u20131 mg IV" },
-      { type: "mica", text: "Ketamine 0.5\u20131 mg/kg IV (max 200 mg)" },
-      { type: "mica", text: "Rocuronium IV: < 80 kg \u2014 Rocuronium 100 mg IV; \u2265 80 kg \u2014 Rocuronium 150 mg IV" },
-      { type: "header", text: "High GCS RSI \u2014 impending airway compromise (e.g. airway burns); MFP Only: suicidal behaviour" },
-      { type: "stop", text: "MICA: Consult with AV Medical Advisor before proceeding" },
-      { type: "mica", text: "Manage pain as per CPG A0501-1 Pain Relief" },
-      { type: "mica", text: "Ketamine 2 mg/kg IV (max 200 mg) \u2014 ensure dissociation occurs (60\u201390 seconds)" },
-      { type: "mica", text: "Rocuronium IV: < 80 kg \u2014 Rocuronium 100 mg IV; \u2265 80 kg \u2014 Rocuronium 150 mg IV" },
-      { type: "header", text: "Delayed Sequence Intubation \u2014 agitation and/or hypoxia preventing preoxygenation despite management" },
-      { type: "mica", text: "Ketamine IV as per Standard or Dose-adjusted RSI as appropriate" },
-      { type: "mica", text: "Oxygenate for 3 minutes; if patient remains indicated for intubation: Rocuronium IV: < 80 kg \u2014 100 mg IV; \u2265 80 kg \u2014 150 mg IV" },
-      { type: "header", text: "Crash RSI (MFP Only) \u2014 unconscious and peri-arrest, immediate need to secure airway, airway reflexes present" },
-      { type: "mica", text: "Ketamine 20\u201330 mg IV" },
-      { type: "mica", text: "Rocuronium IV: < 80 kg \u2014 Rocuronium 100 mg IV; \u2265 80 kg \u2014 Rocuronium 150 mg IV" },
-      { type: "header", text: "If unable to obtain Grade 1 or 2 view" },
-      { type: "mica", text: "Consider \u2018head, scope, throat\u2019; problem-solve airway view using additional head lift plus any combination of: lip retraction, external laryngeal manipulation, jaw support / mouth opening" },
-      { type: "mica", text: "If unable to improve view, manage as per CPG A0303 Difficult Airway Guideline" },
-      { type: "header", text: "Endotracheal intubation confirmation" },
-      { type: "stop", text: "Remove the ETT immediately if there is any doubt about tracheal placement and commence management as per CPG A0303 Difficult Airway Guideline" },
-      { type: "mica", text: "Sight the ETT pass through the vocal cords and note length at tips" },
-      { type: "mica", text: "Immediately confirm placement using monitor AND portable capnograph" },
-      { type: "header", text: "Ongoing sedation +/- paralysis" },
-      { type: "mica", text: "Ketamine 20\u201340 mg IV as required until infusion established" },
-      { type: "mica", text: "Fentanyl / Midazolam Infusion IV (via syringe pump): Fentanyl 300 mcg and Midazolam 30 mg diluted to 30 mL with Dextrose 5% or Normal Saline (50 mL syringe); Volume: 1\u201315 mL/hr; Fentanyl dose: 10\u2013150 mcg/hr; Midazolam dose: 1\u201315 mg/hr" },
-      { type: "mica", text: "Consider need for on-going paralysis: Rocuronium 100 mg IV every hour OR Rocuronium infusion 100 mg/hr IV" },
-      { type: "header", text: "General post-intubation care" },
-      { type: "stop", text: "If appropriate, consider pre-hospital ICU bypass" },
-      { type: "mica", text: "Mechanical Ventilation as per CPG A0307" },
-      { type: "mica", text: "Manage perfusion as per CPG A0705 Shock, CPG A0407 Inadequate Perfusion (Cardiogenic) or CPG A0810 Major Trauma" },
-      { type: "mica", items: [
-        "Position patient semi-recumbent at 30\u00b0 unless contraindicated",
-        "Insert bite block",
-        "Suction ETT and oropharynx as required",
-        "Tape eyes",
-        "Insert OG / NG tube if required",
-        "Check ETT cuff pressure and ensure 20\u201330 cmH\u2082O",
-        "Maintain normothermia \u2014 consider insertion of oesophageal temperature probe"
-      ]}
+    "management": [
+      {
+        "type": "note",
+        "items": [
+          "Indications: airway not patent; respiratory failure refractory to non-invasive ventilation and medical therapies; requiring ongoing assisted manual ventilation; targeted treatment required (e.g. status epilepticus, drug-induced hyperthermia, TCA toxicity, TBI, ROSC, airway burns)"
+        ]
+      },
+      {
+        "type": "stop",
+        "text": "Consult AV Medical Advisor via AV Clinician for patients aged 12–15 years where RSI is indicated due to severe chronic medical condition (e.g. lung disease)"
+      },
+      {
+        "type": "header",
+        "text": "Patient and provider optimisation"
+      },
+      {
+        "type": "action",
+        "text": "Equipment prepared and tested — video laryngoscopy using a Macintosh blade and a bougie is the default intubation approach; ensure access to cricothyroidotomy kit"
+      },
+      {
+        "type": "action",
+        "text": "Position optimised — MILS if suspected c-spine injury; patient positioned ‘ear to sternal notch’ if MILS not required"
+      },
+      {
+        "type": "action",
+        "text": "IV / IO access safely secured — consider second IV access where possible"
+      },
+      {
+        "type": "action",
+        "text": "Perfusion optimisation — prior to intubation, prepare metaraminol and manage shock"
+      },
+      {
+        "type": "action",
+        "text": "Pre-oxygenation — BVM with at least 5 cmH₂O PEEP and FiO₂ of 1 OR BiPAP if adequate spontaneous ventilation"
+      },
+      {
+        "type": "action",
+        "text": "Team preparation — ensure adequate resources, identify team leader, brief team, allocate roles, and complete RSI Checklist"
+      },
+      {
+        "type": "header",
+        "text": "Standard RSI — all other indications"
+      },
+      {
+        "type": "mica",
+        "text": "Ketamine 2 mg/kg IV (max 200 mg)"
+      },
+      {
+        "type": "mica",
+        "text": "Rocuronium IV: < 80 kg — Rocuronium 100 mg IV; ≥ 80 kg — Rocuronium 150 mg IV"
+      },
+      {
+        "type": "header",
+        "text": "Dose-Adjusted RSI — physiologically difficult airway, increased frailty, active bleeding, shock index > 1"
+      },
+      {
+        "type": "mica",
+        "text": "Metaraminol 0.5–1 mg IV"
+      },
+      {
+        "type": "mica",
+        "text": "Ketamine 0.5–1 mg/kg IV (max 200 mg)"
+      },
+      {
+        "type": "mica",
+        "text": "Rocuronium IV: < 80 kg — Rocuronium 100 mg IV; ≥ 80 kg — Rocuronium 150 mg IV"
+      },
+      {
+        "type": "header",
+        "text": "High GCS RSI — impending airway compromise (e.g. airway burns); MFP Only: suicidal behaviour"
+      },
+      {
+        "type": "stop",
+        "text": "MICA: Consult with AV Medical Advisor before proceeding"
+      },
+      {
+        "type": "mica",
+        "text": "Manage pain as per CPG A0501-1 Pain Relief"
+      },
+      {
+        "type": "mica",
+        "text": "Ketamine 2 mg/kg IV (max 200 mg) — ensure dissociation occurs (60–90 seconds)"
+      },
+      {
+        "type": "mica",
+        "text": "Rocuronium IV: < 80 kg — Rocuronium 100 mg IV; ≥ 80 kg — Rocuronium 150 mg IV"
+      },
+      {
+        "type": "header",
+        "text": "Delayed Sequence Intubation — agitation and/or hypoxia preventing preoxygenation despite management"
+      },
+      {
+        "type": "mica",
+        "text": "Ketamine IV as per Standard or Dose-adjusted RSI as appropriate"
+      },
+      {
+        "type": "mica",
+        "text": "Oxygenate for 3 minutes; if patient remains indicated for intubation: Rocuronium IV: < 80 kg — 100 mg IV; ≥ 80 kg — 150 mg IV"
+      },
+      {
+        "type": "header",
+        "text": "Crash RSI (MFP Only) — unconscious and peri-arrest, immediate need to secure airway, airway reflexes present"
+      },
+      {
+        "type": "mica",
+        "text": "Ketamine 20–30 mg IV"
+      },
+      {
+        "type": "mica",
+        "text": "Rocuronium IV: < 80 kg — Rocuronium 100 mg IV; ≥ 80 kg — Rocuronium 150 mg IV"
+      },
+      {
+        "type": "header",
+        "text": "If unable to obtain Grade 1 or 2 view"
+      },
+      {
+        "type": "mica",
+        "text": "Consider ‘head, scope, throat’; problem-solve airway view using additional head lift plus any combination of: lip retraction, external laryngeal manipulation, jaw support / mouth opening"
+      },
+      {
+        "type": "mica",
+        "text": "If unable to improve view, manage as per CPG A0303 Difficult Airway Guideline"
+      },
+      {
+        "type": "header",
+        "text": "Endotracheal intubation confirmation"
+      },
+      {
+        "type": "stop",
+        "text": "Remove the ETT immediately if there is any doubt about tracheal placement and commence management as per CPG A0303 Difficult Airway Guideline"
+      },
+      {
+        "type": "mica",
+        "text": "Sight the ETT pass through the vocal cords and note length at tips"
+      },
+      {
+        "type": "mica",
+        "text": "Immediately confirm placement using monitor AND portable capnograph"
+      },
+      {
+        "type": "header",
+        "text": "Ongoing sedation +/- paralysis"
+      },
+      {
+        "type": "mica",
+        "text": "Ketamine 20–40 mg IV as required until infusion established"
+      },
+      {
+        "type": "mica",
+        "text": "Fentanyl / Midazolam Infusion IV (via syringe pump): Fentanyl 300 mcg and Midazolam 30 mg diluted to 30 mL with Dextrose 5% or Normal Saline (50 mL syringe); Volume: 1–15 mL/hr; Fentanyl dose: 10–150 mcg/hr; Midazolam dose: 1–15 mg/hr"
+      },
+      {
+        "type": "mica",
+        "text": "Consider need for on-going paralysis: Rocuronium 100 mg IV every hour OR Rocuronium infusion 100 mg/hr IV"
+      },
+      {
+        "type": "header",
+        "text": "General post-intubation care"
+      },
+      {
+        "type": "stop",
+        "text": "If appropriate, consider pre-hospital ICU bypass"
+      },
+      {
+        "type": "mica",
+        "text": "Mechanical Ventilation as per CPG A0307"
+      },
+      {
+        "type": "mica",
+        "text": "Manage perfusion as per CPG A0705 Shock, CPG A0407 Inadequate Perfusion (Cardiogenic) or CPG A0810 Major Trauma"
+      },
+      {
+        "type": "mica",
+        "items": [
+          "Position patient semi-recumbent at 30° unless contraindicated",
+          "Insert bite block",
+          "Suction ETT and oropharynx as required",
+          "Tape eyes",
+          "Insert OG / NG tube if required",
+          "Check ETT cuff pressure and ensure 20–30 cmH₂O",
+          "Maintain normothermia — consider insertion of oesophageal temperature probe"
+        ]
+      }
     ],
-    notes: "Video laryngoscopy with Macintosh blade and bougie is default. MILS for c-spine. Confirm ETT with waveform capnography. Remove ETT immediately if any doubt."
+    "notes": "Video laryngoscopy with Macintosh blade and bougie is default. MILS for c-spine. Confirm ETT with waveform capnography. Remove ETT immediately if any doubt.\n\nThis CPG applies to patients ≥ 12 years of age. For patients aged 12–15 years where RSI is indicated due to severe chronic medical condition (e.g. lung disease), AV Medical Advisor consultation via AV Clinician is required.\n\n**Indications for pre-hospital ETI** broadly fall into four categories: airway not patent; respiratory failure refractory to NIV and medical therapies; requirement for ongoing assisted manual ventilation; and targeted treatment requirements (e.g. status epilepticus, drug-induced hyperthermia, TCA toxicity, TBI, ROSC, airway burns).\n\n**Risk-benefit framing is central to this CPG.** Pre-hospital intubation can cause significant harm. RSI may contribute to scene delays that are harmful for patients needing urgent hospital interventions (e.g. surgery). Intubating shocked patients (shock index > 1) is associated with high-risk complications including cardiac arrest — resuscitation must precede intubation and should not delay transport. The dynamic risk-benefit analysis should account for anatomical, physiological, and situational difficulty, as well as patient age, frailty, and clinical trajectory. It is explicitly acceptable for a patient indicated for intubation to arrive to hospital unintubated if RSI would cause harmful delay.\n\n**Single-responder RSI** requires remote decision support from the AV Medical Advisor via AV Clinician. RSI should be performed by two critical care paramedics wherever possible.\n\n**Five RSI pathways are described:**\n- Standard RSI: for all other indications.\n- Dose-Adjusted RSI: for physiologically difficult airway, advancing age, increased frailty, active bleeding, or shock index > 1. Rationale is to reduce peri-intubation haemodynamic compromise by using reduced ketamine dose alongside metaraminol.\n- High GCS RSI: for impending airway compromise (e.g. airway burns) or suicidal behaviour (MFP only). MICA paramedics must consult AV Medical Advisor before proceeding. Pain management precedes induction; dissociation is confirmed before paralytic (60–90 seconds).\n- Delayed Sequence Intubation (DSI): for agitation and/or hypoxia preventing effective pre-oxygenation. Goal is oxygen saturation optimisation (not normalisation) before paralytic. Rapid ketamine administration must be avoided as it can cause apnoea and loss of airway reflexes. Some patients may improve post-ketamine and no longer require intubation — consult Medical Advisor in these cases. NIV should be strongly considered. IM or IV ketamine may be needed for immediate combativeness control; half-dose if shock is suspected.\n- Crash RSI (MFP Only): for unconscious/peri-arrest patients with immediate need to secure airway and airway reflexes present. Not a shortcut bypassing resuscitation — only for the most extreme circumstances. A small procedural ketamine bolus is used rather than a full induction dose.\n\n**Physiologically difficult airway** encompasses hypoxaemia, cardiovascular instability, right ventricular dysfunction, raised ICP, obesity, and pregnancy. Some physiological derangements are not correctable pre-hospital and benefit from prolonged resuscitation before intubation. These patients are at elevated risk of complications during induction and the transition to positive pressure ventilation.\n\n**Pre-oxygenation** uses BVM with PEEP valve or BiPAP NIV. A nasal cannula at 15 L/min is routinely added for apnoeic oxygenation. Pitfall: if using BiPAP, the ventilator's apnoea backup rate may continue delivering breaths after anaesthesia onset, masking apnoea. A critical desaturation threshold must be defined and verbalised by the team — typically <90% for adequately oxygenated patients, lower for difficult-to-oxygenate patients.\n\n**Laryngoscopy:** Video laryngoscopy with a Macintosh blade and bougie is the default approach. Sniffing position (ear to sternal notch) is standard unless contraindicated. MILS is required for suspected c-spine injury. If unable to obtain Grade 1 or 2 view, the 'head, scope, throat' troubleshooting approach is used with adjuncts (lip retraction, external laryngeal manipulation, jaw support), followed by the Difficult Airway Guideline (CPG A0303) if view cannot be improved.\n\n**Capnography confirmation** requires both a monitor and a portable capnograph connected and functional before any intubation attempt. Pre- and post-intubation waveforms must be recorded. Loss of waveform on both devices (with circuit connected and pop-off valve closed) mandates immediate ETT removal and Difficult Airway Guideline activation. Loss on one device triggers systematic troubleshooting before removing the tube.\n\n**Post-intubation sedation nuances:** Propofol is an adjunct option (where available) and has specific roles: layered onto fentanyl/midazolam for seizures resistant to therapy, and as a bolus or infusion for hypertension (SBP > 140 mmHg) in suspected neurological emergencies despite maximal standard infusion rates. Morphine/midazolam substitutes for fentanyl/midazolam in serotonin syndrome. Routine post-intubation paralysis is specifically indicated for suspected neurological emergencies (TBI, intracranial haemorrhage) and for preventing shivering during therapeutic cooling.\n\n**Key pitfalls and nuances for question-writing:** shock index > 1 is a recurring threshold triggering dose adjustment and heightened risk awareness; the Crash RSI small ketamine dose rationale (haemodynamic preservation, not sedation); DSI goal is saturation optimisation not normalisation; BiPAP apnoea masking; the explicit acceptability of arriving to hospital unintubated; and the requirement for dual capnograph confirmation."
   },
 
   // -----------------------------------------------------------
