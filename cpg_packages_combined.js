@@ -542,31 +542,79 @@ const CPG_PACKAGES = {
   // A0301 Essential Airway Management
   // -----------------------------------------------------------
   essential_airway: {
-    cpg: "A0301",
-    title: "Essential Airway Management",
-    careObjectives: [
+    "cpg": "A0301",
+    "title": "Essential Airway Management",
+    "careObjectives": [
       "Safe and effective maintenance of airway patency, oxygenation, and ventilation."
     ],
-    management: [
-      { type: "assess", items: ["Conscious state assessment", "Requirement for supportive ventilation", "Clinical trajectory"] },
-      { type: "header", text: "Altered conscious state with adequate ventilation" },
-      { type: "action", text: "Airway manoeuvres and positioning \u2014 if supine positioning required, place patient in neutral position, otherwise place patient in lateral position" },
-      { type: "action", text: "Monitor with nasal end-tidal capnography" },
-      { type: "note", items: ["If inadequate response / deterioration (e.g. hypoventilation, airway obstruction): manage as per Altered conscious state with inadequate ventilation; escalate care"] },
-      { type: "header", text: "Altered conscious state with inadequate ventilation" },
-      { type: "action", text: "Escalate care" },
-      { type: "action", text: "Airway manoeuvres and positioning \u2014 sniffing position, triple airway manoeuvre" },
-      { type: "action", text: "Ventilate (confirm with end-tidal capnography)" },
-      { type: "subheader", text: "Use appropriate adjunct:" },
-      { type: "action", text: "Oropharyngeal Airway AND/OR Nasopharyngeal Airway/s OR Supraglottic Airway (SGA)" },
-      { type: "header", text: "Supraglottic airway" },
-      { type: "stop", text: "DO NOT insert Supraglottic Airway if: intact gag reflex or resistance to insertion, strong jaw tone or trismus, suspected epiglottitis or upper airway obstruction" },
-      { type: "note", items: [
-        "Primary indications: unconscious patient without gag reflex; anticipated need for prolonged assisted ventilation (no obviously reversible cause of bradypnoea / hypoventilation)",
-        "iGel sizes: 2.5 (25\u201335 kg, GT 12), 3.0 (30\u201360 kg, GT 12), 4.0 (50\u201390 kg, GT 12), 5.0 (90+ kg, GT 14)"
-      ]}
+    "management": [
+      {
+        "type": "assess",
+        "items": [
+          "Conscious state assessment",
+          "Requirement for supportive ventilation",
+          "Clinical trajectory"
+        ]
+      },
+      {
+        "type": "header",
+        "text": "Altered conscious state with adequate ventilation"
+      },
+      {
+        "type": "action",
+        "text": "Airway manoeuvres and positioning — if supine positioning required, place patient in neutral position, otherwise place patient in lateral position"
+      },
+      {
+        "type": "action",
+        "text": "Monitor with nasal end-tidal capnography"
+      },
+      {
+        "type": "note",
+        "items": [
+          "If inadequate response / deterioration (e.g. hypoventilation, airway obstruction): manage as per Altered conscious state with inadequate ventilation; escalate care"
+        ]
+      },
+      {
+        "type": "header",
+        "text": "Altered conscious state with inadequate ventilation"
+      },
+      {
+        "type": "action",
+        "text": "Escalate care"
+      },
+      {
+        "type": "action",
+        "text": "Airway manoeuvres and positioning — sniffing position, triple airway manoeuvre"
+      },
+      {
+        "type": "action",
+        "text": "Ventilate (confirm with end-tidal capnography)"
+      },
+      {
+        "type": "subheader",
+        "text": "Use appropriate adjunct:"
+      },
+      {
+        "type": "action",
+        "text": "Oropharyngeal Airway AND/OR Nasopharyngeal Airway/s OR Supraglottic Airway (SGA)"
+      },
+      {
+        "type": "header",
+        "text": "Supraglottic airway"
+      },
+      {
+        "type": "stop",
+        "text": "DO NOT insert Supraglottic Airway if: intact gag reflex or resistance to insertion, strong jaw tone or trismus, suspected epiglottitis or upper airway obstruction"
+      },
+      {
+        "type": "note",
+        "items": [
+          "Primary indications: unconscious patient without gag reflex; anticipated need for prolonged assisted ventilation (no obviously reversible cause of bradypnoea / hypoventilation)",
+          "iGel sizes: 2.5 (25–35 kg, GT 12), 3.0 (30–60 kg, GT 12), 4.0 (50–90 kg, GT 12), 5.0 (90+ kg, GT 14)"
+        ]
+      }
     ],
-    notes: "SGA contraindicated with intact gag, trismus, or suspected epiglottitis. Confirm ventilation with ETCO\u2082 waveform."
+    "notes": "SGA contraindicated with intact gag, trismus, or suspected epiglottitis. Confirm ventilation with ETCO₂ waveform.\n\nThis CPG covers airway management for patients aged 12 years and older across the full spectrum of need — from brief positional manoeuvres through to emergency surgical airways. Key contextual points for question writing:\n\n**Scope and escalation logic:** Escalation of care is indicated whenever active airway management or assisted ventilation is required, but can be stood down if the underlying cause resolves with treatment (classic examples: opioid toxicity or hypoglycaemia responding to reversal/correction). This nuance is important — escalation is not always irreversible.\n\n**Sequencing philosophy:** The guideline explicitly does not require sequential progression through airway adjuncts. A supraglottic airway (SGA) may be the most appropriate first adjunct in some patients, bypassing simpler measures. This non-linear approach reflects real clinical decision-making.\n\n**Pre-hospital context:** Fundamental airway techniques (positioning, BVM) may be more appropriate than advanced interventions when progressing to advanced airways would delay hospital arrival for patients who need definitive care — particularly trauma patients. This tension between airway optimisation and transport time is a key pre-hospital concept.\n\n**Conscious state assessment:** GCS/conscious state alone is insufficient to determine airway management strategy; it must be interpreted alongside the overall clinical picture. Notably, in traumatic brain injury, a stimulated gag reflex risks raising intracranial pressure, which may support more conservative management if oxygenation and ventilation can be maintained without adjuncts. Patients with altered conscious state have dynamic, unpredictable airway needs.\n\n**Difficult airway prediction — BONES mnemonic (difficult BVM):** Beard, Obese, No teeth, Elderly, Sleep apnoea/history of snoring. Presence of these features suggests early escalation to an SGA may be warranted.\n\n**Difficult SGA insertion — RODS mnemonic:** Restricted mouth opening, Obstruction (including c-spine precautions), Distorted airway, Stiff lungs (bronchospasm). These features suggest an SGA may be challenging and more fundamental techniques may be preferable.\n\n**General caveat on airway assessment:** Common assessment tools lack sensitivity and specificity in emergency settings, and situational factors often prevent complete pre-intervention assessment. The CPG therefore recommends treating every airway as a potentially difficult airway.\n\n**BVM technique pearls:** The BVM pop-off (pressure release) valve must be set to override (closed) before delivering assisted ventilations — a common omission in practice. Two-person technique using VE or CE grip is preferred. Early use of oropharyngeal and/or nasopharyngeal airways improves ventilation success. Obese patients may need higher PEEP levels. Continuous waveform ETCO2 must be used as soon as practicable.\n\n**iGel sizing:** The iGel SGA is sized by predicted body weight, not actual body weight. General height-based guide: patients under 170 cm typically need a Size 3; those over 200 cm typically need a Size 5. SGAs are generally well tolerated in reduced conscious state and have high first-attempt success rates.\n\n**Airway positioning:** Concurrent use of appropriate airway positioning (per a referenced manoeuvres/positioning guideline) is stated to improve all airway management attempts."
   },
 
   // -----------------------------------------------------------
