@@ -22,7 +22,7 @@ const CATEGORIES = [
 const CATEGORY_TO_CPG = {
   // Adult
   'Adult|Cardiac Arrest': ['cardiac_arrest_medical', 'cardiac_arrest_traumatic', 'rosc_management', 'withholding_resuscitation'],
-  'Adult|Airway Management': ['essential_airway', 'endotracheal_intubation', 'difficult_airway', 'upper_airway_obstruction', 'choking'],
+  'Adult|Airway Management': ['essential_airway', 'endotracheal_intubation', 'difficult_airway', 'upper_airway_obstruction', 'choking', 'choking_a0308'],
   'Adult|Cardiac': ['acs', 'bradycardia', 'tachycardia_narrow', 'tachycardia_broad', 'pulmonary_oedema', 'inadequate_perfusion_cardiogenic', 'stemi_management', 'hypertension'],
   'Adult|Pain Relief': ['pain_relief', 'headache'],
   'Adult|Respiratory': ['asthma', 'copd', 'upper_airway_obstruction', 'dyspnoea', 'pulmonary_embolism'],
@@ -151,6 +151,8 @@ const COND_TO_CPG_KEY = {
   'Elderly/Frail non injury-fall': 'elderly_frail_non_injury_fall',
 
   'Choking': 'choking',
+
+  'Choking': 'choking_a0308',
 };
 
 const CPG_SUBTYPE_LABELS = {
@@ -236,4 +238,6 @@ const CPG_SUBTYPE_LABELS = {
   elderly_frail_non_injury_fall: 'Elderly/Frail non injury-fall',
 
   choking: 'Choking',
+
+  choking_a0308: 'Choking',
 };
