@@ -357,167 +357,460 @@ const CPG_PACKAGES = {
   // A0202 ROSC Management
   // -----------------------------------------------------------
   rosc_management: {
-    cpg: "A0202",
-    title: "ROSC Management",
-    careObjectives: [
+    "cpg": "A0202",
+    "title": "ROSC Management",
+    "careObjectives": [
       "Optimise oxygenation and perfusion following return of spontaneous circulation.",
       "Identify and manage post-cardiac arrest complications.",
       "Determine appropriate transport destination."
     ],
-    management: [
-      { type: "note", items: ["Post cardiac arrest \u2014 Return of spontaneous circulation (ROSC)"] },
-      { type: "header", text: "Unintubated \u2014 GCS < 10 post ROSC" },
-      { type: "mica", text: "Collapse to ROSC > 10 minutes: RSI as per CPG A0302 Endotracheal Intubation" },
-      { type: "mica", text: "Collapse to ROSC < 10 minutes: RSI as per CPG A0302 Endotracheal Intubation if coma persists despite initial oxygenation and perfusion Mx" },
-      { type: "mica", text: "Target ETCO\u2082 30\u201340 mmHg" },
-      { type: "header", text: "Perfusion Mx" },
-      { type: "action", text: "Titrate Adrenaline and Normal Saline as per CPG A0407 Inadequate Perfusion (Cardiogenic causes): Target SBP 100 mmHg; Max total Normal Saline 20 mL/kg during arrest and post ROSC; Max Adrenaline infusion rate 250 mcg/min" },
-      { type: "action", text: "Accurately assess pulse during moving/loading to ensure output maintained throughout" },
-      { type: "action", text: "Mx as per appropriate CPG if condition changes" },
-      { type: "stop", text: "Do not administer Amiodarone unless breakthrough VF/VT occurs" },
-      { type: "header", text: "Consider PHT" },
-      { type: "action", text: "12 lead ECG" },
-      { type: "action", text: "Consider PHT as per CPG A0408 STEMI management" },
-      { type: "header", text: "Transport" },
-      { type: "action", text: "VF/VT arrest OR suspected cardiac cause OR post PHT: Transport to 24 hour PCI facility where available; consider AAV vs time to closest hospital" },
-      { type: "action", text: "Suspected non-cardiac cause: Transport to the closest appropriate hospital with notification" }
+    "management": [
+      {
+        "type": "note",
+        "items": [
+          "Post cardiac arrest — Return of spontaneous circulation (ROSC)"
+        ]
+      },
+      {
+        "type": "header",
+        "text": "Unintubated — GCS < 10 post ROSC"
+      },
+      {
+        "type": "mica",
+        "text": "Collapse to ROSC > 10 minutes: RSI as per CPG A0302 Endotracheal Intubation"
+      },
+      {
+        "type": "mica",
+        "text": "Collapse to ROSC < 10 minutes: RSI as per CPG A0302 Endotracheal Intubation if coma persists despite initial oxygenation and perfusion Mx"
+      },
+      {
+        "type": "mica",
+        "text": "Target ETCO₂ 30–40 mmHg"
+      },
+      {
+        "type": "header",
+        "text": "Perfusion Mx"
+      },
+      {
+        "type": "action",
+        "text": "Titrate Adrenaline and Normal Saline as per CPG A0407 Inadequate Perfusion (Cardiogenic causes): Target SBP 100 mmHg; Max total Normal Saline 20 mL/kg during arrest and post ROSC; Max Adrenaline infusion rate 250 mcg/min"
+      },
+      {
+        "type": "action",
+        "text": "Accurately assess pulse during moving/loading to ensure output maintained throughout"
+      },
+      {
+        "type": "action",
+        "text": "Mx as per appropriate CPG if condition changes"
+      },
+      {
+        "type": "stop",
+        "text": "Do not administer Amiodarone unless breakthrough VF/VT occurs"
+      },
+      {
+        "type": "header",
+        "text": "Consider PHT"
+      },
+      {
+        "type": "action",
+        "text": "12 lead ECG"
+      },
+      {
+        "type": "action",
+        "text": "Consider PHT as per CPG A0408 STEMI management"
+      },
+      {
+        "type": "header",
+        "text": "Transport"
+      },
+      {
+        "type": "action",
+        "text": "VF/VT arrest OR suspected cardiac cause OR post PHT: Transport to 24 hour PCI facility where available; consider AAV vs time to closest hospital"
+      },
+      {
+        "type": "action",
+        "text": "Suspected non-cardiac cause: Transport to the closest appropriate hospital with notification"
+      }
     ],
-    notes: "No amiodarone post-ROSC unless breakthrough VF/VT. Target SBP 100 mmHg. PCI facility for cardiac cause."
+    "notes": "No amiodarone post-ROSC unless breakthrough VF/VT. Target SBP 100 mmHg. PCI facility for cardiac cause.\n\nPost-ROSC management covers several clinically important background concepts useful for scenario-based question writing.\n\nFluid management rationale: Excessive fluid in the intra-arrest and post-ROSC period is explicitly recognised as potentially harmful, not merely neutral. The concern is heightened in VF/VT arrests, where fluid overload may worsen outcomes. The 20 mL/kg cumulative ceiling applies across the entire resuscitation episode — intra-arrest fluids plus RSI fluids plus post-ROSC fluids all count toward this total. The only exception is suspected hypovolaemia, which represents a specific reversible cause warranting more aggressive fluid replacement. This cumulative accounting is a common clinical pitfall.\n\nAssumed aetiology and transport destination: When the cause of cardiac arrest is uncertain, a cardiac aetiology should be assumed. This assumption directly drives transport destination — a 24-hour PCI-capable facility should be the target for VF/VT arrest or suspected cardiac cause, with consideration of AAV (air ambulance) versus time to nearest hospital. A suspected non-cardiac cause alters the destination to the closest appropriate hospital with notification. This distinction is clinically significant and likely to be tested in scenario questions.\n\nGlucose monitoring: BGL measurement is a secondary but important post-ROSC task. It is conditional — only after other priorities are addressed and where resources allow. Hypoglycaemia is a potentially treatable contributor to ongoing neurological depression post-ROSC and should not be missed.\n\nPost-ROSC agitation/combativeness: This is a recognised, clinically challenging post-ROSC complication. Severe agitation that obstructs oxygenation, ventilation, or preparation for RSI is the threshold for intervention — not simply any agitation. Ketamine is the agent of choice in this context. The shocked patient requires dose reduction (half dose), reflecting awareness that ketamine's sympathomimetic effects may be insufficient to compensate in a depleted catecholamine state post-arrest.\n\nVentilation target: ETCO2 target post-ROSC is 30–40 mmHg, relevant for guiding ventilation rate in intubated patients and avoiding hyperventilation-induced cerebral vasoconstriction.\n\nAmiodarone restriction: Post-ROSC, amiodarone should not be administered routinely — it is only indicated if breakthrough VF/VT occurs. This is a clear stop point and a likely source of distractor options in questions.\n\nIntubation indications: GCS less than 10 post-ROSC in an unintubated patient triggers RSI consideration. For collapse to ROSC under 10 minutes, RSI is indicated if coma persists despite initial oxygenation and perfusion management, rather than automatically. For collapse to ROSC over 10 minutes, RSI is indicated. These nuances around time-to-ROSC as a decision factor are clinically meaningful.\n\nPerfusion management: Systolic BP target is 100 mmHg, managed via adrenaline and normal saline titration. Pulse assessment during movement/loading is highlighted as important to ensure output is maintained throughout transport."
   },
 
   // -----------------------------------------------------------
   // A0203-1 Withholding or Ceasing Resuscitation
   // -----------------------------------------------------------
   withholding_resuscitation: {
-    cpg: "A0203-1",
-    title: "Withholding or Ceasing Resuscitation",
-    careObjectives: [
+    "cpg": "A0203-1",
+    "title": "Withholding or Ceasing Resuscitation",
+    "careObjectives": [
       "Identify patients who will not benefit from resuscitation or where there is a legal requirement to withhold resuscitation.",
       "Provide guidance for the cessation of resuscitation following an unsuccessful resuscitation attempt."
     ],
-    management: [
-      { type: "header", text: "Withhold resuscitation if:" },
-      { type: "stop", text: "Obvious death: injuries incompatible with life, rigor mortis, postmortem lividity, putrefaction / decomposition, death declared by a doctor who is or was at the scene" },
-      { type: "stop", text: "Goals of care preclude resuscitation: resuscitation not consistent with patient\u2019s wishes as indicated by Advance Care Directive or Medical Treatment Decision Maker" },
-      { type: "header", text: "Prolonged cardiac arrest \u2014 Withhold if:" },
-      { type: "subheader", text: "Medical:" },
-      { type: "stop", text: "Initial presenting rhythm is asystole or agonal (HR < 20) UNLESS: bystander witnessed collapse within 10 minutes of AV arrival, OR paramedic witnessed arrest, OR received defibrillation prior to ambulance arrival" },
-      { type: "subheader", text: "Trauma:" },
-      { type: "stop", text: "Arrest not witnessed by paramedics AND initial presenting rhythm is asystole or agonal (HR < 20)" },
-      { type: "header", text: "Expected death \u2014 Withhold if:" },
-      { type: "stop", text: "Death was expected due to the progression of a specific, advanced incurable disease" },
-      { type: "header", text: "If withholding resuscitation:" },
-      { type: "action", text: "Withhold resuscitation (if unable to immediately confirm details, commence resuscitation while continuing to gather information)" },
-      { type: "action", text: "Consult the AV Clinician if there is any uncertainty" },
-      { type: "action", text: "Confirm determinants of death and consider Verification of Death form" },
-      { type: "action", text: "Provide initial bereavement support and referral if required" },
-      { type: "header", text: "Cessation of resuscitation \u2014 Cease if ALL met:" },
-      { type: "stop", text: "Minimum duration of ALS resuscitation provided: initial presenting rhythm shockable (VF/VT): 45 min; initial presenting rhythm non-shockable: 30 min" },
-      { type: "stop", text: "AND no compelling reasons to continue including: CPR-induced consciousness, spontaneous respiratory efforts, POCUS indicates cardiac contractility (if credentialled), periods of ROSC, witnessed arrests with defibrillation prior to ambulance arrival, normal or near-normal ETCO\u2082 readings, persistent narrow complex PEA" },
-      { type: "header", text: "If ceasing resuscitation:" },
-      { type: "action", text: "Cease resuscitation" },
-      { type: "action", text: "Confirm determinants of death and consider Verification of Death form" },
-      { type: "action", text: "Provide initial bereavement support and referral if required" }
+    "management": [
+      {
+        "type": "header",
+        "text": "Withhold resuscitation if:"
+      },
+      {
+        "type": "stop",
+        "text": "Obvious death: injuries incompatible with life, rigor mortis, postmortem lividity, putrefaction / decomposition, death declared by a doctor who is or was at the scene"
+      },
+      {
+        "type": "stop",
+        "text": "Goals of care preclude resuscitation: resuscitation not consistent with patient’s wishes as indicated by Advance Care Directive or Medical Treatment Decision Maker"
+      },
+      {
+        "type": "header",
+        "text": "Prolonged cardiac arrest — Withhold if:"
+      },
+      {
+        "type": "subheader",
+        "text": "Medical:"
+      },
+      {
+        "type": "stop",
+        "text": "Initial presenting rhythm is asystole or agonal (HR < 20) UNLESS: bystander witnessed collapse within 10 minutes of AV arrival, OR paramedic witnessed arrest, OR received defibrillation prior to ambulance arrival"
+      },
+      {
+        "type": "subheader",
+        "text": "Trauma:"
+      },
+      {
+        "type": "stop",
+        "text": "Arrest not witnessed by paramedics AND initial presenting rhythm is asystole or agonal (HR < 20)"
+      },
+      {
+        "type": "header",
+        "text": "Expected death — Withhold if:"
+      },
+      {
+        "type": "stop",
+        "text": "Death was expected due to the progression of a specific, advanced incurable disease"
+      },
+      {
+        "type": "header",
+        "text": "If withholding resuscitation:"
+      },
+      {
+        "type": "action",
+        "text": "Withhold resuscitation (if unable to immediately confirm details, commence resuscitation while continuing to gather information)"
+      },
+      {
+        "type": "action",
+        "text": "Consult the AV Clinician if there is any uncertainty"
+      },
+      {
+        "type": "action",
+        "text": "Confirm determinants of death and consider Verification of Death form"
+      },
+      {
+        "type": "action",
+        "text": "Provide initial bereavement support and referral if required"
+      },
+      {
+        "type": "header",
+        "text": "Cessation of resuscitation — Cease if ALL met:"
+      },
+      {
+        "type": "stop",
+        "text": "Minimum duration of ALS resuscitation provided: initial presenting rhythm shockable (VF/VT): 45 min; initial presenting rhythm non-shockable: 30 min"
+      },
+      {
+        "type": "stop",
+        "text": "AND no compelling reasons to continue including: CPR-induced consciousness, spontaneous respiratory efforts, POCUS indicates cardiac contractility (if credentialled), periods of ROSC, witnessed arrests with defibrillation prior to ambulance arrival, normal or near-normal ETCO₂ readings, persistent narrow complex PEA"
+      },
+      {
+        "type": "header",
+        "text": "If ceasing resuscitation:"
+      },
+      {
+        "type": "action",
+        "text": "Cease resuscitation"
+      },
+      {
+        "type": "action",
+        "text": "Confirm determinants of death and consider Verification of Death form"
+      },
+      {
+        "type": "action",
+        "text": "Provide initial bereavement support and referral if required"
+      }
     ],
-    notes: "Default is to commence resuscitation if in doubt. Consult AV Clinician if uncertain about withholding."
+    "notes": "Default is to commence resuscitation if in doubt. Consult AV Clinician if uncertain about withholding.\n\nThis CPG applies to patients aged ≥16 years in medical or traumatic cardiac arrest. It covers two distinct but related decisions: withholding resuscitation at the outset, and ceasing an unsuccessful resuscitation attempt.\n\n**Obvious Death:** Recognised by injuries incompatible with survival (decapitation, incineration, cranial destruction, hemicorporectomy), rigor mortis, postmortem lividity, putrefaction/decomposition, or declaration by a doctor present at scene. These signs allow immediate withholding without commencing attempts.\n\n**Default Approach Under Uncertainty:** Where it is unclear whether to withhold, the principle is to commence resuscitation while gathering further information — history, documentation review, visual observations. Emergency treatment should not be delayed while searching for an ACD or decision maker.\n\n**Advance Care Directives (ACDs):** Paramedics have a legal obligation to comply with a sighted ACD, or may accept in good faith verbal advice from bystanders that an ACD exists and reflects the patient's wishes. Crucially, an ACD must be followed even if the emergency is unrelated to the patient's pre-existing illness. Exceptions exist where the ACD demands medically futile/unethical treatment, contradicts the practitioner's code of conduct, or cannot be confidently interpreted. If wishes are unknown or documentation is in doubt, provide routine care. The medical treatment decision maker hierarchy is covered in CPG A0111.\n\n**Asystolic/Agonal Rhythms:** Survival to hospital discharge is less than 1% in this cohort. Resuscitation should only be commenced if: prior defibrillation has occurred, OR bystander-witnessed collapse with AV resuscitation commencing within 10 minutes, OR paramedic-witnessed arrest. Bystander CPR and normothermia alone are not compelling reasons to commence or continue. PEA with heart rate <20 is classified as agonal. 'Initial presenting rhythm' includes rhythm analyses by any prior provider (e.g. public access defibrillation, EMR) — a patient who received defibrillation before AV arrival is presumed to have initially presented in VF/VT. Decisions on duration of resuscitation should be based on the initial rhythm, not the current rhythm at time of review.\n\n**Traumatic Cardiac Arrest:** Patients presenting to AV in asystole following traumatic arrest not witnessed by paramedics have a 0% survival rate — commencing resuscitation is not indicated.\n\n**Expected Death:** Withholding is appropriate when death is expected due to progression of a specific, advanced incurable disease, typically preceded by days-to-weeks of deterioration. Not all end-of-life patients will have an ACD. The AV Medical Advisor (via AV Clinician) can be consulted where there is family disagreement or uncertainty.\n\n**Significant Frailty and Severe Comorbidity:** These patients (frailty score ≥7, severe COPD, chronic renal failure, advanced dementia, etc.) rarely recover from cardiac arrest but may not meet the specific criteria above for withholding. Early cessation may be considered in consultation with the AV Medical Advisor. Importantly, some patients with comorbidities may still benefit (e.g. dialysis patient awaiting transplant), so these decisions require nuance. It is appropriate to continue resuscitation while consultation occurs.\n\n**Voluntary Assisted Dying (VAD):** The VAD medication causes deep sedation and respiratory depression, usually resulting in death within one hour of oral ingestion. Where AV attends an active VAD case, there will be a documented 'no resuscitation' ACD. Paramedics must not assist with administration or provide active clinical therapy (oxygen, ventilation, IV drugs/fluids). Comfort measures and positioning are encouraged. If the dying process is prolonged, contact the VAD care navigator, specialist VAD doctor, or palliative care team.\n\n**Aeromedical Context:** Resuscitation may be ceased during air transport if arrest occurs in the setting of severe injury, quickly reversible causes have been excluded (e.g. pneumothorax, arrhythmia), and continuing chest compressions to hospital is not practical.\n\n**Mass Casualty Incidents:** Standard guidelines may differ significantly — refer to CPG F0026 for triage guidance when resources are overwhelmed.\n\n**Communication and Family Support:** Studies support allowing family members to witness resuscitation efforts, provided they are pre-briefed about what to expect (patient appearance, equipment, procedures). All team members should be informed a family member is observing. When communicating death, use the 'D-words' (dead, dying, die, death) rather than euphemisms; speak slowly in short clusters with pauses; repeat as needed; take a non-judgemental approach. The SPIKES framework and Palliative Care Advice Service (PCAS) are available resources. PCAS can provide grief counselling both on scene and later."
   },
 
   // -----------------------------------------------------------
   // A0301 Essential Airway Management
   // -----------------------------------------------------------
   essential_airway: {
-    cpg: "A0301",
-    title: "Essential Airway Management",
-    careObjectives: [
+    "cpg": "A0301",
+    "title": "Essential Airway Management",
+    "careObjectives": [
       "Safe and effective maintenance of airway patency, oxygenation, and ventilation."
     ],
-    management: [
-      { type: "assess", items: ["Conscious state assessment", "Requirement for supportive ventilation", "Clinical trajectory"] },
-      { type: "header", text: "Altered conscious state with adequate ventilation" },
-      { type: "action", text: "Airway manoeuvres and positioning \u2014 if supine positioning required, place patient in neutral position, otherwise place patient in lateral position" },
-      { type: "action", text: "Monitor with nasal end-tidal capnography" },
-      { type: "note", items: ["If inadequate response / deterioration (e.g. hypoventilation, airway obstruction): manage as per Altered conscious state with inadequate ventilation; escalate care"] },
-      { type: "header", text: "Altered conscious state with inadequate ventilation" },
-      { type: "action", text: "Escalate care" },
-      { type: "action", text: "Airway manoeuvres and positioning \u2014 sniffing position, triple airway manoeuvre" },
-      { type: "action", text: "Ventilate (confirm with end-tidal capnography)" },
-      { type: "subheader", text: "Use appropriate adjunct:" },
-      { type: "action", text: "Oropharyngeal Airway AND/OR Nasopharyngeal Airway/s OR Supraglottic Airway (SGA)" },
-      { type: "header", text: "Supraglottic airway" },
-      { type: "stop", text: "DO NOT insert Supraglottic Airway if: intact gag reflex or resistance to insertion, strong jaw tone or trismus, suspected epiglottitis or upper airway obstruction" },
-      { type: "note", items: [
-        "Primary indications: unconscious patient without gag reflex; anticipated need for prolonged assisted ventilation (no obviously reversible cause of bradypnoea / hypoventilation)",
-        "iGel sizes: 2.5 (25\u201335 kg, GT 12), 3.0 (30\u201360 kg, GT 12), 4.0 (50\u201390 kg, GT 12), 5.0 (90+ kg, GT 14)"
-      ]}
+    "management": [
+      {
+        "type": "assess",
+        "items": [
+          "Conscious state assessment",
+          "Requirement for supportive ventilation",
+          "Clinical trajectory"
+        ]
+      },
+      {
+        "type": "header",
+        "text": "Altered conscious state with adequate ventilation"
+      },
+      {
+        "type": "action",
+        "text": "Airway manoeuvres and positioning — if supine positioning required, place patient in neutral position, otherwise place patient in lateral position"
+      },
+      {
+        "type": "action",
+        "text": "Monitor with nasal end-tidal capnography"
+      },
+      {
+        "type": "note",
+        "items": [
+          "If inadequate response / deterioration (e.g. hypoventilation, airway obstruction): manage as per Altered conscious state with inadequate ventilation; escalate care"
+        ]
+      },
+      {
+        "type": "header",
+        "text": "Altered conscious state with inadequate ventilation"
+      },
+      {
+        "type": "action",
+        "text": "Escalate care"
+      },
+      {
+        "type": "action",
+        "text": "Airway manoeuvres and positioning — sniffing position, triple airway manoeuvre"
+      },
+      {
+        "type": "action",
+        "text": "Ventilate (confirm with end-tidal capnography)"
+      },
+      {
+        "type": "subheader",
+        "text": "Use appropriate adjunct:"
+      },
+      {
+        "type": "action",
+        "text": "Oropharyngeal Airway AND/OR Nasopharyngeal Airway/s OR Supraglottic Airway (SGA)"
+      },
+      {
+        "type": "header",
+        "text": "Supraglottic airway"
+      },
+      {
+        "type": "stop",
+        "text": "DO NOT insert Supraglottic Airway if: intact gag reflex or resistance to insertion, strong jaw tone or trismus, suspected epiglottitis or upper airway obstruction"
+      },
+      {
+        "type": "note",
+        "items": [
+          "Primary indications: unconscious patient without gag reflex; anticipated need for prolonged assisted ventilation (no obviously reversible cause of bradypnoea / hypoventilation)",
+          "iGel sizes: 2.5 (25–35 kg, GT 12), 3.0 (30–60 kg, GT 12), 4.0 (50–90 kg, GT 12), 5.0 (90+ kg, GT 14)"
+        ]
+      }
     ],
-    notes: "SGA contraindicated with intact gag, trismus, or suspected epiglottitis. Confirm ventilation with ETCO\u2082 waveform."
+    "notes": "SGA contraindicated with intact gag, trismus, or suspected epiglottitis. Confirm ventilation with ETCO₂ waveform.\n\nThis CPG covers airway management for patients aged 12 years and older across the full spectrum of need — from brief positional manoeuvres through to emergency surgical airways. Key contextual points for question writing:\n\n**Scope and escalation logic:** Escalation of care is indicated whenever active airway management or assisted ventilation is required, but can be stood down if the underlying cause resolves with treatment (classic examples: opioid toxicity or hypoglycaemia responding to reversal/correction). This nuance is important — escalation is not always irreversible.\n\n**Sequencing philosophy:** The guideline explicitly does not require sequential progression through airway adjuncts. A supraglottic airway (SGA) may be the most appropriate first adjunct in some patients, bypassing simpler measures. This non-linear approach reflects real clinical decision-making.\n\n**Pre-hospital context:** Fundamental airway techniques (positioning, BVM) may be more appropriate than advanced interventions when progressing to advanced airways would delay hospital arrival for patients who need definitive care — particularly trauma patients. This tension between airway optimisation and transport time is a key pre-hospital concept.\n\n**Conscious state assessment:** GCS/conscious state alone is insufficient to determine airway management strategy; it must be interpreted alongside the overall clinical picture. Notably, in traumatic brain injury, a stimulated gag reflex risks raising intracranial pressure, which may support more conservative management if oxygenation and ventilation can be maintained without adjuncts. Patients with altered conscious state have dynamic, unpredictable airway needs.\n\n**Difficult airway prediction — BONES mnemonic (difficult BVM):** Beard, Obese, No teeth, Elderly, Sleep apnoea/history of snoring. Presence of these features suggests early escalation to an SGA may be warranted.\n\n**Difficult SGA insertion — RODS mnemonic:** Restricted mouth opening, Obstruction (including c-spine precautions), Distorted airway, Stiff lungs (bronchospasm). These features suggest an SGA may be challenging and more fundamental techniques may be preferable.\n\n**General caveat on airway assessment:** Common assessment tools lack sensitivity and specificity in emergency settings, and situational factors often prevent complete pre-intervention assessment. The CPG therefore recommends treating every airway as a potentially difficult airway.\n\n**BVM technique pearls:** The BVM pop-off (pressure release) valve must be set to override (closed) before delivering assisted ventilations — a common omission in practice. Two-person technique using VE or CE grip is preferred. Early use of oropharyngeal and/or nasopharyngeal airways improves ventilation success. Obese patients may need higher PEEP levels. Continuous waveform ETCO2 must be used as soon as practicable.\n\n**iGel sizing:** The iGel SGA is sized by predicted body weight, not actual body weight. General height-based guide: patients under 170 cm typically need a Size 3; those over 200 cm typically need a Size 5. SGAs are generally well tolerated in reduced conscious state and have high first-attempt success rates.\n\n**Airway positioning:** Concurrent use of appropriate airway positioning (per a referenced manoeuvres/positioning guideline) is stated to improve all airway management attempts."
   },
 
   // -----------------------------------------------------------
   // A0302 Endotracheal Intubation
   // -----------------------------------------------------------
   endotracheal_intubation: {
-    cpg: "A0302",
-    title: "Endotracheal Intubation",
-    careObjectives: [
+    "cpg": "A0302",
+    "title": "Endotracheal Intubation",
+    "careObjectives": [
       "To safely and effectively undertake endotracheal intubation in patients who cannot be managed with other airway techniques."
     ],
-    management: [
-      { type: "note", items: [
-        "Indications: airway not patent; respiratory failure refractory to non-invasive ventilation and medical therapies; requiring ongoing assisted manual ventilation; targeted treatment required (e.g. status epilepticus, drug-induced hyperthermia, TCA toxicity, TBI, ROSC, airway burns)"
-      ]},
-      { type: "stop", text: "Consult AV Medical Advisor via AV Clinician for patients aged 12\u201315 years where RSI is indicated due to severe chronic medical condition (e.g. lung disease)" },
-      { type: "header", text: "Patient and provider optimisation" },
-      { type: "action", text: "Equipment prepared and tested \u2014 video laryngoscopy using a Macintosh blade and a bougie is the default intubation approach; ensure access to cricothyroidotomy kit" },
-      { type: "action", text: "Position optimised \u2014 MILS if suspected c-spine injury; patient positioned \u2018ear to sternal notch\u2019 if MILS not required" },
-      { type: "action", text: "IV / IO access safely secured \u2014 consider second IV access where possible" },
-      { type: "action", text: "Perfusion optimisation \u2014 prior to intubation, prepare metaraminol and manage shock" },
-      { type: "action", text: "Pre-oxygenation \u2014 BVM with at least 5 cmH\u2082O PEEP and FiO\u2082 of 1 OR BiPAP if adequate spontaneous ventilation" },
-      { type: "action", text: "Team preparation \u2014 ensure adequate resources, identify team leader, brief team, allocate roles, and complete RSI Checklist" },
-      { type: "header", text: "Standard RSI \u2014 all other indications" },
-      { type: "mica", text: "Ketamine 2 mg/kg IV (max 200 mg)" },
-      { type: "mica", text: "Rocuronium IV: < 80 kg \u2014 Rocuronium 100 mg IV; \u2265 80 kg \u2014 Rocuronium 150 mg IV" },
-      { type: "header", text: "Dose-Adjusted RSI \u2014 physiologically difficult airway, increased frailty, active bleeding, shock index > 1" },
-      { type: "mica", text: "Metaraminol 0.5\u20131 mg IV" },
-      { type: "mica", text: "Ketamine 0.5\u20131 mg/kg IV (max 200 mg)" },
-      { type: "mica", text: "Rocuronium IV: < 80 kg \u2014 Rocuronium 100 mg IV; \u2265 80 kg \u2014 Rocuronium 150 mg IV" },
-      { type: "header", text: "High GCS RSI \u2014 impending airway compromise (e.g. airway burns); MFP Only: suicidal behaviour" },
-      { type: "stop", text: "MICA: Consult with AV Medical Advisor before proceeding" },
-      { type: "mica", text: "Manage pain as per CPG A0501-1 Pain Relief" },
-      { type: "mica", text: "Ketamine 2 mg/kg IV (max 200 mg) \u2014 ensure dissociation occurs (60\u201390 seconds)" },
-      { type: "mica", text: "Rocuronium IV: < 80 kg \u2014 Rocuronium 100 mg IV; \u2265 80 kg \u2014 Rocuronium 150 mg IV" },
-      { type: "header", text: "Delayed Sequence Intubation \u2014 agitation and/or hypoxia preventing preoxygenation despite management" },
-      { type: "mica", text: "Ketamine IV as per Standard or Dose-adjusted RSI as appropriate" },
-      { type: "mica", text: "Oxygenate for 3 minutes; if patient remains indicated for intubation: Rocuronium IV: < 80 kg \u2014 100 mg IV; \u2265 80 kg \u2014 150 mg IV" },
-      { type: "header", text: "Crash RSI (MFP Only) \u2014 unconscious and peri-arrest, immediate need to secure airway, airway reflexes present" },
-      { type: "mica", text: "Ketamine 20\u201330 mg IV" },
-      { type: "mica", text: "Rocuronium IV: < 80 kg \u2014 Rocuronium 100 mg IV; \u2265 80 kg \u2014 Rocuronium 150 mg IV" },
-      { type: "header", text: "If unable to obtain Grade 1 or 2 view" },
-      { type: "mica", text: "Consider \u2018head, scope, throat\u2019; problem-solve airway view using additional head lift plus any combination of: lip retraction, external laryngeal manipulation, jaw support / mouth opening" },
-      { type: "mica", text: "If unable to improve view, manage as per CPG A0303 Difficult Airway Guideline" },
-      { type: "header", text: "Endotracheal intubation confirmation" },
-      { type: "stop", text: "Remove the ETT immediately if there is any doubt about tracheal placement and commence management as per CPG A0303 Difficult Airway Guideline" },
-      { type: "mica", text: "Sight the ETT pass through the vocal cords and note length at tips" },
-      { type: "mica", text: "Immediately confirm placement using monitor AND portable capnograph" },
-      { type: "header", text: "Ongoing sedation +/- paralysis" },
-      { type: "mica", text: "Ketamine 20\u201340 mg IV as required until infusion established" },
-      { type: "mica", text: "Fentanyl / Midazolam Infusion IV (via syringe pump): Fentanyl 300 mcg and Midazolam 30 mg diluted to 30 mL with Dextrose 5% or Normal Saline (50 mL syringe); Volume: 1\u201315 mL/hr; Fentanyl dose: 10\u2013150 mcg/hr; Midazolam dose: 1\u201315 mg/hr" },
-      { type: "mica", text: "Consider need for on-going paralysis: Rocuronium 100 mg IV every hour OR Rocuronium infusion 100 mg/hr IV" },
-      { type: "header", text: "General post-intubation care" },
-      { type: "stop", text: "If appropriate, consider pre-hospital ICU bypass" },
-      { type: "mica", text: "Mechanical Ventilation as per CPG A0307" },
-      { type: "mica", text: "Manage perfusion as per CPG A0705 Shock, CPG A0407 Inadequate Perfusion (Cardiogenic) or CPG A0810 Major Trauma" },
-      { type: "mica", items: [
-        "Position patient semi-recumbent at 30\u00b0 unless contraindicated",
-        "Insert bite block",
-        "Suction ETT and oropharynx as required",
-        "Tape eyes",
-        "Insert OG / NG tube if required",
-        "Check ETT cuff pressure and ensure 20\u201330 cmH\u2082O",
-        "Maintain normothermia \u2014 consider insertion of oesophageal temperature probe"
-      ]}
+    "management": [
+      {
+        "type": "note",
+        "items": [
+          "Indications: airway not patent; respiratory failure refractory to non-invasive ventilation and medical therapies; requiring ongoing assisted manual ventilation; targeted treatment required (e.g. status epilepticus, drug-induced hyperthermia, TCA toxicity, TBI, ROSC, airway burns)"
+        ]
+      },
+      {
+        "type": "stop",
+        "text": "Consult AV Medical Advisor via AV Clinician for patients aged 12–15 years where RSI is indicated due to severe chronic medical condition (e.g. lung disease)"
+      },
+      {
+        "type": "header",
+        "text": "Patient and provider optimisation"
+      },
+      {
+        "type": "action",
+        "text": "Equipment prepared and tested — video laryngoscopy using a Macintosh blade and a bougie is the default intubation approach; ensure access to cricothyroidotomy kit"
+      },
+      {
+        "type": "action",
+        "text": "Position optimised — MILS if suspected c-spine injury; patient positioned ‘ear to sternal notch’ if MILS not required"
+      },
+      {
+        "type": "action",
+        "text": "IV / IO access safely secured — consider second IV access where possible"
+      },
+      {
+        "type": "action",
+        "text": "Perfusion optimisation — prior to intubation, prepare metaraminol and manage shock"
+      },
+      {
+        "type": "action",
+        "text": "Pre-oxygenation — BVM with at least 5 cmH₂O PEEP and FiO₂ of 1 OR BiPAP if adequate spontaneous ventilation"
+      },
+      {
+        "type": "action",
+        "text": "Team preparation — ensure adequate resources, identify team leader, brief team, allocate roles, and complete RSI Checklist"
+      },
+      {
+        "type": "header",
+        "text": "Standard RSI — all other indications"
+      },
+      {
+        "type": "mica",
+        "text": "Ketamine 2 mg/kg IV (max 200 mg)"
+      },
+      {
+        "type": "mica",
+        "text": "Rocuronium IV: < 80 kg — Rocuronium 100 mg IV; ≥ 80 kg — Rocuronium 150 mg IV"
+      },
+      {
+        "type": "header",
+        "text": "Dose-Adjusted RSI — physiologically difficult airway, increased frailty, active bleeding, shock index > 1"
+      },
+      {
+        "type": "mica",
+        "text": "Metaraminol 0.5–1 mg IV"
+      },
+      {
+        "type": "mica",
+        "text": "Ketamine 0.5–1 mg/kg IV (max 200 mg)"
+      },
+      {
+        "type": "mica",
+        "text": "Rocuronium IV: < 80 kg — Rocuronium 100 mg IV; ≥ 80 kg — Rocuronium 150 mg IV"
+      },
+      {
+        "type": "header",
+        "text": "High GCS RSI — impending airway compromise (e.g. airway burns); MFP Only: suicidal behaviour"
+      },
+      {
+        "type": "stop",
+        "text": "MICA: Consult with AV Medical Advisor before proceeding"
+      },
+      {
+        "type": "mica",
+        "text": "Manage pain as per CPG A0501-1 Pain Relief"
+      },
+      {
+        "type": "mica",
+        "text": "Ketamine 2 mg/kg IV (max 200 mg) — ensure dissociation occurs (60–90 seconds)"
+      },
+      {
+        "type": "mica",
+        "text": "Rocuronium IV: < 80 kg — Rocuronium 100 mg IV; ≥ 80 kg — Rocuronium 150 mg IV"
+      },
+      {
+        "type": "header",
+        "text": "Delayed Sequence Intubation — agitation and/or hypoxia preventing preoxygenation despite management"
+      },
+      {
+        "type": "mica",
+        "text": "Ketamine IV as per Standard or Dose-adjusted RSI as appropriate"
+      },
+      {
+        "type": "mica",
+        "text": "Oxygenate for 3 minutes; if patient remains indicated for intubation: Rocuronium IV: < 80 kg — 100 mg IV; ≥ 80 kg — 150 mg IV"
+      },
+      {
+        "type": "header",
+        "text": "Crash RSI (MFP Only) — unconscious and peri-arrest, immediate need to secure airway, airway reflexes present"
+      },
+      {
+        "type": "mica",
+        "text": "Ketamine 20–30 mg IV"
+      },
+      {
+        "type": "mica",
+        "text": "Rocuronium IV: < 80 kg — Rocuronium 100 mg IV; ≥ 80 kg — Rocuronium 150 mg IV"
+      },
+      {
+        "type": "header",
+        "text": "If unable to obtain Grade 1 or 2 view"
+      },
+      {
+        "type": "mica",
+        "text": "Consider ‘head, scope, throat’; problem-solve airway view using additional head lift plus any combination of: lip retraction, external laryngeal manipulation, jaw support / mouth opening"
+      },
+      {
+        "type": "mica",
+        "text": "If unable to improve view, manage as per CPG A0303 Difficult Airway Guideline"
+      },
+      {
+        "type": "header",
+        "text": "Endotracheal intubation confirmation"
+      },
+      {
+        "type": "stop",
+        "text": "Remove the ETT immediately if there is any doubt about tracheal placement and commence management as per CPG A0303 Difficult Airway Guideline"
+      },
+      {
+        "type": "mica",
+        "text": "Sight the ETT pass through the vocal cords and note length at tips"
+      },
+      {
+        "type": "mica",
+        "text": "Immediately confirm placement using monitor AND portable capnograph"
+      },
+      {
+        "type": "header",
+        "text": "Ongoing sedation +/- paralysis"
+      },
+      {
+        "type": "mica",
+        "text": "Ketamine 20–40 mg IV as required until infusion established"
+      },
+      {
+        "type": "mica",
+        "text": "Fentanyl / Midazolam Infusion IV (via syringe pump): Fentanyl 300 mcg and Midazolam 30 mg diluted to 30 mL with Dextrose 5% or Normal Saline (50 mL syringe); Volume: 1–15 mL/hr; Fentanyl dose: 10–150 mcg/hr; Midazolam dose: 1–15 mg/hr"
+      },
+      {
+        "type": "mica",
+        "text": "Consider need for on-going paralysis: Rocuronium 100 mg IV every hour OR Rocuronium infusion 100 mg/hr IV"
+      },
+      {
+        "type": "header",
+        "text": "General post-intubation care"
+      },
+      {
+        "type": "stop",
+        "text": "If appropriate, consider pre-hospital ICU bypass"
+      },
+      {
+        "type": "mica",
+        "text": "Mechanical Ventilation as per CPG A0307"
+      },
+      {
+        "type": "mica",
+        "text": "Manage perfusion as per CPG A0705 Shock, CPG A0407 Inadequate Perfusion (Cardiogenic) or CPG A0810 Major Trauma"
+      },
+      {
+        "type": "mica",
+        "items": [
+          "Position patient semi-recumbent at 30° unless contraindicated",
+          "Insert bite block",
+          "Suction ETT and oropharynx as required",
+          "Tape eyes",
+          "Insert OG / NG tube if required",
+          "Check ETT cuff pressure and ensure 20–30 cmH₂O",
+          "Maintain normothermia — consider insertion of oesophageal temperature probe"
+        ]
+      }
     ],
-    notes: "Video laryngoscopy with Macintosh blade and bougie is default. MILS for c-spine. Confirm ETT with waveform capnography. Remove ETT immediately if any doubt."
+    "notes": "Video laryngoscopy with Macintosh blade and bougie is default. MILS for c-spine. Confirm ETT with waveform capnography. Remove ETT immediately if any doubt.\n\nThis CPG applies to patients ≥ 12 years of age. For patients aged 12–15 years where RSI is indicated due to severe chronic medical condition (e.g. lung disease), AV Medical Advisor consultation via AV Clinician is required.\n\n**Indications for pre-hospital ETI** broadly fall into four categories: airway not patent; respiratory failure refractory to NIV and medical therapies; requirement for ongoing assisted manual ventilation; and targeted treatment requirements (e.g. status epilepticus, drug-induced hyperthermia, TCA toxicity, TBI, ROSC, airway burns).\n\n**Risk-benefit framing is central to this CPG.** Pre-hospital intubation can cause significant harm. RSI may contribute to scene delays that are harmful for patients needing urgent hospital interventions (e.g. surgery). Intubating shocked patients (shock index > 1) is associated with high-risk complications including cardiac arrest — resuscitation must precede intubation and should not delay transport. The dynamic risk-benefit analysis should account for anatomical, physiological, and situational difficulty, as well as patient age, frailty, and clinical trajectory. It is explicitly acceptable for a patient indicated for intubation to arrive to hospital unintubated if RSI would cause harmful delay.\n\n**Single-responder RSI** requires remote decision support from the AV Medical Advisor via AV Clinician. RSI should be performed by two critical care paramedics wherever possible.\n\n**Five RSI pathways are described:**\n- Standard RSI: for all other indications.\n- Dose-Adjusted RSI: for physiologically difficult airway, advancing age, increased frailty, active bleeding, or shock index > 1. Rationale is to reduce peri-intubation haemodynamic compromise by using reduced ketamine dose alongside metaraminol.\n- High GCS RSI: for impending airway compromise (e.g. airway burns) or suicidal behaviour (MFP only). MICA paramedics must consult AV Medical Advisor before proceeding. Pain management precedes induction; dissociation is confirmed before paralytic (60–90 seconds).\n- Delayed Sequence Intubation (DSI): for agitation and/or hypoxia preventing effective pre-oxygenation. Goal is oxygen saturation optimisation (not normalisation) before paralytic. Rapid ketamine administration must be avoided as it can cause apnoea and loss of airway reflexes. Some patients may improve post-ketamine and no longer require intubation — consult Medical Advisor in these cases. NIV should be strongly considered. IM or IV ketamine may be needed for immediate combativeness control; half-dose if shock is suspected.\n- Crash RSI (MFP Only): for unconscious/peri-arrest patients with immediate need to secure airway and airway reflexes present. Not a shortcut bypassing resuscitation — only for the most extreme circumstances. A small procedural ketamine bolus is used rather than a full induction dose.\n\n**Physiologically difficult airway** encompasses hypoxaemia, cardiovascular instability, right ventricular dysfunction, raised ICP, obesity, and pregnancy. Some physiological derangements are not correctable pre-hospital and benefit from prolonged resuscitation before intubation. These patients are at elevated risk of complications during induction and the transition to positive pressure ventilation.\n\n**Pre-oxygenation** uses BVM with PEEP valve or BiPAP NIV. A nasal cannula at 15 L/min is routinely added for apnoeic oxygenation. Pitfall: if using BiPAP, the ventilator's apnoea backup rate may continue delivering breaths after anaesthesia onset, masking apnoea. A critical desaturation threshold must be defined and verbalised by the team — typically <90% for adequately oxygenated patients, lower for difficult-to-oxygenate patients.\n\n**Laryngoscopy:** Video laryngoscopy with a Macintosh blade and bougie is the default approach. Sniffing position (ear to sternal notch) is standard unless contraindicated. MILS is required for suspected c-spine injury. If unable to obtain Grade 1 or 2 view, the 'head, scope, throat' troubleshooting approach is used with adjuncts (lip retraction, external laryngeal manipulation, jaw support), followed by the Difficult Airway Guideline (CPG A0303) if view cannot be improved.\n\n**Capnography confirmation** requires both a monitor and a portable capnograph connected and functional before any intubation attempt. Pre- and post-intubation waveforms must be recorded. Loss of waveform on both devices (with circuit connected and pop-off valve closed) mandates immediate ETT removal and Difficult Airway Guideline activation. Loss on one device triggers systematic troubleshooting before removing the tube.\n\n**Post-intubation sedation nuances:** Propofol is an adjunct option (where available) and has specific roles: layered onto fentanyl/midazolam for seizures resistant to therapy, and as a bolus or infusion for hypertension (SBP > 140 mmHg) in suspected neurological emergencies despite maximal standard infusion rates. Morphine/midazolam substitutes for fentanyl/midazolam in serotonin syndrome. Routine post-intubation paralysis is specifically indicated for suspected neurological emergencies (TBI, intracranial haemorrhage) and for preventing shivering during therapeutic cooling.\n\n**Key pitfalls and nuances for question-writing:** shock index > 1 is a recurring threshold triggering dose adjustment and heightened risk awareness; the Crash RSI small ketamine dose rationale (haemodynamic preservation, not sedation); DSI goal is saturation optimisation not normalisation; BiPAP apnoea masking; the explicit acceptability of arriving to hospital unintubated; and the requirement for dual capnograph confirmation."
   },
 
   // -----------------------------------------------------------
@@ -2475,38 +2768,89 @@ const CPG_PACKAGES = {
   // A0403 Tachycardia (Narrow Complex)
   // -----------------------------------------------------------
   tachycardia_narrow: {
-    cpg: "A0403",
-    title: "Tachycardia (Narrow complex)",
-    careObjectives: [
+    "cpg": "A0403",
+    "title": "Tachycardia (Narrow complex)",
+    "careObjectives": [
       "Rapid termination of life threatening arrhythmias and transport to a facility capable of definitive care.",
       "Rapid transport to facilitate the treatment of the arrhythmia where treatment is not available in the prehospital environment.",
       "Early termination of stable SVT where possible, following ECG capture."
     ],
-    management: [
-      { type: "note", items: ["Status: QRS < 0.12 sec"] },
-      { type: "stop", text: "If patient loses cardiac output at any stage: synchronised cardioversion in addition to CPG A0201 Cardiac Arrest (MICA only). Sinus tachycardia should be directed at the underlying cause and not treated using this CPG." },
-      { type: "header", text: "Stable \u2014 SVT (AVNRT or AVRT) \u2014 Exclude AF and atrial flutter" },
-      { type: "note", items: ["SBP \u2265 90 mmHg: Record 12 lead ECG prior to commencing Mx"] },
-      { type: "action", text: "Modified Valsalva or Standard Valsalva (if manual handling or environmental concern) \u2014 Repeat x2 @ 2 minute intervals (max. 3 attempts)" },
-      { type: "note", items: ["SBP < 90 mmHg or no reversion with Valsalva:"] },
-      { type: "mica", text: "Adenosine 6 mg IV" },
-      { type: "mica", text: "Adenosine 12 mg IV if no reversion after 2 minutes" },
-      { type: "mica", text: "Adenosine 12 mg IV if no reversion after a further 2 minutes" },
-      { type: "header", text: "Stable \u2014 Other rhythms (AF, atrial flutter, multifocal atrial tachycardia)" },
-      { type: "action", text: "Pain relief as per CPG A0501 Pain Relief" },
-      { type: "header", text: "Unstable and rapidly deteriorating" },
-      { type: "mica", text: "Synchronised cardioversion (MICA only): Midazolam 1\u20132 mg IV and Fentanyl 50 mcg IV as required; Cardioversion DCCS 150 J; Repeat once if required; If unsuccessful change pads to anterior-posterior vector and DCCS 200 J" },
-      { type: "header", text: "VVED referral criteria (all of):" },
-      { type: "note", items: [
-        "Reversion to sinus rhythm",
-        "Stable vital signs",
-        "No red flags remain",
-        "No paramedic concern",
-        "Paramedic-initiated VVED referral",
-        "Transmit 12 lead ECG to VVED"
-      ]}
+    "management": [
+      {
+        "type": "note",
+        "items": [
+          "Status: QRS < 0.12 sec"
+        ]
+      },
+      {
+        "type": "stop",
+        "text": "If patient loses cardiac output at any stage: synchronised cardioversion in addition to CPG A0201 Cardiac Arrest (MICA only). Sinus tachycardia should be directed at the underlying cause and not treated using this CPG."
+      },
+      {
+        "type": "header",
+        "text": "Stable — SVT (AVNRT or AVRT) — Exclude AF and atrial flutter"
+      },
+      {
+        "type": "note",
+        "items": [
+          "SBP ≥ 90 mmHg: Record 12 lead ECG prior to commencing Mx"
+        ]
+      },
+      {
+        "type": "action",
+        "text": "Modified Valsalva or Standard Valsalva (if manual handling or environmental concern) — Repeat x2 @ 2 minute intervals (max. 3 attempts)"
+      },
+      {
+        "type": "note",
+        "items": [
+          "SBP < 90 mmHg or no reversion with Valsalva:"
+        ]
+      },
+      {
+        "type": "mica",
+        "text": "Adenosine 6 mg IV"
+      },
+      {
+        "type": "mica",
+        "text": "Adenosine 12 mg IV if no reversion after 2 minutes"
+      },
+      {
+        "type": "mica",
+        "text": "Adenosine 12 mg IV if no reversion after a further 2 minutes"
+      },
+      {
+        "type": "header",
+        "text": "Stable — Other rhythms (AF, atrial flutter, multifocal atrial tachycardia)"
+      },
+      {
+        "type": "action",
+        "text": "Pain relief as per CPG A0501 Pain Relief"
+      },
+      {
+        "type": "header",
+        "text": "Unstable and rapidly deteriorating"
+      },
+      {
+        "type": "mica",
+        "text": "Synchronised cardioversion (MICA only): Midazolam 1–2 mg IV and Fentanyl 50 mcg IV as required; Cardioversion DCCS 150 J; Repeat once if required; If unsuccessful change pads to anterior-posterior vector and DCCS 200 J"
+      },
+      {
+        "type": "header",
+        "text": "VVED referral criteria (all of):"
+      },
+      {
+        "type": "note",
+        "items": [
+          "Reversion to sinus rhythm",
+          "Stable vital signs",
+          "No red flags remain",
+          "No paramedic concern",
+          "Paramedic-initiated VVED referral",
+          "Transmit 12 lead ECG to VVED"
+        ]
+      }
     ],
-    notes: "Adenosine should be administered rapidly through a large proximal vein (e.g. cubital fossa) followed by a Normal Saline bolus flush. Valsalva manoeuvre reserved for patients with SBP \u2265 90 mmHg. Modified Valsalva preferred \u2014 patient semi-recumbent 45\u00b0, forced expiration, then immediately flat with legs raised 45\u00b0 for 15 seconds. Standard Valsalva: supine, forced expiration."
+    "notes": "Adenosine should be administered rapidly through a large proximal vein (e.g. cubital fossa) followed by a Normal Saline bolus flush. Valsalva manoeuvre reserved for patients with SBP ≥ 90 mmHg. Modified Valsalva preferred — patient semi-recumbent 45°, forced expiration, then immediately flat with legs raised 45° for 15 seconds. Standard Valsalva: supine, forced expiration.\n\nNarrow complex tachycardia is defined by QRS duration less than 0.12 seconds. The CPG covers SVT (specifically AVNRT and AVRT), atrial fibrillation, atrial flutter, and multifocal atrial tachycardia — but explicitly excludes sinus tachycardia, which should be managed by treating the underlying cause (e.g. hypovolaemia, pain) rather than this pathway.\n\nStability assessment is a key decision point. Signs of instability include inadequate perfusion/shock (hypotension, pallor, diaphoresis), acutely altered or lost consciousness, ischaemic chest pain, and acute pulmonary oedema (APO). Instability is generally associated with rates ≥150 bpm, though lower rates can be destabilising in patients with impaired cardiac function. Loss of cardiac output at any point triggers immediate synchronised cardioversion and escalation to the cardiac arrest CPG (A0201, MICA only).\n\nValsalva technique nuance: The modified Valsalva (semi-recumbent forced expiration, then immediate supine with legs raised 45° for 15 seconds, then return to semi-recumbent) has evidence of superior reversion rates over the standard (supine forced expiration only). Choice between them should account for patient size, environment, and manual handling risk. The target expiratory pressure is approximately 40 mmHg, practically achieved by blowing into a 10 mL syringe hard enough to move the plunger for 15 seconds. Critically, Valsalva is only appropriate when SBP ≥ 90 mmHg — it is contraindicated below this threshold.\n\nAdenosine administration rationale: Must be given rapidly via a large proximal vein (e.g. cubital fossa) and followed immediately with a normal saline bolus flush, reflecting the drug's extremely short half-life and the need to deliver it to central circulation quickly.\n\nAF and atrial flutter are classified under 'Stable — Other rhythms' and are not candidates for Valsalva or adenosine in this pathway; they appear to be managed primarily with transport or cardioversion if unstable. AF/SVT that deteriorates to cardiac arrest is managed initially with synchronised cardioversion at 200J.\n\nPost-reversion considerations: Minor chest discomfort persisting after reversion does not automatically preclude VVED (Virtual Virtual Emergency Department or equivalent) referral. Sedation (used in cardioversion) requires continuous monitoring of respiratory effectiveness. A 12-lead ECG should be recorded before management commences unless the patient requires immediate treatment.\n\nVVED referral criteria for successfully reverted SVT require all of: reversion to sinus rhythm, stable vital signs, no red flags remaining, and no paramedic concern. The 12-lead ECG should be transmitted to VVED."
   },
 
   // -----------------------------------------------------------
@@ -2944,6 +3288,90 @@ const CPG_PACKAGES = {
     ],
     "management_mica": [],
     "notes": "Possible causes of fall to consider: Environmental/mechanical (e.g. trip/slip hazards, uneven ground, stairs, poor lighting, inappropriate footwear, mobility issues/aids or past Hx of falls); Known medical/pharmacological factor (e.g. Postural hypotension, poor gait, cognitive/sensory impairment, medication change or cardiovascular medications); Unanticipated medical factor (e.g. AMI, seizure). Assess for complications of prolonged time spent on ground such as dehydration and pressure sores. Any fall that occurs in AV care must be reported via Riskman."
+  },
+
+
+  choking_a0308: {
+    "title": "Choking",
+    "cpg": "A0308",
+    "careObjectives": [],
+    "management": [
+      {
+        "type": "note",
+        "text": "Not intended for use in newborns – refer to CPG N0101 Newborn Resuscitation"
+      },
+      {
+        "type": "header",
+        "text": "Suspected foreign body airway obstruction"
+      },
+      {
+        "type": "assess",
+        "items": [
+          "Witnessed foreign body airway obstruction",
+          "Very sudden onset SOB / respiratory distress",
+          "Playing / handling small objects",
+          "Unable to ventilate"
+        ]
+      },
+      {
+        "type": "header",
+        "text": "Effective cough"
+      },
+      {
+        "type": "action",
+        "text": "Encourage cough"
+      },
+      {
+        "type": "action",
+        "text": "Monitor closely for deterioration"
+      },
+      {
+        "type": "header",
+        "text": "Ineffective cough"
+      },
+      {
+        "type": "action",
+        "text": "Situation report"
+      },
+      {
+        "type": "action",
+        "text": "Back blows (up to five)"
+      },
+      {
+        "type": "action",
+        "text": "Chest thrusts (up to five)"
+      },
+      {
+        "type": "action",
+        "text": "Repeat back blows and chest thrusts"
+      },
+      {
+        "type": "header",
+        "text": "Unconscious"
+      },
+      {
+        "type": "action",
+        "text": "Escalate care"
+      },
+      {
+        "type": "action",
+        "text": "Manually clear visible obstruction"
+      },
+      {
+        "type": "action",
+        "text": "Laryngoscope and Magill's forceps"
+      },
+      {
+        "type": "action",
+        "text": "Concurrent chest thrusts or CPR as required"
+      },
+      {
+        "type": "action",
+        "text": "Prepare for cricothyroidotomy * (* Where credentialled if < 12 years)"
+      }
+    ],
+    "management_mica": [],
+    "notes": "Foreign body airway obstruction (FBAO) applies to any patient except newborns (who fall under a separate Newborn Resuscitation CPG). The core clinical concept is that management is entirely driven by adequacy of ventilation, not by patient age or size per se.\n\nThe key diagnostic principle is that cough effectiveness is the single best indicator of ventilation adequacy. A patient with an effective cough — able to speak, able to take a breath before coughing, normal conscious state — has an incomplete obstruction allowing sufficient airflow. Critically, attempting to remove or investigate the obstruction in this group risks converting a partial obstruction into a complete one; intervention should be deferred until definitive hospital resources are available. The patient must still be monitored closely, as the foreign body can shift and worsen at any time.\n\nAn ineffective cough indicates complete or critically severe obstruction: signs include inability to speak, silent chest, cyanosis, or altered/lost consciousness. This group requires immediate physical intervention.\n\nClinical signs of FBAO to recognise: sudden-onset dyspnoea or respiratory distress, coughing/gagging, stridor, voice changes, drooling, tracheal tugging, paradoxical breathing, chest wall retraction, and inability to ventilate. Contextual red flags for suspicion include witnessed inhalation, eating at time of onset, or recent play with small objects.\n\nFor back blows: position matters and is size/context-dependent — adults/larger children lean against a support, smaller children are placed across the clinician's knees, infants are held head-down with chest on the clinician's forearm. No specific age or weight cutoff dictates the choice; it is pragmatic based on patient size and circumstances. The heel of the hand strikes firmly and suddenly between the shoulder blades.\n\nFor chest thrusts: technique differs from CPR compressions in that each thrust is sharper and delivered at a slower rate to allow reassessment between thrusts. The back must be supported against a firm surface (floor, wall, clinician's hand/body) to provide counter-pressure. Back blows and chest thrusts are alternated with reassessment between each.\n\nIn unconscious patients, the CPG notes that from the perspective of clearing a FBAO, there is little functional difference between chest thrusts and CPR compressions. If pulse status is uncertain, default to CPR while continuing airway clearance efforts.\n\nLaryngoscopy with Magill's forceps is a key intervention in unconscious patients and is performed concurrently with chest thrusts or CPR, not sequentially. Cricothyroidotomy (MICA-credentialled clinicians only; credentialling required if patient is under 12 years) is the rescue intervention when laryngoscopy/Magills fails or intubation fails on first attempt. Dual setup should be prepared as per the Difficult Airway CPG (A0303).\n\nA common pitfall implicit in the CPG: attempting to investigate or remove a foreign body in a patient with adequate ventilation (effective cough) may precipitate deterioration — restraint is the correct approach in this scenario. Another nuance: blind finger sweeps are not mentioned as a technique; only manually removing visible obstruction is endorsed, implying blind sweeps are not recommended."
   },
 };
 
