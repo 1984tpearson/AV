@@ -321,7 +321,7 @@ textarea{resize:vertical;min-height:72px;line-height:1.5}
 
   <!-- ══ QUICK BUILD ══ -->
   <div id="tab-quick" class="tab-panel active">
-    <div class="tab-panel-scroll">
+    <div class="tab-panel-scroll" style="padding-bottom:90px">
       <div id="usage-display" class="usage-bar" style="display:none"></div>
       <div id="model-toggle-quick" style="display:none;align-items:center;gap:8px;margin-bottom:10px;font-size:12px">
         <span>🧪 Model:</span>
@@ -345,9 +345,9 @@ textarea{resize:vertical;min-height:72px;line-height:1.5}
         <div style="flex:1;height:1px;background:var(--border)"></div>
       </div>
 
-      <!-- Selected condition(s) card -->
+      <!-- Select Conditions card (tags/toggle + accordion merged) -->
       <div class="card" style="margin-bottom:14px">
-        <div class="card-header">⚡ Selected Condition <span style="font-weight:400;opacity:.7;font-size:11px;margin-left:6px" id="quick-multi-hint">— tap a condition below</span></div>
+        <div class="card-header">⚡ Select Conditions <span style="font-weight:400;opacity:.7;font-size:11px;margin-left:6px" id="quick-multi-hint">— tap a condition below</span></div>
         <div style="padding:12px 14px 14px">
           <div class="condition-tags" id="quick-selected-tags">
             <span class="empty-tags">No condition selected</span>
@@ -358,15 +358,15 @@ textarea{resize:vertical;min-height:72px;line-height:1.5}
               <div class="toggle-switch" id="multi-toggle-btn"><div class="toggle-switch-thumb"></div></div>
             </div>
           </div>
+          <div class="cat-accordion" id="quick-accordion" style="margin:10px -14px -14px;border-radius:0;border:none;border-top:1px solid var(--border);box-shadow:none"></div>
         </div>
       </div>
 
-      <button class="btn btn-primary btn-full" id="quick-gen-btn" onclick="handleQuickGenerate()" style="margin-bottom:14px" disabled>⚡ Generate Scenario</button>
       <div id="quick-status" class="gen-status" style="margin-bottom:14px">
         <div id="quick-stream-card" class="stream-card" style="display:none"></div>
       </div>
-      <div class="cat-accordion" id="quick-accordion"></div>
     </div>
+    <button class="btn btn-primary" id="quick-gen-btn" onclick="handleQuickGenerate()" style="position:fixed;bottom:24px;right:24px;z-index:60;border-radius:50px;box-shadow:0 4px 14px rgba(0,0,0,.3);padding:14px 24px" disabled>⚡ Generate Scenario</button>
   </div>
 
   <!-- ══ CUSTOM BUILD ══ -->
