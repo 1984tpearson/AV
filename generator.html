@@ -331,6 +331,20 @@ textarea{resize:vertical;min-height:72px;line-height:1.5}
         </select>
       </div>
 
+      <!-- Free-text quick prompt -->
+      <div class="card" style="margin-bottom:14px">
+        <div class="card-header">✍️ Describe the Scenario <span style="font-weight:400;opacity:.7;font-size:11px;margin-left:6px">— optional</span></div>
+        <div style="padding:12px 14px 14px">
+          <textarea id="quick-freetext" oninput="onQuickFreeTextInput()" rows="3" placeholder="e.g. 65yo male stung by a bee having an anaphylactic reaction" style="width:100%;resize:vertical;font-family:inherit;font-size:13px;padding:8px 10px;border:1px solid var(--border);border-radius:6px;box-sizing:border-box"></textarea>
+        </div>
+      </div>
+
+      <div style="display:flex;align-items:center;gap:10px;margin:4px 0 14px;color:var(--grey);font-size:11px;font-weight:700;letter-spacing:.5px">
+        <div style="flex:1;height:1px;background:var(--border)"></div>
+        OR SELECT FROM THE LIST BELOW
+        <div style="flex:1;height:1px;background:var(--border)"></div>
+      </div>
+
       <!-- Selected condition(s) card -->
       <div class="card" style="margin-bottom:14px">
         <div class="card-header">⚡ Selected Condition <span style="font-weight:400;opacity:.7;font-size:11px;margin-left:6px" id="quick-multi-hint">— tap a condition below</span></div>
@@ -1701,7 +1715,30 @@ function _setGenCategory(catKey) {
   if (sub) sub.value = '__random__';
 }
 
-function handleQuickGenerate() {
+async function handleQuickGenerate() {
+  const freeTextEl = document.getElementById('quick-freetext');
+  const freeText = freeTextEl ? freeTextEl.value.trim() : '';
+  if (freeText) {
+    _overrideCatVal = null; _overrideSubtypeKey = null; _overrideSubtypeKeys = [];
+    const btn = document.getElementById('quick-gen-btn');
+    if (btn) btn.disabled = true;
+    let catKey = 'Adult|Medical';
+    const classifiedKeys = await classifyCPGFromText(freeText);
+    if (classifiedKeys.length) {
+      _overrideSubtypeKey = classifiedKeys[0];
+      _overrideSubtypeKeys = classifiedKeys;
+      const inferredCat = findCatKeyForCPGKey(classifiedKeys[0]);
+      if (inferredCat) catKey = inferredCat;
+    }
+    _overrideCatVal = catKey;
+    document.getElementById('gen-complaint').value = `SCENARIO SEED (use as a creative brief — honour these details but build a full, realistic scenario around them with appropriate context, backstory, and clinical depth): ${freeText}. Adapt ALL relevant fields to reflect this — including patient demographics, vitals, medical history, medications, flags, ddx, and any other fields as appropriate. Do not copy the seed text verbatim into the scenario fields.`;
+    document.getElementById('gen-complexity').value = 'standard';
+    _activeGenBtn = 'quick-gen-btn';
+    const sel = document.getElementById('gen-category');
+    if (sel) { const opt = document.createElement('option'); opt.value = catKey; sel.appendChild(opt); sel.value = catKey; }
+    generateAIScenario();
+    return;
+  }
   if (_multiMode) {
     if (!_quickMultiSelected.length) return;
     // Use first condition for CPG context, pass all as complaint seed
@@ -1949,7 +1986,36 @@ function updateGenBar() {
 // ── QUICK BUILD SELECTION ─────────────────────────────────────────────────────
 let _quickSelected = null; // { condRow, name, category, subcategory, catIdx }
 
+// Clears any accordion-based selection (single or multi) — used when the user
+// switches to typing a free-text prompt, so it's unambiguous which drives generation.
+function clearQuickAccordionSelection(){
+  if (_quickSelected) {
+    _quickSelected.condRow.classList.remove('selected');
+    updateAccCount(_quickSelected.catIdx, 0);
+    _quickSelected = null;
+  }
+  if (_quickMultiSelected.length) {
+    _quickMultiSelected.forEach(s => s.el && s.el.classList.remove('selected'));
+    _quickMultiSelected.length = 0;
+    renderQuickMultiTags();
+  }
+  setGenBar(null);
+}
+
+function onQuickFreeTextInput(){
+  const val = document.getElementById('quick-freetext').value.trim();
+  if (val) {
+    clearQuickAccordionSelection();
+    const btn = document.getElementById('quick-gen-btn');
+    if (btn) btn.disabled = false;
+  } else {
+    updateGenBar();
+  }
+}
+
 function selectQuick(el, name, category, subcategory, catIdx) {
+  const ft = document.getElementById('quick-freetext');
+  if (ft && ft.value.trim()) ft.value = '';
   if (_multiMode) {
     // Multi-mode: toggle this condition in/out of the list
     const existingIdx = _quickMultiSelected.findIndex(s => s.name === name && s.category === category);
