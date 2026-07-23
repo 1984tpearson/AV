@@ -703,12 +703,6 @@ body.snav-active #content { padding-left: 60px; }
 .cpg-step-mica .cpg-step-body ul { padding-left: 16px; line-height: 1.7; color: #154360; }
 .cpg-action-badge { font-size: 10px; font-weight: 700; color: #1e5631; background: #a9dfbf; padding: 2px 7px; border-radius: 3px; margin-bottom: 5px; display: inline-block; }
 .cpg-mica-badge { font-size: 10px; font-weight: 700; color: #fff; background: #1a6f9a; padding: 2px 7px; border-radius: 3px; margin-bottom: 5px; display: inline-block; }
-.discussion-box { background: #FEF9F0; border: 1px dashed #F0A500; border-radius: 8px; padding: 12px 14px; margin: 10px 0; }
-.discussion-box .discussion-header { display: flex; align-items: baseline; gap: 8px; margin-bottom: 8px; }
-.discussion-box .discussion-label { font-size: 11px; font-weight: 700; color: #B7770D; text-transform: uppercase; letter-spacing: 0.5px; }
-.discussion-box .discussion-note { font-size: 10px; color: #999; font-style: italic; }
-.discussion-box ul { margin-left: 18px; font-size: 13px; line-height: 1.7; color: #5D4037; }
-
 /* ============================================================ MODAL BASE */
 .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 200; align-items: center; justify-content: center; padding: 16px; }
 .modal-overlay.open { display: flex; }
@@ -1827,7 +1821,6 @@ function toRow(s, overrides = {}) {
     treatment_mica: s.treatment_mica || [],
     life_threats: s.life_threats || [],
     kq:           s.kq || [],
-    discussion:   s.discussion || [],
     creator_uuid: s.creator_uuid || getIdentity().uuid,
     creator_name: s.creator_name || getIdentity().name || 'Anonymous',
     creator_avatar_url: s.creator_avatar_url || getIdentity().avatarUrl || '',
@@ -1873,7 +1866,6 @@ function fromRow(r) {
     treatment_mica: r.treatment_mica || [],
     life_threats: r.life_threats || [],
     kq:           r.kq || [],
-    discussion:   r.discussion || [],
     creator_uuid: r.creator_uuid,
     creator_name: r.creator_name,
     creator_avatar_url: r.creator_avatar_url || '',
@@ -4095,7 +4087,6 @@ function renderSection2(s) {
       ${treatCollapsiblesHtml || (_legacyAlsHtml ? `<div class="treatment-box"><h4>✅ ALS Management — ${getCPGLabel(s.cpg)||'Scenario'}</h4><ol>${_legacyAlsHtml}</ol></div>` : '')}
       ${!treatCollapsiblesHtml && _legacyMicaHtml ? `<div class="treatment-mica-box"><h4>🔵 MICA Management</h4><ol>${_legacyMicaHtml}</ol></div>` : ''}
       <button class="cpg-browse-all-btn" onclick="openCPGBrowser()">🔍 Browse all CPGs</button>
-      ${(s.discussion&&s.discussion.length) ? `<div class="discussion-box"><div class="discussion-header"><span class="discussion-label">💬 Beyond AV Scope — CI Discussion Prompts</span><span class="discussion-note">Not assessable · AI-suggested · not part of AV management</span></div><ul>${s.discussion.map(d=>`<li>${d}</li>`).join('')}</ul></div>` : ''}
 
       <div style="margin-top:12px">
         <table class="asmt-table">
@@ -6886,10 +6877,6 @@ function applyCorrectionsToScenario(s) {
       const i = parseInt(fk.replace('lt_', ''));
       if (!isNaN(i) && patched.life_threats) patched.life_threats[i] = cv;
 
-    } else if (fk.startsWith('disc_')) {
-      const i = parseInt(fk.replace('disc_', ''));
-      if (!isNaN(i) && patched.discussion) patched.discussion[i] = cv;
-
     } else if (fk.startsWith('kq_q_')) {
       const i = parseInt(fk.replace('kq_q_', ''));
       if (!isNaN(i) && patched.kq && patched.kq[i]) patched.kq[i].q = cv;
@@ -7030,11 +7017,6 @@ function injectFlagButtons() {
     if (qEl) makeFlaggable(qEl, `kq_q_${i}`, `Knowledge Question ${i+1}`, (s.kq||[])[i]?.q||'');
     const aEl = block.querySelector('.kq-answer');
     if (aEl) makeFlaggable(aEl, `kq_a_${i}`, `KQ ${i+1} Answer`, (s.kq||[])[i]?.answer||'');
-  });
-
-  // 10. DISCUSSION PROMPTS
-  document.querySelectorAll('.discussion-box li').forEach((li, i) => {
-    makeFlaggable(li, `disc_${i}`, `Discussion Prompt ${i+1}`, (s.discussion||[])[i]||li.textContent.replace(/\(edited\)/g,'').trim());
   });
 
   // 11. SCENARIO HEADER
