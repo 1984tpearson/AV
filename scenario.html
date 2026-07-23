@@ -609,6 +609,8 @@ body.snav-active #content { padding-left: 60px; }
 .flag-item { display: flex; gap: 8px; padding: 6px 0; font-size: 13px; border-bottom: 1px solid #f5f5f5; align-items: flex-start; }
 .flag-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--red); margin-top: 6px; flex-shrink: 0; }
 .ddx-info { background: var(--blue-light); border: 1px solid #AED6F1; border-radius: 8px; padding: 10px 14px; font-size: 12px; margin-top: 10px; }
+.ddx-dispatch, .ddx-arrival { border-left: 4px solid var(--navy-light); box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
+.ddx-info-label { color: var(--navy); font-weight: 700; }
 
 /* ============================================================ SCORE PANEL CONTENT */
 .sp-section { margin-bottom: 10px; padding-bottom: 10px; border-bottom: 1px solid var(--border); }
@@ -3607,7 +3609,7 @@ function renderSection1(s, isTrauma) {
     </div>
     <div class="section-body open" id="sec-patient-assessment">
 
-      ${(s.dispatch||s.caller_hx)?`<div class="ddx-info ddx-dispatch"><strong>Dispatch:</strong> ${s.dispatch||'—'}<br><strong>Caller Reports:</strong> ${s.caller_hx||'—'}</div>`:''}
+      ${(s.dispatch||s.caller_hx)?`<div class="ddx-info ddx-dispatch"><span class="ddx-info-label">Dispatch:</span> ${s.dispatch||'—'}<br><span class="ddx-info-label">Caller Reports:</span> ${s.caller_hx||'—'}</div>`:''}
       <div id="nav-prearr" class="snav-anchor"></div><div class="asmt-section-header"><div class="asmt-section-title">Pre-arrival &amp; Scene</div><button class="all-complete-btn" onclick="markGroupComplete('prearr')">✓ All Complete</button></div>
       <table class="asmt-table" data-group="prearr" data-section="sec1">
         <thead><tr><th class="left" style="width:46%">Element</th><th style="width:18%">Prompting Required</th><th style="width:18%">Sub-section Incomplete</th><th style="width:18%">All Complete</th></tr></thead>
@@ -3620,7 +3622,7 @@ function renderSection1(s, isTrauma) {
         </tbody>
       </table>
 
-      ${s.arrival_hx?`<div class="ddx-info ddx-arrival"><strong>On Arrival:</strong> ${s.arrival_hx}</div>`:''}
+      ${s.arrival_hx?`<div class="ddx-info ddx-arrival"><span class="ddx-info-label">On Arrival:</span> ${s.arrival_hx}</div>`:''}
       <div id="nav-rabcde" class="snav-anchor"></div><div class="asmt-section-header"><div class="asmt-section-title">Primary Survey — RABCDE</div><button class="all-complete-btn" onclick="markGroupComplete('rabcde')">✓ All Complete</button></div>
       <table class="asmt-table" data-group="rabcde" data-section="sec1">
         <thead><tr><th class="left">Element</th><th>Prompting</th><th>Incomplete</th><th>Complete</th></tr></thead>
