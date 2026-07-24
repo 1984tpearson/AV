@@ -366,8 +366,16 @@ body.snav-active #content { padding-left: 60px; }
 
 /* Home panels grid */
 .home-panels { display: grid; grid-template-columns: 1fr; gap: 12px; }
-@media (min-width: 600px) { .home-panels { grid-template-columns: 1fr 1fr; } }
-.home-panel { background: white; border: 1px solid var(--border); border-radius: 10px; overflow: hidden; box-shadow: var(--shadow); }
+@media (min-width: 600px) { .home-panels { grid-template-columns: 1.25fr 1fr; } }
+.home-panel { background: white; border: 1px solid var(--border); border-left: 4px solid var(--grey); border-radius: 10px; overflow: hidden; box-shadow: var(--shadow); }
+.home-panel.panel-blue { border-left-color: var(--blue); }
+.home-panel.panel-navy { border-left-color: var(--navy); }
+.home-panel.panel-amber { border-left-color: var(--amber); }
+.home-panel.panel-red { border-left-color: var(--red); }
+.home-panel.panel-blue .home-panel-title { color: var(--blue); }
+.home-panel.panel-navy .home-panel-title { color: var(--navy); }
+.home-panel.panel-amber .home-panel-title { color: var(--amber); }
+.home-panel.panel-red .home-panel-title { color: var(--red); }
 .home-panel-header { padding: 10px 14px 8px; border-bottom: 1px solid #f0f2f5; display: flex; align-items: center; gap: 6px; }
 .home-panel-title { font-size: 11px; font-weight: 700; color: var(--grey); text-transform: uppercase; letter-spacing: 0.06em; flex: 1; }
 .home-panel-body { padding: 6px 0; min-height: 60px; }
@@ -395,7 +403,7 @@ body.snav-active #content { padding-left: 60px; }
 
 /* ── D.A.S.H tiles + micro-motion (TEST) ── */
 .home-tiles { display: grid; grid-template-columns: 1fr; gap: 10px; margin-bottom: 14px; }
-@media (min-width: 600px) { .home-tiles { grid-template-columns: 1fr 1fr; } }
+@media (min-width: 600px) { .home-tiles { grid-template-columns: 0.85fr 1.15fr; } }
 .home-tile { display: flex; align-items: center; gap: 12px; background: white; border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; box-shadow: var(--shadow); text-decoration: none; color: inherit; cursor: pointer; font-family: inherit; text-align: left; transition: transform 0.15s, box-shadow 0.15s; min-height: var(--tap); }
 .home-tile:active { transform: scale(0.98); }
 .home-tile-primary { border-color: var(--amber); background: var(--amber-light); }
@@ -1187,6 +1195,8 @@ body.flag-mode-active .flaggable.has-correction:hover { outline: 2px solid var(-
 .dash-hero-content { position: relative; z-index: 1; }
 .dash-hero-wordmark { font-family: 'Orbitron', sans-serif; font-size: 68px; font-weight: 700; letter-spacing: 5px; margin-bottom: 6px; line-height: 1; }
 .dash-hero-subheader { font-size: 12.5px; font-weight: 600; text-transform: uppercase; letter-spacing: 1.2px; opacity: 0.75; }
+.topbar-logo-img { height: 36px; width: auto; max-width: 160px; object-fit: contain; display: block; }
+.hero-logo-img { height: 78px; width: auto; max-width: 70%; object-fit: contain; display: block; }
 </style>
 </head>
 <body>
@@ -1194,16 +1204,7 @@ body.flag-mode-active .flaggable.has-correction:hover { outline: 2px solid var(-
 <div id="topbar">
   <div id="avnav-slot"></div>
   <div class="logo" onclick="goHome()" style="cursor:pointer" title="Go to home screen">
-    <div class="logo-icon">
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-        <path d="M12 2L4 7V12C4 16.55 7.84 20.74 12 22C16.16 20.74 20 16.55 20 12V7L12 2Z" fill="#1C3A6E"/>
-        <path d="M11 11H9V13H11V15H13V13H15V11H13V9H11V11Z" fill="white"/>
-      </svg>
-    </div>
-    <div>
-      <h1 class="dash-wordmark">D.A.S.H</h1>
-      <div class="subtitle">Dynamic Assessment &amp; Simulation Hub</div>
-    </div>
+    <img src="logo.png" alt="D.A.S.H — Dynamic Assessment &amp; Simulation Hub" class="topbar-logo-img">
   </div>
   <div class="topbar-actions">
     <a class="tb-btn" id="ai-toggle-btn" href="generator.html">✦ Create New Case</a>
@@ -1221,8 +1222,7 @@ body.flag-mode-active .flaggable.has-correction:hover { outline: 2px solid var(-
       <div class="dash-hero">
         <div class="dash-ecg-clip"><div id="dash-hero-ecg-mount"></div></div>
         <div class="dash-hero-content">
-          <h2 class="dash-hero-wordmark">D.A.S.H</h2>
-          <div class="dash-hero-subheader">Dynamic Assessment &amp; Simulation Hub</div>
+          <img src="logo.png" alt="D.A.S.H — Dynamic Assessment &amp; Simulation Hub" class="hero-logo-img">
         </div>
       </div>
 
@@ -2510,33 +2510,33 @@ function buildHomePanels() {
     .filter(Boolean);
 
   container.innerHTML = `
-    <div class="home-panel">
+    <div class="home-panel panel-red">
       <div class="home-panel-header">
-        <span style="font-size:14px">🕐</span>
-        <div class="home-panel-title">Recently Added</div>
+        <span style="font-size:14px">🔥</span>
+        <div class="home-panel-title">Most Popular</div>
       </div>
-      <div class="home-panel-body">${renderItems(recentAll, 8)}</div>
+      <div class="home-panel-body">${popularScenarios.length ? renderItems(popularScenarios, 8) : '<div class="home-panel-empty">No favourites yet — be the first to star a scenario</div>'}</div>
     </div>
-    <div class="home-panel">
+    <div class="home-panel panel-navy">
       <div class="home-panel-header">
         <span style="font-size:14px">📁</span>
         <div class="home-panel-title">My Scenarios</div>
       </div>
       <div class="home-panel-body">${myScenarios.length ? renderItems(myScenarios, 8) : '<div class="home-panel-empty">Scenarios you create will appear here</div>'}</div>
     </div>
-    <div class="home-panel">
+    <div class="home-panel panel-amber">
       <div class="home-panel-header">
         <span style="font-size:14px">⭐</span>
         <div class="home-panel-title">My Favourites</div>
       </div>
       <div class="home-panel-body">${favScenarios.length ? renderItems(favScenarios, 8) : '<div class="home-panel-empty">Your favourited scenarios will appear here</div>'}</div>
     </div>
-    <div class="home-panel">
+    <div class="home-panel panel-blue">
       <div class="home-panel-header">
-        <span style="font-size:14px">🔥</span>
-        <div class="home-panel-title">Most Popular</div>
+        <span style="font-size:14px">🕐</span>
+        <div class="home-panel-title">Recently Added</div>
       </div>
-      <div class="home-panel-body">${popularScenarios.length ? renderItems(popularScenarios, 8) : '<div class="home-panel-empty">No favourites yet — be the first to star a scenario</div>'}</div>
+      <div class="home-panel-body">${renderItems(recentAll, 8)}</div>
     </div>`;
 }
 
