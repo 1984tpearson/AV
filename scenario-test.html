@@ -1193,7 +1193,7 @@ body.flag-mode-active .flaggable.has-correction:hover { outline: 2px solid var(-
 .dash-ecg-clip {
   position: absolute;
   left: 0; right: 0; bottom: 0;
-  height: 62px;
+  height: 85px;
   overflow: hidden;
   opacity: 0.45;
   pointer-events: none;
@@ -2323,7 +2323,7 @@ function mountHomeHeroEcg() {
   const mount = document.getElementById('dash-hero-ecg-mount');
   if (!mount || typeof ECGEngine === 'undefined') return;
   try {
-    const engine = new ECGEngine(mount, { mode: 'strip', theme: 'monitor', height: 200 });
+    const engine = new ECGEngine(mount, { mode: 'strip', theme: 'monitor', height: 280 });
     const bpm = 58 + Math.floor(Math.random() * 38); // 58–95, normal sinus range
     engine.setRhythm('nsr', bpm);
     // Override the engine's live trace styling (real canvas stroke, not CSS) —
