@@ -365,17 +365,23 @@ body.snav-active #content { padding-left: 60px; }
 .car-stripe { width: 3px; height: 20px; border-radius: 2px; flex-shrink: 0; }
 
 /* Home panels grid */
-.home-panels { display: grid; grid-template-columns: 1fr; gap: 12px; }
-@media (min-width: 600px) { .home-panels { grid-template-columns: 1fr 1.6fr; } }
+.home-panels { display: flex; flex-direction: column; gap: 12px; }
+.home-panels-row { display: grid; grid-template-columns: 1fr; gap: 12px; }
+@media (min-width: 600px) {
+  .home-panels-row.row-a { grid-template-columns: 1.5fr 1fr; }
+  .home-panels-row.row-b { grid-template-columns: 1fr 1.35fr; }
+}
 .home-panel { background: white; border: 1px solid var(--border); border-radius: 10px; overflow: hidden; box-shadow: var(--shadow); }
-.home-panel.panel-blue { border-color: var(--blue); background: var(--blue-light); }
-.home-panel.panel-navy { border-color: var(--navy); background: #EBF0F8; }
-.home-panel.panel-amber { border-color: var(--amber); background: var(--amber-light); }
-.home-panel.panel-red { border-color: var(--red); background: var(--red-light); }
+.home-panel.panel-blue { background: var(--blue-light); }
+.home-panel.panel-navy { background: #EBF0F8; }
+.home-panel.panel-amber { background: var(--amber-light); }
+.home-panel.panel-purple { background: var(--purple-light); }
+.home-panel.panel-green { background: var(--green-light); }
 .home-panel.panel-blue .home-panel-title { color: var(--blue); }
 .home-panel.panel-navy .home-panel-title { color: var(--navy); }
 .home-panel.panel-amber .home-panel-title { color: var(--amber); }
-.home-panel.panel-red .home-panel-title { color: var(--red); }
+.home-panel.panel-purple .home-panel-title { color: var(--purple); }
+.home-panel.panel-green .home-panel-title { color: var(--green); }
 .home-panel-header { padding: 10px 14px 8px; border-bottom: 1px solid rgba(0,0,0,0.06); display: flex; align-items: center; gap: 6px; }
 .home-panel-title { font-size: 11px; font-weight: 700; color: var(--grey); text-transform: uppercase; letter-spacing: 0.06em; flex: 1; }
 .home-panel-body { padding: 6px 0; min-height: 60px; }
@@ -1186,7 +1192,8 @@ body.flag-mode-active .flaggable.has-correction:hover { outline: 2px solid var(-
 }
 .dash-ecg-clip {
   position: absolute;
-  inset: 0;
+  left: 0; right: 0; bottom: 0;
+  height: 62px;
   overflow: hidden;
   opacity: 0.45;
   pointer-events: none;
@@ -2315,7 +2322,7 @@ function mountHomeHeroEcg() {
   const mount = document.getElementById('dash-hero-ecg-mount');
   if (!mount || typeof ECGEngine === 'undefined') return;
   try {
-    const engine = new ECGEngine(mount, { mode: 'strip', theme: 'monitor', height: 500 });
+    const engine = new ECGEngine(mount, { mode: 'strip', theme: 'monitor', height: 200 });
     const bpm = 58 + Math.floor(Math.random() * 38); // 58–95, normal sinus range
     engine.setRhythm('nsr', bpm);
     // Override the engine's live trace styling (real canvas stroke, not CSS) —
@@ -2510,33 +2517,37 @@ function buildHomePanels() {
     .filter(Boolean);
 
   container.innerHTML = `
-    <div class="home-panel panel-red">
-      <div class="home-panel-header">
-        <span style="font-size:14px">🔥</span>
-        <div class="home-panel-title">Most Popular</div>
+    <div class="home-panels-row row-a">
+      <div class="home-panel panel-amber">
+        <div class="home-panel-header">
+          <span style="font-size:14px">🔥</span>
+          <div class="home-panel-title">Most Popular</div>
+        </div>
+        <div class="home-panel-body">${popularScenarios.length ? renderItems(popularScenarios, 8) : '<div class="home-panel-empty">No favourites yet — be the first to star a scenario</div>'}</div>
       </div>
-      <div class="home-panel-body">${popularScenarios.length ? renderItems(popularScenarios, 8) : '<div class="home-panel-empty">No favourites yet — be the first to star a scenario</div>'}</div>
+      <div class="home-panel panel-navy">
+        <div class="home-panel-header">
+          <span style="font-size:14px">📁</span>
+          <div class="home-panel-title">My Scenarios</div>
+        </div>
+        <div class="home-panel-body">${myScenarios.length ? renderItems(myScenarios, 8) : '<div class="home-panel-empty">Scenarios you create will appear here</div>'}</div>
+      </div>
     </div>
-    <div class="home-panel panel-navy">
-      <div class="home-panel-header">
-        <span style="font-size:14px">📁</span>
-        <div class="home-panel-title">My Scenarios</div>
+    <div class="home-panels-row row-b">
+      <div class="home-panel panel-purple">
+        <div class="home-panel-header">
+          <span style="font-size:14px">⭐</span>
+          <div class="home-panel-title">My Favourites</div>
+        </div>
+        <div class="home-panel-body">${favScenarios.length ? renderItems(favScenarios, 8) : '<div class="home-panel-empty">Your favourited scenarios will appear here</div>'}</div>
       </div>
-      <div class="home-panel-body">${myScenarios.length ? renderItems(myScenarios, 8) : '<div class="home-panel-empty">Scenarios you create will appear here</div>'}</div>
-    </div>
-    <div class="home-panel panel-amber">
-      <div class="home-panel-header">
-        <span style="font-size:14px">⭐</span>
-        <div class="home-panel-title">My Favourites</div>
+      <div class="home-panel panel-green">
+        <div class="home-panel-header">
+          <span style="font-size:14px">🕐</span>
+          <div class="home-panel-title">Recently Added</div>
+        </div>
+        <div class="home-panel-body">${renderItems(recentAll, 8)}</div>
       </div>
-      <div class="home-panel-body">${favScenarios.length ? renderItems(favScenarios, 8) : '<div class="home-panel-empty">Your favourited scenarios will appear here</div>'}</div>
-    </div>
-    <div class="home-panel panel-blue">
-      <div class="home-panel-header">
-        <span style="font-size:14px">🕐</span>
-        <div class="home-panel-title">Recently Added</div>
-      </div>
-      <div class="home-panel-body">${renderItems(recentAll, 8)}</div>
     </div>`;
 }
 
