@@ -7,177 +7,260 @@
 <script>
 (function(){const t=localStorage.getItem('av_theme');if(t&&t!=='default')document.documentElement.setAttribute('data-theme',t);})();
 </script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;family=IBM+Plex+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
 <style>
-  :root {
-    --navy: #1C3A6E;
-    --navy-dark: #122849;
-    --navy-light: #2A4F8F;
-    --red: #C0392B;
-    --amber: #E8921A;
-    --green: #27833A;
-    --green-light: #EAFAF1;
-    --blue: #2E86C1;
-    --blue-light: #EBF5FB;
-    --purple: #7D3C98;
-    --purple-light: #F5EEF8;
-    --grey: #6C7A89;
-    --light: #F4F6F9;
-    --white: #FFFFFF;
-    --text: #1A1A2E;
-    --border: #D5D8DC;
-    --shadow: 0 2px 12px rgba(0,0,0,0.09);
-  }
+:root {
+  --navy: #16263C;
+  --navy-dark: #0B1420;
+  --navy-light: #1C314C;
+  --amber: #F5A623;
+  --amber-light: rgba(245,166,35,0.14);
+  --green: #2FA84F;
+  --green-light: rgba(47,168,79,0.14);
+  --blue: #3B8FD9;
+  --blue-light: rgba(59,143,217,0.14);
+  --purple: #A66BD1;
+  --purple-light: rgba(166,107,209,0.14);
+  --grey: #7A90A8;
+  --light: #0F1B2C;
+  --white: #111D2E;
+  --text: #E8EEF4;
+  --border: rgba(255,255,255,0.09);
+  --shadow: 0 6px 24px rgba(0,0,0,0.45);
+}
 
-  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
 
-  body {
-    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
-    background: var(--light);
-    color: var(--text);
-    line-height: 1.5;
-    min-height: 100vh;
-    overscroll-behavior: none;
-  }
+body {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  background: var(--navy-dark);
+  color: var(--text);
+  line-height: 1.5;
+  min-height: 100vh;
+  overscroll-behavior: none;
+}
 
-  #topbar {
-    background: var(--navy);
-    color: white;
-    padding: 0 20px;
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    height: 56px;
-    position: fixed;
-    top: 0; left: 0; right: 0;
-    z-index: 100;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.25);
-  }
+#topbar {
+  background: var(--navy);
+  color: var(--text);
+  padding: 0 20px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 56px;
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  z-index: 100;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.4);
+  border-bottom: 1px solid var(--border);
+}
 
-  #topbar-back {
-    background: rgba(255,255,255,0.15);
-    border: 1px solid rgba(255,255,255,0.3);
-    color: white;
-    padding: 7px 12px;
-    border-radius: 7px;
-    font-size: 13px;
-    font-weight: 600;
-    text-decoration: none;
-    display: flex;
-    align-items: center;
-    gap: 5px;
-    flex-shrink: 0;
-  }
+#topbar-back {
+  background: rgba(255,255,255,0.08);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 7px 12px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex-shrink: 0;
+}
 
-  #topbar-title { font-size: 17px; font-weight: 700; letter-spacing: 0.3px; }
-  #topbar-sub { font-size: 11px; opacity: 0.65; }
+#topbar-title {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 1.5px;
+}
 
-  #main {
-    padding: 72px 16px 32px;
-    max-width: 860px;
-    margin: 0 auto;
-  }
+#main {
+  padding: 80px 16px 40px;
+  max-width: 860px;
+  margin: 0 auto;
+}
 
-  .hero {
-    background: var(--navy);
-    border-radius: 16px;
-    padding: 28px 24px 24px;
-    color: white;
-    margin-bottom: 24px;
-    position: relative;
-    overflow: hidden;
-  }
+.mono { font-family: 'IBM Plex Mono', monospace; }
 
-  .hero::before {
-    content: '';
-    position: absolute;
-    top: -30px; right: -30px;
-    width: 160px; height: 160px;
-    border-radius: 50%;
-    background: rgba(255,255,255,0.05);
-    pointer-events: none;
-  }
+/* ── HERO / DISPATCH TICKET ── */
+.hero {
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  margin-bottom: 28px;
+  overflow: hidden;
+  box-shadow: var(--shadow);
+  display: flex;
+  flex-wrap: wrap;
+}
 
-  .hero-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    background: rgba(255,255,255,0.12);
-    border: 1px solid rgba(255,255,255,0.2);
-    border-radius: 20px;
-    padding: 4px 12px;
-    font-size: 11px;
-    font-weight: 600;
-    letter-spacing: 0.5px;
-    text-transform: uppercase;
-    margin-bottom: 12px;
-  }
+.hero-ticket {
+  background: var(--navy-dark);
+  padding: 20px 22px;
+  flex: 1;
+  min-width: 220px;
+  border-right: 1px solid var(--border);
+}
 
-  .hero h1 { font-size: 26px; font-weight: 800; margin-bottom: 6px; letter-spacing: 0.5px; }
-  .hero .hero-fullname { font-size: 13px; opacity: 0.7; margin-bottom: 10px; font-weight: 600; }
-  .hero p { font-size: 14px; opacity: 0.8; line-height: 1.6; max-width: 520px; }
+.ticket-label {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 1.5px;
+  color: var(--grey);
+  text-transform: uppercase;
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
 
-  .section-label {
-    font-size: 10px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    color: var(--grey);
-    margin-bottom: 12px;
-    padding-left: 2px;
-  }
+.ticket-dot {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: var(--green);
+  animation: pulse-dot 2s infinite;
+  flex-shrink: 0;
+}
 
-  .dash-list { display: flex; flex-direction: column; gap: 12px; }
+@keyframes pulse-dot {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(47,168,79,0.45); }
+  50% { box-shadow: 0 0 0 6px rgba(47,168,79,0); }
+}
 
-  .dash-card {
-    background: var(--white);
-    border-radius: 14px;
-    border: 1px solid var(--border);
-    box-shadow: var(--shadow);
-    display: flex;
-    align-items: center;
-    gap: 16px;
-    padding: 18px;
-    text-decoration: none;
-    color: inherit;
-    transition: transform 0.15s, box-shadow 0.15s;
-  }
+.ticket-id {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 5px;
+}
 
-  .dash-card:active { transform: scale(0.98); box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+.ticket-status {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 12px;
+  color: var(--green);
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
 
-  .dash-icon {
-    width: 46px; height: 46px;
-    border-radius: 12px;
-    display: flex; align-items: center; justify-content: center;
-    flex-shrink: 0;
-  }
-  .dash-icon svg { width: 22px; height: 22px; }
+.ticket-clock {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  color: var(--grey);
+  margin-top: 16px;
+  letter-spacing: 0.5px;
+}
 
-  .icon-purple { background: var(--purple-light); color: var(--purple); }
-  .icon-navy   { background: #EBF0F8; color: var(--navy); }
-  .icon-blue   { background: var(--blue-light); color: var(--blue); }
+.hero-body {
+  padding: 22px 24px;
+  flex: 2;
+  min-width: 260px;
+}
 
-  .dash-text { flex: 1; min-width: 0; }
-  .dash-title { font-size: 15px; font-weight: 700; margin-bottom: 4px; }
-  .dash-desc { font-size: 12.5px; color: var(--grey); line-height: 1.5; }
+.hero-eyebrow {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 1.5px;
+  color: var(--amber);
+  text-transform: uppercase;
+  margin-bottom: 10px;
+}
 
-  .dash-arrow {
-    width: 30px; height: 30px;
-    border-radius: 50%;
-    background: var(--light);
-    border: 1px solid var(--border);
-    display: flex; align-items: center; justify-content: center;
-    flex-shrink: 0;
-    color: var(--grey);
-  }
-  .dash-arrow svg { width: 14px; height: 14px; }
+.hero-body h1 { font-size: 30px; font-weight: 800; letter-spacing: 0.5px; margin-bottom: 4px; }
+.hero-fullname { font-size: 12.5px; color: var(--grey); font-weight: 600; margin-bottom: 12px; }
+.hero-body p { font-size: 13.5px; color: var(--grey); line-height: 1.65; max-width: 440px; }
 
-  .footer {
-    text-align: center;
-    padding: 24px 0 env(safe-area-inset-bottom, 0);
-    font-size: 11px;
-    color: var(--grey);
-    line-height: 1.7;
-  }
+/* ── SECTIONS LIST ── */
+.section-label {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: var(--grey);
+  margin-bottom: 12px;
+  padding-left: 2px;
+}
+
+.dash-panel {
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: var(--shadow);
+}
+
+.dash-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 18px 20px;
+  border-bottom: 1px solid var(--border);
+  text-decoration: none;
+  color: inherit;
+  transition: background 0.15s;
+}
+.dash-row:last-child { border-bottom: none; }
+.dash-row:active { background: rgba(255,255,255,0.03); }
+
+.status-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: var(--green);
+  animation: pulse-dot 2.2s infinite;
+}
+
+.row-icon {
+  width: 42px; height: 42px;
+  border-radius: 9px;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.row-icon svg { width: 20px; height: 20px; }
+
+.icon-purple { background: var(--purple-light); color: var(--purple); }
+.icon-amber  { background: var(--amber-light); color: var(--amber); }
+.icon-blue   { background: var(--blue-light); color: var(--blue); }
+
+.row-text { flex: 1; min-width: 0; }
+.row-title { font-size: 14.5px; font-weight: 700; margin-bottom: 3px; }
+.row-status-label {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.8px;
+  color: var(--green);
+  text-transform: uppercase;
+  margin-bottom: 4px;
+  font-weight: 600;
+}
+.row-desc { font-size: 12px; color: var(--grey); line-height: 1.55; }
+
+.row-arrow {
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+  color: var(--grey);
+}
+.row-arrow svg { width: 13px; height: 13px; }
+
+.footer {
+  text-align: center;
+  padding: 28px 0 env(safe-area-inset-bottom, 0);
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10.5px;
+  color: var(--grey);
+  letter-spacing: 0.5px;
+  line-height: 1.9;
+}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
@@ -189,68 +272,80 @@
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
     Home
   </a>
-  <div>
-    <div id="topbar-title">DASH</div>
-  </div>
+  <div id="topbar-title">DASH</div>
 </div>
 
 <div id="main">
 
   <div class="hero">
-    <div class="hero-badge">Clinical Simulation</div>
-    <h1>DASH</h1>
-    <div class="hero-fullname">Dynamic Assessment &amp; Simulation Hub</div>
-    <p>Build, run, and display AI-assisted ALS scenarios in one place — generate a case, assess it verbally against CPGs, and mirror live vitals to a second screen.</p>
+    <div class="hero-ticket">
+      <div class="ticket-label"><span class="ticket-dot"></span> Incoming Case</div>
+      <div class="ticket-id">#2214</div>
+      <div class="ticket-status">● Ready</div>
+      <div class="ticket-clock" id="dash-clock">--:--:--</div>
+    </div>
+    <div class="hero-body">
+      <div class="hero-eyebrow">Clinical Simulation</div>
+      <h1>DASH</h1>
+      <div class="hero-fullname">Dynamic Assessment &amp; Simulation Hub</div>
+      <p>Build, run, and display AI-assisted ALS scenarios in one place — generate a case, assess it verbally against CPGs, and mirror live vitals to a second screen.</p>
+    </div>
   </div>
 
   <div class="section-label">Sections</div>
-  <div class="dash-list">
+  <div class="dash-panel">
 
-    <a class="dash-card" href="generator.html">
-      <div class="dash-icon icon-purple">
+    <a class="dash-row" href="generator.html">
+      <span class="status-dot"></span>
+      <div class="row-icon icon-purple">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M12 2l1.5 4.5L18 8l-4.5 1.5L12 14l-1.5-4.5L6 8l4.5-1.5L12 2z"/>
           <path d="M19 13l.75 2.25L22 16l-2.25.75L19 19l-.75-2.25L16 16l2.25-.75L19 13z"/>
         </svg>
       </div>
-      <div class="dash-text">
-        <div class="dash-title">Scenario Generator</div>
-        <div class="dash-desc">AI-assisted scenario creation — generate new ALS cases from a category, complexity, or free-text prompt.</div>
+      <div class="row-text">
+        <div class="row-status-label">Ready</div>
+        <div class="row-title">Scenario Generator</div>
+        <div class="row-desc">AI-assisted scenario creation — generate new ALS cases from a category, complexity, or free-text prompt.</div>
       </div>
-      <div class="dash-arrow">
+      <div class="row-arrow">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
       </div>
     </a>
 
-    <a class="dash-card" href="scenario.html">
-      <div class="dash-icon icon-navy">
+    <a class="dash-row" href="scenario.html">
+      <span class="status-dot"></span>
+      <div class="row-icon icon-amber">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M9 11l3 3L22 4"/>
           <path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/>
         </svg>
       </div>
-      <div class="dash-text">
-        <div class="dash-title">Verbal Scenario Assessment Tool</div>
-        <div class="dash-desc">Run graded ALS verbal scenarios. CPG-linked management, scoring, and AI-assisted case creation for levels A–D.</div>
+      <div class="row-text">
+        <div class="row-status-label">Ready</div>
+        <div class="row-title">Verbal Scenario Assessment Tool</div>
+        <div class="row-desc">Run graded ALS verbal scenarios. CPG-linked management, scoring, and AI-assisted case creation for levels A–D.</div>
       </div>
-      <div class="dash-arrow">
+      <div class="row-arrow">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
       </div>
     </a>
 
-    <a class="dash-card" href="monitor.html" target="_blank">
-      <div class="dash-icon icon-blue">
+    <a class="dash-row" href="monitor.html" target="_blank">
+      <span class="status-dot"></span>
+      <div class="row-icon icon-blue">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <rect x="2" y="3" width="20" height="14" rx="2"/>
           <line x1="8" y1="21" x2="16" y2="21"/>
           <line x1="12" y1="17" x2="12" y2="21"/>
         </svg>
       </div>
-      <div class="dash-text">
-        <div class="dash-title">Monitor Screen</div>
-        <div class="dash-desc">Secondary display for the student — shows live vitals and rhythm fed from the Scenario Builder. Opens in a new tab.</div>
+      <div class="row-text">
+        <div class="row-status-label">Ready</div>
+        <div class="row-title">Monitor Screen</div>
+        <div class="row-desc">Secondary display for the student — shows live vitals and rhythm fed from the Scenario Builder. Opens in a new tab.</div>
       </div>
-      <div class="dash-arrow">
+      <div class="row-arrow">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
       </div>
     </a>
@@ -258,8 +353,8 @@
   </div>
 
   <div class="footer">
-    <div>DASH — Dynamic Assessment &amp; Simulation Hub</div>
-    <div>Part of the Paramedic Training Tools suite &nbsp;·&nbsp; For training use only</div>
+    DASH — DYNAMIC ASSESSMENT &amp; SIMULATION HUB<br>
+    PART OF THE PARAMEDIC TRAINING TOOLS SUITE &middot; FOR TRAINING USE ONLY
   </div>
 
 </div><!-- /main -->
@@ -270,6 +365,13 @@ const _sb = supabase.createClient(
   'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJlZnNqZW5iYXJ1eHFybnR1aHBuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI2MjA5MjAsImV4cCI6MjA4ODE5NjkyMH0.hOFFbIvd1wAgu-QyghupQ-7ttSpg7sxz_UsJbXyXztA'
 );
 window.__avSupabaseClient = _sb;
+
+function dashTick() {
+  const el = document.getElementById('dash-clock');
+  if (el) el.textContent = new Date().toLocaleTimeString('en-GB');
+}
+dashTick();
+setInterval(dashTick, 1000);
 </script>
 
 <script src="nav.js"></script>
