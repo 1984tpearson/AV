@@ -1156,7 +1156,7 @@ body.flag-mode-active .flaggable.has-correction:hover { outline: 2px solid var(-
 .dash-hero {
   background: linear-gradient(135deg, var(--navy) 0%, var(--navy-light) 100%);
   border-radius: 14px;
-  padding: 26px 24px 28px;
+  padding: 26px 24px 90px;
   margin-bottom: 14px;
   position: relative;
   overflow: hidden;
@@ -1166,10 +1166,14 @@ body.flag-mode-active .flaggable.has-correction:hover { outline: 2px solid var(-
 .dash-ecg-clip {
   position: absolute;
   left: 0; right: 0; bottom: 0;
-  height: 78px;
+  height: 71px;
   overflow: hidden;
-  opacity: 0.4;
+  opacity: 0.55;
   pointer-events: none;
+}
+.dash-ecg-clip .ecg-strip-label { display: none !important; }
+.dash-ecg-clip canvas {
+  filter: drop-shadow(0 0 1px rgba(0,255,140,0.85)) drop-shadow(0 0 1.5px rgba(0,255,140,0.6));
 }
 .dash-hero-content { position: relative; z-index: 1; }
 .dash-hero-wordmark { font-family: 'Orbitron', sans-serif; font-size: 34px; font-weight: 700; letter-spacing: 3px; margin-bottom: 6px; }
@@ -2251,7 +2255,7 @@ function mountHomeHeroEcg() {
   const mount = document.getElementById('dash-hero-ecg-mount');
   if (!mount || typeof ECGEngine === 'undefined') return;
   try {
-    const engine = new ECGEngine(mount, { mode: 'strip', theme: 'monitor', height: 250 });
+    const engine = new ECGEngine(mount, { mode: 'strip', theme: 'monitor', height: 230 });
     const bpm = 58 + Math.floor(Math.random() * 38); // 58–95, normal sinus range
     engine.setRhythm('nsr', bpm);
   } catch (e) {
