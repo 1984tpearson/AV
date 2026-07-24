@@ -2322,6 +2322,20 @@ function buildFeaturedCase() {
 
 let homeHeroEcgEngine = null;
 
+// Hardcoded rather than reading the engine's internal RHYTHMS object —
+// that turned out not to be reachable from here, which is why randomisation
+// was silently failing (every call returned early and did nothing).
+const HOME_ECG_RHYTHMS = [
+  {key:'nsr',bpm:72},{key:'stach',bpm:130},{key:'sbrad',bpm:48},{key:'svt',bpm:170},
+  {key:'vt',bpm:175},{key:'aivr',bpm:60},{key:'chb',bpm:38},{key:'af',bpm:110},
+  {key:'aflut',bpm:0},{key:'mob1',bpm:0},{key:'mob2',bpm:0},{key:'vf',bpm:0},
+  {key:'deg1',bpm:70},{key:'junct',bpm:60},{key:'wpw',bpm:72},{key:'pvc',bpm:70},
+  {key:'hyperK',bpm:65},{key:'hypoK',bpm:72},{key:'longQT',bpm:65},{key:'peri',bpm:90},
+  {key:'nstemi',bpm:85},{key:'pe',bpm:110},{key:'brugada',bpm:72},{key:'asys',bpm:0},
+  {key:'vvipace',bpm:72},{key:'aaipace',bpm:72},{key:'dddpace',bpm:72},
+  {key:'stemi-inf',bpm:72},{key:'stemi-ant',bpm:72},{key:'stemi-lat',bpm:72},{key:'stemi-post',bpm:72}
+];
+
 function mountHomeHeroEcg() {
   const mount = document.getElementById('dash-hero-ecg-mount');
   if (!mount || typeof ECGEngine === 'undefined') return;
@@ -2336,11 +2350,9 @@ function mountHomeHeroEcg() {
 }
 
 function randomiseHomeHeroEcg() {
-  if (!homeHeroEcgEngine || typeof RHYTHMS === 'undefined') return;
-  const keys = Object.keys(RHYTHMS);
-  const key = keys[Math.floor(Math.random() * keys.length)];
-  const def = RHYTHMS[key];
-  homeHeroEcgEngine.setRhythm(key, (def && def.defaultBpm) || 0);
+  if (!homeHeroEcgEngine) return;
+  const pick = HOME_ECG_RHYTHMS[Math.floor(Math.random() * HOME_ECG_RHYTHMS.length)];
+  homeHeroEcgEngine.setRhythm(pick.key, pick.bpm);
   // Re-apply live trace styling (real canvas stroke, not CSS) — brand blue
   // instead of the default monitor green, and a bolder line.
   window._traceColour = '#8FB9DE';
