@@ -2289,12 +2289,32 @@ async function buildFeaturedCase() {
   const all = getAllScenarios();
   if (!all.length) { container.innerHTML = '<div class="home-panel-empty">No scenarios yet</div>'; return; }
 
+  const weekKey = getFeaturedCaseWeekKey();
+
   // Deterministic weekly pick — same case for everyone all week, rotates each Monday.
-  const now = new Date();
-  const startOfYear = new Date(now.getFullYear(), 0, 1);
-  const weekNum = Math.ceil((((now - startOfYear) / 86400000) + startOfYear.getDay() + 1) / 7);
-  const weekKey = `${now.getFullYear()}-W${weekNum}`;
-  const s = all[weekNum % all.length];
+  // Used only as a fallback if nothing has been manually featured for this week.
+  const startOfYear = new Date(new Date().getFullYear(), 0, 1);
+  const weekNum = Math.ceil((((new Date() - startOfYear) / 86400000) + startOfYear.getDay() + 1) / 7);
+  let s = all[weekNum % all.length];
+  let blurb = s.subtitle || s.dispatch || s.caller_hx || 'A case from the library, picked for this week.';
+  let cached = false;
+
+  // Check for a cached/manually-featured entry for this week — never calls
+  // the API on a plain page view, only reads whatever an admin already set.
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/featured_case_blurbs?week_key=eq.${encodeURIComponent(weekKey)}&select=scenario_id,blurb`, {
+      headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
+    });
+    if (res.ok) {
+      const rows = await res.json();
+      if (rows && rows[0] && rows[0].blurb) {
+        const featured = all.find(x => String(x.id) === String(rows[0].scenario_id));
+        if (featured) s = featured; // honour the manually-featured scenario if we can find it locally
+        blurb = rows[0].blurb;
+        cached = true;
+      }
+    }
+  } catch (e) { /* fall back silently — the card still works without it */ }
 
   const FC_BG = {
     'Adult': 'linear-gradient(135deg, #EBF0F8 0%, #F7FAFF 100%)',
@@ -2311,38 +2331,38 @@ async function buildFeaturedCase() {
   const dot = CAT_COLORS[s.category] || 'var(--grey)';
   const bg = FC_BG[s.category] || 'var(--light)';
   const icon = FC_ICON[s.category] || '✦';
-  const fallbackBlurb = s.subtitle || s.dispatch || s.caller_hx || 'A case from the library, picked for this week.';
 
   container.style.background = bg;
-
-  // Check for a cached AI blurb for this week — never calls the API on a
-  // plain page view, only reads whatever an admin has already generated.
-  let blurb = fallbackBlurb;
-  let cached = false;
-  try {
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/featured_case_blurbs?week_key=eq.${encodeURIComponent(weekKey)}&select=blurb`, {
-      headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
-    });
-    if (res.ok) {
-      const rows = await res.json();
-      if (rows && rows[0] && rows[0].blurb) { blurb = rows[0].blurb; cached = true; }
-    }
-  } catch (e) { /* fall back silently — the card still works without it */ }
-
-  const showGenerateBtn = !cached && typeof AVNav !== 'undefined' && AVNav.isAdmin && AVNav.isAdmin();
-
   renderFeaturedCase(container, s, icon, dot, blurb);
+
+  const showGenerateBtn = !cached && typeof isAdmin === 'function' && isAdmin();
   if (showGenerateBtn) {
     const btn = document.createElement('button');
     btn.className = 'fc-generate-btn';
     btn.type = 'button';
     btn.textContent = '✦ Generate AI blurb for this week';
-    btn.onclick = (e) => {
+    btn.onclick = async (e) => {
       e.stopPropagation();
-      generateFeaturedCaseBlurb(weekKey, s, container, icon, dot);
+      btn.disabled = true; btn.textContent = 'Generating…';
+      try {
+        const newBlurb = await generateFeaturedCaseBlurbText(s);
+        await saveFeaturedCaseBlurb(weekKey, s.id, newBlurb);
+        btn.remove();
+        renderFeaturedCase(container, s, icon, dot, newBlurb);
+      } catch (err) {
+        console.error('Featured case blurb generation failed:', err.message);
+        btn.disabled = false; btn.textContent = '✦ Retry — generation failed';
+      }
     };
     container.appendChild(btn);
   }
+}
+
+function getFeaturedCaseWeekKey(date) {
+  const now = date || new Date();
+  const startOfYear = new Date(now.getFullYear(), 0, 1);
+  const weekNum = Math.ceil((((now - startOfYear) / 86400000) + startOfYear.getDay() + 1) / 7);
+  return `${now.getFullYear()}-W${weekNum}`;
 }
 
 function renderFeaturedCase(container, s, icon, dot, blurb) {
@@ -2356,58 +2376,73 @@ function renderFeaturedCase(container, s, icon, dot, blurb) {
   container.onclick = () => loadScenario(s.id);
 }
 
-async function generateFeaturedCaseBlurb(weekKey, s, container, icon, dot) {
-  const btn = container.querySelector('.fc-generate-btn');
-  if (btn) { btn.disabled = true; btn.textContent = 'Generating…'; }
+// Pure generation — calls Claude, returns blurb text, throws on failure.
+// Shared by the home-screen "generate for this week" button and the
+// scenario-view "mark as featured case" button.
+async function generateFeaturedCaseBlurbText(s) {
+  const apiKey = await getAnthropicKeyForKQ();
+  const detail = s.subtitle || s.dispatch || s.caller_hx || '';
+  const response = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' },
+    body: JSON.stringify({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 200,
+      system: 'You write a short, punchy teaser (2 sentences) for a paramedic training scenario, shown on a homepage "Featured Case" card. Plain text only, no markdown, no quotation marks. Under 40 words total. Do not invent clinical details not implied by what is given.',
+      messages: [{ role: 'user', content:
+        `Scenario title: ${s.title || 'Untitled'}\nCategory: ${s.category || ''} / ${s.subcategory || ''}\n` +
+        (detail ? `Existing dispatch/case detail: ${detail}\n` : '') +
+        `Write the teaser now.`
+      }]
+    })
+  });
+  if (!response.ok) { const e = await response.json().catch(() => ({})); throw new Error(e.error?.message || ('API error ' + response.status)); }
+  const data = await response.json();
+  const blurb = (data.content || []).filter(b => b.type === 'text').map(b => b.text).join('').trim();
+  if (!blurb) throw new Error('AI returned an empty blurb.');
+
+  if (typeof AVNav !== 'undefined' && AVNav.logAIUsage) {
+    AVNav.logAIUsage({
+      source: 'dash-featured-case',
+      model: 'claude-haiku-4-5-20251001',
+      input_tokens: data.usage ? data.usage.input_tokens : 0,
+      output_tokens: data.usage ? data.usage.output_tokens : 0,
+      label: `Featured case blurb — ${s.title || s.id}`
+    });
+  }
+  return blurb;
+}
+
+// Upsert — admin-only write per RLS (is_admin() policy on the table).
+async function saveFeaturedCaseBlurb(weekKey, scenarioId, blurb) {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/featured_case_blurbs`, {
+    method: 'POST',
+    headers: {
+      'apikey': SUPABASE_KEY,
+      'Authorization': `Bearer ${(_authSession && _authSession.access_token) || SUPABASE_KEY}`,
+      'Content-Type': 'application/json', 'Prefer': 'resolution=merge-duplicates'
+    },
+    body: JSON.stringify({ week_key: weekKey, scenario_id: scenarioId, blurb })
+  });
+  if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.message || ('Save failed — ' + res.status)); }
+}
+
+// Admin action from the scenario-detail view — generates a blurb for THIS
+// scenario and pins it as the featured case for the current week, overriding
+// whatever the deterministic weekly rotation would otherwise have shown.
+// It won't change again until next week (or until re-triggered).
+async function markAsFeaturedCase(scenarioId) {
+  const s = getAllScenarios().find(x => String(x.id) === String(scenarioId));
+  if (!s) { showToast('⚠️ Could not find this scenario'); return; }
+  const weekKey = getFeaturedCaseWeekKey();
+  showToast('✦ Generating featured case blurb…', 4000);
   try {
-    const apiKey = await getAnthropicKeyForKQ();
-    const detail = s.subtitle || s.dispatch || s.caller_hx || '';
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' },
-      body: JSON.stringify({
-        model: 'claude-haiku-4-5-20251001',
-        max_tokens: 100,
-        system: 'You write a single punchy one-sentence teaser for a paramedic training scenario, shown on a homepage "Featured Case" card. Plain text only, no markdown, no quotation marks. Under 20 words. Do not invent clinical details not implied by what is given.',
-        messages: [{ role: 'user', content:
-          `Scenario title: ${s.title || 'Untitled'}\nCategory: ${s.category || ''} / ${s.subcategory || ''}\n` +
-          (detail ? `Existing dispatch/case detail: ${detail}\n` : '') +
-          `Write the one-sentence teaser now.`
-        }]
-      })
-    });
-    if (!response.ok) { const e = await response.json().catch(() => ({})); throw new Error(e.error?.message || ('API error ' + response.status)); }
-    const data = await response.json();
-    const blurb = (data.content || []).filter(b => b.type === 'text').map(b => b.text).join('').trim();
-    if (!blurb) throw new Error('AI returned an empty blurb.');
-
-    // Cache it for the week — admin-only write per RLS.
-    await fetch(`${SUPABASE_URL}/rest/v1/featured_case_blurbs`, {
-      method: 'POST',
-      headers: {
-        'apikey': SUPABASE_KEY,
-        'Authorization': `Bearer ${(_authSession && _authSession.access_token) || SUPABASE_KEY}`,
-        'Content-Type': 'application/json', 'Prefer': 'resolution=merge-duplicates'
-      },
-      body: JSON.stringify({ week_key: weekKey, scenario_id: s.id, blurb })
-    });
-
-    if (typeof AVNav !== 'undefined' && AVNav.logAIUsage) {
-      AVNav.logAIUsage({
-        source: 'dash-featured-case',
-        model: 'claude-haiku-4-5-20251001',
-        input_tokens: data.usage ? data.usage.input_tokens : 0,
-        output_tokens: data.usage ? data.usage.output_tokens : 0,
-        label: `Featured case blurb — ${weekKey}`
-      });
-    }
-
-    const btnEl = container.querySelector('.fc-generate-btn');
-    if (btnEl) btnEl.remove();
-    renderFeaturedCase(container, s, icon, dot, blurb);
+    const blurb = await generateFeaturedCaseBlurbText(s);
+    await saveFeaturedCaseBlurb(weekKey, s.id, blurb);
+    showToast(`⭐ "${s.title}" is now this week's Featured Case`, 3000);
   } catch (e) {
-    console.error('Featured case blurb generation failed:', e.message);
-    if (btn) { btn.disabled = false; btn.textContent = '✦ Retry — generation failed'; }
+    console.error('Mark as featured case failed:', e.message);
+    showToast('⚠️ Could not set featured case — ' + e.message, 3000);
   }
 }
 
@@ -3620,6 +3655,7 @@ function renderScenario(s) {
   </div>
   <div style="display:flex;flex-direction:column;align-items:flex-end;gap:8px;flex-shrink:0">
     <button id="fav-toggle-btn" onclick="toggleFavourite('${s.id}')" title="${_myFavourites.has(s.id)?'Remove from favourites':'Add to favourites'}" style="background:${_myFavourites.has(s.id)?'rgba(255,205,60,0.28)':'rgba(255,255,255,0.15)'};border:1px solid ${_myFavourites.has(s.id)?'rgba(255,205,60,0.55)':'rgba(255,255,255,0.3)'};color:white;padding:7px 14px;border-radius:7px;cursor:pointer;font-size:12px;font-weight:700;white-space:nowrap">${_myFavourites.has(s.id)?'⭐ Favourited':'☆ Favourite'}</button>
+    ${isAdmin() ? `<button onclick="markAsFeaturedCase('${s.id}')" title="Generate a blurb and pin this as DASH's Featured Case for the current week" style="background:rgba(245,166,35,0.22);border:1px solid rgba(245,166,35,0.5);color:white;padding:7px 14px;border-radius:7px;cursor:pointer;font-size:12px;font-weight:700;white-space:nowrap">✦ Mark as Featured Case</button>` : ''}
     <button onclick="openEditModal()" style="background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.3);color:white;padding:7px 14px;border-radius:7px;cursor:pointer;font-size:12px;font-weight:700;white-space:nowrap">✏️ Edit Scenario</button>
     <button onclick="openPatientSessionModal()" style="background:linear-gradient(135deg,rgba(20,90,50,0.85),rgba(39,131,58,0.75));border:1px solid rgba(100,220,130,0.35);color:white;padding:8px 14px 8px 10px;border-radius:8px;cursor:pointer;display:flex;align-items:center;gap:10px;text-align:left;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,0.25)">
       <span style="font-size:26px;line-height:1;filter:drop-shadow(0 1px 3px rgba(0,0,0,0.4))">📺</span>
