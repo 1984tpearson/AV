@@ -2387,7 +2387,7 @@ async function generateFeaturedCaseBlurbText(s) {
     body: JSON.stringify({
       model: 'claude-haiku-4-5-20251001',
       max_tokens: 200,
-      system: 'You write a short, punchy teaser (2 sentences) for a paramedic training scenario, shown on a homepage "Featured Case" card. Plain text only, no markdown, no quotation marks. Under 40 words total. Do not invent clinical details not implied by what is given.',
+      system: 'You write a short, punchy teaser (2 sentences),shown on a homepage "Featured Case" card. Plain text only, no markdown, no quotation marks. Under 40 words total. Do not invent clinical details not implied by what is given.',
       messages: [{ role: 'user', content:
         `Scenario title: ${s.title || 'Untitled'}\nCategory: ${s.category || ''} / ${s.subcategory || ''}\n` +
         (detail ? `Existing dispatch/case detail: ${detail}\n` : '') +
