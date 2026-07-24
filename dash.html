@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>DASH — Dynamic Assessment &amp; Simulation Hub</title>
+<script>
+(function(){const t=localStorage.getItem('av_theme');if(t&&t!=='default')document.documentElement.setAttribute('data-theme',t);})();
+</script>
+<style>
+  :root {
+    --navy: #1C3A6E;
+    --navy-dark: #122849;
+    --navy-light: #2A4F8F;
+    --red: #C0392B;
+    --amber: #E8921A;
+    --green: #27833A;
+    --green-light: #EAFAF1;
+    --blue: #2E86C1;
+    --blue-light: #EBF5FB;
+    --purple: #7D3C98;
+    --purple-light: #F5EEF8;
+    --grey: #6C7A89;
+    --light: #F4F6F9;
+    --white: #FFFFFF;
+    --text: #1A1A2E;
+    --border: #D5D8DC;
+    --shadow: 0 2px 12px rgba(0,0,0,0.09);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+  body {
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    background: var(--light);
+    color: var(--text);
+    line-height: 1.5;
+    min-height: 100vh;
+    overscroll-behavior: none;
+  }
+
+  #topbar {
+    background: var(--navy);
+    color: white;
+    padding: 0 20px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    height: 56px;
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    z-index: 100;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+  }
+
+  #topbar-back {
+    background: rgba(255,255,255,0.15);
+    border: 1px solid rgba(255,255,255,0.3);
+    color: white;
+    padding: 7px 12px;
+    border-radius: 7px;
+    font-size: 13px;
+    font-weight: 600;
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    flex-shrink: 0;
+  }
+
+  #topbar-title { font-size: 17px; font-weight: 700; letter-spacing: 0.3px; }
+  #topbar-sub { font-size: 11px; opacity: 0.65; }
+
+  #main {
+    padding: 72px 16px 32px;
+    max-width: 860px;
+    margin: 0 auto;
+  }
+
+  .hero {
+    background: var(--navy);
+    border-radius: 16px;
+    padding: 28px 24px 24px;
+    color: white;
+    margin-bottom: 24px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .hero::before {
+    content: '';
+    position: absolute;
+    top: -30px; right: -30px;
+    width: 160px; height: 160px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.05);
+    pointer-events: none;
+  }
+
+  .hero-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(255,255,255,0.12);
+    border: 1px solid rgba(255,255,255,0.2);
+    border-radius: 20px;
+    padding: 4px 12px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    margin-bottom: 12px;
+  }
+
+  .hero h1 { font-size: 26px; font-weight: 800; margin-bottom: 6px; letter-spacing: 0.5px; }
+  .hero .hero-fullname { font-size: 13px; opacity: 0.7; margin-bottom: 10px; font-weight: 600; }
+  .hero p { font-size: 14px; opacity: 0.8; line-height: 1.6; max-width: 520px; }
+
+  .section-label {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--grey);
+    margin-bottom: 12px;
+    padding-left: 2px;
+  }
+
+  .dash-list { display: flex; flex-direction: column; gap: 12px; }
+
+  .dash-card {
+    background: var(--white);
+    border-radius: 14px;
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow);
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 18px;
+    text-decoration: none;
+    color: inherit;
+    transition: transform 0.15s, box-shadow 0.15s;
+  }
+
+  .dash-card:active { transform: scale(0.98); box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+
+  .dash-icon {
+    width: 46px; height: 46px;
+    border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .dash-icon svg { width: 22px; height: 22px; }
+
+  .icon-purple { background: var(--purple-light); color: var(--purple); }
+  .icon-navy   { background: #EBF0F8; color: var(--navy); }
+  .icon-blue   { background: var(--blue-light); color: var(--blue); }
+
+  .dash-text { flex: 1; min-width: 0; }
+  .dash-title { font-size: 15px; font-weight: 700; margin-bottom: 4px; }
+  .dash-desc { font-size: 12.5px; color: var(--grey); line-height: 1.5; }
+
+  .dash-arrow {
+    width: 30px; height: 30px;
+    border-radius: 50%;
+    background: var(--light);
+    border: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+    color: var(--grey);
+  }
+  .dash-arrow svg { width: 14px; height: 14px; }
+
+  .footer {
+    text-align: center;
+    padding: 24px 0 env(safe-area-inset-bottom, 0);
+    font-size: 11px;
+    color: var(--grey);
+    line-height: 1.7;
+  }
+</style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+
+<div id="topbar">
+  <div id="avnav-slot"></div>
+  <a id="topbar-back" href="index.html">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+    Home
+  </a>
+  <div>
+    <div id="topbar-title">DASH</div>
+  </div>
+</div>
+
+<div id="main">
+
+  <div class="hero">
+    <div class="hero-badge">Clinical Simulation</div>
+    <h1>DASH</h1>
+    <div class="hero-fullname">Dynamic Assessment &amp; Simulation Hub</div>
+    <p>Build, run, and display AI-assisted ALS scenarios in one place — generate a case, assess it verbally against CPGs, and mirror live vitals to a second screen.</p>
+  </div>
+
+  <div class="section-label">Sections</div>
+  <div class="dash-list">
+
+    <a class="dash-card" href="generator.html">
+      <div class="dash-icon icon-purple">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 2l1.5 4.5L18 8l-4.5 1.5L12 14l-1.5-4.5L6 8l4.5-1.5L12 2z"/>
+          <path d="M19 13l.75 2.25L22 16l-2.25.75L19 19l-.75-2.25L16 16l2.25-.75L19 13z"/>
+        </svg>
+      </div>
+      <div class="dash-text">
+        <div class="dash-title">Scenario Generator</div>
+        <div class="dash-desc">AI-assisted scenario creation — generate new ALS cases from a category, complexity, or free-text prompt.</div>
+      </div>
+      <div class="dash-arrow">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+      </div>
+    </a>
+
+    <a class="dash-card" href="scenario.html">
+      <div class="dash-icon icon-navy">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M9 11l3 3L22 4"/>
+          <path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/>
+        </svg>
+      </div>
+      <div class="dash-text">
+        <div class="dash-title">Verbal Scenario Assessment Tool</div>
+        <div class="dash-desc">Run graded ALS verbal scenarios. CPG-linked management, scoring, and AI-assisted case creation for levels A–D.</div>
+      </div>
+      <div class="dash-arrow">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+      </div>
+    </a>
+
+    <a class="dash-card" href="monitor.html" target="_blank">
+      <div class="dash-icon icon-blue">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="2" y="3" width="20" height="14" rx="2"/>
+          <line x1="8" y1="21" x2="16" y2="21"/>
+          <line x1="12" y1="17" x2="12" y2="21"/>
+        </svg>
+      </div>
+      <div class="dash-text">
+        <div class="dash-title">Monitor Screen</div>
+        <div class="dash-desc">Secondary display for the student — shows live vitals and rhythm fed from the Scenario Builder. Opens in a new tab.</div>
+      </div>
+      <div class="dash-arrow">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+      </div>
+    </a>
+
+  </div>
+
+  <div class="footer">
+    <div>DASH — Dynamic Assessment &amp; Simulation Hub</div>
+    <div>Part of the Paramedic Training Tools suite &nbsp;·&nbsp; For training use only</div>
+  </div>
+
+</div><!-- /main -->
+
+<script>
+const _sb = supabase.createClient(
+  'https://befsjenbaruxqrntuhpn.supabase.co',
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJlZnNqZW5iYXJ1eHFybnR1aHBuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI2MjA5MjAsImV4cCI6MjA4ODE5NjkyMH0.hOFFbIvd1wAgu-QyghupQ-7ttSpg7sxz_UsJbXyXztA'
+);
+window.__avSupabaseClient = _sb;
+</script>
+
+<script src="nav.js"></script>
+</body>
+</html>
