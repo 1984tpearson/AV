@@ -316,8 +316,8 @@ body.snav-active #content { padding-left: 60px; }
 #home-screen {
   position: relative;
   background: linear-gradient(135deg, #2C4F7C 0%, #4E7FAE 55%, #6FA0CC 100%);
-  margin: -16px -16px 0;
-  padding-bottom: 24px;
+  margin: -16px;
+  padding-bottom: 40px;
 }
 .home-inner { max-width: 820px; margin: 0 auto; padding: 24px 16px 0; }
 #home-screen .home-section-label,
@@ -1192,17 +1192,20 @@ body.flag-mode-active .flaggable.has-correction:hover { outline: 2px solid var(-
 #topbar .subtitle { font-size: 10px; opacity: 0.7; margin-top: 1px; }
 
 .dash-hero {
-  padding: 6px 0 30px;
+  padding: 0;
   margin-bottom: 14px;
   position: relative;
   overflow: hidden;
   color: white;
   text-align: left;
+  min-height: 180px;
+  display: flex;
+  align-items: center;
 }
 .dash-ecg-clip {
   position: absolute;
   left: 0; right: 0; bottom: 0;
-  height: 85px;
+  height: 180px;
   overflow: hidden;
   opacity: 0.45;
   pointer-events: none;
@@ -1210,7 +1213,7 @@ body.flag-mode-active .flaggable.has-correction:hover { outline: 2px solid var(-
 .dash-ecg-clip .ecg-strip-label { display: none !important; }
 .dash-ecg-clip, .dash-ecg-clip * { background: transparent !important; background-color: transparent !important; }
 .dash-ecg-clip #dash-hero-ecg-mount { pointer-events: auto; cursor: pointer; }
-.dash-hero-content { position: relative; z-index: 1; }
+.dash-hero-content { position: relative; z-index: 1; padding: 30px 28px; }
 .dash-hero-wordmark { font-family: 'Orbitron', sans-serif; font-size: 68px; font-weight: 700; letter-spacing: 5px; margin-bottom: 6px; line-height: 1; }
 .dash-hero-subheader { font-size: 12.5px; font-weight: 600; text-transform: uppercase; letter-spacing: 1.2px; opacity: 0.75; }
 .topbar-logo-img { height: 36px; width: auto; max-width: 160px; object-fit: contain; display: block; }
@@ -2473,7 +2476,7 @@ function mountHomeHeroEcg() {
   const mount = document.getElementById('dash-hero-ecg-mount');
   if (!mount || typeof ECGEngine === 'undefined') return;
   try {
-    homeHeroEcgEngine = new ECGEngine(mount, { mode: 'strip', theme: 'monitor', height: 280 });
+    homeHeroEcgEngine = new ECGEngine(mount, { mode: 'strip', theme: 'monitor', height: 600 });
     randomiseHomeHeroEcg();
     mount.title = 'Click for a different rhythm';
     mount.onclick = randomiseHomeHeroEcg;
