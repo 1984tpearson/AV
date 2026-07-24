@@ -422,6 +422,16 @@ body.snav-active #content { padding-left: 60px; }
 .dash-monitor-link a { color: var(--grey); text-decoration: none; }
 .dash-monitor-link a:hover { text-decoration: underline; }
 .dash-monitor-dot { width: 6px; height: 6px; border-radius: 50%; background: #2ECC71; display: inline-block; margin-right: 6px; animation: pulse 2s infinite; vertical-align: middle; }
+
+.home-mid-row { display: grid; grid-template-columns: 1fr; gap: 16px; margin-bottom: 14px; }
+@media (min-width: 700px) { .home-mid-row { grid-template-columns: 1fr 1fr; align-items: start; } }
+.home-mid-col .cat-accordion, .home-mid-col .home-section-label { margin-bottom: 0; }
+.featured-case-card { background: white; border: 1px solid var(--border); border-radius: 10px; box-shadow: var(--shadow); padding: 16px; cursor: pointer; transition: transform 0.15s; min-height: 40px; }
+.featured-case-card:active { transform: scale(0.98); }
+.fc-badge { display: inline-block; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: white; padding: 2px 9px; border-radius: 10px; margin-bottom: 9px; }
+.fc-title { font-size: 15px; font-weight: 700; margin-bottom: 6px; color: var(--text); }
+.fc-desc { font-size: 12.5px; color: var(--grey); line-height: 1.55; margin-bottom: 12px; }
+.fc-cta { font-size: 12px; font-weight: 700; color: var(--navy); display: flex; align-items: center; gap: 4px; }
 /* legacy cat-card kept for any remaining references */
 .category-overview { display: grid; grid-template-columns: 1fr; gap: 10px; }
 @media (min-width: 600px) { .category-overview { grid-template-columns: repeat(2,1fr); } }
@@ -1232,9 +1242,19 @@ body.flag-mode-active .flaggable.has-correction:hover { outline: 2px solid var(-
         </a>
       </div>
 
-      <div class="home-section-label">Browse by Category</div>
-      <div class="cat-accordion" id="home-cat-accordion">
-        <!-- populated by buildCategoryAccordion() -->
+      <div class="home-mid-row">
+        <div class="home-mid-col">
+          <div class="home-section-label">Browse by Category</div>
+          <div class="cat-accordion" id="home-cat-accordion">
+            <!-- populated by buildCategoryAccordion() -->
+          </div>
+        </div>
+        <div class="home-mid-col">
+          <div class="home-section-label">Featured Case — This Week</div>
+          <div class="featured-case-card" id="featured-case-card">
+            <!-- populated by buildFeaturedCase() -->
+          </div>
+        </div>
       </div>
 
       <div class="home-panels" id="home-panels">
@@ -2244,7 +2264,30 @@ function openSidebarToGroup(groupName) {
 function buildHomeScreen() {
   buildCategoryAccordion();
   buildHomePanels();
+  buildFeaturedCase();
   mountHomeHeroEcg();
+}
+
+function buildFeaturedCase() {
+  const container = document.getElementById('featured-case-card');
+  if (!container) return;
+  const all = getAllScenarios();
+  if (!all.length) { container.innerHTML = '<div class="home-panel-empty">No scenarios yet</div>'; return; }
+
+  // Deterministic weekly pick — same case for everyone all week, rotates each Monday.
+  const now = new Date();
+  const startOfYear = new Date(now.getFullYear(), 0, 1);
+  const weekNum = Math.ceil((((now - startOfYear) / 86400000) + startOfYear.getDay() + 1) / 7);
+  const s = all[weekNum % all.length];
+
+  const dot = CAT_COLORS[s.category] || 'var(--grey)';
+  const blurb = s.subtitle || s.dispatch || s.caller_hx || 'A case from the library, picked for this week.';
+  container.innerHTML = `
+    <div class="fc-badge" style="background:${dot}">${s.subcategory || s.category || ''}</div>
+    <div class="fc-title">${s.title || 'Untitled'}</div>
+    <div class="fc-desc">${blurb}</div>
+    <div class="fc-cta">Open this case →</div>`;
+  container.onclick = () => loadScenario(s.id);
 }
 
 function mountHomeHeroEcg() {
