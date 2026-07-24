@@ -1154,25 +1154,25 @@ body.flag-mode-active .flaggable.has-correction:hover { outline: 2px solid var(-
 #topbar .subtitle { font-size: 10px; opacity: 0.7; margin-top: 1px; }
 
 .dash-hero {
-  background: linear-gradient(135deg, var(--navy) 0%, var(--navy-light) 100%);
+  background: linear-gradient(135deg, #3D6699 0%, #4E7FAE 100%);
   border-radius: 14px;
-  padding: 30px 24px;
+  padding: 30px 28px;
   margin-bottom: 14px;
   position: relative;
   overflow: hidden;
   color: white;
-  text-align: center;
+  text-align: left;
 }
 .dash-ecg-clip {
   position: absolute;
   inset: 0;
   overflow: hidden;
-  opacity: 0.65;
+  opacity: 0.45;
   pointer-events: none;
 }
 .dash-ecg-clip .ecg-strip-label { display: none !important; }
 .dash-hero-content { position: relative; z-index: 1; }
-.dash-hero-wordmark { font-family: 'Orbitron', sans-serif; font-size: 34px; font-weight: 700; letter-spacing: 3px; margin-bottom: 6px; }
+.dash-hero-wordmark { font-family: 'Orbitron', sans-serif; font-size: 68px; font-weight: 700; letter-spacing: 5px; margin-bottom: 6px; line-height: 1; }
 .dash-hero-subheader { font-size: 12.5px; font-weight: 600; text-transform: uppercase; letter-spacing: 1.2px; opacity: 0.75; }
 </style>
 </head>
@@ -2256,9 +2256,9 @@ function mountHomeHeroEcg() {
     engine.setRhythm('nsr', bpm);
     // Override the engine's live trace styling (real canvas stroke, not CSS) —
     // brand blue instead of the default monitor green, and a bolder line.
-    window._traceColour = '#4FC3F7';
-    window._traceGlow   = 'rgba(79,195,247,0.35)';
-    window._traceWidth  = 2.4;
+    window._traceColour = '#8FB9DE';
+    window._traceGlow   = 'rgba(143,185,222,0.30)';
+    window._traceWidth  = 2.0;
   } catch (e) {
     console.error('Home hero ECG failed to mount:', e.message);
   }
