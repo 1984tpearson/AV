@@ -2368,7 +2368,6 @@ function getFeaturedCaseWeekKey(date) {
 function renderFeaturedCase(container, s, icon, dot, blurb) {
   container.innerHTML = `
     <div class="fc-watermark">${icon}</div>
-    <div class="fc-eyebrow">Featured Case</div>
     <div class="fc-badge" style="background:${dot}">${s.subcategory || s.category || ''}</div>
     <div class="fc-title">${s.title || 'Untitled'}</div>
     <div class="fc-desc">${blurb}</div>

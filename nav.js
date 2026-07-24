@@ -310,7 +310,7 @@
         '</div>' +
         '<div class="avnav-links">' +
           '<a class="avnav-link" href="index.html"><span class="avnav-icon">🏠</span> Home</a>' +
-          '<a class="avnav-link" href="dash.html"><span class="avnav-icon">⚡</span> DASH</a>' +
+          '<a class="avnav-link" href="scenario.html"><span class="avnav-icon">⚡</span> DASH</a>' +
         '</div>' +
         '<div class="avnav-links">' +
           '<div class="avnav-link" onclick="AVNav.openMyScenarios()"><span class="avnav-icon">📁</span> My Scenarios</div>' +

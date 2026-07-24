@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Verbal Scenario Assessment Tool</title>
+<title>D.A.S.H — Verbal Scenario Assessment Tool</title>
 <script>
 // Apply saved theme immediately to prevent flash
 (function(){const t=localStorage.getItem('av_theme');if(t&&t!=='default')document.documentElement.setAttribute('data-theme',t);})();
@@ -365,15 +365,29 @@ body.snav-active #content { padding-left: 60px; }
 .car-stripe { width: 3px; height: 20px; border-radius: 2px; flex-shrink: 0; }
 
 /* Home panels grid */
-.home-panels { display: grid; grid-template-columns: 1fr; gap: 12px; }
-@media (min-width: 600px) { .home-panels { grid-template-columns: 1fr 1fr; } }
+.home-panels { display: flex; flex-direction: column; gap: 12px; }
+.home-panels-row { display: grid; grid-template-columns: 1fr; gap: 12px; }
+@media (min-width: 600px) {
+  .home-panels-row.row-a { grid-template-columns: 1fr 1.35fr; }
+  .home-panels-row.row-b { grid-template-columns: 1.5fr 1fr; }
+}
 .home-panel { background: white; border: 1px solid var(--border); border-radius: 10px; overflow: hidden; box-shadow: var(--shadow); }
-.home-panel-header { padding: 10px 14px 8px; border-bottom: 1px solid #f0f2f5; display: flex; align-items: center; gap: 6px; }
+.home-panel.panel-blue { background: var(--blue-light); }
+.home-panel.panel-navy { background: #EBF0F8; }
+.home-panel.panel-amber { background: var(--amber-light); }
+.home-panel.panel-purple { background: var(--purple-light); }
+.home-panel.panel-green { background: var(--green-light); }
+.home-panel.panel-blue .home-panel-title { color: var(--blue); }
+.home-panel.panel-navy .home-panel-title { color: var(--navy); }
+.home-panel.panel-amber .home-panel-title { color: var(--amber); }
+.home-panel.panel-purple .home-panel-title { color: var(--purple); }
+.home-panel.panel-green .home-panel-title { color: var(--green); }
+.home-panel-header { padding: 10px 14px 8px; border-bottom: 1px solid rgba(0,0,0,0.06); display: flex; align-items: center; gap: 6px; }
 .home-panel-title { font-size: 11px; font-weight: 700; color: var(--grey); text-transform: uppercase; letter-spacing: 0.06em; flex: 1; }
 .home-panel-body { padding: 6px 0; min-height: 60px; }
 .home-panel-empty { font-size: 12px; color: var(--grey); padding: 14px 14px; opacity: 0.7; font-style: italic; }
 .hp-item { display: flex; align-items: center; gap: 9px; padding: 7px 14px; cursor: pointer; transition: background 0.12s; }
-.hp-item:active { background: var(--light); }
+.hp-item:active { background: rgba(255,255,255,0.6); }
 .hp-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
 .hp-title { font-size: 13px; font-weight: 600; color: var(--navy); flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .hp-sub { font-size: 11px; color: var(--grey); flex-shrink: 0; }
@@ -392,6 +406,52 @@ body.snav-active #content { padding-left: 60px; }
 .stat-card.blue .stat-num { color: var(--blue); }
 .stat-card.purple .stat-num { color: var(--purple); }
 .stat-card.green .stat-num { color: var(--green); }
+
+/* ── D.A.S.H tiles + micro-motion (TEST) ── */
+.home-tiles { display: grid; grid-template-columns: 1fr; gap: 10px; margin-bottom: 14px; }
+@media (min-width: 600px) { .home-tiles { grid-template-columns: 0.85fr 1.15fr; } }
+.home-tile { display: flex; align-items: center; gap: 12px; background: white; border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; box-shadow: var(--shadow); text-decoration: none; color: inherit; cursor: pointer; font-family: inherit; text-align: left; transition: transform 0.15s, box-shadow 0.15s; min-height: var(--tap); }
+.home-tile:active { transform: scale(0.98); }
+.home-tile-primary { border-color: var(--amber); background: var(--amber-light); }
+.home-tile-random { border-color: var(--blue); background: var(--blue-light); }
+.home-tile-icon { font-size: 20px; width: 38px; height: 38px; border-radius: 9px; background: var(--light); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.home-tile-primary .home-tile-icon, .home-tile-random .home-tile-icon { background: white; }
+.home-tile-text { flex: 1; min-width: 0; }
+.home-tile-title { font-size: 14px; font-weight: 700; margin-bottom: 2px; }
+.home-tile-desc { font-size: 11.5px; color: var(--grey); line-height: 1.4; }
+.home-tile-arrow { font-size: 16px; color: var(--grey); flex-shrink: 0; }
+
+.car-stripe { width: 4px !important; border-radius: 3px; }
+.cat-accordion-row:hover { background: #fafbfd; }
+
+@keyframes dashFadeUp { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+.dash-hero, .stats-grid, .home-tiles, .cat-accordion, .home-panels { animation: dashFadeUp 0.35s ease both; }
+.stats-grid { animation-delay: 0.05s; }
+.home-tiles { animation-delay: 0.1s; }
+.cat-accordion { animation-delay: 0.15s; }
+.home-panels { animation-delay: 0.2s; }
+.hp-item:hover { background: rgba(255,255,255,0.6); }
+.fc-generate-btn { position: relative; z-index: 1; margin-top: 10px; align-self: flex-start; background: white; border: 1px solid var(--border); border-radius: 7px; padding: 6px 12px; font-size: 11.5px; font-weight: 700; color: var(--navy); cursor: pointer; }
+.fc-generate-btn:hover { background: var(--light); }
+.fc-generate-btn:disabled { opacity: 0.6; cursor: default; }
+
+.dash-monitor-link { text-align: center; margin: 4px 0 2px; font-size: 11.5px; }
+.dash-monitor-link a { color: var(--grey); text-decoration: none; }
+.dash-monitor-link a:hover { text-decoration: underline; }
+.dash-monitor-dot { width: 6px; height: 6px; border-radius: 50%; background: #2ECC71; display: inline-block; margin-right: 6px; animation: pulse 2s infinite; vertical-align: middle; }
+
+.home-mid-row { display: grid; grid-template-columns: 1fr; gap: 16px; margin-bottom: 14px; }
+@media (min-width: 700px) { .home-mid-row { grid-template-columns: 1.4fr 1fr; align-items: stretch; } }
+.home-mid-col { display: flex; flex-direction: column; }
+.home-mid-col .cat-accordion, .home-mid-col .home-section-label { margin-bottom: 0; }
+.featured-case-card { flex: 1; display: flex; flex-direction: column; position: relative; overflow: hidden; border: 1px solid var(--border); border-radius: 10px; box-shadow: var(--shadow); padding: 18px; cursor: pointer; transition: transform 0.15s; min-height: 160px; }
+.featured-case-card:active { transform: scale(0.98); }
+.fc-watermark { position: absolute; right: -10px; bottom: -18px; font-size: 110px; opacity: 0.12; line-height: 1; pointer-events: none; }
+.fc-eyebrow { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--grey); margin-bottom: 8px; position: relative; z-index: 1; }
+.fc-badge { display: inline-block; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: white; padding: 2px 9px; border-radius: 10px; margin-bottom: 9px; position: relative; z-index: 1; }
+.fc-title { font-size: 17px; font-weight: 700; margin-bottom: 8px; color: var(--text); position: relative; z-index: 1; max-width: 85%; }
+.fc-desc { font-size: 12.5px; color: var(--text); opacity: 0.75; line-height: 1.55; margin-bottom: 12px; position: relative; z-index: 1; max-width: 90%; }
+.fc-cta { font-size: 12px; font-weight: 700; color: var(--navy); display: flex; align-items: center; gap: 4px; margin-top: auto; position: relative; z-index: 1; }
 /* legacy cat-card kept for any remaining references */
 .category-overview { display: grid; grid-template-columns: 1fr; gap: 10px; }
 @media (min-width: 600px) { .category-overview { grid-template-columns: repeat(2,1fr); } }
@@ -1118,21 +1178,45 @@ body.flag-mode-active .flaggable.has-correction:hover { outline: 2px solid var(-
   position: relative;
 }
 </style>
+<style>
+/* ============================================================ D.A.S.H FACELIFT (TEST) */
+.dash-wordmark { font-family: 'Orbitron', sans-serif; font-size: 16px; font-weight: 700; letter-spacing: 1.5px; }
+#topbar .subtitle { font-size: 10px; opacity: 0.7; margin-top: 1px; }
+
+.dash-hero {
+  background: linear-gradient(135deg, #2C4F7C 0%, #4E7FAE 55%, #6FA0CC 100%);
+  border-radius: 14px;
+  padding: 30px 28px;
+  margin-bottom: 14px;
+  position: relative;
+  overflow: hidden;
+  color: white;
+  text-align: left;
+}
+.dash-ecg-clip {
+  position: absolute;
+  left: 0; right: 0; bottom: 0;
+  height: 85px;
+  overflow: hidden;
+  opacity: 0.45;
+  pointer-events: none;
+}
+.dash-ecg-clip .ecg-strip-label { display: none !important; }
+.dash-ecg-clip, .dash-ecg-clip * { background: transparent !important; background-color: transparent !important; }
+.dash-ecg-clip #dash-hero-ecg-mount { pointer-events: auto; cursor: pointer; }
+.dash-hero-content { position: relative; z-index: 1; }
+.dash-hero-wordmark { font-family: 'Orbitron', sans-serif; font-size: 68px; font-weight: 700; letter-spacing: 5px; margin-bottom: 6px; line-height: 1; }
+.dash-hero-subheader { font-size: 12.5px; font-weight: 600; text-transform: uppercase; letter-spacing: 1.2px; opacity: 0.75; }
+.topbar-logo-img { height: 36px; width: auto; max-width: 160px; object-fit: contain; display: block; }
+.hero-logo-img { height: 78px; width: auto; max-width: 70%; object-fit: contain; display: block; }
+</style>
 </head>
 <body>
 
 <div id="topbar">
   <div id="avnav-slot"></div>
   <div class="logo" onclick="goHome()" style="cursor:pointer" title="Go to home screen">
-    <div class="logo-icon">
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-        <path d="M12 2L4 7V12C4 16.55 7.84 20.74 12 22C16.16 20.74 20 16.55 20 12V7L12 2Z" fill="#1C3A6E"/>
-        <path d="M11 11H9V13H11V15H13V13H15V11H13V9H11V11Z" fill="white"/>
-      </svg>
-    </div>
-    <div>
-      <h1>Verbal Scenario Assessment Tool</h1>
-    </div>
+    <img src="logo.png" alt="D.A.S.H — Dynamic Assessment &amp; Simulation Hub" class="topbar-logo-img">
   </div>
   <div class="topbar-actions">
     <a class="tb-btn" id="ai-toggle-btn" href="generator.html">✦ Create New Case</a>
@@ -1147,24 +1231,54 @@ body.flag-mode-active .flaggable.has-correction:hover { outline: 2px solid var(-
 <div id="main-wrapper">
   <div id="content">
     <div id="home-screen">
-      <div class="welcome-header">
-        <h2>Verbal Scenario Assessment Tool</h2>
-        <p>Assessor-facing tool for ALS verbal scenarios. Select a scenario from the library or create your own.</p>
+      <div class="dash-hero">
+        <div class="dash-ecg-clip"><div id="dash-hero-ecg-mount"></div></div>
+        <div class="dash-hero-content">
+          <img src="logo.png" alt="D.A.S.H — Dynamic Assessment &amp; Simulation Hub" class="hero-logo-img">
+        </div>
       </div>
 
-      <div class="home-actions">
-        <a class="home-ai-btn" href="generator.html">✦ Create New Case</a>
+      <div class="home-tiles">
+        <button class="home-tile home-tile-random" onclick="loadRandomScenario(null, null)">
+          <div class="home-tile-icon">🎲</div>
+          <div class="home-tile-text">
+            <div class="home-tile-title">Random Scenario</div>
+            <div class="home-tile-desc">Jump straight into an assessment from any category.</div>
+          </div>
+          <div class="home-tile-arrow">→</div>
+        </button>
+        <a class="home-tile home-tile-primary" href="generator.html">
+          <div class="home-tile-icon">✦</div>
+          <div class="home-tile-text">
+            <div class="home-tile-title">Create New Case</div>
+            <div class="home-tile-desc">AI-assisted scenario generation from a category, complexity, or free-text prompt.</div>
+          </div>
+          <div class="home-tile-arrow">→</div>
+        </a>
       </div>
 
-      <button class="home-random-btn" onclick="loadRandomScenario(null, null)">🎲 Random Scenario — Any Category</button>
-
-      <div class="home-section-label">Browse by Category</div>
-      <div class="cat-accordion" id="home-cat-accordion">
-        <!-- populated by buildCategoryAccordion() -->
+      <div class="home-mid-row">
+        <div class="home-mid-col">
+          <div class="home-section-label">Browse by Category</div>
+          <div class="cat-accordion" id="home-cat-accordion">
+            <!-- populated by buildCategoryAccordion() -->
+          </div>
+        </div>
+        <div class="home-mid-col">
+          <div class="home-section-label">Featured Case — This Week</div>
+          <div class="featured-case-card" id="featured-case-card">
+            <!-- populated by buildFeaturedCase() -->
+          </div>
+        </div>
       </div>
 
       <div class="home-panels" id="home-panels">
         <!-- populated by buildHomePanels() -->
+      </div>
+
+      <div class="dash-monitor-link">
+        <span class="dash-monitor-dot"></span>
+        <a href="monitor.html" target="_blank">Open Monitor Screen — for the classroom / student display ↗</a>
       </div>
 
       <div id="dev-notes-banner" style="margin-top:16px">
@@ -2165,6 +2279,210 @@ function openSidebarToGroup(groupName) {
 function buildHomeScreen() {
   buildCategoryAccordion();
   buildHomePanels();
+  buildFeaturedCase();
+  mountHomeHeroEcg();
+}
+
+async function buildFeaturedCase() {
+  const container = document.getElementById('featured-case-card');
+  if (!container) return;
+  const all = getAllScenarios();
+  if (!all.length) { container.innerHTML = '<div class="home-panel-empty">No scenarios yet</div>'; return; }
+
+  const weekKey = getFeaturedCaseWeekKey();
+
+  // Deterministic weekly pick — same case for everyone all week, rotates each Monday.
+  // Used only as a fallback if nothing has been manually featured for this week.
+  const startOfYear = new Date(new Date().getFullYear(), 0, 1);
+  const weekNum = Math.ceil((((new Date() - startOfYear) / 86400000) + startOfYear.getDay() + 1) / 7);
+  let s = all[weekNum % all.length];
+  let blurb = s.subtitle || s.dispatch || s.caller_hx || 'A case from the library, picked for this week.';
+  let cached = false;
+
+  // Check for a cached/manually-featured entry for this week — never calls
+  // the API on a plain page view, only reads whatever an admin already set.
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/featured_case_blurbs?week_key=eq.${encodeURIComponent(weekKey)}&select=scenario_id,blurb`, {
+      headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
+    });
+    if (res.ok) {
+      const rows = await res.json();
+      if (rows && rows[0] && rows[0].blurb) {
+        const featured = all.find(x => String(x.id) === String(rows[0].scenario_id));
+        if (featured) s = featured; // honour the manually-featured scenario if we can find it locally
+        blurb = rows[0].blurb;
+        cached = true;
+      }
+    }
+  } catch (e) { /* fall back silently — the card still works without it */ }
+
+  const FC_BG = {
+    'Adult': 'linear-gradient(135deg, #EBF0F8 0%, #F7FAFF 100%)',
+    'Paediatric': 'var(--blue-light)',
+    'Maternity': 'var(--purple-light)',
+    'Newborn': 'var(--green-light)',
+    'Treat and Refer': '#FBEEE6',
+    'Custom': '#E6F7F4'
+  };
+  const FC_ICON = {
+    'Adult': '🧑', 'Paediatric': '🧒', 'Maternity': '🤰',
+    'Newborn': '👶', 'Treat and Refer': '🩹', 'Custom': '✦'
+  };
+  const dot = CAT_COLORS[s.category] || 'var(--grey)';
+  const bg = FC_BG[s.category] || 'var(--light)';
+  const icon = FC_ICON[s.category] || '✦';
+
+  container.style.background = bg;
+  renderFeaturedCase(container, s, icon, dot, blurb);
+
+  const showGenerateBtn = !cached && typeof isAdmin === 'function' && isAdmin();
+  if (showGenerateBtn) {
+    const btn = document.createElement('button');
+    btn.className = 'fc-generate-btn';
+    btn.type = 'button';
+    btn.textContent = '✦ Generate AI blurb for this week';
+    btn.onclick = async (e) => {
+      e.stopPropagation();
+      btn.disabled = true; btn.textContent = 'Generating…';
+      try {
+        const newBlurb = await generateFeaturedCaseBlurbText(s);
+        await saveFeaturedCaseBlurb(weekKey, s.id, newBlurb);
+        btn.remove();
+        renderFeaturedCase(container, s, icon, dot, newBlurb);
+      } catch (err) {
+        console.error('Featured case blurb generation failed:', err.message);
+        btn.disabled = false; btn.textContent = '✦ Retry — generation failed';
+      }
+    };
+    container.appendChild(btn);
+  }
+}
+
+function getFeaturedCaseWeekKey(date) {
+  const now = date || new Date();
+  const startOfYear = new Date(now.getFullYear(), 0, 1);
+  const weekNum = Math.ceil((((now - startOfYear) / 86400000) + startOfYear.getDay() + 1) / 7);
+  return `${now.getFullYear()}-W${weekNum}`;
+}
+
+function renderFeaturedCase(container, s, icon, dot, blurb) {
+  container.innerHTML = `
+    <div class="fc-watermark">${icon}</div>
+    <div class="fc-badge" style="background:${dot}">${s.subcategory || s.category || ''}</div>
+    <div class="fc-title">${s.title || 'Untitled'}</div>
+    <div class="fc-desc">${blurb}</div>
+    <div class="fc-cta">Open this case →</div>`;
+  container.onclick = () => loadScenario(s.id);
+}
+
+// Pure generation — calls Claude, returns blurb text, throws on failure.
+// Shared by the home-screen "generate for this week" button and the
+// scenario-view "mark as featured case" button.
+async function generateFeaturedCaseBlurbText(s) {
+  const apiKey = await getAnthropicKeyForKQ();
+  const detail = s.subtitle || s.dispatch || s.caller_hx || '';
+  const response = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' },
+    body: JSON.stringify({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 200,
+      system: 'You write a short, punchy teaser (2 sentences) for a paramedic training scenario, shown on a homepage "Featured Case" card. Plain text only, no markdown, no quotation marks. Under 40 words total. Do not invent clinical details not implied by what is given.',
+      messages: [{ role: 'user', content:
+        `Scenario title: ${s.title || 'Untitled'}\nCategory: ${s.category || ''} / ${s.subcategory || ''}\n` +
+        (detail ? `Existing dispatch/case detail: ${detail}\n` : '') +
+        `Write the teaser now.`
+      }]
+    })
+  });
+  if (!response.ok) { const e = await response.json().catch(() => ({})); throw new Error(e.error?.message || ('API error ' + response.status)); }
+  const data = await response.json();
+  const blurb = (data.content || []).filter(b => b.type === 'text').map(b => b.text).join('').trim();
+  if (!blurb) throw new Error('AI returned an empty blurb.');
+
+  if (typeof AVNav !== 'undefined' && AVNav.logAIUsage) {
+    AVNav.logAIUsage({
+      source: 'dash-featured-case',
+      model: 'claude-haiku-4-5-20251001',
+      input_tokens: data.usage ? data.usage.input_tokens : 0,
+      output_tokens: data.usage ? data.usage.output_tokens : 0,
+      label: `Featured case blurb — ${s.title || s.id}`
+    });
+  }
+  return blurb;
+}
+
+// Upsert — admin-only write per RLS (is_admin() policy on the table).
+async function saveFeaturedCaseBlurb(weekKey, scenarioId, blurb) {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/featured_case_blurbs`, {
+    method: 'POST',
+    headers: {
+      'apikey': SUPABASE_KEY,
+      'Authorization': `Bearer ${(_authSession && _authSession.access_token) || SUPABASE_KEY}`,
+      'Content-Type': 'application/json', 'Prefer': 'resolution=merge-duplicates'
+    },
+    body: JSON.stringify({ week_key: weekKey, scenario_id: scenarioId, blurb })
+  });
+  if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.message || ('Save failed — ' + res.status)); }
+}
+
+// Admin action from the scenario-detail view — generates a blurb for THIS
+// scenario and pins it as the featured case for the current week, overriding
+// whatever the deterministic weekly rotation would otherwise have shown.
+// It won't change again until next week (or until re-triggered).
+async function markAsFeaturedCase(scenarioId) {
+  const s = getAllScenarios().find(x => String(x.id) === String(scenarioId));
+  if (!s) { showToast('⚠️ Could not find this scenario'); return; }
+  const weekKey = getFeaturedCaseWeekKey();
+  showToast('✦ Generating featured case blurb…', 4000);
+  try {
+    const blurb = await generateFeaturedCaseBlurbText(s);
+    await saveFeaturedCaseBlurb(weekKey, s.id, blurb);
+    showToast(`⭐ "${s.title}" is now this week's Featured Case`, 3000);
+  } catch (e) {
+    console.error('Mark as featured case failed:', e.message);
+    showToast('⚠️ Could not set featured case — ' + e.message, 3000);
+  }
+}
+
+let homeHeroEcgEngine = null;
+
+// Hardcoded rather than reading the engine's internal RHYTHMS object —
+// that turned out not to be reachable from here, which is why randomisation
+// was silently failing (every call returned early and did nothing).
+const HOME_ECG_RHYTHMS = [
+  {key:'nsr',bpm:72},{key:'stach',bpm:130},{key:'sbrad',bpm:48},{key:'svt',bpm:170},
+  {key:'vt',bpm:175},{key:'aivr',bpm:60},{key:'chb',bpm:38},{key:'af',bpm:110},
+  {key:'aflut',bpm:0},{key:'mob1',bpm:0},{key:'mob2',bpm:0},{key:'vf',bpm:0},
+  {key:'deg1',bpm:70},{key:'junct',bpm:60},{key:'wpw',bpm:72},{key:'pvc',bpm:70},
+  {key:'hyperK',bpm:65},{key:'hypoK',bpm:72},{key:'longQT',bpm:65},{key:'peri',bpm:90},
+  {key:'nstemi',bpm:85},{key:'pe',bpm:110},{key:'brugada',bpm:72},{key:'asys',bpm:0},
+  {key:'vvipace',bpm:72},{key:'aaipace',bpm:72},{key:'dddpace',bpm:72},
+  {key:'stemi-inf',bpm:72},{key:'stemi-ant',bpm:72},{key:'stemi-lat',bpm:72},{key:'stemi-post',bpm:72}
+];
+
+function mountHomeHeroEcg() {
+  const mount = document.getElementById('dash-hero-ecg-mount');
+  if (!mount || typeof ECGEngine === 'undefined') return;
+  try {
+    homeHeroEcgEngine = new ECGEngine(mount, { mode: 'strip', theme: 'monitor', height: 280 });
+    randomiseHomeHeroEcg();
+    mount.title = 'Click for a different rhythm';
+    mount.onclick = randomiseHomeHeroEcg;
+  } catch (e) {
+    console.error('Home hero ECG failed to mount:', e.message);
+  }
+}
+
+function randomiseHomeHeroEcg() {
+  if (!homeHeroEcgEngine) return;
+  const pick = HOME_ECG_RHYTHMS[Math.floor(Math.random() * HOME_ECG_RHYTHMS.length)];
+  homeHeroEcgEngine.setRhythm(pick.key, pick.bpm);
+  // Re-apply live trace styling (real canvas stroke, not CSS) — brand blue
+  // instead of the default monitor green, and a bolder line.
+  window._traceColour = '#8FB9DE';
+  window._traceGlow   = 'rgba(143,185,222,0.30)';
+  window._traceWidth  = 2.0;
 }
 
 function buildCategoryAccordion() {
@@ -2349,33 +2667,37 @@ function buildHomePanels() {
     .filter(Boolean);
 
   container.innerHTML = `
-    <div class="home-panel">
-      <div class="home-panel-header">
-        <span style="font-size:14px">🕐</span>
-        <div class="home-panel-title">Recently Added</div>
+    <div class="home-panels-row row-a">
+      <div class="home-panel panel-amber">
+        <div class="home-panel-header">
+          <span style="font-size:14px">🔥</span>
+          <div class="home-panel-title">Most Popular</div>
+        </div>
+        <div class="home-panel-body">${popularScenarios.length ? renderItems(popularScenarios, 8) : '<div class="home-panel-empty">No favourites yet — be the first to star a scenario</div>'}</div>
       </div>
-      <div class="home-panel-body">${renderItems(recentAll, 8)}</div>
+      <div class="home-panel panel-navy">
+        <div class="home-panel-header">
+          <span style="font-size:14px">📁</span>
+          <div class="home-panel-title">My Scenarios</div>
+        </div>
+        <div class="home-panel-body">${myScenarios.length ? renderItems(myScenarios, 8) : '<div class="home-panel-empty">Scenarios you create will appear here</div>'}</div>
+      </div>
     </div>
-    <div class="home-panel">
-      <div class="home-panel-header">
-        <span style="font-size:14px">📁</span>
-        <div class="home-panel-title">My Scenarios</div>
+    <div class="home-panels-row row-b">
+      <div class="home-panel panel-purple">
+        <div class="home-panel-header">
+          <span style="font-size:14px">⭐</span>
+          <div class="home-panel-title">My Favourites</div>
+        </div>
+        <div class="home-panel-body">${favScenarios.length ? renderItems(favScenarios, 8) : '<div class="home-panel-empty">Your favourited scenarios will appear here</div>'}</div>
       </div>
-      <div class="home-panel-body">${myScenarios.length ? renderItems(myScenarios, 8) : '<div class="home-panel-empty">Scenarios you create will appear here</div>'}</div>
-    </div>
-    <div class="home-panel">
-      <div class="home-panel-header">
-        <span style="font-size:14px">⭐</span>
-        <div class="home-panel-title">My Favourites</div>
+      <div class="home-panel panel-green">
+        <div class="home-panel-header">
+          <span style="font-size:14px">🕐</span>
+          <div class="home-panel-title">Recently Added</div>
+        </div>
+        <div class="home-panel-body">${renderItems(recentAll, 8)}</div>
       </div>
-      <div class="home-panel-body">${favScenarios.length ? renderItems(favScenarios, 8) : '<div class="home-panel-empty">Your favourited scenarios will appear here</div>'}</div>
-    </div>
-    <div class="home-panel">
-      <div class="home-panel-header">
-        <span style="font-size:14px">🔥</span>
-        <div class="home-panel-title">Most Popular</div>
-      </div>
-      <div class="home-panel-body">${popularScenarios.length ? renderItems(popularScenarios, 8) : '<div class="home-panel-empty">No favourites yet — be the first to star a scenario</div>'}</div>
     </div>`;
 }
 
@@ -3332,6 +3654,7 @@ function renderScenario(s) {
   </div>
   <div style="display:flex;flex-direction:column;align-items:flex-end;gap:8px;flex-shrink:0">
     <button id="fav-toggle-btn" onclick="toggleFavourite('${s.id}')" title="${_myFavourites.has(s.id)?'Remove from favourites':'Add to favourites'}" style="background:${_myFavourites.has(s.id)?'rgba(255,205,60,0.28)':'rgba(255,255,255,0.15)'};border:1px solid ${_myFavourites.has(s.id)?'rgba(255,205,60,0.55)':'rgba(255,255,255,0.3)'};color:white;padding:7px 14px;border-radius:7px;cursor:pointer;font-size:12px;font-weight:700;white-space:nowrap">${_myFavourites.has(s.id)?'⭐ Favourited':'☆ Favourite'}</button>
+    ${isAdmin() ? `<button onclick="markAsFeaturedCase('${s.id}')" title="Generate a blurb and pin this as DASH's Featured Case for the current week" style="background:rgba(245,166,35,0.22);border:1px solid rgba(245,166,35,0.5);color:white;padding:7px 14px;border-radius:7px;cursor:pointer;font-size:12px;font-weight:700;white-space:nowrap">✦ Mark as Featured Case</button>` : ''}
     <button onclick="openEditModal()" style="background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.3);color:white;padding:7px 14px;border-radius:7px;cursor:pointer;font-size:12px;font-weight:700;white-space:nowrap">✏️ Edit Scenario</button>
     <button onclick="openPatientSessionModal()" style="background:linear-gradient(135deg,rgba(20,90,50,0.85),rgba(39,131,58,0.75));border:1px solid rgba(100,220,130,0.35);color:white;padding:8px 14px 8px 10px;border-radius:8px;cursor:pointer;display:flex;align-items:center;gap:10px;text-align:left;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,0.25)">
       <span style="font-size:26px;line-height:1;filter:drop-shadow(0 1px 3px rgba(0,0,0,0.4))">📺</span>
