@@ -399,8 +399,9 @@ body.snav-active #content { padding-left: 60px; }
 .home-tile { display: flex; align-items: center; gap: 12px; background: white; border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; box-shadow: var(--shadow); text-decoration: none; color: inherit; cursor: pointer; font-family: inherit; text-align: left; transition: transform 0.15s, box-shadow 0.15s; min-height: var(--tap); }
 .home-tile:active { transform: scale(0.98); }
 .home-tile-primary { border-color: var(--amber); background: var(--amber-light); }
+.home-tile-random { border-color: var(--blue); background: var(--blue-light); }
 .home-tile-icon { font-size: 20px; width: 38px; height: 38px; border-radius: 9px; background: var(--light); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.home-tile-primary .home-tile-icon { background: white; }
+.home-tile-primary .home-tile-icon, .home-tile-random .home-tile-icon { background: white; }
 .home-tile-text { flex: 1; min-width: 0; }
 .home-tile-title { font-size: 14px; font-weight: 700; margin-bottom: 2px; }
 .home-tile-desc { font-size: 11.5px; color: var(--grey); line-height: 1.4; }
@@ -416,6 +417,11 @@ body.snav-active #content { padding-left: 60px; }
 .cat-accordion { animation-delay: 0.15s; }
 .home-panels { animation-delay: 0.2s; }
 .hp-item:hover { background: var(--light); }
+
+.dash-monitor-link { text-align: center; margin: 4px 0 2px; font-size: 11.5px; }
+.dash-monitor-link a { color: var(--grey); text-decoration: none; }
+.dash-monitor-link a:hover { text-decoration: underline; }
+.dash-monitor-dot { width: 6px; height: 6px; border-radius: 50%; background: #2ECC71; display: inline-block; margin-right: 6px; animation: pulse 2s infinite; vertical-align: middle; }
 /* legacy cat-card kept for any remaining references */
 .category-overview { display: grid; grid-template-columns: 1fr; gap: 10px; }
 @media (min-width: 600px) { .category-overview { grid-template-columns: repeat(2,1fr); } }
@@ -1147,45 +1153,27 @@ body.flag-mode-active .flaggable.has-correction:hover { outline: 2px solid var(-
 .dash-wordmark { font-family: 'Orbitron', sans-serif; font-size: 16px; font-weight: 700; letter-spacing: 1.5px; }
 #topbar .subtitle { font-size: 10px; opacity: 0.7; margin-top: 1px; }
 
-.tb-btn-monitor { position: relative; padding: 8px 10px; }
-.tb-live-dot { width: 6px; height: 6px; border-radius: 50%; background: #2ECC71; display: inline-block; margin-right: 5px; animation: pulse 2s infinite; }
-
 .dash-hero {
   background: linear-gradient(135deg, var(--navy) 0%, var(--navy-light) 100%);
   border-radius: 14px;
-  padding: 20px 22px 22px;
+  padding: 26px 24px 28px;
   margin-bottom: 14px;
   position: relative;
   overflow: hidden;
   color: white;
+  text-align: center;
 }
-.dash-hero-ecg {
+.dash-ecg-clip {
   position: absolute;
-  left: 0; right: 0; top: 50%;
-  transform: translateY(-50%);
-  width: 100%; height: 70px;
-  opacity: 0.16;
+  left: 0; right: 0; bottom: 0;
+  height: 78px;
+  overflow: hidden;
+  opacity: 0.4;
   pointer-events: none;
 }
-.ecg-line {
-  fill: none;
-  stroke: white;
-  stroke-width: 2;
-  stroke-linejoin: round;
-  stroke-linecap: round;
-  stroke-dasharray: 900;
-  stroke-dashoffset: 900;
-  animation: ecgDraw 3.5s ease-in-out infinite;
-}
-@keyframes ecgDraw {
-  0% { stroke-dashoffset: 900; }
-  55% { stroke-dashoffset: 0; }
-  100% { stroke-dashoffset: -900; }
-}
 .dash-hero-content { position: relative; z-index: 1; }
-.dash-hero-eyebrow { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.2px; opacity: 0.75; margin-bottom: 6px; }
-.dash-hero-content h2 { font-size: 19px; font-weight: 700; margin-bottom: 5px; }
-.dash-hero-content p { font-size: 12.5px; opacity: 0.85; line-height: 1.55; max-width: 440px; }
+.dash-hero-wordmark { font-family: 'Orbitron', sans-serif; font-size: 34px; font-weight: 700; letter-spacing: 3px; margin-bottom: 6px; }
+.dash-hero-subheader { font-size: 12.5px; font-weight: 600; text-transform: uppercase; letter-spacing: 1.2px; opacity: 0.75; }
 </style>
 </head>
 <body>
@@ -1201,13 +1189,10 @@ body.flag-mode-active .flaggable.has-correction:hover { outline: 2px solid var(-
     </div>
     <div>
       <h1 class="dash-wordmark">D.A.S.H</h1>
-      <div class="subtitle">Verbal Scenario Assessment Tool</div>
+      <div class="subtitle">Dynamic Assessment &amp; Simulation Hub</div>
     </div>
   </div>
   <div class="topbar-actions">
-    <a class="tb-btn tb-btn-monitor" href="monitor.html" target="_blank" title="Open Monitor Screen — for the classroom / student display">
-      <span class="tb-live-dot"></span>🖥
-    </a>
     <a class="tb-btn" id="ai-toggle-btn" href="generator.html">✦ Create New Case</a>
     <button class="tb-btn" onclick="openFeedbackModal()" style="background:rgba(125,60,152,0.6)" title="Send feedback or suggestion">💬 Feedback</button>
   </div>
@@ -1221,19 +1206,22 @@ body.flag-mode-active .flaggable.has-correction:hover { outline: 2px solid var(-
   <div id="content">
     <div id="home-screen">
       <div class="dash-hero">
-        <svg class="dash-hero-ecg" viewBox="0 0 400 60" preserveAspectRatio="none" aria-hidden="true">
-          <polyline class="ecg-line" points="0,32 50,32 62,32 70,14 78,50 86,18 94,32 150,32 172,32 182,10 192,52 202,32 400,32"/>
-        </svg>
+        <div class="dash-ecg-clip"><div id="dash-hero-ecg-mount"></div></div>
         <div class="dash-hero-content">
-          <div class="dash-hero-eyebrow">Dynamic Assessment &amp; Simulation Hub</div>
-          <h2>Welcome back</h2>
-          <p>Select a scenario from the library, generate a new AI-assisted case, or jump straight into a random assessment.</p>
+          <h2 class="dash-hero-wordmark">D.A.S.H</h2>
+          <div class="dash-hero-subheader">Dynamic Assessment &amp; Simulation Hub</div>
         </div>
       </div>
 
-      <div class="stats-grid" id="home-stats"><!-- populated by buildHomeStats() --></div>
-
       <div class="home-tiles">
+        <button class="home-tile home-tile-random" onclick="loadRandomScenario(null, null)">
+          <div class="home-tile-icon">🎲</div>
+          <div class="home-tile-text">
+            <div class="home-tile-title">Random Scenario</div>
+            <div class="home-tile-desc">Jump straight into an assessment from any category.</div>
+          </div>
+          <div class="home-tile-arrow">→</div>
+        </button>
         <a class="home-tile home-tile-primary" href="generator.html">
           <div class="home-tile-icon">✦</div>
           <div class="home-tile-text">
@@ -1242,14 +1230,6 @@ body.flag-mode-active .flaggable.has-correction:hover { outline: 2px solid var(-
           </div>
           <div class="home-tile-arrow">→</div>
         </a>
-        <button class="home-tile home-tile-secondary" onclick="loadRandomScenario(null, null)">
-          <div class="home-tile-icon">🎲</div>
-          <div class="home-tile-text">
-            <div class="home-tile-title">Random Scenario</div>
-            <div class="home-tile-desc">Jump straight into an assessment from any category.</div>
-          </div>
-          <div class="home-tile-arrow">→</div>
-        </button>
       </div>
 
       <div class="home-section-label">Browse by Category</div>
@@ -1259,6 +1239,11 @@ body.flag-mode-active .flaggable.has-correction:hover { outline: 2px solid var(-
 
       <div class="home-panels" id="home-panels">
         <!-- populated by buildHomePanels() -->
+      </div>
+
+      <div class="dash-monitor-link">
+        <span class="dash-monitor-dot"></span>
+        <a href="monitor.html" target="_blank">Open Monitor Screen — for the classroom / student display ↗</a>
       </div>
 
       <div id="dev-notes-banner" style="margin-top:16px">
@@ -2257,28 +2242,21 @@ function openSidebarToGroup(groupName) {
 // HOME SCREEN — unified builder
 // ============================================================
 function buildHomeScreen() {
-  buildHomeStats();
   buildCategoryAccordion();
   buildHomePanels();
+  mountHomeHeroEcg();
 }
 
-function buildHomeStats() {
-  const container = document.getElementById('home-stats');
-  if (!container) return;
-  const all = getAllScenarios();
-  const pkgCount = (typeof CPG_PACKAGES === 'object' && CPG_PACKAGES) ? Object.keys(CPG_PACKAGES).length : 0;
-  const aiCount = all.filter(s => s.ai_generated).length;
-  const stats = [
-    { num: all.length, label: 'Scenarios in library', cls: 'navy' },
-    { num: 6, label: 'Categories', cls: 'blue' },
-    { num: pkgCount, label: 'CPG packages', cls: 'green' },
-    { num: aiCount, label: 'AI-generated', cls: 'purple' }
-  ];
-  container.innerHTML = stats.map(s => `
-    <div class="stat-card ${s.cls}">
-      <div class="stat-num">${s.num}</div>
-      <div class="stat-label">${s.label}</div>
-    </div>`).join('');
+function mountHomeHeroEcg() {
+  const mount = document.getElementById('dash-hero-ecg-mount');
+  if (!mount || typeof ECGEngine === 'undefined') return;
+  try {
+    const engine = new ECGEngine(mount, { mode: 'strip', theme: 'monitor', height: 250 });
+    const bpm = 58 + Math.floor(Math.random() * 38); // 58–95, normal sinus range
+    engine.setRhythm('nsr', bpm);
+  } catch (e) {
+    console.error('Home hero ECG failed to mount:', e.message);
+  }
 }
 
 function buildCategoryAccordion() {
