@@ -460,8 +460,8 @@ body.snav-active #content { padding-left: 60px; }
 .fc-badge { display: inline-block; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: white; padding: 2px 9px; border-radius: 10px; margin-bottom: 9px; position: relative; z-index: 1; }
 .fc-title { font-size: 17px; font-weight: 700; margin-bottom: 8px; color: var(--text); position: relative; z-index: 1; max-width: 85%; }
 .fc-desc { font-size: 12.5px; color: var(--text); opacity: 0.75; line-height: 1.55; margin-bottom: 12px; position: relative; z-index: 1; max-width: 90%; }
-.fc-cta { font-size: 12px; font-weight: 700; color: var(--navy); display: flex; align-items: center; gap: 4px; margin-top: auto; position: relative; z-index: 1; }
-.fc-vitals { display: inline-block; font-size: 9.5px; font-weight: 700; letter-spacing: 0.2px; background: rgba(0,0,0,0.055); color: var(--text); padding: 4px 9px; border-radius: 6px; margin-bottom: 12px; position: relative; z-index: 1; }
+.fc-cta { font-size: 12px; font-weight: 700; color: var(--navy); display: flex; align-items: center; gap: 4px; position: relative; z-index: 1; }
+.fc-vitals { display: inline-block; font-size: 9.5px; font-weight: 700; letter-spacing: 0.2px; background: rgba(0,0,0,0.055); color: var(--text); padding: 4px 9px; border-radius: 6px; margin-top: auto; margin-bottom: 10px; position: relative; z-index: 1; }
 .featured-case-card.has-image { background-size: cover; background-position: center; }
 .featured-case-card.has-image .fc-watermark { display: none; }
 .featured-case-card.has-image .fc-badge { color: var(--navy); background: rgba(255,255,255,0.9) !important; }
@@ -2389,6 +2389,31 @@ async function buildFeaturedCase() {
     };
     container.appendChild(btn);
   }
+
+  // Already has a blurb for this week — offer a lighter-touch option to just
+  // reroll the image (keeping the existing blurb) if the admin doesn't like it.
+  const showRegenImageBtn = cached && typeof isAdmin === 'function' && isAdmin();
+  if (showRegenImageBtn) {
+    const regenBtn = document.createElement('button');
+    regenBtn.className = 'fc-generate-btn';
+    regenBtn.type = 'button';
+    regenBtn.textContent = '🔄 Regenerate image';
+    regenBtn.onclick = async (e) => {
+      e.stopPropagation();
+      regenBtn.disabled = true; regenBtn.textContent = 'Regenerating image…';
+      try {
+        const result = await requestFeaturedScenarioGeneration(s.id, true);
+        applyFeaturedCaseBackground(container, bg, result.imageUrl);
+        renderFeaturedCase(container, s, icon, dot, result.blurb);
+        container.appendChild(regenBtn);
+        regenBtn.disabled = false; regenBtn.textContent = '🔄 Regenerate image';
+      } catch (err) {
+        console.error('Image regeneration failed:', err.message);
+        regenBtn.disabled = false; regenBtn.textContent = '⚠️ Retry — regenerate image';
+      }
+    };
+    container.appendChild(regenBtn);
+  }
 }
 
 function getFeaturedCaseWeekKey(date) {
@@ -2445,9 +2470,11 @@ function renderFeaturedCase(container, s, icon, dot, blurb) {
 
 // Calls the generate-featured-blurb Edge Function, which writes the blurb
 // (Anthropic) and background image (Dezgo) server-side and returns both.
-// Shared by the home-screen "generate for this week" button and the
-// scenario-view "mark as featured scenario" button.
-async function requestFeaturedScenarioGeneration(scenarioId) {
+// Shared by the home-screen "generate for this week" button, the "regenerate
+// image" button, and the scenario-view "mark as featured scenario" button.
+// imageOnly=true keeps the existing blurb (if any) and only regenerates the
+// image — for when the blurb is fine but the picture isn't.
+async function requestFeaturedScenarioGeneration(scenarioId, imageOnly) {
   if (!_authSession || !_authSession.access_token) throw new Error('Not signed in.');
   const res = await fetch(`${SUPABASE_URL}/functions/v1/generate-featured-blurb`, {
     method: 'POST',
@@ -2455,7 +2482,7 @@ async function requestFeaturedScenarioGeneration(scenarioId) {
       'Authorization': `Bearer ${_authSession.access_token}`,
       'Content-Type': 'application/json'
     },
-    body: JSON.stringify({ scenario_id: scenarioId })
+    body: JSON.stringify({ scenario_id: scenarioId, image_only: !!imageOnly })
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok || data.error) throw new Error(data.error || ('Generation failed — ' + res.status));

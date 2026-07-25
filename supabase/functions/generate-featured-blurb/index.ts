@@ -5,9 +5,10 @@
 //     rotation within that pool), and skips if a blurb already exists for
 //     the week (never overwrites a manual pick).
 //  2. Admin action from scenario.html "Mark as Featured Scenario" / "Generate
-//     AI blurb" buttons — Authorization: Bearer <user JWT>, body { scenario_id },
-//     always regenerates blurb + image for that scenario this week. Not
-//     restricted to the recent-10 pool — admin can feature anything.
+//     AI blurb" / "Regenerate image" buttons — Authorization: Bearer <user JWT>,
+//     body { scenario_id, image_only? }. image_only=true keeps the existing
+//     blurb for that scenario/week (if any) and only rerolls the image.
+//     Not restricted to the recent-10 pool — admin can feature anything.
 // Both paths generate a short AI blurb (Anthropic) and a background image
 // (Dezgo, Flux 1 via multipart/form-data) and write them into
 // featured_case_blurbs.
@@ -61,6 +62,7 @@ Deno.serve(async (req: Request) => {
     let isManual = false;
     let requestedScenarioId: string | null = null;
     let manualUserId: string | null = null;
+    let imageOnly = false;
     if (!isCron) {
       const authHeader = req.headers.get("Authorization") || "";
       const jwt = authHeader.replace(/^Bearer\s+/i, "");
@@ -80,6 +82,7 @@ Deno.serve(async (req: Request) => {
       manualUserId = userData.user.id;
       const body = await req.json().catch(() => ({}));
       requestedScenarioId = body?.scenario_id || null;
+      imageOnly = !!body?.image_only;
       if (!requestedScenarioId) return json({ error: "scenario_id required" }, 400);
     }
 
@@ -128,51 +131,70 @@ Deno.serve(async (req: Request) => {
 
     const detail = s.subtitle || s.dispatch || s.caller_hx || "";
 
-    // Same source the client uses (getAnthropicKeyForKQ in scenario.html).
-    const { data: cfg, error: cfgErr } = await supabase
-      .from("app_config")
-      .select("value")
-      .eq("key", "anthropic_api_key")
-      .maybeSingle();
-    if (cfgErr) throw cfgErr;
-    const anthropicKey = cfg?.value;
-    if (!anthropicKey) throw new Error("anthropic_api_key not found in app_config");
+    // --- 1. Blurb (Anthropic) — skipped if image_only and a blurb for this
+    // scenario/week already exists, so regenerating the image doesn't churn
+    // through an API call or change wording the admin was happy with.
+    let blurb: string | null = null;
+    let aiUsage: { input_tokens?: number; output_tokens?: number } | null = null;
 
-    // --- 1. Blurb (Anthropic) ---
-    const aiRes = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": anthropicKey,
-        "anthropic-version": "2023-06-01"
-      },
-      body: JSON.stringify({
-        model: "claude-haiku-4-5-20251001",
-        max_tokens: 200,
-        system:
-          'You write a short, punchy teaser (2 sentences), shown on a homepage "Featured Scenario" card for clinical instructors and educators browsing the scenario library — NOT for a student running the scenario. Describe the case from an outside, descriptive point of view (who the patient is, what\'s going on). Never address the reader as "you" or ask what they would do/assess/diagnose — that framing is for the in-scenario assessment, not this teaser. Plain text only, no markdown, no quotation marks. Under 40 words total. Do not invent clinical details not implied by what is given.',
-        messages: [
-          {
-            role: "user",
-            content:
-              `Scenario title: ${s.title || "Untitled"}\nCategory: ${s.category || ""} / ${s.subcategory || ""}\n` +
-              (detail ? `Existing dispatch/case detail: ${detail}\n` : "") +
-              `Write the teaser now.`
-          }
-        ]
-      })
-    });
-    if (!aiRes.ok) {
-      const e = await aiRes.json().catch(() => ({}));
-      throw new Error(e.error?.message || `Anthropic API error ${aiRes.status}`);
+    if (imageOnly) {
+      const { data: existingBlurbRow, error: existingBlurbErr } = await supabase
+        .from("featured_case_blurbs")
+        .select("blurb")
+        .eq("week_key", weekKey)
+        .eq("scenario_id", s.id)
+        .maybeSingle();
+      if (existingBlurbErr) throw existingBlurbErr;
+      blurb = existingBlurbRow?.blurb || null;
     }
-    const aiData = await aiRes.json();
-    const blurb = (aiData.content || [])
-      .filter((b: { type: string }) => b.type === "text")
-      .map((b: { text: string }) => b.text)
-      .join("")
-      .trim();
-    if (!blurb) throw new Error("AI returned an empty blurb");
+
+    if (!blurb) {
+      // Same source the client uses (getAnthropicKeyForKQ in scenario.html).
+      const { data: cfg, error: cfgErr } = await supabase
+        .from("app_config")
+        .select("value")
+        .eq("key", "anthropic_api_key")
+        .maybeSingle();
+      if (cfgErr) throw cfgErr;
+      const anthropicKey = cfg?.value;
+      if (!anthropicKey) throw new Error("anthropic_api_key not found in app_config");
+
+      const aiRes = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": anthropicKey,
+          "anthropic-version": "2023-06-01"
+        },
+        body: JSON.stringify({
+          model: "claude-haiku-4-5-20251001",
+          max_tokens: 200,
+          system:
+            'You write a short, punchy teaser (2 sentences), shown on a homepage "Featured Scenario" card for clinical instructors and educators browsing the scenario library — NOT for a student running the scenario. Describe the case from an outside, descriptive point of view (who the patient is, what\'s going on). Never address the reader as "you" or ask what they would do/assess/diagnose — that framing is for the in-scenario assessment, not this teaser. Plain text only, no markdown, no quotation marks. Under 40 words total. Do not invent clinical details not implied by what is given.',
+          messages: [
+            {
+              role: "user",
+              content:
+                `Scenario title: ${s.title || "Untitled"}\nCategory: ${s.category || ""} / ${s.subcategory || ""}\n` +
+                (detail ? `Existing dispatch/case detail: ${detail}\n` : "") +
+                `Write the teaser now.`
+            }
+          ]
+        })
+      });
+      if (!aiRes.ok) {
+        const e = await aiRes.json().catch(() => ({}));
+        throw new Error(e.error?.message || `Anthropic API error ${aiRes.status}`);
+      }
+      const aiData = await aiRes.json();
+      aiUsage = aiData.usage || null;
+      blurb = (aiData.content || [])
+        .filter((b: { type: string }) => b.type === "text")
+        .map((b: { text: string }) => b.text)
+        .join("")
+        .trim();
+      if (!blurb) throw new Error("AI returned an empty blurb");
+    }
 
     // --- 2. Background image (Dezgo) ---
     const dezgoKey = Deno.env.get("DEZGO_API_KEY");
@@ -237,9 +259,9 @@ Deno.serve(async (req: Request) => {
     await supabase.from("ai_usage_log").insert({
       source: isCron ? "cron-featured-scenario" : "admin-featured-scenario",
       model: "claude-haiku-4-5-20251001",
-      input_tokens: aiData.usage?.input_tokens ?? 0,
-      output_tokens: aiData.usage?.output_tokens ?? 0,
-      label: `Featured scenario blurb${imageUrl ? " + image" : ""} (${isCron ? "auto" : "manual"}) — ${s.title || s.id}`
+      input_tokens: aiUsage?.input_tokens ?? 0,
+      output_tokens: aiUsage?.output_tokens ?? 0,
+      label: `Featured scenario ${imageOnly ? "image regen" : "blurb"}${imageUrl ? " + image" : ""} (${isCron ? "auto" : "manual"}) — ${s.title || s.id}`
     });
 
     return json({ ok: true, weekKey, scenarioId: s.id, blurb, imageUrl });
