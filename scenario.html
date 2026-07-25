@@ -1230,7 +1230,7 @@ body.flag-mode-active .flaggable.has-correction:hover { outline: 2px solid var(-
     <img src="logo.png" alt="D.A.S.H — Dynamic Assessment &amp; Simulation Hub" class="topbar-logo-img">
   </div>
   <div class="topbar-actions">
-    <a class="tb-btn" id="ai-toggle-btn" href="generator.html">✦ Create New Case</a>
+    <a class="tb-btn" id="ai-toggle-btn" href="generator.html">✦ Create New Scenario</a>
     <button class="tb-btn" onclick="openFeedbackModal()" style="background:rgba(125,60,152,0.6)" title="Send feedback or suggestion">💬 Feedback</button>
   </div>
 </div>
@@ -1262,7 +1262,7 @@ body.flag-mode-active .flaggable.has-correction:hover { outline: 2px solid var(-
         <a class="home-tile home-tile-primary" href="generator.html">
           <div class="home-tile-icon">✦</div>
           <div class="home-tile-text">
-            <div class="home-tile-title">Create New Case</div>
+            <div class="home-tile-title">Create New Scenario</div>
             <div class="home-tile-desc">AI-assisted scenario generation from a category, complexity, or free-text prompt.</div>
           </div>
           <div class="home-tile-arrow">→</div>
@@ -1277,7 +1277,7 @@ body.flag-mode-active .flaggable.has-correction:hover { outline: 2px solid var(-
           </div>
         </div>
         <div class="home-mid-col">
-          <div class="home-section-label">Featured Case — This Week</div>
+          <div class="home-section-label">Featured Scenario — This Week</div>
           <div class="featured-case-card" id="featured-case-card">
             <!-- populated by buildFeaturedCase() -->
           </div>
@@ -2447,14 +2447,14 @@ async function markAsFeaturedCase(scenarioId) {
   const s = getAllScenarios().find(x => String(x.id) === String(scenarioId));
   if (!s) { showToast('⚠️ Could not find this scenario'); return; }
   const weekKey = getFeaturedCaseWeekKey();
-  showToast('✦ Generating featured case blurb…', 4000);
+  showToast('✦ Generating featured scenario blurb…', 4000);
   try {
     const blurb = await generateFeaturedCaseBlurbText(s);
     await saveFeaturedCaseBlurb(weekKey, s.id, blurb);
-    showToast(`⭐ "${s.title}" is now this week's Featured Case`, 3000);
+    showToast(`⭐ "${s.title}" is now this week's Featured Scenario`, 3000);
   } catch (e) {
     console.error('Mark as featured case failed:', e.message);
-    showToast('⚠️ Could not set featured case — ' + e.message, 3000);
+    showToast('⚠️ Could not set featured scenario — ' + e.message, 3000);
   }
 }
 
@@ -3667,7 +3667,7 @@ function renderScenario(s) {
   </div>
   <div style="display:flex;flex-direction:column;align-items:flex-end;gap:8px;flex-shrink:0">
     <button id="fav-toggle-btn" onclick="toggleFavourite('${s.id}')" title="${_myFavourites.has(s.id)?'Remove from favourites':'Add to favourites'}" style="background:${_myFavourites.has(s.id)?'rgba(255,205,60,0.28)':'rgba(255,255,255,0.15)'};border:1px solid ${_myFavourites.has(s.id)?'rgba(255,205,60,0.55)':'rgba(255,255,255,0.3)'};color:white;padding:7px 14px;border-radius:7px;cursor:pointer;font-size:12px;font-weight:700;white-space:nowrap">${_myFavourites.has(s.id)?'⭐ Favourited':'☆ Favourite'}</button>
-    ${isAdmin() ? `<button onclick="markAsFeaturedCase('${s.id}')" title="Generate a blurb and pin this as DASH's Featured Case for the current week" style="background:rgba(245,166,35,0.22);border:1px solid rgba(245,166,35,0.5);color:white;padding:7px 14px;border-radius:7px;cursor:pointer;font-size:12px;font-weight:700;white-space:nowrap">✦ Mark as Featured Case</button>` : ''}
+    ${isAdmin() ? `<button onclick="markAsFeaturedCase('${s.id}')" title="Generate a blurb and pin this as DASH's Featured Scenario for the current week" style="background:rgba(245,166,35,0.22);border:1px solid rgba(245,166,35,0.5);color:white;padding:7px 14px;border-radius:7px;cursor:pointer;font-size:12px;font-weight:700;white-space:nowrap">✦ Mark as Featured Scenario</button>` : ''}
     <button onclick="openEditModal()" style="background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.3);color:white;padding:7px 14px;border-radius:7px;cursor:pointer;font-size:12px;font-weight:700;white-space:nowrap">✏️ Edit Scenario</button>
     <button onclick="openPatientSessionModal()" style="background:linear-gradient(135deg,rgba(20,90,50,0.85),rgba(39,131,58,0.75));border:1px solid rgba(100,220,130,0.35);color:white;padding:8px 14px 8px 10px;border-radius:8px;cursor:pointer;display:flex;align-items:center;gap:10px;text-align:left;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,0.25)">
       <span style="font-size:26px;line-height:1;filter:drop-shadow(0 1px 3px rgba(0,0,0,0.4))">📺</span>
