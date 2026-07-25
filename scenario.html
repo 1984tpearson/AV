@@ -917,7 +917,7 @@ body.snav-active #content { padding-left: 60px; }
 /* ============================================================ AUTO-SCORE */
 .auto-score-indicator { font-size: 10px; color: var(--grey); margin-top: 4px; font-style: italic; }
 /* ============================================================ FOOTER */
-#site-footer { background: #1a1a2e; color: rgba(255,255,255,0.5); padding: 24px 24px 32px; font-size: 11px; line-height: 1.7; border-top: 1px solid rgba(255,255,255,0.08); margin-top: 40px; width: 100vw; display: block; }
+#site-footer { background: #1a1a2e; color: rgba(255,255,255,0.5); padding: 24px 24px 32px; font-size: 11px; line-height: 1.7; border-top: 1px solid rgba(255,255,255,0.08); margin-top: 0; width: 100vw; display: block; }
 #site-footer .footer-inner { max-width: 960px; margin: 0 auto; }
 #site-footer hr { border: none; border-top: 1px solid rgba(255,255,255,0.1); margin: 12px 0; }
 #site-footer strong { color: rgba(255,255,255,0.75); font-weight: 600; }
@@ -1215,7 +1215,7 @@ body.flag-mode-active .flaggable.has-correction:hover { outline: 2px solid var(-
 .dash-ecg-clip .ecg-strip-label { display: none !important; }
 .dash-ecg-clip, .dash-ecg-clip * { background: transparent !important; background-color: transparent !important; }
 .dash-ecg-clip #dash-hero-ecg-mount { pointer-events: auto; cursor: pointer; }
-.dash-hero-content { position: relative; z-index: 1; padding: 30px 28px; }
+.dash-hero-content { position: relative; z-index: 1; padding: 30px 28px; pointer-events: none; }
 .dash-hero-wordmark { font-family: 'Orbitron', sans-serif; font-size: 68px; font-weight: 700; letter-spacing: 5px; margin-bottom: 6px; line-height: 1; }
 .dash-hero-subheader { font-size: 12.5px; font-weight: 600; text-transform: uppercase; letter-spacing: 1.2px; opacity: 0.75; }
 .topbar-logo-img { height: 36px; width: auto; max-width: 160px; object-fit: contain; display: block; }
@@ -2465,7 +2465,7 @@ let homeHeroEcgEngine = null;
 // was silently failing (every call returned early and did nothing).
 const HOME_ECG_RHYTHMS = [
   {key:'nsr',bpm:72},{key:'stach',bpm:130},{key:'sbrad',bpm:48},{key:'svt',bpm:170},
-  {key:'vt',bpm:175},{key:'aivr',bpm:60},{key:'chb',bpm:38},{key:'af',bpm:110},
+  {key:'aivr',bpm:60},{key:'chb',bpm:38},{key:'af',bpm:110},
   {key:'aflut',bpm:0},{key:'mob1',bpm:0},{key:'mob2',bpm:0},{key:'vf',bpm:0},
   {key:'deg1',bpm:70},{key:'junct',bpm:60},{key:'wpw',bpm:72},{key:'pvc',bpm:70},
   {key:'hyperK',bpm:65},{key:'hypoK',bpm:72},{key:'longQT',bpm:65},{key:'peri',bpm:90},
