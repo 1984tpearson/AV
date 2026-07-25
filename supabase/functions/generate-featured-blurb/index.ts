@@ -176,7 +176,7 @@ Deno.serve(async (req: Request) => {
           model: "claude-haiku-4-5-20251001",
           max_tokens: 200,
           system:
-            'You write a short, punchy teaser (2 sentences), shown on a homepage "Featured Scenario" card for clinical instructors and educators browsing the scenario library — NOT for a student running the scenario. Describe the case from an outside, descriptive point of view (who the patient is, what\'s going on). Never address the reader as "you" or ask what they would do/assess/diagnose — that framing is for the in-scenario assessment, not this teaser. Plain text only, no markdown, no quotation marks. Under 40 words total. Do not invent clinical details not implied by what is given.',
+            'You write a short, punchy teaser (2 sentences), shown on a homepage "Featured Scenario" card for clinical instructors and educators browsing the scenario library. Write it as a vivid, standalone description of the patient and what\'s happening to them — like a case summary someone would tell a colleague. Do NOT reference the assessment, the learner/student, or what needs to be figured out/managed/determined in any form — no "assess", "determine the cause", "learners must", "requires quick thinking", or similar framing. Just describe the case itself. Never address the reader as "you". Plain text only, no markdown, no quotation marks. Under 40 words total. Do not invent clinical details not implied by what is given.',
           messages: [
             {
               role: "user",
