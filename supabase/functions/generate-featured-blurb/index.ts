@@ -6,9 +6,11 @@
 //     the week (never overwrites a manual pick).
 //  2. Admin action from scenario.html "Mark as Featured Scenario" / "Generate
 //     AI blurb" / "Regenerate image" buttons — Authorization: Bearer <user JWT>,
-//     body { scenario_id, image_only? }. image_only=true keeps the existing
-//     blurb for that scenario/week (if any) and only rerolls the image.
-//     Not restricted to the recent-10 pool — admin can feature anything.
+//     body { scenario_id, image_only?, image_prompt? }. image_only=true keeps
+//     the existing blurb for that scenario/week (if any) and only rerolls
+//     the image. image_prompt overrides the auto-built Dezgo prompt (used by
+//     the "review before regenerating" modal). Not restricted to the
+//     recent-10 pool — admin can feature anything.
 // Both paths generate a short AI blurb (Anthropic) and a background image
 // (Dezgo, Flux 1 via multipart/form-data) and write them into
 // featured_case_blurbs.
@@ -63,6 +65,7 @@ Deno.serve(async (req: Request) => {
     let requestedScenarioId: string | null = null;
     let manualUserId: string | null = null;
     let imageOnly = false;
+    let customImagePrompt: string | null = null;
     if (!isCron) {
       const authHeader = req.headers.get("Authorization") || "";
       const jwt = authHeader.replace(/^Bearer\s+/i, "");
@@ -83,6 +86,9 @@ Deno.serve(async (req: Request) => {
       const body = await req.json().catch(() => ({}));
       requestedScenarioId = body?.scenario_id || null;
       imageOnly = !!body?.image_only;
+      if (typeof body?.image_prompt === "string" && body.image_prompt.trim()) {
+        customImagePrompt = body.image_prompt.trim().slice(0, 1000); // Dezgo's own prompt length limit
+      }
       if (!requestedScenarioId) return json({ error: "scenario_id required" }, 400);
     }
 
@@ -201,7 +207,7 @@ Deno.serve(async (req: Request) => {
     let imageUrl: string | null = null;
     if (dezgoKey) {
       try {
-        const prompt = buildImagePrompt(s);
+        const prompt = customImagePrompt || buildImagePrompt(s);
         const formData = new FormData();
         formData.append("prompt", prompt);
         formData.append("width", "1024");

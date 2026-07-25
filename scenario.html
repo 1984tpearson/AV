@@ -1552,6 +1552,22 @@ body.flag-mode-active .flaggable.has-correction:hover { outline: 2px solid var(-
   </div>
 </div>
 
+<!-- Regenerate Featured Scenario Image Modal (Admin) -->
+<div class="modal-overlay" id="image-prompt-modal">
+  <div class="modal-inner" style="max-width:520px">
+    <div class="modal-header" style="background:var(--navy)">
+      <h2>🖼️ Regenerate Featured Image</h2>
+      <button class="modal-close" onclick="closeImagePromptModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-info">Review or edit the image prompt below, then regenerate. The blurb text won't change.</div>
+      <div class="form-group"><label>Image prompt</label><textarea id="ip-prompt-textarea" rows="6" style="resize:vertical"></textarea></div>
+      <button class="modal-submit-btn" id="ip-submit-btn" style="background:var(--navy)" onclick="confirmImagePromptRegeneration()">🔄 Regenerate Image</button>
+      <div id="ip-status" style="margin-top:10px;font-size:13px;min-height:20px"></div>
+    </div>
+  </div>
+</div>
+
 <!-- Corrections Review Modal (Admin) -->
 <div class="modal-overlay" id="corrections-modal">
   <div class="modal-inner">
@@ -2398,19 +2414,9 @@ async function buildFeaturedCase() {
     regenBtn.className = 'fc-generate-btn';
     regenBtn.type = 'button';
     regenBtn.textContent = '🔄 Regenerate image';
-    regenBtn.onclick = async (e) => {
+    regenBtn.onclick = (e) => {
       e.stopPropagation();
-      regenBtn.disabled = true; regenBtn.textContent = 'Regenerating image…';
-      try {
-        const result = await requestFeaturedScenarioGeneration(s.id, true);
-        applyFeaturedCaseBackground(container, bg, result.imageUrl);
-        renderFeaturedCase(container, s, icon, dot, result.blurb);
-        container.appendChild(regenBtn);
-        regenBtn.disabled = false; regenBtn.textContent = '🔄 Regenerate image';
-      } catch (err) {
-        console.error('Image regeneration failed:', err.message);
-        regenBtn.disabled = false; regenBtn.textContent = '⚠️ Retry — regenerate image';
-      }
+      openImagePromptModal(s, container, bg, icon, dot, regenBtn);
     };
     container.appendChild(regenBtn);
   }
@@ -2473,8 +2479,10 @@ function renderFeaturedCase(container, s, icon, dot, blurb) {
 // Shared by the home-screen "generate for this week" button, the "regenerate
 // image" button, and the scenario-view "mark as featured scenario" button.
 // imageOnly=true keeps the existing blurb (if any) and only regenerates the
-// image — for when the blurb is fine but the picture isn't.
-async function requestFeaturedScenarioGeneration(scenarioId, imageOnly) {
+// image — for when the blurb is fine but the picture isn't. customPrompt
+// overrides the server's auto-built image prompt when reviewed/edited by
+// an admin in the regenerate-image modal.
+async function requestFeaturedScenarioGeneration(scenarioId, imageOnly, customPrompt) {
   if (!_authSession || !_authSession.access_token) throw new Error('Not signed in.');
   const res = await fetch(`${SUPABASE_URL}/functions/v1/generate-featured-blurb`, {
     method: 'POST',
@@ -2482,12 +2490,67 @@ async function requestFeaturedScenarioGeneration(scenarioId, imageOnly) {
       'Authorization': `Bearer ${_authSession.access_token}`,
       'Content-Type': 'application/json'
     },
-    body: JSON.stringify({ scenario_id: scenarioId, image_only: !!imageOnly })
+    body: JSON.stringify({
+      scenario_id: scenarioId,
+      image_only: !!imageOnly,
+      ...(customPrompt ? { image_prompt: customPrompt } : {})
+    })
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok || data.error) throw new Error(data.error || ('Generation failed — ' + res.status));
   return { blurb: data.blurb, imageUrl: data.imageUrl || null };
 }
+
+// Mirrors buildImagePrompt() in the generate-featured-blurb Edge Function —
+// used to pre-fill the review textarea with what the server would build by
+// default, before the admin edits and confirms it.
+function buildFcImagePrompt(s) {
+  const clinicalPicture = s.caller_hx || s.dispatch || s.title || 'a medical emergency';
+  return `Photorealistic photo. ${clinicalPicture} ` +
+    `Cinematic lighting, wide shot, professional editorial photography style, shallow depth of field.`;
+}
+
+let _pendingImagePromptCtx = null;
+
+function openImagePromptModal(s, container, bg, icon, dot, regenBtn) {
+  _pendingImagePromptCtx = { s, container, bg, icon, dot, regenBtn };
+  document.getElementById('ip-prompt-textarea').value = buildFcImagePrompt(s);
+  document.getElementById('ip-status').textContent = '';
+  document.getElementById('ip-submit-btn').disabled = false;
+  document.getElementById('ip-submit-btn').textContent = '🔄 Regenerate Image';
+  document.getElementById('image-prompt-modal').classList.add('open');
+}
+
+function closeImagePromptModal() {
+  document.getElementById('image-prompt-modal').classList.remove('open');
+  _pendingImagePromptCtx = null;
+}
+
+async function confirmImagePromptRegeneration() {
+  if (!_pendingImagePromptCtx) return;
+  const { s, container, bg, icon, dot, regenBtn } = _pendingImagePromptCtx;
+  const prompt = document.getElementById('ip-prompt-textarea').value.trim();
+  if (!prompt) {
+    document.getElementById('ip-status').innerHTML = '<span style="color:var(--red)">⚠️ Prompt can\'t be empty</span>';
+    return;
+  }
+  const submitBtn = document.getElementById('ip-submit-btn');
+  submitBtn.disabled = true; submitBtn.textContent = 'Regenerating…';
+  document.getElementById('ip-status').textContent = '';
+  try {
+    const result = await requestFeaturedScenarioGeneration(s.id, true, prompt);
+    applyFeaturedCaseBackground(container, bg, result.imageUrl);
+    renderFeaturedCase(container, s, icon, dot, result.blurb);
+    container.appendChild(regenBtn);
+    closeImagePromptModal();
+    showToast('✓ Featured scenario image regenerated', 2500);
+  } catch (err) {
+    console.error('Image regeneration failed:', err.message);
+    document.getElementById('ip-status').innerHTML = `<span style="color:var(--red)">⚠️ ${err.message}</span>`;
+    submitBtn.disabled = false; submitBtn.textContent = '🔄 Regenerate Image';
+  }
+}
+document.getElementById('image-prompt-modal').addEventListener('click', e => { if (e.target === document.getElementById('image-prompt-modal')) closeImagePromptModal(); });
 
 // Admin action from the scenario-detail view — generates a blurb + image for
 // THIS scenario and pins it as the featured scenario for the current week,
