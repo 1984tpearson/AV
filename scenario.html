@@ -2420,10 +2420,22 @@ function buildFcVssChips(vitals) {
   return `<div class="fc-vitals">${rows.join(' &nbsp;·&nbsp; ')}</div>`;
 }
 
+// Uses the primary CPG's title for the badge (e.g. "Anaphylaxis") rather
+// than the broad category/subcategory — same lookup getCPGLabel() uses,
+// just returning the bare title instead of "code — title".
+function fcPresentationLabel(s) {
+  const primaryCpg = (s.cpg || '').split(/[,/]/)[0]?.trim();
+  if (primaryCpg && typeof CPG_PACKAGES !== 'undefined') {
+    const key = Object.keys(CPG_PACKAGES || {}).find(k => CPG_PACKAGES[k]?.cpg === primaryCpg);
+    if (key && CPG_PACKAGES[key].title) return CPG_PACKAGES[key].title;
+  }
+  return s.subcategory || s.category || '';
+}
+
 function renderFeaturedCase(container, s, icon, dot, blurb) {
   container.innerHTML = `
     <div class="fc-watermark">${icon}</div>
-    <div class="fc-badge" style="background:${dot}">${s.subcategory || s.category || ''}</div>
+    <div class="fc-badge" style="background:${dot}">${fcPresentationLabel(s)}</div>
     <div class="fc-title">${s.title || 'Untitled'}</div>
     <div class="fc-desc">${blurb}</div>
     ${buildFcVssChips(s.vitals)}
