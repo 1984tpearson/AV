@@ -128,7 +128,7 @@ class ECGEngine {
   resume()        { this._frozen = false; this._leadsFrozen = false; this._captureMode = false; if (this._pub.resume) this._pub.resume(); }
   toggleCapture() { if (this._pub.toggleCapture) this._pub.toggleCapture(); }
   onSlider(val)   { if (this._pub.onSlider)  this._pub.onSlider(val);  }
-  destroy()       { this._frozen = true; this._running = false; if (this.container) this.container.innerHTML = ''; }
+  destroy()       { this._frozen = true; this._running = false; if (this._visObserver) this._visObserver.disconnect(); if (this.container) this.container.innerHTML = ''; }
 
   _initCore() {
     const self = this;
@@ -1805,6 +1805,27 @@ function doCapture() {
       frozen = false; leadsFrozen = false; captureMode = false; lastMs = 0;
       requestAnimationFrame(draw);
     };
+
+    // ── Pause rendering while off-screen to avoid wasted CPU/GPU work,
+    // which was causing scroll stutter on lower-end hardware. Only
+    // auto-pauses/resumes traces that weren't already deliberately
+    // frozen by the user (e.g. via the capture/freeze button).
+    let _autoPaused = false;
+    if (typeof IntersectionObserver !== 'undefined') {
+      const _visObserver = new IntersectionObserver((entries) => {
+        const visible = entries[entries.length - 1].isIntersecting;
+        if (!visible) {
+          if (!frozen) { frozen = true; _autoPaused = true; }
+        } else if (_autoPaused) {
+          _autoPaused = false;
+          frozen = false;
+          lastMs = 0;
+          requestAnimationFrame(draw);
+        }
+      }, { rootMargin: '150px' });
+      _visObserver.observe(container);
+      _self._visObserver = _visObserver;
+    }
 
     // Apply initial theme from constructor options
     setTheme(_self._options_theme || 'monitor');
