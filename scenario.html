@@ -461,6 +461,8 @@ body.snav-active #content { padding-left: 60px; }
 .fc-title { font-size: 17px; font-weight: 700; margin-bottom: 8px; color: var(--text); position: relative; z-index: 1; max-width: 85%; }
 .fc-desc { font-size: 12.5px; color: var(--text); opacity: 0.75; line-height: 1.55; margin-bottom: 12px; position: relative; z-index: 1; max-width: 90%; }
 .fc-cta { font-size: 12px; font-weight: 700; color: var(--navy); display: flex; align-items: center; gap: 4px; margin-top: auto; position: relative; z-index: 1; }
+.fc-vitals { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 9px; position: relative; z-index: 1; }
+.fc-vital-chip { font-size: 10.5px; font-weight: 700; letter-spacing: 0.2px; background: rgba(0,0,0,0.055); color: var(--text); padding: 3px 8px; border-radius: 6px; }
 .featured-case-card.has-image { background-size: cover; background-position: center; }
 .featured-case-card.has-image .fc-watermark { display: none; }
 .featured-case-card.has-image .fc-badge { color: var(--navy); background: rgba(255,255,255,0.9) !important; }
@@ -468,6 +470,7 @@ body.snav-active #content { padding-left: 60px; }
 .featured-case-card.has-image .fc-desc,
 .featured-case-card.has-image .fc-cta { color: white; text-shadow: 0 1px 4px rgba(0,0,0,0.65); }
 .featured-case-card.has-image .fc-desc { opacity: 0.95; }
+.featured-case-card.has-image .fc-vital-chip { background: rgba(255,255,255,0.16); color: white; border: 1px solid rgba(255,255,255,0.35); backdrop-filter: blur(2px); }
 /* legacy cat-card kept for any remaining references */
 .category-overview { display: grid; grid-template-columns: 1fr; gap: 10px; }
 @media (min-width: 600px) { .category-overview { grid-template-columns: repeat(2,1fr); } }
@@ -2406,11 +2409,24 @@ function applyFeaturedCaseBackground(container, fallbackBg, imageUrl) {
   }
 }
 
+function buildFcVssChips(vitals) {
+  if (!vitals) return '';
+  const rows = [];
+  if (vitals.HR) rows.push(`HR ${vitals.HR}`);
+  if (vitals.RR) rows.push(`RR ${vitals.RR}`);
+  if (vitals.BP) rows.push(`BP ${vitals.BP}`);
+  if (vitals.SpO2) rows.push(`SpO₂ ${vitals.SpO2}`);
+  if (vitals.GCS && vitals.GCS.total != null) rows.push(`GCS ${vitals.GCS.total}`);
+  if (!rows.length) return '';
+  return `<div class="fc-vitals">${rows.map(v => `<span class="fc-vital-chip">${v}</span>`).join('')}</div>`;
+}
+
 function renderFeaturedCase(container, s, icon, dot, blurb) {
   container.innerHTML = `
     <div class="fc-watermark">${icon}</div>
     <div class="fc-badge" style="background:${dot}">${s.subcategory || s.category || ''}</div>
     <div class="fc-title">${s.title || 'Untitled'}</div>
+    ${buildFcVssChips(s.vitals)}
     <div class="fc-desc">${blurb}</div>
     <div class="fc-cta">Open this case →</div>`;
   container.onclick = () => loadScenario(s.id);
