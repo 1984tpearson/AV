@@ -2311,11 +2311,19 @@ async function buildFeaturedCase() {
 
   const weekKey = getFeaturedCaseWeekKey();
 
-  // Deterministic weekly pick — same case for everyone all week, rotates each Monday.
-  // Used only as a fallback if nothing has been manually featured for this week.
+  // Deterministic weekly pick from the 10 most recently generated scenarios —
+  // same case for everyone all week, rotates each Monday. Used only as a
+  // fallback if nothing has been manually featured for this week yet; the
+  // real pick (matching this pool logic) happens server-side in the
+  // generate-featured-blurb Edge Function.
   const startOfYear = new Date(new Date().getFullYear(), 0, 1);
   const weekNum = Math.ceil((((new Date() - startOfYear) / 86400000) + startOfYear.getDay() + 1) / 7);
-  let s = all[weekNum % all.length];
+  const recentPool = all
+    .filter(x => x.ai_generated)
+    .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+    .slice(0, 10);
+  const rotationPool = recentPool.length ? recentPool : all;
+  let s = rotationPool[weekNum % rotationPool.length];
   let blurb = s.subtitle || s.dispatch || s.caller_hx || 'A case from the library, picked for this week.';
   let imageUrl = null;
   let cached = false;
