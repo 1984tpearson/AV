@@ -37,13 +37,19 @@ function getWeekKey(now: Date) {
   return { weekKey: `${now.getFullYear()}-W${weekNum}`, weekNum };
 }
 
-// Uses the scenario's actual clinical presentation (not a generic ambulance/
-// category scene) so the image reflects what's actually happening in the
-// case. No content restriction beyond what Dezgo itself enforces.
-function buildImagePrompt(s: { title?: string; dispatch?: string; caller_hx?: string }) {
-  const clinicalPicture = s.caller_hx || s.dispatch || s.title || "a medical emergency";
+// Uses arrival_hx — the crew's third-person description of the patient's
+// actual position/appearance/scene on arrival (e.g. "Patient found seated
+// at the kitchen table, slumped forward with head resting on her arms") —
+// rather than caller_hx, which is written from the CALLER's point of view
+// ("Caller is Isabella's housemate who reports...") and was causing the
+// image model to render the caller instead of the patient. Falls back to
+// dispatch, then title. Explicit instruction not to depict the caller kept
+// as a safety net since arrival_hx occasionally still mentions them briefly.
+function buildImagePrompt(s: { title?: string; dispatch?: string; arrival_hx?: string; caller_hx?: string }) {
+  const clinicalPicture = s.arrival_hx || s.dispatch || s.title || "a medical emergency";
   return (
-    `Photorealistic photo. ${clinicalPicture} ` +
+    `Photorealistic photo of the patient described here: ${clinicalPicture} ` +
+    `Depict the patient and their immediate surroundings — not the person who called for help. ` +
     `Cinematic lighting, wide shot, professional editorial photography style, shallow depth of field.`
   );
 }
@@ -112,7 +118,7 @@ Deno.serve(async (req: Request) => {
       // Admin can feature any scenario by id, regardless of the recent pool.
       const { data: chosen, error: chosenErr } = await supabase
         .from("scenarios")
-        .select("id, title, category, subcategory, subtitle, dispatch, caller_hx")
+        .select("id, title, category, subcategory, subtitle, dispatch, arrival_hx, caller_hx")
         .eq("id", requestedScenarioId)
         .maybeSingle();
       if (chosenErr) throw chosenErr;
@@ -124,7 +130,7 @@ Deno.serve(async (req: Request) => {
       // in buildFeaturedCase() (scenario.html).
       const { data: recentPool, error: poolErr } = await supabase
         .from("scenarios")
-        .select("id, title, category, subcategory, subtitle, dispatch, caller_hx")
+        .select("id, title, category, subcategory, subtitle, dispatch, arrival_hx, caller_hx")
         .eq("ai_generated", true)
         .order("created_at", { ascending: false })
         .limit(10);

@@ -2503,10 +2503,14 @@ async function requestFeaturedScenarioGeneration(scenarioId, imageOnly, customPr
 
 // Mirrors buildImagePrompt() in the generate-featured-blurb Edge Function —
 // used to pre-fill the review textarea with what the server would build by
-// default, before the admin edits and confirms it.
+// default, before the admin edits and confirms it. Uses arrival_hx (crew's
+// third-person description of the patient/scene) rather than caller_hx
+// (caller's own report), which was causing images to depict the caller
+// instead of the patient.
 function buildFcImagePrompt(s) {
-  const clinicalPicture = s.caller_hx || s.dispatch || s.title || 'a medical emergency';
-  return `Photorealistic photo. ${clinicalPicture} ` +
+  const clinicalPicture = s.arrival_hx || s.dispatch || s.title || 'a medical emergency';
+  return `Photorealistic photo of the patient described here: ${clinicalPicture} ` +
+    `Depict the patient and their immediate surroundings — not the person who called for help. ` +
     `Cinematic lighting, wide shot, professional editorial photography style, shallow depth of field.`;
 }
 
