@@ -2864,7 +2864,7 @@ function buildHomePanels() {
   if (myEl) myEl.innerHTML = myScenarios.length ? renderItems(myScenarios, 8) : '<div class="home-panel-empty">Scenarios you create will appear here</div>';
 }
 
-function buildMostPopularCase() {
+async function buildMostPopularCase() {
   const container = document.getElementById('most-popular-case-card');
   if (!container) return;
   const all = getAllScenarios();
@@ -2878,9 +2878,26 @@ function buildMostPopularCase() {
   }
 
   const s = popularScenarios[0];
-  // Placeholder blurb from existing scenario fields — swap for an AI-generated
-  // blurb/image later, same way buildFeaturedCase()'s weekly pick works.
-  const blurb = s.subtitle || s.dispatch || s.caller_hx || '';
+  let blurb = s.subtitle || s.dispatch || s.caller_hx || '';
+  let imageUrl = null;
+  let cached = false;
+
+  // Read whatever's already cached for this scenario — never calls the API
+  // on a plain page view, only reads what generation has already produced.
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/popular_case_blurbs?scenario_id=eq.${encodeURIComponent(s.id)}&select=blurb,image_url`, {
+      headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
+    });
+    if (res.ok) {
+      const rows = await res.json();
+      if (rows && rows[0] && rows[0].blurb) {
+        blurb = rows[0].blurb;
+        imageUrl = rows[0].image_url || null;
+        cached = true;
+      }
+    }
+  } catch (e) { /* fall back silently — the card still works without it */ }
+
   const FC_BG = {
     'Adult': 'linear-gradient(135deg, #EBF0F8 0%, #F7FAFF 100%)',
     'Paediatric': 'var(--blue-light)',
@@ -2892,7 +2909,24 @@ function buildMostPopularCase() {
   const dot = CAT_COLORS[s.category] || 'var(--grey)';
   const bg = FC_BG[s.category] || 'var(--light)';
 
-  applyFeaturedCaseBackground(container, bg, null);
+  applyFeaturedCaseBackground(container, bg, imageUrl);
+  renderMostPopularCaseContent(container, s, dot, blurb);
+
+  // Nothing cached for today's #1 — kick off generation in the background.
+  // The Edge Function re-checks the #1 itself server-side and no-ops if the
+  // cache is already current, so this stays cheap even if several people's
+  // page loads race to trigger it at once.
+  if (!cached && _authSession && _authSession.access_token) {
+    requestPopularScenarioGeneration().then(result => {
+      if (result && result.blurb) {
+        applyFeaturedCaseBackground(container, bg, result.imageUrl);
+        renderMostPopularCaseContent(container, s, dot, result.blurb);
+      }
+    }).catch(err => console.error('Popular scenario auto-generation failed:', err.message));
+  }
+}
+
+function renderMostPopularCaseContent(container, s, dot, blurb) {
   container.innerHTML = `
     <div class="fc-eyebrow">Most Popular Scenario</div>
     <div class="fc-badge" style="background:${dot}">${fcPresentationLabel(s)}</div>
@@ -2901,6 +2935,22 @@ function buildMostPopularCase() {
     ${buildFcVssChips(s.vitals)}
     <div class="fc-cta">Open this case →</div>`;
   container.onclick = () => loadScenario(s.id);
+}
+
+async function requestPopularScenarioGeneration() {
+  if (!_authSession || !_authSession.access_token) throw new Error('Not signed in.');
+  const res = await fetch(`${SUPABASE_URL}/functions/v1/generate-popular-blurb`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${_authSession.access_token}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({})
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok || data.error) throw new Error(data.error || ('Generation failed — ' + res.status));
+  if (data.skipped) return null;
+  return { blurb: data.blurb, imageUrl: data.imageUrl || null };
 }
 
 function toggleCategoryDropdown() {
