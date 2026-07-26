@@ -389,7 +389,7 @@ body.snav-active #content { padding-left: 60px; }
   .home-panels-row.row-a { grid-template-columns: 1fr 1.35fr; }
   .home-panels-row.row-b { grid-template-columns: 1.5fr 1fr; }
 }
-.home-panel { background: rgba(255,255,255,0.28); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-radius: 10px; overflow: hidden; box-shadow: var(--shadow); }
+.home-panel { background: rgba(255,255,255,0.6); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-radius: 10px; overflow: hidden; box-shadow: var(--shadow); }
 .home-panel-col { display: flex; flex-direction: column; }
 .home-panel-col .home-panel { flex: 1; }
 .home-panel-col .home-section-label { margin-bottom: 6px; }
@@ -421,10 +421,11 @@ body.snav-active #content { padding-left: 60px; }
 /* ── D.A.S.H tiles + micro-motion (TEST) ── */
 .home-tiles { display: grid; grid-template-columns: 1fr; gap: 10px; margin-bottom: 14px; position: relative; }
 @media (min-width: 700px) { .home-tiles { grid-template-columns: 0.8fr 1fr 0.8fr 1.1fr; } }
-.cat-dropdown-wrap, .home-search-wrap { position: relative; display: flex; flex-direction: column; }
+.cat-dropdown-wrap, .home-search-wrap { position: relative; display: flex; flex-direction: column; isolation: isolate; z-index: 1; }
+.cat-dropdown-wrap.open, .home-search-wrap.open { z-index: 200; }
 .cat-dropdown-trigger { width: 100%; flex: 1; }
 .home-search-tile { flex: 1; }
-.cat-dropdown-panel, .home-search-panel { display: none; position: absolute; top: calc(100% + 8px); left: 0; width: 320px; max-width: 90vw; z-index: 40; background: white; border-radius: 10px; box-shadow: 0 10px 28px rgba(0,0,0,0.22); overflow: hidden; }
+.cat-dropdown-panel, .home-search-panel { display: none; position: absolute; top: calc(100% + 8px); left: 0; width: 320px; max-width: 90vw; z-index: 200; background: white; border-radius: 10px; box-shadow: 0 10px 28px rgba(0,0,0,0.22); overflow: hidden; }
 .home-search-panel { max-height: 340px; overflow-y: auto; }
 .cat-dropdown-panel .cat-accordion { margin-bottom: 0; box-shadow: none; }
 .cat-dropdown-wrap.open .cat-dropdown-panel, .home-search-wrap.open .home-search-panel { display: block; }
@@ -437,8 +438,8 @@ body.snav-active #content { padding-left: 60px; }
 .home-tiles .home-tile { padding: 10px 16px; min-height: 42px; }
 .home-tile { display: flex; align-items: center; gap: 12px; background: white; border-radius: 10px; padding: 14px 16px; box-shadow: var(--shadow); text-decoration: none; color: inherit; cursor: pointer; font-family: inherit; text-align: left; transition: transform 0.15s, box-shadow 0.15s; min-height: var(--tap); }
 .home-tile:active { transform: scale(0.98); }
-.home-tile-primary { border: none; background: rgba(255,255,255,0.28); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
-.home-tile-random { border: none; background: rgba(255,255,255,0.28); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
+.home-tile-primary { border: none; background: white; }
+.home-tile-random { border: none; background: white; }
 .cat-dropdown-trigger { border: none; }
 .home-tile-icon { font-size: 20px; width: 38px; height: 38px; border-radius: 9px; background: var(--light); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .home-tile-primary .home-tile-icon, .home-tile-random .home-tile-icon { background: white; }
@@ -2405,19 +2406,19 @@ async function buildFeaturedCase() {
   } catch (e) { /* fall back silently — the card still works without it */ }
 
   const FC_BG = {
-    'Adult': 'rgba(255,255,255,0.28)',
-    'Paediatric': 'rgba(255,255,255,0.28)',
-    'Maternity': 'rgba(255,255,255,0.28)',
-    'Newborn': 'rgba(255,255,255,0.28)',
-    'Treat and Refer': 'rgba(255,255,255,0.28)',
-    'Custom': 'rgba(255,255,255,0.28)'
+    'Adult': 'rgba(255,255,255,0.6)',
+    'Paediatric': 'rgba(255,255,255,0.6)',
+    'Maternity': 'rgba(255,255,255,0.6)',
+    'Newborn': 'rgba(255,255,255,0.6)',
+    'Treat and Refer': 'rgba(255,255,255,0.6)',
+    'Custom': 'rgba(255,255,255,0.6)'
   };
   const FC_ICON = {
     'Adult': '🧑', 'Paediatric': '🧒', 'Maternity': '🤰',
     'Newborn': '👶', 'Treat and Refer': '🩹', 'Custom': '✦'
   };
   const dot = CAT_COLORS[s.category] || 'var(--grey)';
-  const bg = FC_BG[s.category] || 'rgba(255,255,255,0.28)';
+  const bg = FC_BG[s.category] || 'rgba(255,255,255,0.6)';
   const icon = FC_ICON[s.category] || '✦';
 
   applyFeaturedCaseBackground(container, bg, imageUrl);
@@ -2894,15 +2895,15 @@ async function buildMostPopularCase() {
   } catch (e) { /* fall back silently — the card still works without it */ }
 
   const FC_BG = {
-    'Adult': 'rgba(255,255,255,0.28)',
-    'Paediatric': 'rgba(255,255,255,0.28)',
-    'Maternity': 'rgba(255,255,255,0.28)',
-    'Newborn': 'rgba(255,255,255,0.28)',
-    'Treat and Refer': 'rgba(255,255,255,0.28)',
-    'Custom': 'rgba(255,255,255,0.28)'
+    'Adult': 'rgba(255,255,255,0.6)',
+    'Paediatric': 'rgba(255,255,255,0.6)',
+    'Maternity': 'rgba(255,255,255,0.6)',
+    'Newborn': 'rgba(255,255,255,0.6)',
+    'Treat and Refer': 'rgba(255,255,255,0.6)',
+    'Custom': 'rgba(255,255,255,0.6)'
   };
   const dot = CAT_COLORS[s.category] || 'var(--grey)';
-  const bg = FC_BG[s.category] || 'rgba(255,255,255,0.28)';
+  const bg = FC_BG[s.category] || 'rgba(255,255,255,0.6)';
 
   applyFeaturedCaseBackground(container, bg, imageUrl);
   renderMostPopularCaseContent(container, s, dot, blurb);
