@@ -2706,7 +2706,6 @@ function buildCategoryAccordion() {
     return `
       <div class="cat-accordion-row${isLast ? ' last' : ''}" onclick="toggleCatRow(this)">
         <div class="car-stripe" style="background:${d.color}"></div>
-        <div class="car-icon">${d.icon}</div>
         <div class="car-name">${d.key}</div>
         <div class="car-count">${countLabel}</div>
         <div class="car-chevron">›</div>
@@ -2804,13 +2803,13 @@ function buildHomePanels() {
   container.innerHTML = `
     <div class="home-panels-row row-a">
       <div class="home-panel-col">
-        <div class="home-section-label">🔥 Most Popular</div>
+        <div class="home-section-label">Most Popular</div>
         <div class="home-panel panel-amber">
           <div class="home-panel-body">${popularScenarios.length ? renderItems(popularScenarios, 8) : '<div class="home-panel-empty">No favourites yet — be the first to star a scenario</div>'}</div>
         </div>
       </div>
       <div class="home-panel-col">
-        <div class="home-section-label">📁 My Scenarios</div>
+        <div class="home-section-label">My Scenarios</div>
         <div class="home-panel panel-navy">
           <div class="home-panel-body">${myScenarios.length ? renderItems(myScenarios, 8) : '<div class="home-panel-empty">Scenarios you create will appear here</div>'}</div>
         </div>
@@ -2818,13 +2817,13 @@ function buildHomePanels() {
     </div>
     <div class="home-panels-row row-b">
       <div class="home-panel-col">
-        <div class="home-section-label">⭐ My Favourites</div>
+        <div class="home-section-label">My Favourites</div>
         <div class="home-panel panel-purple">
           <div class="home-panel-body">${favScenarios.length ? renderItems(favScenarios, 8) : '<div class="home-panel-empty">Your favourited scenarios will appear here</div>'}</div>
         </div>
       </div>
       <div class="home-panel-col">
-        <div class="home-section-label">🕐 Recently Added</div>
+        <div class="home-section-label">Recently Added</div>
         <div class="home-panel panel-green">
           <div class="home-panel-body">${renderItems(recentAll, 8)}</div>
         </div>
