@@ -381,6 +381,9 @@ body.snav-active #content { padding-left: 60px; }
   .home-panels-row.row-b { grid-template-columns: 1.5fr 1fr; }
 }
 .home-panel { background: white; border: 1px solid var(--border); border-radius: 10px; overflow: hidden; box-shadow: var(--shadow); }
+.home-panel-col { display: flex; flex-direction: column; }
+.home-panel-col .home-panel { flex: 1; }
+.home-panel-col .home-section-label { margin-bottom: 6px; }
 .home-panel.panel-blue { background: var(--blue-light); }
 .home-panel.panel-navy { background: #EBF0F8; }
 .home-panel.panel-amber { background: var(--amber-light); }
@@ -1208,7 +1211,7 @@ body.flag-mode-active .flaggable.has-correction:hover { outline: 2px solid var(-
 
 .dash-hero {
   padding: 0;
-  margin-bottom: 14px;
+  margin-bottom: 8px;
   position: relative;
   overflow: hidden;
   color: white;
@@ -1229,7 +1232,7 @@ body.flag-mode-active .flaggable.has-correction:hover { outline: 2px solid var(-
 .dash-ecg-clip .ecg-strip-label { display: none !important; }
 .dash-ecg-clip, .dash-ecg-clip * { background: transparent !important; background-color: transparent !important; }
 .dash-ecg-clip #dash-hero-ecg-mount { pointer-events: auto; cursor: pointer; }
-.dash-hero-content { position: relative; z-index: 1; padding: 30px 28px; pointer-events: none; }
+.dash-hero-content { position: relative; z-index: 1; padding: 22px 16px 14px; pointer-events: none; }
 .dash-hero-wordmark { font-family: 'Orbitron', sans-serif; font-size: 68px; font-weight: 700; letter-spacing: 5px; margin-bottom: 6px; line-height: 1; }
 .dash-hero-subheader { font-size: 12.5px; font-weight: 600; text-transform: uppercase; letter-spacing: 1.2px; opacity: 0.75; }
 .topbar-logo-img { height: 36px; width: auto; max-width: 260px; object-fit: contain; display: block; }
@@ -2802,35 +2805,31 @@ function buildHomePanels() {
 
   container.innerHTML = `
     <div class="home-panels-row row-a">
-      <div class="home-panel panel-amber">
-        <div class="home-panel-header">
-          <span style="font-size:14px">🔥</span>
-          <div class="home-panel-title">Most Popular</div>
+      <div class="home-panel-col">
+        <div class="home-section-label">🔥 Most Popular</div>
+        <div class="home-panel panel-amber">
+          <div class="home-panel-body">${popularScenarios.length ? renderItems(popularScenarios, 8) : '<div class="home-panel-empty">No favourites yet — be the first to star a scenario</div>'}</div>
         </div>
-        <div class="home-panel-body">${popularScenarios.length ? renderItems(popularScenarios, 8) : '<div class="home-panel-empty">No favourites yet — be the first to star a scenario</div>'}</div>
       </div>
-      <div class="home-panel panel-navy">
-        <div class="home-panel-header">
-          <span style="font-size:14px">📁</span>
-          <div class="home-panel-title">My Scenarios</div>
+      <div class="home-panel-col">
+        <div class="home-section-label">📁 My Scenarios</div>
+        <div class="home-panel panel-navy">
+          <div class="home-panel-body">${myScenarios.length ? renderItems(myScenarios, 8) : '<div class="home-panel-empty">Scenarios you create will appear here</div>'}</div>
         </div>
-        <div class="home-panel-body">${myScenarios.length ? renderItems(myScenarios, 8) : '<div class="home-panel-empty">Scenarios you create will appear here</div>'}</div>
       </div>
     </div>
     <div class="home-panels-row row-b">
-      <div class="home-panel panel-purple">
-        <div class="home-panel-header">
-          <span style="font-size:14px">⭐</span>
-          <div class="home-panel-title">My Favourites</div>
+      <div class="home-panel-col">
+        <div class="home-section-label">⭐ My Favourites</div>
+        <div class="home-panel panel-purple">
+          <div class="home-panel-body">${favScenarios.length ? renderItems(favScenarios, 8) : '<div class="home-panel-empty">Your favourited scenarios will appear here</div>'}</div>
         </div>
-        <div class="home-panel-body">${favScenarios.length ? renderItems(favScenarios, 8) : '<div class="home-panel-empty">Your favourited scenarios will appear here</div>'}</div>
       </div>
-      <div class="home-panel panel-green">
-        <div class="home-panel-header">
-          <span style="font-size:14px">🕐</span>
-          <div class="home-panel-title">Recently Added</div>
+      <div class="home-panel-col">
+        <div class="home-section-label">🕐 Recently Added</div>
+        <div class="home-panel panel-green">
+          <div class="home-panel-body">${renderItems(recentAll, 8)}</div>
         </div>
-        <div class="home-panel-body">${renderItems(recentAll, 8)}</div>
       </div>
     </div>`;
 }
