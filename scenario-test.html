@@ -223,14 +223,18 @@ html { font-size: 16px; }
 body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background: var(--light); color: var(--text); line-height: 1.5; overscroll-behavior: none; }
 
 /* ============================================================ TOP BAR */
-#topbar { background: var(--navy); color: white; padding: 0 16px; display: flex; align-items: center; gap: 10px; height: var(--topbar-h); position: fixed; top: 0; left: 0; right: 0; z-index: 100; box-shadow: 0 2px 8px rgba(0,0,0,0.25); transform: translateZ(0); -webkit-transform: translateZ(0); transition: height 0.2s; }
+#topbar { background: var(--navy); color: white; padding: 0 16px; display: flex; align-items: center; gap: 10px; height: 56px; position: fixed; top: 0; left: 0; right: 0; z-index: 100; box-shadow: 0 2px 8px rgba(0,0,0,0.25); transform: translateZ(0); -webkit-transform: translateZ(0); }
 #topbar .logo { display: flex; align-items: center; gap: 10px; }
 #topbar .logo-icon { width: 38px; height: 38px; background: white; border-radius: 6px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 #topbar h1 { font-size: 14px; font-weight: 700; line-height: 1.2; }
 #topbar .subtitle { font-size: 10px; opacity: 0.7; }
 .topbar-actions { margin-left: auto; display: flex; gap: 8px; align-items: center; }
-/* Compact topbar — home screen only: just the hamburger, page shifts up into the reclaimed space */
-body.home-topbar-compact { --topbar-h: 48px; }
+/* Compact topbar — home screen only: bar goes fully transparent, page has no
+   reserved offset for it, so the hero starts at the very top of the viewport
+   and only the hamburger floats on top of it (rest of the bar is click-through). */
+body.home-topbar-compact { --topbar-h: 0px; }
+body.home-topbar-compact #topbar { background: transparent; box-shadow: none; pointer-events: none; }
+body.home-topbar-compact #avnav-slot { pointer-events: auto; }
 body.home-topbar-compact #topbar .logo,
 body.home-topbar-compact .topbar-actions { display: none; }
 .tb-btn { background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.3); color: white; padding: 8px 12px; border-radius: 8px; cursor: pointer; font-size: 12px; font-weight: 600; display: flex; align-items: center; gap: 6px; min-height: var(--tap); white-space: nowrap; }
