@@ -1365,34 +1365,6 @@ body.flag-mode-active .flaggable.has-correction:hover { outline: 2px solid var(-
           </div>
         </div>
       </div>
-
-      <div class="dash-monitor-link">
-        <span class="dash-monitor-dot"></span>
-        <a href="monitor.html" target="_blank">Open Monitor Screen — for the classroom / student display ↗</a>
-      </div>
-
-      <div id="dev-notes-banner" style="margin-top:16px">
-        <div class="dev-notes-banner-header">
-          <div class="dev-notes-banner-title">⚠️ Dev Notes</div>
-          <div class="dev-notes-banner-actions">
-            <button class="dev-notes-edit-btn" id="dev-notes-edit-btn" onclick="openDevNotesEditor()" style="display:none">Edit</button>
-            <button class="dev-notes-dismiss-btn" onclick="dismissDevNotes()" title="Dismiss">✕</button>
-          </div>
-        </div>
-        <div class="dev-notes-body" id="dev-notes-body"></div>
-        <div class="dev-notes-editor-wrap" id="dev-notes-editor-wrap">
-          <div class="dev-notes-toolbar">
-            <button onmousedown="event.preventDefault();document.execCommand('bold')" title="Bold"><b>B</b></button>
-            <button onmousedown="event.preventDefault();document.execCommand('italic')" title="Italic"><i>I</i></button>
-            <button onmousedown="event.preventDefault();document.execCommand('insertUnorderedList')" title="Bullet list">• List</button>
-          </div>
-          <div class="dev-notes-editor" id="dev-notes-editor" contenteditable="true"></div>
-          <div class="dev-notes-save-row">
-            <button class="dev-notes-save-btn" onclick="saveDevNotes()">💾 Save</button>
-            <button class="dev-notes-cancel-btn" onclick="closeDevNotesEditor()">Cancel</button>
-          </div>
-        </div>
-      </div>
       </div>
     </div>
     <div id="category-screen"></div>
@@ -2672,20 +2644,33 @@ function mountHomeHeroEcg() {
     randomiseHomeHeroEcg();
     mount.title = 'Click for a different rhythm';
     mount.onclick = randomiseHomeHeroEcg;
+    // The engine's constructor applies its own default "monitor" theme colour
+    // as part of its own setup, and its draw loop runs via requestAnimationFrame
+    // — occasionally that wins the race against the override below and the
+    // strip briefly (or persistently) shows the engine's dark default instead
+    // of the pale brand colour. Re-assert on the next couple of frames so the
+    // override always wins regardless of exact timing.
+    requestAnimationFrame(applyHomeHeroEcgTrace);
+    requestAnimationFrame(() => requestAnimationFrame(applyHomeHeroEcgTrace));
   } catch (e) {
     console.error('Home hero ECG failed to mount:', e.message);
   }
+}
+
+function applyHomeHeroEcgTrace() {
+  // Brand pale blue instead of the engine's default monitor colour, and a
+  // bolder line — kept as its own function so it can be re-asserted after
+  // mount to win any timing race with the engine's own theme application.
+  window._traceColour = '#8FB9DE';
+  window._traceGlow   = 'rgba(143,185,222,0.30)';
+  window._traceWidth  = 2.0;
 }
 
 function randomiseHomeHeroEcg() {
   if (!homeHeroEcgEngine) return;
   const pick = HOME_ECG_RHYTHMS[Math.floor(Math.random() * HOME_ECG_RHYTHMS.length)];
   homeHeroEcgEngine.setRhythm(pick.key, pick.bpm);
-  // Re-apply live trace styling (real canvas stroke, not CSS) — brand blue
-  // instead of the default monitor green, and a bolder line.
-  window._traceColour = '#8FB9DE';
-  window._traceGlow   = 'rgba(143,185,222,0.30)';
-  window._traceWidth  = 2.0;
+  applyHomeHeroEcgTrace();
 }
 
 function buildCategoryAccordion() {
@@ -3339,6 +3324,7 @@ function devNotesHash(str) {
 
 async function loadDevNotes() {
   const banner = document.getElementById('dev-notes-banner');
+  if (!banner) return; // banner removed from home screen — dev notes retired
   const body = document.getElementById('dev-notes-body');
   const editBtn = document.getElementById('dev-notes-edit-btn');
   try {
