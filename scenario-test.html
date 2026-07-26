@@ -417,8 +417,9 @@ body.snav-active #content { padding-left: 60px; }
 /* ── D.A.S.H tiles + micro-motion (TEST) ── */
 .home-tiles { display: grid; grid-template-columns: 1fr; gap: 10px; margin-bottom: 14px; position: relative; }
 @media (min-width: 700px) { .home-tiles { grid-template-columns: 0.8fr 1fr 0.8fr 1.1fr; } }
-.cat-dropdown-wrap, .home-search-wrap { position: relative; }
-.cat-dropdown-trigger { width: 100%; }
+.cat-dropdown-wrap, .home-search-wrap { position: relative; display: flex; flex-direction: column; }
+.cat-dropdown-trigger { width: 100%; flex: 1; }
+.home-search-tile { flex: 1; }
 .cat-dropdown-panel, .home-search-panel { display: none; position: absolute; top: calc(100% + 8px); left: 0; width: 320px; max-width: 90vw; z-index: 40; background: white; border-radius: 10px; box-shadow: 0 10px 28px rgba(0,0,0,0.22); overflow: hidden; }
 .home-search-panel { max-height: 340px; overflow-y: auto; }
 .cat-dropdown-panel .cat-accordion { margin-bottom: 0; box-shadow: none; }
@@ -426,9 +427,10 @@ body.snav-active #content { padding-left: 60px; }
 .cat-dropdown-wrap.open #cat-dropdown-arrow { transform: rotate(180deg); }
 .home-panel-col .featured-case-card { flex: 1; }
 .home-search-tile { padding: 0; }
-.home-search-input { width: 100%; height: 100%; border: none; background: transparent; padding: 14px 16px; font-size: 14px; font-family: inherit; color: var(--text); outline: none; min-height: var(--tap); }
+.home-search-input { width: 100%; height: 100%; border: none; background: transparent; padding: 10px 16px; font-size: 14px; font-family: inherit; color: var(--text); outline: none; }
 .home-search-input::placeholder { color: var(--grey); }
 .home-search-empty { font-size: 12px; color: var(--grey); padding: 14px; font-style: italic; }
+.home-tiles .home-tile { padding: 10px 16px; min-height: 42px; }
 .home-tile { display: flex; align-items: center; gap: 12px; background: white; border-radius: 10px; padding: 14px 16px; box-shadow: var(--shadow); text-decoration: none; color: inherit; cursor: pointer; font-family: inherit; text-align: left; transition: transform 0.15s, box-shadow 0.15s; min-height: var(--tap); }
 .home-tile:active { transform: scale(0.98); }
 .home-tile-primary { border: none; background: var(--amber-light); }
@@ -1328,14 +1330,14 @@ body.flag-mode-active .flaggable.has-correction:hover { outline: 2px solid var(-
       <div class="home-panels" id="home-panels">
         <div class="home-panels-row row-a">
           <div class="home-panel-col">
-            <div class="home-panel panel-amber">
-              <div class="home-panel-header"><div class="home-panel-title">Most Popular</div></div>
-              <div class="home-panel-body" id="home-popular-body"><!-- populated by buildHomePanels() --></div>
+            <div class="featured-case-card" id="most-popular-case-card">
+              <!-- populated by buildMostPopularCase() -->
             </div>
           </div>
           <div class="home-panel-col">
-            <div class="featured-case-card" id="most-popular-case-card">
-              <!-- populated by buildMostPopularCase() -->
+            <div class="home-panel panel-amber">
+              <div class="home-panel-header"><div class="home-panel-title">Most Popular</div></div>
+              <div class="home-panel-body" id="home-popular-body"><!-- populated by buildHomePanels() --></div>
             </div>
           </div>
         </div>
@@ -2822,7 +2824,7 @@ function buildHomePanels() {
     return list.slice(0, max).map(s => {
       const dot = CAT_COLORS[s.category] || 'var(--grey)';
       const badge = (!s.ai_generated && !s.is_builtin) ? '<span class="hp-badge custom">Custom</span>' : '';
-      const sub = s.subcategory || s.category || '';
+      const sub = fcPresentationLabel(s);
       return `<div class="hp-item" onclick="loadScenario('${s.id}')">
         <div class="hp-dot" style="background:${dot}"></div>
         <div class="hp-title">${s.title || 'Untitled'}</div>
@@ -2892,7 +2894,7 @@ function buildMostPopularCase() {
 
   applyFeaturedCaseBackground(container, bg, null);
   container.innerHTML = `
-    <div class="fc-eyebrow">#1 Most popular</div>
+    <div class="fc-eyebrow">Most Popular Scenario</div>
     <div class="fc-badge" style="background:${dot}">${fcPresentationLabel(s)}</div>
     <div class="fc-title">${s.title || 'Untitled'}</div>
     ${blurb ? `<div class="fc-desc">${blurb}</div>` : ''}
@@ -2921,7 +2923,7 @@ function handleHomeSearchInput(value) {
 
   panel.innerHTML = matches.length ? matches.map(s => {
     const dot = CAT_COLORS[s.category] || 'var(--grey)';
-    const sub = s.subcategory || s.category || '';
+    const sub = fcPresentationLabel(s);
     return `<div class="hp-item" onclick="loadScenario('${s.id}')">
       <div class="hp-dot" style="background:${dot}"></div>
       <div class="hp-title">${s.title || 'Untitled'}</div>
