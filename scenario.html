@@ -2472,7 +2472,6 @@ function fcPresentationLabel(s) {
 
 function renderFeaturedCase(container, s, icon, dot, blurb) {
   container.innerHTML = `
-    <div class="fc-watermark">${icon}</div>
     <div class="fc-badge" style="background:${dot}">${fcPresentationLabel(s)}</div>
     <div class="fc-title">${s.title || 'Untitled'}</div>
     <div class="fc-desc">${blurb}</div>
