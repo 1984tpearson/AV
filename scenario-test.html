@@ -19,6 +19,7 @@
   --grey: #6C7A89; --light: #F4F6F9; --white: #FFFFFF; --text: #1A1A2E; --border: #D5D8DC;
   --shadow: 0 2px 8px rgba(28,58,110,0.10);
   --tap: 48px; /* minimum tap target */
+  --topbar-h: 56px;
 }
 * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
 
@@ -222,12 +223,16 @@ html { font-size: 16px; }
 body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background: var(--light); color: var(--text); line-height: 1.5; overscroll-behavior: none; }
 
 /* ============================================================ TOP BAR */
-#topbar { background: var(--navy); color: white; padding: 0 16px; display: flex; align-items: center; gap: 10px; height: 56px; position: fixed; top: 0; left: 0; right: 0; z-index: 100; box-shadow: 0 2px 8px rgba(0,0,0,0.25); transform: translateZ(0); -webkit-transform: translateZ(0); }
+#topbar { background: var(--navy); color: white; padding: 0 16px; display: flex; align-items: center; gap: 10px; height: var(--topbar-h); position: fixed; top: 0; left: 0; right: 0; z-index: 100; box-shadow: 0 2px 8px rgba(0,0,0,0.25); transform: translateZ(0); -webkit-transform: translateZ(0); transition: height 0.2s; }
 #topbar .logo { display: flex; align-items: center; gap: 10px; }
 #topbar .logo-icon { width: 38px; height: 38px; background: white; border-radius: 6px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 #topbar h1 { font-size: 14px; font-weight: 700; line-height: 1.2; }
 #topbar .subtitle { font-size: 10px; opacity: 0.7; }
 .topbar-actions { margin-left: auto; display: flex; gap: 8px; align-items: center; }
+/* Compact topbar — home screen only: just the hamburger, page shifts up into the reclaimed space */
+body.home-topbar-compact { --topbar-h: 48px; }
+body.home-topbar-compact #topbar .logo,
+body.home-topbar-compact .topbar-actions { display: none; }
 .tb-btn { background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.3); color: white; padding: 8px 12px; border-radius: 8px; cursor: pointer; font-size: 12px; font-weight: 600; display: flex; align-items: center; gap: 6px; min-height: var(--tap); white-space: nowrap; }
 .tb-btn:active { background: rgba(255,255,255,0.3); }
 .ai-dot { width: 8px; height: 8px; border-radius: 50%; background: #F39C12; }
@@ -238,12 +243,12 @@ body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background
 #hamburger:active { background: rgba(255,255,255,0.3); }
 
 /* ============================================================ LAYOUT */
-#main-wrapper { display: flex; margin-top: 56px; min-height: calc(100vh - 56px); }
+#main-wrapper { display: flex; margin-top: var(--topbar-h); min-height: calc(100vh - var(--topbar-h)); }
 
 /* ============================================================ SIDEBAR — slide-over drawer on iPad */
-#sidebar-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 60; top: 56px; }
+#sidebar-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 60; top: var(--topbar-h); }
 #sidebar-overlay.open { display: block; }
-#sidebar { width: 300px; min-width: 300px; background: white; border-right: 1px solid var(--border); display: flex; flex-direction: column; position: fixed; top: 56px; left: 0; bottom: 0; overflow-y: auto; z-index: 70; transform: translateX(-100%); transition: transform 0.28s cubic-bezier(0.4,0,0.2,1); box-shadow: 4px 0 20px rgba(0,0,0,0.15); }
+#sidebar { width: 300px; min-width: 300px; background: white; border-right: 1px solid var(--border); display: flex; flex-direction: column; position: fixed; top: var(--topbar-h); left: 0; bottom: 0; overflow-y: auto; z-index: 70; transform: translateX(-100%); transition: transform 0.28s cubic-bezier(0.4,0,0.2,1); box-shadow: 4px 0 20px rgba(0,0,0,0.15); }
 #sidebar.open { transform: translateX(0); }
 #sidebar::-webkit-scrollbar { width: 4px; }
 #sidebar::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
@@ -293,7 +298,7 @@ body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background
 .sidebar-nav-link .nav-icon { width: 20px; text-align: center; flex-shrink: 0; }
 
 /* ============================================================ CONTENT */
-#content { flex: 1; padding: 16px; min-height: calc(100vh - 56px); width: 100%; }
+#content { flex: 1; padding: 16px; min-height: calc(100vh - var(--topbar-h)); width: 100%; }
 body.snav-active #content { padding-left: 60px; }
 
 /* ============================================================ SCORE PANEL — bottom sheet on iPad */
@@ -318,7 +323,7 @@ body.snav-active #content { padding-left: 60px; }
   background: linear-gradient(135deg, #2C4F7C 0%, #4E7FAE 55%, #6FA0CC 100%);
   margin: -16px;
   padding-bottom: 40px;
-  min-height: calc(100vh - 56px);
+  min-height: calc(100vh - var(--topbar-h));
 }
 .home-inner { max-width: 80%; margin: 0 auto; padding: 24px 16px 0; }
 #home-screen .home-section-label,
@@ -561,9 +566,9 @@ body.snav-active #content { padding-left: 60px; }
 #scenario-nav {
   display: none;
   position: fixed;
-  left: 0; top: 56px;
+  left: 0; top: var(--topbar-h);
   width: 48px;
-  height: calc(100vh - 56px);
+  height: calc(100vh - var(--topbar-h));
   overflow-y: auto;
   overflow-x: hidden;
   background: #f7f8fa;
@@ -1102,7 +1107,7 @@ body.flag-mode-active .flaggable.has-correction:hover { outline: 2px solid var(-
 }
 
 /* ============================================================ STICKY SCENARIO BAR (timer + vitals) */
-#sticky-bar { display: none; position: fixed; top: 56px; left: 0; right: 0; z-index: 45; background: var(--navy-dark); color: white; border-bottom: 1px solid rgba(0,0,0,0.3); transform: translateZ(0); -webkit-transform: translateZ(0); }
+#sticky-bar { display: none; position: fixed; top: var(--topbar-h); left: 0; right: 0; z-index: 45; background: var(--navy-dark); color: white; border-bottom: 1px solid rgba(0,0,0,0.3); transform: translateZ(0); -webkit-transform: translateZ(0); }
 #sticky-bar.visible { display: block; }
 #sticky-bar-inner { display: flex; align-items: center; gap: 0; overflow: hidden; }
 
@@ -1136,7 +1141,7 @@ body.flag-mode-active .flaggable.has-correction:hover { outline: 2px solid var(-
 #sticky-edit-btn:active { background: rgba(255,255,255,0.25); }
 
 /* Push content down to account for topbar + sticky bar */
-#main-wrapper { margin-top: 56px; }
+#main-wrapper { margin-top: var(--topbar-h); }
 #content { padding-top: 16px; }
 .sticky-bar-offset { height: 0; transition: height 0.2s; }
 .sticky-bar-offset.visible { height: 44px; }
@@ -1249,7 +1254,7 @@ body.flag-mode-active .flaggable.has-correction:hover { outline: 2px solid var(-
 .hero-logo-img { height: 78px; width: auto; max-width: 90%; object-fit: contain; display: block; }
 </style>
 </head>
-<body>
+<body class="home-topbar-compact">
 
 <div id="topbar">
   <div id="avnav-slot"></div>
@@ -3123,6 +3128,7 @@ function showScreen(name) {
     const el = document.getElementById(id);
     if (el) el.style.display = (id === name) ? 'block' : 'none';
   });
+  document.body.classList.toggle('home-topbar-compact', name === 'home-screen');
   // Score FAB only on scenario view
   const fab = document.getElementById('score-panel-toggle');
   if (fab) fab.classList.toggle('visible', name === 'scenario-view');
