@@ -281,6 +281,19 @@
   .icon-purple { background: var(--purple-light); color: var(--purple); }
   .icon-grey   { background: var(--light); color: var(--grey); }
 
+  .dash-logo-mark {
+    width: 26px; height: 26px;
+    background-color: var(--navy);
+    -webkit-mask-image: url('logoblack.png');
+    mask-image: url('logoblack.png');
+    -webkit-mask-size: contain;
+    mask-size: contain;
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    -webkit-mask-position: center;
+    mask-position: center;
+  }
+
   .btn-navy   { background: var(--navy);  color: white; }
   .btn-green  { background: var(--green); color: white; }
   .btn-blue   { background: var(--blue);  color: white; }
@@ -430,10 +443,7 @@
       <div class="card-accent accent-navy"></div>
       <div class="card-body">
         <div class="card-icon icon-navy">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M9 11l3 3L22 4"/>
-            <path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/>
-          </svg>
+          <div class="dash-logo-mark" aria-hidden="true"></div>
         </div>
         <div class="card-title">DASH</div>
         <div class="card-desc">Dynamic Assessment &amp; Simulation Hub — generate cases, run graded verbal ALS scenarios, and mirror vitals to a second screen.</div>
