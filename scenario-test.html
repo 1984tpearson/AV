@@ -336,12 +336,12 @@ body.snav-active #content { padding-left: 60px; }
 .home-create-btn:active { opacity: 1; }
 
 /* Random button — slimmer */
-.home-random-btn { background: white; color: var(--navy); border: 1.5px solid var(--border); border-radius: 10px; padding: 10px 16px; font-size: 13px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 8px; box-shadow: none; min-height: 40px; width: 100%; margin-bottom: 14px; justify-content: center; }
+.home-random-btn { background: white; color: var(--navy); border-radius: 10px; padding: 10px 16px; font-size: 13px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 8px; box-shadow: none; min-height: 40px; width: 100%; margin-bottom: 14px; justify-content: center; }
 .home-random-btn:active { background: var(--light); }
 
 /* Category accordion */
 .home-section-label { font-size: 11px; font-weight: 700; color: var(--grey); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 6px; margin-top: 4px; }
-.cat-accordion { background: white; border: 1px solid var(--border); border-radius: 10px; overflow: hidden; margin-bottom: 14px; box-shadow: var(--shadow); }
+.cat-accordion { background: white; border-radius: 10px; overflow: hidden; margin-bottom: 14px; box-shadow: var(--shadow); }
 .cat-accordion-row { display: flex; align-items: center; gap: 10px; padding: 11px 14px; cursor: pointer; border-bottom: 1px solid #f0f2f5; transition: background 0.12s; user-select: none; min-height: var(--tap); }
 .cat-accordion-row:last-child { border-bottom: none; }
 .cat-accordion-row:active { background: var(--light); }
@@ -380,7 +380,7 @@ body.snav-active #content { padding-left: 60px; }
   .home-panels-row.row-a { grid-template-columns: 1fr 1.35fr; }
   .home-panels-row.row-b { grid-template-columns: 1.5fr 1fr; }
 }
-.home-panel { background: white; border: 1px solid var(--border); border-radius: 10px; overflow: hidden; box-shadow: var(--shadow); }
+.home-panel { background: white; border-radius: 10px; overflow: hidden; box-shadow: var(--shadow); }
 .home-panel-col { display: flex; flex-direction: column; }
 .home-panel-col .home-panel { flex: 1; }
 .home-panel-col .home-section-label { margin-bottom: 6px; }
@@ -394,7 +394,7 @@ body.snav-active #content { padding-left: 60px; }
 .home-panel.panel-amber .home-panel-title { color: var(--amber); }
 .home-panel.panel-purple .home-panel-title { color: var(--purple); }
 .home-panel.panel-green .home-panel-title { color: var(--green); }
-.home-panel-header { padding: 10px 14px 8px; border-bottom: 1px solid rgba(0,0,0,0.06); display: flex; align-items: center; gap: 6px; }
+.home-panel-header { padding: 10px 14px 8px; display: flex; align-items: center; gap: 6px; }
 .home-panel-title { font-size: 11px; font-weight: 700; color: var(--grey); text-transform: uppercase; letter-spacing: 0.06em; flex: 1; }
 .home-panel-body { padding: 6px 0; min-height: 60px; }
 .home-panel-empty { font-size: 12px; color: var(--grey); padding: 14px 14px; opacity: 0.7; font-style: italic; }
@@ -422,7 +422,7 @@ body.snav-active #content { padding-left: 60px; }
 /* ── D.A.S.H tiles + micro-motion (TEST) ── */
 .home-tiles { display: grid; grid-template-columns: 1fr; gap: 10px; margin-bottom: 14px; }
 @media (min-width: 600px) { .home-tiles { grid-template-columns: 0.85fr 1.15fr; } }
-.home-tile { display: flex; align-items: center; gap: 12px; background: white; border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; box-shadow: var(--shadow); text-decoration: none; color: inherit; cursor: pointer; font-family: inherit; text-align: left; transition: transform 0.15s, box-shadow 0.15s; min-height: var(--tap); }
+.home-tile { display: flex; align-items: center; gap: 12px; background: white; border-radius: 10px; padding: 14px 16px; box-shadow: var(--shadow); text-decoration: none; color: inherit; cursor: pointer; font-family: inherit; text-align: left; transition: transform 0.15s, box-shadow 0.15s; min-height: var(--tap); }
 .home-tile:active { transform: scale(0.98); }
 .home-tile-primary { border-color: var(--amber); background: var(--amber-light); }
 .home-tile-random { border-color: var(--blue); background: var(--blue-light); }
@@ -456,7 +456,7 @@ body.snav-active #content { padding-left: 60px; }
 @media (min-width: 700px) { .home-mid-row { grid-template-columns: 1.4fr 1fr; align-items: stretch; } }
 .home-mid-col { display: flex; flex-direction: column; }
 .home-mid-col .cat-accordion, .home-mid-col .home-section-label { margin-bottom: 0; }
-.featured-case-card { flex: 1; display: flex; flex-direction: column; position: relative; overflow: hidden; border: 1px solid var(--border); border-radius: 10px; box-shadow: var(--shadow); padding: 18px; cursor: pointer; transition: transform 0.15s; min-height: 160px; }
+.featured-case-card { flex: 1; display: flex; flex-direction: column; position: relative; overflow: hidden; border-radius: 10px; box-shadow: var(--shadow); padding: 18px; cursor: pointer; transition: transform 0.15s; min-height: 160px; }
 .featured-case-card:active { transform: scale(0.98); }
 .fc-watermark { position: absolute; right: -10px; bottom: -18px; font-size: 110px; opacity: 0.12; line-height: 1; pointer-events: none; }
 .fc-eyebrow { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--grey); margin-bottom: 8px; position: relative; z-index: 1; }
@@ -1238,39 +1238,6 @@ body.flag-mode-active .flaggable.has-correction:hover { outline: 2px solid var(-
 .topbar-logo-img { height: 36px; width: auto; max-width: 260px; object-fit: contain; display: block; }
 .hero-logo-img { height: 78px; width: auto; max-width: 90%; object-fit: contain; display: block; }
 </style>
-<style>
-/* ============================================================ BENTO HOME LAYOUT (v1) */
-.bento-grid { display:grid; grid-template-columns:repeat(4,1fr); grid-auto-rows:96px; gap:14px; margin-bottom:16px; }
-.bento-tile { position:relative; overflow:hidden; border-radius:16px; padding:14px; display:flex; flex-direction:column; justify-content:flex-end; text-decoration:none; border:none; font-family:inherit; text-align:left; color:#fff; transition:transform 0.15s; cursor:default; }
-.bento-tile:active { transform:scale(0.98); }
-.bento-eyebrow { font-size:10px; text-transform:uppercase; letter-spacing:0.5px; opacity:0.8; margin-bottom:4px; }
-.bento-title { font-size:14px; font-weight:700; }
-.bento-icon-bleed { position:absolute; font-size:64px; opacity:0.18; line-height:1; pointer-events:none; font-style:normal; }
-.bento-create { grid-column:1/3; grid-row:1/3; background:var(--btn-accent); cursor:pointer; }
-.bento-create .bento-icon-bleed { top:-10px; right:-10px; }
-.bento-random { grid-column:3/4; grid-row:1/2; background:var(--blue); cursor:pointer; }
-.bento-popular { grid-column:4/5; grid-row:1/2; background:var(--red); }
-.bento-category { grid-column:3/5; grid-row:2/3; background:var(--white); border:1px solid var(--border); color:var(--text); justify-content:flex-start; }
-.bento-category .bento-eyebrow { color:var(--grey); }
-.bento-featured { grid-column:1/3; grid-row:3/5; border:none; box-shadow:none; }
-.bento-myscenarios { grid-column:3/4; grid-row:3/4; background:var(--navy-light); }
-.bento-favourites { grid-column:4/5; grid-row:3/4; background:var(--purple); }
-.bento-recent { grid-column:3/4; grid-row:4/5; background:var(--green); }
-.bento-monitor { grid-column:4/5; grid-row:4/5; background:rgba(255,255,255,0.14); border:1px solid rgba(255,255,255,0.3); cursor:pointer; }
-.bento-chip-row { display:flex; flex-wrap:wrap; gap:6px; margin-top:4px; }
-.bento-chip { border:none; border-radius:999px; padding:6px 10px; font-size:11px; font-weight:600; color:#fff; cursor:pointer; white-space:nowrap; }
-.bento-chip-count { opacity:0.8; font-weight:400; }
-.bento-list { display:flex; flex-direction:column; gap:2px; overflow:hidden; margin-top:2px; }
-.bento-list-item { font-size:11.5px; color:#fff; opacity:0.95; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; cursor:pointer; }
-.bento-list-item:hover { text-decoration:underline; }
-.bento-empty { font-size:10.5px; color:rgba(255,255,255,0.7); font-style:italic; }
-@media (max-width:700px) {
-  .bento-grid { grid-template-columns:repeat(2,1fr); grid-auto-rows:100px; }
-  .bento-create, .bento-featured { grid-column:span 2 !important; grid-row:span 2 !important; }
-  .bento-category { grid-column:span 2 !important; grid-row:span 1 !important; }
-  .bento-random, .bento-popular, .bento-myscenarios, .bento-favourites, .bento-recent, .bento-monitor { grid-column:span 1 !important; grid-row:span 1 !important; }
-}
-</style>
 </head>
 <body>
 
@@ -1300,50 +1267,46 @@ body.flag-mode-active .flaggable.has-correction:hover { outline: 2px solid var(-
         </div>
       </div>
 
-      <div class="bento-grid">
-        <a class="bento-tile bento-create" href="generator.html" title="AI-assisted scenario generation from a category, complexity, or free-text prompt.">
-          <i class="bento-icon-bleed" aria-hidden="true">✦</i>
-          <div class="bento-eyebrow">Create</div>
-          <div class="bento-title">New scenario</div>
-        </a>
-
-        <button class="bento-tile bento-random" onclick="loadRandomScenario(null, null)" title="Jump straight into an assessment from any category.">
-          <div class="bento-eyebrow">Random</div>
-          <div class="bento-title">🎲 Surprise me</div>
+      <div class="home-tiles">
+        <button class="home-tile home-tile-random" onclick="loadRandomScenario(null, null)" title="Jump straight into an assessment from any category.">
+          <div class="home-tile-icon">🎲</div>
+          <div class="home-tile-text">
+            <div class="home-tile-title">Random Scenario</div>
+          </div>
+          <div class="home-tile-arrow">→</div>
         </button>
-
-        <div class="bento-tile bento-popular">
-          <div class="bento-eyebrow">Most popular</div>
-          <div class="bento-list" id="bento-popular-list"><!-- populated by buildHomePanels() --></div>
-        </div>
-
-        <div class="bento-tile bento-category" id="home-cat-accordion">
-          <!-- populated by buildCategoryAccordion() -->
-        </div>
-
-        <div class="bento-tile bento-featured featured-case-card" id="featured-case-card">
-          <!-- populated by buildFeaturedCase() -->
-        </div>
-
-        <div class="bento-tile bento-myscenarios">
-          <div class="bento-eyebrow">My scenarios</div>
-          <div class="bento-list" id="bento-myscenarios-list"><!-- populated by buildHomePanels() --></div>
-        </div>
-
-        <div class="bento-tile bento-favourites">
-          <div class="bento-eyebrow">Favourites</div>
-          <div class="bento-list" id="bento-favourites-list"><!-- populated by buildHomePanels() --></div>
-        </div>
-
-        <div class="bento-tile bento-recent">
-          <div class="bento-eyebrow">Recently added</div>
-          <div class="bento-list" id="bento-recent-list"><!-- populated by buildHomePanels() --></div>
-        </div>
-
-        <a class="bento-tile bento-monitor" href="monitor.html" target="_blank" title="Open Monitor Screen — for the classroom / student display">
-          <div class="bento-eyebrow">Monitor</div>
-          <div class="bento-title">Classroom display ↗</div>
+        <a class="home-tile home-tile-primary" href="generator.html" title="AI-assisted scenario generation from a category, complexity, or free-text prompt.">
+          <div class="home-tile-icon">✦</div>
+          <div class="home-tile-text">
+            <div class="home-tile-title">Create New Scenario</div>
+          </div>
+          <div class="home-tile-arrow">→</div>
         </a>
+      </div>
+
+      <div class="home-mid-row">
+        <div class="home-mid-col">
+          <div class="cat-accordion">
+            <div class="home-panel-header"><div class="home-panel-title">Browse by Category</div></div>
+            <div id="home-cat-accordion">
+              <!-- populated by buildCategoryAccordion() -->
+            </div>
+          </div>
+        </div>
+        <div class="home-mid-col">
+          <div class="featured-case-card" id="featured-case-card">
+            <!-- populated by buildFeaturedCase() -->
+          </div>
+        </div>
+      </div>
+
+      <div class="home-panels" id="home-panels">
+        <!-- populated by buildHomePanels() -->
+      </div>
+
+      <div class="dash-monitor-link">
+        <span class="dash-monitor-dot"></span>
+        <a href="monitor.html" target="_blank">Open Monitor Screen — for the classroom / student display ↗</a>
       </div>
 
       <div id="dev-notes-banner" style="margin-top:16px">
@@ -2510,6 +2473,7 @@ function fcPresentationLabel(s) {
 
 function renderFeaturedCase(container, s, icon, dot, blurb) {
   container.innerHTML = `
+    <div class="fc-eyebrow">Featured this week</div>
     <div class="fc-badge" style="background:${dot}">${fcPresentationLabel(s)}</div>
     <div class="fc-title">${s.title || 'Untitled'}</div>
     <div class="fc-desc">${blurb}</div>
@@ -2662,30 +2626,8 @@ function buildCategoryAccordion() {
   if (!container) return;
   const all = getAllScenarios();
 
+  // Count per category, per subcategory, per scenario_type
   const catCounts = {};
-  all.forEach(s => { const g = s.category || 'Custom'; catCounts[g] = (catCounts[g] || 0) + 1; });
-
-  const chipDefs = [
-    { key: 'Adult',           icon: '🧑', color: 'var(--navy)'   },
-    { key: 'Paediatric',      icon: '🧒', color: 'var(--blue)'   },
-    { key: 'Maternity',       icon: '🤰', color: 'var(--purple)' },
-    { key: 'Newborn',         icon: '👶', color: 'var(--green)'  },
-    { key: 'Treat and Refer', icon: '🩹', color: '#6D4C41'       },
-    { key: 'Custom',          icon: '✦',  color: '#16A085'       },
-  ];
-
-  container.innerHTML = `
-    <div class="bento-eyebrow">Browse category</div>
-    <div class="bento-chip-row">
-      ${chipDefs.map(d => {
-        const count = catCounts[d.key] || 0;
-        return `<button type="button" class="bento-chip" style="background:${d.color}" onclick="openCategoryScreen('${d.key}')">${d.icon} ${d.key}${count ? ` <span class="bento-chip-count">${count}</span>` : ''}</button>`;
-      }).join('')}
-    </div>`;
-  return;
-
-  // ---- legacy accordion build below (unreachable, kept for reference — safe to delete later) ----
-  const legacyCatCounts = {};
   const subcatCounts = {}; // [cat][sub] = n
   const typeCounts  = {}; // [cat|sub][type] = n
   all.forEach(s => {
@@ -2810,14 +2752,9 @@ function toggleSubRow(subRowEl) {
 }
 
 function buildHomePanels() {
+  const container = document.getElementById('home-panels');
+  if (!container) return;
   const all = getAllScenarios();
-
-  function renderBentoItems(list, max, emptyMsg) {
-    if (!list.length) return `<div class="bento-empty">${emptyMsg}</div>`;
-    return list.slice(0, max).map(s =>
-      `<div class="bento-list-item" onclick="event.stopPropagation();loadScenario('${s.id}')">${s.title || 'Untitled'}</div>`
-    ).join('');
-  }
 
   // Helper: sort by timestamp
   function withTimestamp(scenarios) {
@@ -2834,9 +2771,7 @@ function buildHomePanels() {
     if (!list.length) return '<div class="home-panel-empty">Nothing here yet</div>';
     return list.slice(0, max).map(s => {
       const dot = CAT_COLORS[s.category] || 'var(--grey)';
-      const badge = s.ai_generated
-        ? '<span class="hp-badge ai">AI</span>'
-        : (!s.is_builtin ? '<span class="hp-badge custom">Custom</span>' : '');
+      const badge = (!s.ai_generated && !s.is_builtin) ? '<span class="hp-badge custom">Custom</span>' : '';
       const sub = s.subcategory || s.category || '';
       return `<div class="hp-item" onclick="loadScenario('${s.id}')">
         <div class="hp-dot" style="background:${dot}"></div>
@@ -2864,17 +2799,35 @@ function buildHomePanels() {
     .map(p => all.find(s => String(s.id) === String(p.scenario_id)))
     .filter(Boolean);
 
-  const popularEl = document.getElementById('bento-popular-list');
-  if (popularEl) popularEl.innerHTML = renderBentoItems(popularScenarios, 3, 'Be the first to star a scenario');
-
-  const myScenariosEl = document.getElementById('bento-myscenarios-list');
-  if (myScenariosEl) myScenariosEl.innerHTML = renderBentoItems(myScenarios, 3, 'Scenarios you create will appear here');
-
-  const favEl = document.getElementById('bento-favourites-list');
-  if (favEl) favEl.innerHTML = renderBentoItems(favScenarios, 3, 'Your favourites will appear here');
-
-  const recentEl = document.getElementById('bento-recent-list');
-  if (recentEl) recentEl.innerHTML = renderBentoItems(recentAll, 3, 'Nothing here yet');
+  container.innerHTML = `
+    <div class="home-panels-row row-a">
+      <div class="home-panel-col">
+        <div class="home-panel panel-amber">
+          <div class="home-panel-header"><div class="home-panel-title">Most Popular</div></div>
+          <div class="home-panel-body">${popularScenarios.length ? renderItems(popularScenarios, 8) : '<div class="home-panel-empty">No favourites yet — be the first to star a scenario</div>'}</div>
+        </div>
+      </div>
+      <div class="home-panel-col">
+        <div class="home-panel panel-navy">
+          <div class="home-panel-header"><div class="home-panel-title">My Scenarios</div></div>
+          <div class="home-panel-body">${myScenarios.length ? renderItems(myScenarios, 8) : '<div class="home-panel-empty">Scenarios you create will appear here</div>'}</div>
+        </div>
+      </div>
+    </div>
+    <div class="home-panels-row row-b">
+      <div class="home-panel-col">
+        <div class="home-panel panel-purple">
+          <div class="home-panel-header"><div class="home-panel-title">My Favourites</div></div>
+          <div class="home-panel-body">${favScenarios.length ? renderItems(favScenarios, 8) : '<div class="home-panel-empty">Your favourited scenarios will appear here</div>'}</div>
+        </div>
+      </div>
+      <div class="home-panel-col">
+        <div class="home-panel panel-green">
+          <div class="home-panel-header"><div class="home-panel-title">Recently Added</div></div>
+          <div class="home-panel-body">${renderItems(recentAll, 8)}</div>
+        </div>
+      </div>
+    </div>`;
 }
 
 // Legacy alias — called in older code paths
