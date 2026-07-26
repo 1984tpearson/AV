@@ -416,14 +416,19 @@ body.snav-active #content { padding-left: 60px; }
 
 /* ── D.A.S.H tiles + micro-motion (TEST) ── */
 .home-tiles { display: grid; grid-template-columns: 1fr; gap: 10px; margin-bottom: 14px; position: relative; }
-@media (min-width: 700px) { .home-tiles { grid-template-columns: 0.85fr 0.85fr 1.15fr; } }
-.cat-dropdown-wrap { position: relative; }
+@media (min-width: 700px) { .home-tiles { grid-template-columns: 0.8fr 1fr 0.8fr 1.1fr; } }
+.cat-dropdown-wrap, .home-search-wrap { position: relative; }
 .cat-dropdown-trigger { width: 100%; }
-.cat-dropdown-panel { display: none; position: absolute; top: calc(100% + 8px); left: 0; width: 320px; max-width: 90vw; z-index: 40; background: white; border-radius: 10px; box-shadow: 0 10px 28px rgba(0,0,0,0.22); overflow: hidden; }
+.cat-dropdown-panel, .home-search-panel { display: none; position: absolute; top: calc(100% + 8px); left: 0; width: 320px; max-width: 90vw; z-index: 40; background: white; border-radius: 10px; box-shadow: 0 10px 28px rgba(0,0,0,0.22); overflow: hidden; }
+.home-search-panel { max-height: 340px; overflow-y: auto; }
 .cat-dropdown-panel .cat-accordion { margin-bottom: 0; box-shadow: none; }
-.cat-dropdown-wrap.open .cat-dropdown-panel { display: block; }
+.cat-dropdown-wrap.open .cat-dropdown-panel, .home-search-wrap.open .home-search-panel { display: block; }
 .cat-dropdown-wrap.open #cat-dropdown-arrow { transform: rotate(180deg); }
 .home-panel-col .featured-case-card { flex: 1; }
+.home-search-tile { padding: 0; }
+.home-search-input { width: 100%; height: 100%; border: none; background: transparent; padding: 14px 16px; font-size: 14px; font-family: inherit; color: var(--text); outline: none; min-height: var(--tap); }
+.home-search-input::placeholder { color: var(--grey); }
+.home-search-empty { font-size: 12px; color: var(--grey); padding: 14px; font-style: italic; }
 .home-tile { display: flex; align-items: center; gap: 12px; background: white; border-radius: 10px; padding: 14px 16px; box-shadow: var(--shadow); text-decoration: none; color: inherit; cursor: pointer; font-family: inherit; text-align: left; transition: transform 0.15s, box-shadow 0.15s; min-height: var(--tap); }
 .home-tile:active { transform: scale(0.98); }
 .home-tile-primary { border: none; background: var(--amber-light); }
@@ -1283,6 +1288,13 @@ body.flag-mode-active .flaggable.has-correction:hover { outline: 2px solid var(-
               <!-- populated by buildCategoryAccordion() -->
             </div>
           </div>
+        </div>
+
+        <div class="home-search-wrap" id="home-search-wrap">
+          <div class="home-tile home-search-tile">
+            <input type="text" id="home-search-input" class="home-search-input" placeholder="Search scenarios…" autocomplete="off" oninput="handleHomeSearchInput(this.value)" onfocus="handleHomeSearchInput(this.value)">
+          </div>
+          <div class="home-search-panel" id="home-search-panel"></div>
         </div>
 
         <button class="home-tile home-tile-random" onclick="loadRandomScenario(null, null)" title="Jump straight into an assessment from any category.">
@@ -2893,10 +2905,41 @@ function toggleCategoryDropdown() {
   const wrap = document.getElementById('cat-dropdown-wrap');
   if (wrap) wrap.classList.toggle('open');
 }
+
+function handleHomeSearchInput(value) {
+  const wrap = document.getElementById('home-search-wrap');
+  const panel = document.getElementById('home-search-panel');
+  if (!wrap || !panel) return;
+  const q = (value || '').trim().toLowerCase();
+  if (!q) { wrap.classList.remove('open'); panel.innerHTML = ''; return; }
+
+  const all = getAllScenarios();
+  const matches = all.filter(s => {
+    const hay = [s.title, s.category, s.subcategory, s.cpg, s.scenario_type].filter(Boolean).join(' ').toLowerCase();
+    return hay.includes(q);
+  }).slice(0, 8);
+
+  panel.innerHTML = matches.length ? matches.map(s => {
+    const dot = CAT_COLORS[s.category] || 'var(--grey)';
+    const sub = s.subcategory || s.category || '';
+    return `<div class="hp-item" onclick="loadScenario('${s.id}')">
+      <div class="hp-dot" style="background:${dot}"></div>
+      <div class="hp-title">${s.title || 'Untitled'}</div>
+      <div class="hp-sub">${sub}</div>
+    </div>`;
+  }).join('') : '<div class="home-search-empty">No matches</div>';
+
+  wrap.classList.add('open');
+}
+
 document.addEventListener('click', function (e) {
   const wrap = document.getElementById('cat-dropdown-wrap');
   if (wrap && wrap.classList.contains('open') && !wrap.contains(e.target)) {
     wrap.classList.remove('open');
+  }
+  const searchWrap = document.getElementById('home-search-wrap');
+  if (searchWrap && searchWrap.classList.contains('open') && !searchWrap.contains(e.target)) {
+    searchWrap.classList.remove('open');
   }
 });
 
