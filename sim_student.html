@@ -19,11 +19,12 @@ body { display: flex; flex-direction: column; min-height: 100vh; }
 #patient-info .row { font-size: 12px; color: #c0d4e8; margin-bottom: 3px; }
 #patient-graphic { min-height: 140px; display: flex; align-items: center; justify-content: center; color: #4a6a8a; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; border-style: dashed; text-align: center; }
 
-/* ECG panel (adapted from monitor.html) */
-#ecg-section { display: flex; flex-direction: column; background: #060606; min-height: 220px; border-bottom: 2px solid #0d1f35; }
-.ecg-section-bar { display: flex; align-items: center; justify-content: space-between; padding: 6px 12px; background: #060910; border-bottom: 1px solid #0d1f35; font-size: 10px; letter-spacing: 1.5px; color: #00ff88; text-transform: uppercase; }
+/* ECG panel (adapted from monitor.html) — fixed height, NOT flex:1, so it can't
+   blow out past a sane size and push the vitals below the fold. */
+#ecg-section { display: flex; flex-direction: column; background: #060606; height: 260px; overflow: hidden; border-bottom: 2px solid #0d1f35; flex-shrink: 0; }
+.ecg-section-bar { display: flex; align-items: center; justify-content: space-between; padding: 6px 12px; background: #060910; border-bottom: 1px solid #0d1f35; font-size: 10px; letter-spacing: 1.5px; color: #00ff88; text-transform: uppercase; flex-shrink: 0; }
 .ecg-snapshot-btn { background: rgba(0,255,136,0.08); border: 2px solid #00ff88; color: #00ff88; font-family: 'Courier New', monospace; font-size: 11px; font-weight: bold; letter-spacing: 1px; padding: 4px 12px; cursor: pointer; text-transform: uppercase; border-radius: 4px; }
-#ecg-12lead-container { width: 100%; flex: 1; }
+#ecg-12lead-container { width: 100%; height: 100%; overflow: hidden; }
 
 /* Monitor box (adapted from monitor.html vital blocks, boxed not full-screen) */
 #monitor-box { display: flex; flex-direction: column; background: #080c14; }
@@ -50,15 +51,6 @@ body { display: flex; flex-direction: column; min-height: 100vh; }
   <div id="scenario-timer">00:00</div>
 </div>
 <div id="main">
-  <div id="info-col">
-    <div class="panel" id="patient-info">
-      <h2>Patient / Scene Info</h2>
-      <div class="row" id="pi-demographics">45yo Male</div>
-      <div class="row" id="pi-dispatch">Dispatch: Chest pain, 2 hrs onset</div>
-      <div class="row" id="pi-complaint">C/O: Central chest pain radiating to left arm, diaphoretic</div>
-    </div>
-    <div class="panel" id="patient-graphic">Patient graphic — placeholder (skin colour / injuries, later phase)</div>
-  </div>
   <div id="monitor-col" class="panel" style="flex:2;min-width:0;padding:0;overflow:hidden;display:flex;flex-direction:column;">
     <div id="ecg-section">
       <div class="ecg-section-bar">
@@ -70,7 +62,17 @@ body { display: flex; flex-direction: column; min-height: 100vh; }
     <div id="monitor-box"></div>
     <div id="oneoff-strip"></div>
   </div>
+  <div id="info-col">
+    <div class="panel" id="patient-info">
+      <h2>Patient / Scene Info</h2>
+      <div class="row" id="pi-demographics">45yo Male</div>
+      <div class="row" id="pi-dispatch">Dispatch: Chest pain, 2 hrs onset</div>
+      <div class="row" id="pi-complaint">C/O: Central chest pain radiating to left arm, diaphoretic</div>
+    </div>
+    <div class="panel" id="patient-graphic">Patient graphic — placeholder (skin colour / injuries, later phase)</div>
+  </div>
 </div>
+
 
 <script src="https://1984tpearson.github.io/AV/ecg_engine.js"></script>
 <script src="https://1984tpearson.github.io/AV/sim_engine.js"></script>
@@ -116,8 +118,11 @@ function ensureECG(hr) {
   if (mapped.key === _currentRhythmKey && _ecgInst) return; // no change needed
   _currentRhythmKey = mapped.key;
   const container = document.getElementById('ecg-12lead-container');
+  const bar = document.querySelector('.ecg-section-bar');
+  const section = document.getElementById('ecg-section');
+  const availH = section.clientHeight - (bar ? bar.offsetHeight : 30);
   if (_ecgInst) _ecgInst.destroy();
-  _ecgInst = new ECGEngine(container, { mode: '12lead', theme: 'monitor', height: 200 });
+  _ecgInst = new ECGEngine(container, { mode: '12lead', theme: 'monitor', height: availH });
   _ecgInst.setRhythm(mapped.key, mapped.bpm, mapped.bbbMode);
   setLeadDisplay();
 }
