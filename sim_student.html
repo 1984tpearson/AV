@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Live Scenario — Student View</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; background: #0a0d14; color: #e0e0e0; font-family: 'Courier New', monospace; }
+body { display: flex; flex-direction: column; min-height: 100vh; }
+#topbar { background: #060910; border-bottom: 2px solid #1a2a3a; padding: 8px 14px; display: flex; align-items: center; justify-content: space-between; }
+#topbar .title { font-size: 12px; font-weight: 900; letter-spacing: 1px; color: #4fc3f7; text-transform: uppercase; }
+#scenario-timer { font-size: 13px; font-weight: 700; color: #7fff00; }
+#main { flex: 1; display: flex; flex-direction: column; gap: 10px; padding: 10px; }
+@media (min-width: 800px) { #main { flex-direction: row; } }
+.panel { background: #0d1520; border: 1px solid #1a3a5a; border-radius: 8px; padding: 10px; }
+#info-col { flex: 1; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+#patient-info h2 { font-size: 12px; color: #4fc3f7; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; }
+#patient-info .row { font-size: 12px; color: #c0d4e8; margin-bottom: 3px; }
+#patient-graphic { flex: 1; min-height: 160px; display: flex; align-items: center; justify-content: center; color: #4a6a8a; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; border-style: dashed; }
+
+/* Monitor box (adapted from monitor.html vital blocks, boxed not full-screen) */
+#monitor-box { display: flex; flex-direction: column; background: #080c14; }
+.vblock { display: flex; flex-direction: column; border-bottom: 2px solid #0d1f35; padding: 4px 10px; }
+.vlabel { font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; }
+.vvalue { font-size: 26px; font-weight: 900; line-height: 1.1; font-family: 'Courier New', monospace; }
+.vunit { font-size: 9px; font-weight: 400; opacity: 0.7; margin-left: 4px; }
+.v-hr   .vlabel { color: #ffffff; } .v-hr   .vvalue { color: #ffffff; }
+.v-bp   .vlabel { color: #7fff00; } .v-bp   .vvalue { color: #7fff00; }
+.v-spo2 .vlabel { color: #4fc3f7; } .v-spo2 .vvalue { color: #4fc3f7; }
+.v-rr   .vlabel { color: #ffd54f; } .v-rr   .vvalue { color: #ffd54f; }
+.v-etco2 .vlabel { color: #ff8a65; } .v-etco2 .vvalue { color: #ff8a65; }
+#bp-timer { font-size: 9px; color: #4a6a8a; margin-top: 2px; }
+#oneoff-strip { display: flex; flex-wrap: wrap; gap: 0; border-top: 2px solid #0d1f35; }
+.oo-card { flex: 1; min-width: 90px; padding: 6px 8px; border-right: 1px solid #1a2a3a; border-bottom: 1px solid #1a2a3a; }
+.oo-label { font-size: 8px; font-weight: 700; color: #4a6a8a; text-transform: uppercase; letter-spacing: 1px; }
+.oo-value { font-size: 15px; font-weight: 700; color: #c0d4e8; }
+.oo-btn { font-size: 9px; color: #4fc3f7; background: none; border: 1px solid #1a3a5a; border-radius: 3px; padding: 1px 5px; cursor: pointer; margin-top: 2px; }
+</style>
+</head>
+<body>
+<div id="topbar">
+  <div class="title">Live Scenario — Student View</div>
+  <div id="scenario-timer">00:00</div>
+</div>
+<div id="main">
+  <div id="info-col">
+    <div class="panel" id="patient-info">
+      <h2>Patient / Scene Info</h2>
+      <div class="row" id="pi-demographics">45yo Male</div>
+      <div class="row" id="pi-dispatch">Dispatch: Chest pain, 2 hrs onset</div>
+      <div class="row" id="pi-complaint">C/O: Central chest pain radiating to left arm, diaphoretic</div>
+    </div>
+    <div class="panel" id="patient-graphic">Patient graphic — placeholder (skin colour / injuries, later phase)</div>
+  </div>
+  <div id="monitor-col" class="panel" style="width:100%;max-width:340px;padding:0;overflow:hidden;display:flex;flex-direction:column;">
+    <div id="monitor-box"></div>
+    <div id="oneoff-strip"></div>
+  </div>
+</div>
+
+<script src="https://1984tpearson.github.io/AV/sim_engine.js"></script>
+<script>
+// --- STATIC TEST TRAJECTORY (proof-of-render only; no session sync yet) ---
+const testConfig = {
+  baseline: { HR: 92, RR: 20, SpO2: 96, EtCO2: 38, BPsys: 148, BPdia: 90 },
+  severity: 'moderate',
+  direction: 'deteriorating',
+  startTimeMs: Date.now(),
+  treatments: [], // e.g. { drug:'morphine', dose:5, givenAtMin: 1 }
+  instantMode: false
+};
+
+const oneOffVitals = {
+  Temp:   { value: '36.8', unit: '°C',     taken: true },
+  GCS:    { value: '15/15', unit: '',      taken: true },
+  BGL:    { value: '6.1',  unit: 'mmol/L', taken: true },
+  Ketones:{ value: '—',    unit: 'mmol/L', taken: false },
+  Pain:   { value: '8/10', unit: '',       taken: true }
+};
+
+let bpNextDueMs = Date.now() + 15 * 60000; // default 15 min
+let bpIntervalMin = 15;
+let lastBP = { sys: testConfig.baseline.BPsys, dia: testConfig.baseline.BPdia };
+
+function fmtTimer(ms) {
+  const s = Math.floor(ms / 1000);
+  const mm = String(Math.floor(s / 60)).padStart(2, '0');
+  const ss = String(s % 60).padStart(2, '0');
+  return `${mm}:${ss}`;
+}
+
+function renderMonitor(v) {
+  const box = document.getElementById('monitor-box');
+  const rows = [
+    { key:'HR',    cls:'v-hr',    label:'HR',    unit:'bpm',  val:v.HR },
+    { key:'BP',    cls:'v-bp',    label:'NIBP',  unit:'mmHg', val:`${lastBP.sys}/${lastBP.dia}`, bp:true },
+    { key:'SpO2',  cls:'v-spo2',  label:'SpO\u2082', unit:'%', val:v.SpO2 },
+    { key:'RR',    cls:'v-rr',    label:'Resp',  unit:'/min', val:v.RR },
+    { key:'EtCO2', cls:'v-etco2', label:'EtCO\u2082',unit:'mmHg',val:v.EtCO2 }
+  ];
+  box.innerHTML = rows.map(r => `
+    <div class="vblock ${r.cls}">
+      <div class="vlabel">${r.label}</div>
+      <div class="vvalue">${r.val}<span class="vunit">${r.unit}</span></div>
+      ${r.bp ? `<div id="bp-timer"></div>` : ''}
+    </div>`).join('');
+}
+
+function renderOneOff() {
+  const strip = document.getElementById('oneoff-strip');
+  strip.innerHTML = Object.entries(oneOffVitals).map(([key, o]) => `
+    <div class="oo-card">
+      <div class="oo-label">${key}</div>
+      <div class="oo-value">${o.taken ? o.value : '\u2014'}${o.taken && o.unit ? `<span style="font-size:9px"> ${o.unit}</span>` : ''}</div>
+      <button class="oo-btn" onclick="reassess('${key}')">Reassess</button>
+    </div>`).join('');
+}
+
+function reassess(key) {
+  // Placeholder: in the real build this reads/derives a value from current trend.
+  // For this proof, just mark as taken with a dummy jittered value.
+  oneOffVitals[key].taken = true;
+  renderOneOff();
+}
+
+function tick() {
+  const now = Date.now();
+  const v = SimEngine.getVitals(testConfig, now);
+  renderMonitor(v);
+  document.getElementById('scenario-timer').textContent = fmtTimer(now - testConfig.startTimeMs);
+
+  // BP auto-refire on its own timer, independent of the 1s continuous refresh
+  const bpTimerEl = document.getElementById('bp-timer');
+  if (now >= bpNextDueMs) {
+    lastBP = { sys: v.BPsys, dia: v.BPdia };
+    bpNextDueMs = now + bpIntervalMin * 60000;
+  }
+  if (bpTimerEl) {
+    const remainMs = bpNextDueMs - now;
+    bpTimerEl.textContent = `next auto BP in ${fmtTimer(remainMs)}`;
+  }
+}
+
+function takeManualBP() {
+  const v = SimEngine.getVitals(testConfig, Date.now());
+  lastBP = { sys: v.BPsys, dia: v.BPdia };
+  bpNextDueMs = Date.now() + bpIntervalMin * 60000;
+}
+
+renderOneOff();
+tick();
+setInterval(tick, 1000);
+</script>
+</body>
+</html>
+
