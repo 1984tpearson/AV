@@ -20,7 +20,7 @@ body { display: flex; flex-direction: column; min-height: 100vh; }
 #patient-graphic { min-height: 140px; display: flex; align-items: center; justify-content: center; color: #4a6a8a; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; border-style: dashed; text-align: center; }
 
 /* Monitor main row (ECG + narrow vitals sidebar side-by-side, matching monitor.html) */
-#monitor-main { display: flex; flex-direction: row; height: 260px; overflow: hidden; border-bottom: 2px solid #0d1f35; flex-shrink: 0; }
+#monitor-main { display: flex; flex-direction: row; flex: 1; min-height: 0; overflow: hidden; border-bottom: 2px solid #0d1f35; }
 #ecg-section { flex: 1; min-width: 0; display: flex; flex-direction: column; background: #060606; overflow: hidden; border-right: 2px solid #0d1f35; }
 .ecg-section-bar { display: flex; align-items: center; justify-content: space-between; padding: 6px 12px; background: #060910; border-bottom: 1px solid #0d1f35; font-size: 10px; letter-spacing: 1.5px; color: #00ff88; text-transform: uppercase; flex-shrink: 0; }
 .ecg-snapshot-btn { background: rgba(0,255,136,0.08); border: 2px solid #00ff88; color: #00ff88; font-family: 'Courier New', monospace; font-size: 11px; font-weight: bold; letter-spacing: 1px; padding: 4px 12px; cursor: pointer; text-transform: uppercase; border-radius: 4px; }
@@ -106,6 +106,7 @@ let lastBP = { sys: testConfig.baseline.BPsys, dia: testConfig.baseline.BPdia };
 let _ecgInst = null;
 let _show12Lead = false;
 let _currentRhythmKey = null;
+let _lastHR = 90;
 
 function deriveRhythmFromHR(hr) {
   // Simple threshold model for this proof; will need clinical review re: what
@@ -190,6 +191,7 @@ function tick() {
   const v = SimEngine.getVitals(testConfig, now);
   renderMonitor(v);
   ensureECG(v.HR);
+  _lastHR = v.HR;
   document.getElementById('scenario-timer').textContent = fmtTimer(now - testConfig.startTimeMs);
 
   // BP auto-refire on its own timer, independent of the 1s continuous refresh
@@ -213,6 +215,11 @@ function takeManualBP() {
 renderOneOff();
 tick();
 setInterval(tick, 1000);
+
+window.addEventListener('resize', () => {
+  _currentRhythmKey = null; // force ECG rebuild at new container size
+  ensureECG(_lastHR);
+});
 </script>
 </body>
 </html>
