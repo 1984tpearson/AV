@@ -6559,6 +6559,7 @@ let editKQCount = 0;
 let editKQMaxValues = {};
 
 function openEditModal() {
+  if (guestBlocked('edit scenarios')) return;
   if (!currentScenario) return;
   const s = currentScenario;
   editKQCount = 0; editKQMaxValues = {};
@@ -7841,6 +7842,7 @@ function toggleFlagMode(forceOff = false) {
     if (btn) { btn.classList.remove('active'); btn.innerHTML = '🚩 Flag Error'; }
     closeCorrectionPopover();
   } else {
+    if (guestBlocked('flag errors')) return;
     _flagModeActive = true;
     document.body.classList.add('flag-mode-active');
     if (btn) { btn.classList.add('active'); btn.innerHTML = '✕ Done Flagging'; }
@@ -7909,6 +7911,7 @@ function onCpGcsChange() {
 
 // Open the correction popover
 function openCorrectionPopover(fieldKey, fieldLabel, originalValue, anchorEl, existingCorr) {
+  if (guestBlocked('flag errors')) return;
   const fieldDef = CORRECTABLE_FIELDS[fieldKey] || {};
   const fieldType = fieldDef.type || 'text';
   _popoverState = { fieldKey, fieldLabel, originalValue, fieldType, correctionId: existingCorr ? existingCorr.id : null, anchorEl };
