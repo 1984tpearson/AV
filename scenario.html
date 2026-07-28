@@ -5370,6 +5370,7 @@ function isAbnormal(key, value) {
 // SCORE SHEET (bottom sheet on iPad)
 // ============================================================
 function toggleScoreSheet() {
+  if (guestBlocked('view the assessment score sheet')) return;
   const sheet = document.getElementById('score-sheet');
   const ov = document.getElementById('score-sheet-overlay');
   const isOpen = sheet.classList.contains('open');
@@ -5530,6 +5531,7 @@ function updateScoreSheet() {
 // SUMMARY PAGE
 // ============================================================
 function showSummary() {
+  if (guestBlocked('view or generate an assessment')) return;
   if (!currentScenario) return;
   const s = currentScenario;
   const cfg = LEVEL_CONFIG[currentLevel];
@@ -6635,6 +6637,7 @@ function generateSessionCode() {
 // Called by inline reveal buttons throughout the scenario
 async function handleRevealBtn(key, event) {
   event.stopPropagation();
+  if (guestBlocked('start a student session')) return;
   if (!_patientSessionCode) {
     // No session yet — open QR modal and queue this vital for auto-reveal
     _pendingRevealKey = key;
@@ -6647,6 +6650,7 @@ async function handleRevealBtn(key, event) {
 }
 
 async function openPatientSessionModal() {
+  if (guestBlocked('start a student session')) return;
   if (!currentScenario) return;
 
   // If session already active, just show the modal again (QR still valid)
