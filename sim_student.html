@@ -19,25 +19,26 @@ body { display: flex; flex-direction: column; min-height: 100vh; }
 #patient-info .row { font-size: 12px; color: #c0d4e8; margin-bottom: 3px; }
 #patient-graphic { min-height: 140px; display: flex; align-items: center; justify-content: center; color: #4a6a8a; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; border-style: dashed; text-align: center; }
 
-/* ECG panel (adapted from monitor.html) — fixed height, NOT flex:1, so it can't
-   blow out past a sane size and push the vitals below the fold. */
-#ecg-section { display: flex; flex-direction: column; background: #060606; height: 260px; overflow: hidden; border-bottom: 2px solid #0d1f35; flex-shrink: 0; }
+/* Monitor main row (ECG + narrow vitals sidebar side-by-side, matching monitor.html) */
+#monitor-main { display: flex; flex-direction: row; height: 260px; overflow: hidden; border-bottom: 2px solid #0d1f35; flex-shrink: 0; }
+#ecg-section { flex: 1; min-width: 0; display: flex; flex-direction: column; background: #060606; overflow: hidden; border-right: 2px solid #0d1f35; }
 .ecg-section-bar { display: flex; align-items: center; justify-content: space-between; padding: 6px 12px; background: #060910; border-bottom: 1px solid #0d1f35; font-size: 10px; letter-spacing: 1.5px; color: #00ff88; text-transform: uppercase; flex-shrink: 0; }
 .ecg-snapshot-btn { background: rgba(0,255,136,0.08); border: 2px solid #00ff88; color: #00ff88; font-family: 'Courier New', monospace; font-size: 11px; font-weight: bold; letter-spacing: 1px; padding: 4px 12px; cursor: pointer; text-transform: uppercase; border-radius: 4px; }
 #ecg-12lead-container { width: 100%; height: 100%; overflow: hidden; }
 
-/* Monitor box (adapted from monitor.html vital blocks, boxed not full-screen) */
-#monitor-box { display: flex; flex-direction: column; background: #080c14; }
-.vblock { display: flex; flex-direction: column; border-bottom: 2px solid #0d1f35; padding: 4px 10px; }
-.vlabel { font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; }
-.vvalue { font-size: 26px; font-weight: 900; line-height: 1.1; font-family: 'Courier New', monospace; }
-.vunit { font-size: 9px; font-weight: 400; opacity: 0.7; margin-left: 4px; }
+/* Vitals sidebar — narrow column beside the ECG, each block flex:1 (matches monitor.html #vitals-panel) */
+#monitor-box { width: 150px; flex-shrink: 0; display: flex; flex-direction: column; background: #080c14; overflow: hidden; }
+.vblock { flex: 1; min-height: 0; display: flex; flex-direction: column; border-bottom: 2px solid #0d1f35; padding: 3px 8px; overflow: hidden; }
+.vlabel { font-size: 8px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; flex-shrink: 0; }
+.vvalue { flex: 1; display: flex; align-items: center; font-size: clamp(14px, 2.2vw, 22px); font-weight: 900; line-height: 1; font-family: 'Courier New', monospace; min-height: 0; overflow: hidden; }
+.vunit { font-size: 8px; font-weight: 400; opacity: 0.7; margin-left: 3px; align-self: flex-end; }
 .v-hr   .vlabel { color: #ffffff; } .v-hr   .vvalue { color: #ffffff; }
 .v-bp   .vlabel { color: #7fff00; } .v-bp   .vvalue { color: #7fff00; }
 .v-spo2 .vlabel { color: #4fc3f7; } .v-spo2 .vvalue { color: #4fc3f7; }
 .v-rr   .vlabel { color: #ffd54f; } .v-rr   .vvalue { color: #ffd54f; }
 .v-etco2 .vlabel { color: #ff8a65; } .v-etco2 .vvalue { color: #ff8a65; }
-#bp-timer { font-size: 9px; color: #4a6a8a; margin-top: 2px; }
+#bp-timer { font-size: 7px; color: #4a6a8a; }
+
 #oneoff-strip { display: flex; flex-wrap: wrap; gap: 0; border-top: 2px solid #0d1f35; }
 .oo-card { flex: 1; min-width: 90px; padding: 6px 8px; border-right: 1px solid #1a2a3a; border-bottom: 1px solid #1a2a3a; }
 .oo-label { font-size: 8px; font-weight: 700; color: #4a6a8a; text-transform: uppercase; letter-spacing: 1px; }
@@ -50,25 +51,27 @@ body { display: flex; flex-direction: column; min-height: 100vh; }
   <div class="title">Live Scenario — Student View</div>
   <div id="scenario-timer">00:00</div>
 </div>
+<div class="panel" id="patient-info" style="margin:10px 10px 0;">
+  <h2>Patient / Scene Info</h2>
+  <div class="row" id="pi-demographics">45yo Male</div>
+  <div class="row" id="pi-dispatch">Dispatch: Chest pain, 2 hrs onset</div>
+  <div class="row" id="pi-complaint">C/O: Central chest pain radiating to left arm, diaphoretic</div>
+</div>
 <div id="main">
   <div id="monitor-col" class="panel" style="flex:2;min-width:0;padding:0;overflow:hidden;display:flex;flex-direction:column;">
-    <div id="ecg-section">
-      <div class="ecg-section-bar">
-        <span id="ecg-bar-label">LEAD II — RHYTHM STRIP</span>
-        <button class="ecg-snapshot-btn" onclick="toggleLead()" id="leadToggleBtn">Show 12-Lead</button>
+    <div id="monitor-main">
+      <div id="ecg-section">
+        <div class="ecg-section-bar">
+          <span id="ecg-bar-label">LEAD II — RHYTHM STRIP</span>
+          <button class="ecg-snapshot-btn" onclick="toggleLead()" id="leadToggleBtn">Show 12-Lead</button>
+        </div>
+        <div id="ecg-12lead-container"></div>
       </div>
-      <div id="ecg-12lead-container"></div>
+      <div id="monitor-box"></div>
     </div>
-    <div id="monitor-box"></div>
     <div id="oneoff-strip"></div>
   </div>
   <div id="info-col">
-    <div class="panel" id="patient-info">
-      <h2>Patient / Scene Info</h2>
-      <div class="row" id="pi-demographics">45yo Male</div>
-      <div class="row" id="pi-dispatch">Dispatch: Chest pain, 2 hrs onset</div>
-      <div class="row" id="pi-complaint">C/O: Central chest pain radiating to left arm, diaphoretic</div>
-    </div>
     <div class="panel" id="patient-graphic">Patient graphic — placeholder (skin colour / injuries, later phase)</div>
   </div>
 </div>
