@@ -94,6 +94,10 @@ input{width:100%;padding:14px;border:1px solid var(--line);border-radius:10px;fo
       <label>Open Quizzes — tap to join</label>
       <div id="open-quizzes-list"></div>
     </div>
+    <div id="guest-name-wrap" class="hidden">
+      <label>Your Name</label>
+      <input type="text" id="guest-name" maxlength="30" placeholder="e.g. Sam">
+    </div>
     <label>Or enter Room Code</label>
     <input type="text" id="join-code" maxlength="4" placeholder="ABCD">
     <div id="join-err" class="err hidden"></div>
@@ -235,13 +239,28 @@ function fireConfetti(intensity) {
 
 async function requireAuth() {
   const { data: { session } } = await _sb.auth.getSession();
-  if (!session) { window.location.href = 'login.html?redirect=quiz_player.html'; return null; }
-  return session;
+  if (session) return session;
+  if (window.localStorage.getItem('av_guest_mode') === 'true') return null; // handled in init() via anonymous sign-in
+  window.location.href = 'login.html?redirect=quiz_player.html';
+  return null;
 }
 
 async function init() {
   _session = await requireAuth();
-  if (!_session) return;
+  if (!_session) {
+    if (window.localStorage.getItem('av_guest_mode') !== 'true') return; // real redirect already fired above
+    // Guest joining a quiz needs *some* auth.users row to satisfy quiz_players'
+    // foreign key — sign in anonymously right here, transparently, and show a
+    // name field since anonymous users have no display_name/email to fall back on.
+    const { data, error } = await _sb.auth.signInWithAnonymous();
+    if (error) {
+      document.getElementById('join-err').textContent = 'Could not start a guest session: ' + error.message;
+      document.getElementById('join-err').classList.remove('hidden');
+      return;
+    }
+    _session = data.session;
+    document.getElementById('guest-name-wrap').classList.remove('hidden');
+  }
   const { data: profile } = await _sb.from('profiles').select('display_name,avatar_url').eq('id', _session.user.id).single();
   _profile = profile;
   const params = new URLSearchParams(window.location.search);
@@ -332,6 +351,9 @@ async function joinRoom() {
   errEl.classList.add('hidden');
   const code = (document.getElementById('join-code').value||'').trim().toUpperCase();
   if (code.length!==4) { errEl.textContent='Enter the 4-character room code.'; errEl.classList.remove('hidden'); return; }
+  const isGuestSession = _session.user.is_anonymous;
+  const guestName = (document.getElementById('guest-name').value||'').trim();
+  if (isGuestSession && !guestName) { errEl.textContent='Enter your name to join.'; errEl.classList.remove('hidden'); return; }
   const btn = document.getElementById('join-btn');
   btn.disabled=true; btn.textContent='Joining…';
   try {
@@ -339,7 +361,7 @@ async function joinRoom() {
     if (!rooms.length) throw new Error('Room not found or already ended.');
     _room = rooms[0];
     applyQuizTheme(_room.theme_primary, _room.theme_secondary, _room.theme_tertiary, _room.theme_quaternary);
-    const name = (_profile && _profile.display_name) || _session.user.email;
+    const name = isGuestSession ? guestName : ((_profile && _profile.display_name) || _session.user.email);
     const avatarUrl = (_profile && _profile.avatar_url) || null;
     const rows = await sbFetch(`quiz_players?on_conflict=room_id,user_id`, { method:'POST',
       headers:{ 'Prefer':'resolution=merge-duplicates,return=representation' },

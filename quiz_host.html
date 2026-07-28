@@ -443,7 +443,17 @@ if (window.speechSynthesis) {
 
 async function requireAuth() {
   const { data: { session } } = await _sb.auth.getSession();
-  if (!session) { window.location.href = 'login.html?redirect=quiz_host.html'; return null; }
+  if (!session) {
+    // Guests can't host (hosting = generating quiz content) — send them to
+    // join as a player instead of just bouncing to a bare Google login.
+    if (window.localStorage.getItem('av_guest_mode') === 'true') {
+      alert("Guests can't host a quiz — join an existing one as a player instead.");
+      window.location.href = 'quiz_player.html';
+      return null;
+    }
+    window.location.href = 'login.html?redirect=quiz_host.html';
+    return null;
+  }
   return session;
 }
 

@@ -2223,15 +2223,40 @@ buildConditionPicker();
   if (row) row.scrollIntoView({ behavior: 'smooth', block: 'center' });
 })();
 
-// Auth init — check session before allowing use
+// Auth init — check session before allowing use. Guests (no session, but the
+// login.html "Continue as Guest" flag set) are let through to browse the
+// builder UI, but can't actually generate — see disableGenerationForGuest().
 (async () => {
   const { data: { session } } = await _supabaseClient.auth.getSession();
-  if (!session) { window.location.href = 'login.html?redirect=generator.html'; return; }
+  if (!session) {
+    if (window.localStorage.getItem('av_guest_mode') === 'true') { disableGenerationForGuest(); return; }
+    window.location.href = 'login.html?redirect=generator.html';
+    return;
+  }
   _authSession = session;
   const { data: profile } = await _supabaseClient.from('profiles').select('*').eq('id', session.user.id).single();
   _authProfile = profile;
   updateUsageDisplay();
 })();
+
+// Guests can browse the builder but never call the AI or save anything — both
+// Generate buttons and the manual-builder Save button are disabled with an
+// explanatory label instead of running their normal handlers.
+function disableGenerationForGuest() {
+  const locks = [
+    ['quick-gen-btn', '🔒 Sign in with Google to generate'],
+    ['custom-gen-btn', '🔒 Sign in with Google to generate'],
+    ['manual-save-btn', '🔒 Sign in with Google to save']
+  ];
+  locks.forEach(([id, label]) => {
+    const btn = document.getElementById(id);
+    if (!btn) return;
+    btn.disabled = true;
+    btn.textContent = label;
+    btn.onclick = null;
+    btn.title = 'Guests can browse but not generate or save scenarios.';
+  });
+}
 populateCategorySelect('gen-category');
 populateCategorySelect('gen-category-2', '— None (single scenario) —');
 

@@ -89,6 +89,10 @@ h1 { font-size: 22px; font-weight: 800; color: #1C3A6E; margin-bottom: 4px; }
     </svg>
     Sign in with Google
   </button>
+  <button class="google-btn" id="guest-btn" onclick="continueAsGuest()" style="margin-top:10px;border-style:dashed;color:#6C7A89;box-shadow:none;">
+    👀 Continue as Guest
+  </button>
+  <div class="disclaimer" style="margin-top:14px;margin-bottom:0;">Guests can view scenarios and join quizzes as a player, but can't generate content or save anything.</div>
   <div class="status" id="status"></div>
 </div>
 
@@ -129,7 +133,8 @@ const oauthCallback = window.location.origin + window.location.pathname;
 // If already logged in, go straight to the intended destination
 (async () => {
   const { data: { session } } = await _supabase.auth.getSession();
-  if (session) {
+  if (session && !session.user.is_anonymous) {
+    localStorage.removeItem('av_guest_mode');
     const dest = destinationUrl();
     sessionStorage.removeItem('av_login_redirect');
     window.location.href = dest;
@@ -137,11 +142,22 @@ const oauthCallback = window.location.origin + window.location.pathname;
 })();
 
 async function signIn() {
+  localStorage.removeItem('av_guest_mode'); // real sign-in supersedes any prior guest session
   document.getElementById('status').textContent = 'Redirecting to Google…';
   await _supabase.auth.signInWithOAuth({
     provider: 'google',
     options: { redirectTo: oauthCallback }
   });
+}
+
+// Guests don't get a Supabase session at all for browsing — scenario reads are
+// already public via RLS, so this is just a client-side flag pages check to
+// skip the "please sign in" gate. A real (anonymous) Supabase session is only
+// created later, on demand, if a guest tries to join a quiz as a player —
+// see quiz_player.html.
+function continueAsGuest() {
+  localStorage.setItem('av_guest_mode', 'true');
+  window.location.href = destinationUrl();
 }
 </script>
 </body>

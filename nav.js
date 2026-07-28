@@ -106,6 +106,17 @@
     return (_profile && _profile.role === 'admin') || (_session && _session.user.id === ADMIN_UUID);
   }
 
+  // Guests never get a Supabase session for browsing (login.html just sets this
+  // flag) — scenario reads are public via RLS so no auth is needed to view.
+  // The flag is cleared the moment a real session shows up (see init()) so a
+  // stale flag from a previous visit never shadows a real signed-in user.
+  // A real Supabase session with is_anonymous=true (created on-demand when a
+  // guest joins a quiz as a player) also counts as guest.
+  function isGuest() {
+    if (_session) return !!_session.user.is_anonymous;
+    return localStorage.getItem('av_guest_mode') === 'true';
+  }
+
   // Shared AI usage/cost logger. Call after any Anthropic API call from any
   // tool in the suite. Fire-and-forget: never throws, never blocks the caller.
   //   AVNav.logAIUsage({ source: 'generator', model: 'claude-sonnet-4-6',
@@ -306,20 +317,23 @@
             '<div class="avnav-user-name"><span id="avnav-user-name-text">—</span><span class="avnav-admin-badge" id="avnav-admin-badge" style="display:none">ADMIN</span></div>' +
             '<div class="avnav-user-meta" id="avnav-user-meta">—</div>' +
           '</div>' +
-          '<button class="avnav-settings-btn" onclick="AVNav.openSettings()" title="Settings">⚙</button>' +
+          '<button class="avnav-settings-btn" id="avnav-settings-btn" onclick="AVNav.openSettings()" title="Settings">⚙</button>' +
         '</div>' +
         '<div class="avnav-links">' +
           '<a class="avnav-link" href="index.html"><span class="avnav-icon">🏠</span> Home</a>' +
           '<a class="avnav-link" href="scenario.html"><span class="avnav-icon">⚡</span> DASH</a>' +
         '</div>' +
-        '<div class="avnav-links">' +
-          '<div class="avnav-link" onclick="AVNav.openMyScenarios()"><span class="avnav-icon">📁</span> My Scenarios</div>' +
-          '<div class="avnav-link" onclick="AVNav.openManageMine()"><span class="avnav-icon">⚙</span> Manage My Scenarios</div>' +
+        '<div class="avnav-links" id="avnav-guest-notice" style="display:none">' +
+          '<div style="padding:12px 16px;font-size:12px;color:var(--grey);line-height:1.5">👀 Browsing as a guest — view only. Sign in with Google to save, rate, or generate content.</div>' +
+        '</div>' +
+        '<div class="avnav-links" id="avnav-member-links">' +
+          '<div class="avnav-link" id="avnav-myscenarios-link" onclick="AVNav.openMyScenarios()"><span class="avnav-icon">📁</span> My Scenarios</div>' +
+          '<div class="avnav-link" id="avnav-managemine-link" onclick="AVNav.openManageMine()"><span class="avnav-icon">⚙</span> Manage My Scenarios</div>' +
           '<div class="avnav-link" id="avnav-users-link" style="display:none" onclick="AVNav.openUsers()"><span class="avnav-icon">👥</span> Users</div>' +
           '<div class="avnav-link" id="avnav-usage-link" style="display:none" onclick="AVNav.openUsageLog()"><span class="avnav-icon">💲</span> Usage &amp; Costs</div>' +
           '<a class="avnav-link" id="avnav-cpg-link" href="cpg_editor.html" style="display:none"><span class="avnav-icon">📖</span> CPG Editor</a>' +
         '</div>' +
-        '<div class="avnav-bottom"><button class="avnav-signout-btn" onclick="AVNav.signOut()">⎋ Sign out</button></div>' +
+        '<div class="avnav-bottom"><button class="avnav-signout-btn" id="avnav-signout-btn" onclick="AVNav.signOut()">⎋ Sign out</button></div>' +
       '</div>' +
       '<div class="avnav-modal-overlay" id="avnav-settings-modal">' +
         '<div class="avnav-modal">' +
@@ -393,9 +407,10 @@
     var id = identity();
     var nameEl = document.getElementById('avnav-user-name-text');
     if (!nameEl) return;
-    nameEl.textContent = id.name || 'Unknown';
+    var guest = isGuest();
+    nameEl.textContent = guest ? 'Guest' : (id.name || 'Unknown');
     var meta = [id.avRole, id.level, id.branch].filter(Boolean).join(' · ') || (id.svcNum ? 'Service #' + id.svcNum : '');
-    document.getElementById('avnav-user-meta').textContent = meta;
+    document.getElementById('avnav-user-meta').textContent = guest ? 'View only' : meta;
     var badge = document.getElementById('avnav-admin-badge');
     if (badge) badge.style.display = isAdmin() ? 'inline-block' : 'none';
     var usersLink = document.getElementById('avnav-users-link');
@@ -404,7 +419,29 @@
     if (usageLink) usageLink.style.display = isAdmin() ? 'flex' : 'none';
     var cpgLink = document.getElementById('avnav-cpg-link');
     if (cpgLink) cpgLink.style.display = isAdmin() ? 'flex' : 'none';
-    renderAvatarInto('avnav-avatar', id);
+    // Guests get no writes at all — settings, avatar, my-scenarios, and manage-mine
+    // all require a real account, so hide them and show a plain sign-in prompt instead.
+    var settingsBtn = document.getElementById('avnav-settings-btn');
+    if (settingsBtn) settingsBtn.style.display = guest ? 'none' : 'flex';
+    var myScenariosLink = document.getElementById('avnav-myscenarios-link');
+    if (myScenariosLink) myScenariosLink.style.display = guest ? 'none' : 'flex';
+    var manageMineLink = document.getElementById('avnav-managemine-link');
+    if (manageMineLink) manageMineLink.style.display = guest ? 'none' : 'flex';
+    var guestNotice = document.getElementById('avnav-guest-notice');
+    if (guestNotice) guestNotice.style.display = guest ? 'block' : 'none';
+    var signoutBtn = document.getElementById('avnav-signout-btn');
+    if (signoutBtn) {
+      signoutBtn.textContent = guest ? '🔑 Sign in with Google' : '⎋ Sign out';
+      signoutBtn.onclick = guest
+        ? function () { window.location.href = 'login.html?redirect=' + encodeURIComponent(window.location.pathname.split('/').pop() || 'index.html'); }
+        : function () { signOut(); };
+    }
+    if (guest) {
+      var avatarEl = document.getElementById('avnav-avatar');
+      if (avatarEl) avatarEl.textContent = '👀';
+    } else {
+      renderAvatarInto('avnav-avatar', id);
+    }
   }
 
   function openSettings() {
@@ -908,6 +945,7 @@
   }
 
   async function signOut() {
+    localStorage.removeItem('av_guest_mode');
     await _sb.auth.signOut();
     var page = window.location.pathname.split('/').pop() || 'index.html';
     window.location.href = 'login.html?redirect=' + encodeURIComponent(page);
@@ -933,6 +971,10 @@
     var sessionResult = await _sb.auth.getSession();
     _session = sessionResult.data.session;
 
+    if (_session && !_session.user.is_anonymous) {
+      localStorage.removeItem('av_guest_mode'); // real session always wins over a stale guest flag
+    }
+
     if (_session) {
       injectMarkup();
       var profileResult = await _sb.from('profiles').select('*').eq('id', _session.user.id).single();
@@ -955,8 +997,14 @@
       }
       renderUserCard();
       if (loginBtn) loginBtn.style.display = 'none';
+    } else if (isGuest()) {
+      // Guest browsing (login.html "Continue as Guest") — no Supabase session at
+      // all, just render the trimmed guest sidebar so nav/menu still work.
+      injectMarkup();
+      renderUserCard();
+      if (loginBtn) loginBtn.style.display = 'none';
     }
-    // No session — don't render sidebar at all, leave login button visible
+    // No session and not a guest — don't render sidebar at all, leave login button visible
   }
 
   window.AVNav = {
@@ -984,7 +1032,8 @@
     signOut: signOut,
     refreshProfile: refreshProfile,
     applyTheme: applyTheme,
-    isAdmin: isAdmin
+    isAdmin: isAdmin,
+    isGuest: isGuest
   };
 
   if (document.readyState === 'loading') {

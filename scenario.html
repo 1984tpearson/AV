@@ -1891,7 +1891,17 @@ const _supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 window.__avSupabaseClient = _supabaseClient; // shared with nav.js — avoids duplicate GoTrueClient instances
 let _authSession = null;
 let _authProfile = null;
+let _isGuest = false; // no Supabase session at all — set from login.html's "Continue as Guest" flag
 let _myFavourites = new Set();
+
+// Central write-guard. Call at the top of any function that saves, deletes,
+// rates, corrects, or calls the AI. Shows a toast and returns true (caller
+// should return immediately) if the current user is a guest.
+function guestBlocked(action) {
+  if (!_isGuest) return false;
+  showToast('🔒 Sign in with Google to ' + (action || 'do that') + '.', 3000);
+  return true;
+}
 let _popularScenarios = []; // [{scenario_id, fav_count}] from get_popular_scenarios RPC
 
 // Keep _authSession current as Supabase silently refreshes the access token in
@@ -2130,6 +2140,7 @@ async function loadCustomScenarios() {
 
 // Save a single new scenario to Supabase
 async function saveScenarioToCloud(scenario) {
+  if (guestBlocked('save scenarios')) return;
   const row = toRow(scenario);
   await sbFetch('scenarios', {
     method: 'POST',
@@ -2140,6 +2151,7 @@ async function saveScenarioToCloud(scenario) {
 
 // Update an existing scenario in Supabase
 async function updateScenarioInCloud(scenario) {
+  if (guestBlocked('save changes')) return;
   const row = toRow(scenario);
   await sbFetch(`scenarios?id=eq.${encodeURIComponent(String(scenario.id))}`, {
     method: 'PATCH',
@@ -2150,6 +2162,7 @@ async function updateScenarioInCloud(scenario) {
 
 // Delete a scenario from Supabase
 async function deleteScenarioFromCloud(id) {
+  if (guestBlocked('delete scenarios')) return;
   await sbFetch(`scenarios?id=eq.${encodeURIComponent(String(id))}`, {
     method: 'DELETE',
     prefer: 'return=minimal'
@@ -2213,6 +2226,13 @@ function getOverallScore() {
 document.addEventListener('DOMContentLoaded', async () => {
   const { data: { session } } = await _supabaseClient.auth.getSession();
   if (!session) {
+    if (window.localStorage.getItem('av_guest_mode') === 'true') {
+      // Guest browsing — scenario reads are public via RLS, so skip the login
+      // screen and the profile-completion modal entirely and go straight in.
+      _isGuest = true;
+      await initApp();
+      return;
+    }
     const ls = document.getElementById('login-screen');
     ls.style.display = 'flex';
     return;
@@ -2617,6 +2637,7 @@ document.getElementById('image-prompt-modal').addEventListener('click', e => { i
 // overriding whatever the deterministic weekly rotation would otherwise have
 // shown. It won't change again until next week (or until re-triggered).
 async function markAsFeaturedCase(scenarioId) {
+  if (guestBlocked('feature scenarios')) return;
   const s = getAllScenarios().find(x => String(x.id) === String(scenarioId));
   if (!s) { showToast('⚠️ Could not find this scenario'); return; }
   showToast('✦ Generating featured scenario blurb + image…', 5000);
@@ -3624,6 +3645,7 @@ async function loadPopularScenarios() {
 }
 
 async function toggleFavourite(scenarioId) {
+  if (guestBlocked('favourite scenarios')) return;
   if (!_authSession) return;
   const uid = _authSession.user.id;
   const isFav = _myFavourites.has(scenarioId);
@@ -5141,6 +5163,7 @@ function buildSingleCPGContext(pkg) {
 }
 
 async function rateKQ(index, rating) {
+  if (guestBlocked('rate questions')) return;
   const s = currentScenario;
   if (!s || !s.kq || !s.kq[index]) return;
   const q = s.kq[index];
@@ -6234,6 +6257,7 @@ async function deleteCustomScenario(id) {
 }
 
 async function deleteAllCustomScenarios() {
+  if (guestBlocked('delete scenarios')) return;
   if (!confirm('Delete ALL custom scenarios for everyone? This cannot be undone.')) return;
   const toDelete = [...customScenarios];
   if (toDelete.length === 0) { showToast('No scenarios to delete'); return; }
@@ -6809,6 +6833,7 @@ function getRepListValues(listId) {
 }
 
 async function saveEditedScenario() {
+  if (guestBlocked('edit scenarios')) return;
   if (!currentScenario) return;
   const orig = currentScenario;
 
@@ -6917,6 +6942,7 @@ async function saveEditedScenario() {
 }
 
 async function revertScenarioEdits() {
+  if (guestBlocked('revert edits')) return;
   if (!currentScenario) return;
   const origId = currentScenario._originalId || currentScenario.id;
   const confirmed = confirm('Delete this scenario? This cannot be undone.');
@@ -7124,6 +7150,7 @@ function closeFeedbackModal() { document.getElementById('feedback-modal').classL
 document.getElementById('feedback-modal').addEventListener('click', e => { if(e.target===document.getElementById('feedback-modal')) closeFeedbackModal(); });
 
 async function submitFeedback() {
+  if (guestBlocked('send feedback')) return;
   const name = document.getElementById('fb-name').value.trim();
   const role = document.getElementById('fb-role').value;
   const type = document.getElementById('fb-type').value;
@@ -7991,6 +8018,7 @@ function closeCorrectionPopover() {
 
 // Save a correction to Supabase
 async function saveCorrection() {
+  if (guestBlocked('submit corrections')) return;
   if (!_popoverState || !currentScenario) return;
   const { fieldKey, fieldLabel, originalValue, correctionId, fieldType } = _popoverState;
   let newVal;
@@ -8062,6 +8090,7 @@ async function saveCorrection() {
 
 // Revert a correction back to original
 async function revertCorrection() {
+  if (guestBlocked('revert corrections')) return;
   if (!_popoverState || !_popoverState.correctionId) return;
   if (!confirm('Revert this correction? The original value will be shown again.')) return;
   const saveBtn = document.getElementById('cp-save-btn');
