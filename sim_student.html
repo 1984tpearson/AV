@@ -14,10 +14,16 @@ body { display: flex; flex-direction: column; min-height: 100vh; }
 #main { flex: 1; display: flex; flex-direction: column; gap: 10px; padding: 10px; }
 @media (min-width: 800px) { #main { flex-direction: row; } }
 .panel { background: #0d1520; border: 1px solid #1a3a5a; border-radius: 8px; padding: 10px; }
-#info-col { flex: 1; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+#info-col { flex: 1; max-width: 280px; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
 #patient-info h2 { font-size: 12px; color: #4fc3f7; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; }
 #patient-info .row { font-size: 12px; color: #c0d4e8; margin-bottom: 3px; }
-#patient-graphic { flex: 1; min-height: 160px; display: flex; align-items: center; justify-content: center; color: #4a6a8a; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; border-style: dashed; }
+#patient-graphic { min-height: 140px; display: flex; align-items: center; justify-content: center; color: #4a6a8a; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; border-style: dashed; text-align: center; }
+
+/* ECG panel (adapted from monitor.html) */
+#ecg-section { display: flex; flex-direction: column; background: #060606; min-height: 220px; border-bottom: 2px solid #0d1f35; }
+.ecg-section-bar { display: flex; align-items: center; justify-content: space-between; padding: 6px 12px; background: #060910; border-bottom: 1px solid #0d1f35; font-size: 10px; letter-spacing: 1.5px; color: #00ff88; text-transform: uppercase; }
+.ecg-snapshot-btn { background: rgba(0,255,136,0.08); border: 2px solid #00ff88; color: #00ff88; font-family: 'Courier New', monospace; font-size: 11px; font-weight: bold; letter-spacing: 1px; padding: 4px 12px; cursor: pointer; text-transform: uppercase; border-radius: 4px; }
+#ecg-12lead-container { width: 100%; flex: 1; }
 
 /* Monitor box (adapted from monitor.html vital blocks, boxed not full-screen) */
 #monitor-box { display: flex; flex-direction: column; background: #080c14; }
@@ -53,12 +59,20 @@ body { display: flex; flex-direction: column; min-height: 100vh; }
     </div>
     <div class="panel" id="patient-graphic">Patient graphic — placeholder (skin colour / injuries, later phase)</div>
   </div>
-  <div id="monitor-col" class="panel" style="width:100%;max-width:340px;padding:0;overflow:hidden;display:flex;flex-direction:column;">
+  <div id="monitor-col" class="panel" style="flex:2;min-width:0;padding:0;overflow:hidden;display:flex;flex-direction:column;">
+    <div id="ecg-section">
+      <div class="ecg-section-bar">
+        <span id="ecg-bar-label">LEAD II — RHYTHM STRIP</span>
+        <button class="ecg-snapshot-btn" onclick="toggleLead()" id="leadToggleBtn">Show 12-Lead</button>
+      </div>
+      <div id="ecg-12lead-container"></div>
+    </div>
     <div id="monitor-box"></div>
     <div id="oneoff-strip"></div>
   </div>
 </div>
 
+<script src="https://1984tpearson.github.io/AV/ecg_engine.js"></script>
 <script src="https://1984tpearson.github.io/AV/sim_engine.js"></script>
 <script>
 // --- STATIC TEST TRAJECTORY (proof-of-render only; no session sync yet) ---
@@ -82,6 +96,45 @@ const oneOffVitals = {
 let bpNextDueMs = Date.now() + 15 * 60000; // default 15 min
 let bpIntervalMin = 15;
 let lastBP = { sys: testConfig.baseline.BPsys, dia: testConfig.baseline.BPdia };
+
+// --- ECG: dynamic rhythm derived from current HR (no name ever shown) ---
+let _ecgInst = null;
+let _show12Lead = false;
+let _currentRhythmKey = null;
+
+function deriveRhythmFromHR(hr) {
+  // Simple threshold model for this proof; will need clinical review re: what
+  // rhythm progressions make sense per condition once this is CPG-linked.
+  if (hr < 60) return 'sinus bradycardia';
+  if (hr > 100) return 'sinus tachycardia';
+  return 'sinus rhythm';
+}
+
+function ensureECG(hr) {
+  const rhythmStr = deriveRhythmFromHR(hr);
+  const mapped = ECGEngine.mapRhythm(rhythmStr, hr);
+  if (mapped.key === _currentRhythmKey && _ecgInst) return; // no change needed
+  _currentRhythmKey = mapped.key;
+  const container = document.getElementById('ecg-12lead-container');
+  if (_ecgInst) _ecgInst.destroy();
+  _ecgInst = new ECGEngine(container, { mode: '12lead', theme: 'monitor', height: 200 });
+  _ecgInst.setRhythm(mapped.key, mapped.bpm, mapped.bbbMode);
+  setLeadDisplay();
+}
+
+function setLeadDisplay() {
+  if (!_ecgInst) return;
+  const container = document.getElementById('ecg-12lead-container');
+  const grid = container.querySelector('#_ecg_leadsGrid');
+  if (grid) grid.style.display = _show12Lead ? 'grid' : 'none';
+  document.getElementById('ecg-bar-label').textContent = _show12Lead ? '12-LEAD ECG' : 'LEAD II — RHYTHM STRIP';
+  document.getElementById('leadToggleBtn').textContent = _show12Lead ? 'Show Lead II' : 'Show 12-Lead';
+}
+
+function toggleLead() {
+  _show12Lead = !_show12Lead;
+  setLeadDisplay();
+}
 
 function fmtTimer(ms) {
   const s = Math.floor(ms / 1000);
@@ -128,6 +181,7 @@ function tick() {
   const now = Date.now();
   const v = SimEngine.getVitals(testConfig, now);
   renderMonitor(v);
+  ensureECG(v.HR);
   document.getElementById('scenario-timer').textContent = fmtTimer(now - testConfig.startTimeMs);
 
   // BP auto-refire on its own timer, independent of the 1s continuous refresh
