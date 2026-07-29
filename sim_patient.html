@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-<title>Live Scenario — Student View</title>
+<title>Live Scenario — Patient View</title>
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
 html, body { height: 100%; background: linear-gradient(135deg, #2C4F7C 0%, #4E7FAE 55%, #6FA0CC 100%); color: #1e2a36; font-family: 'Courier New', monospace; }
@@ -63,10 +63,18 @@ body { display: flex; flex-direction: column; min-height: 100vh; }
 </head>
 <body>
 <div id="topbar">
-  <div class="title">Live Scenario — Student View</div>
+  <div class="title">Live Scenario — Patient View</div>
   <div id="topbar-right">
-    <label id="instant-mode-label"><input type="checkbox" id="instantModeToggle" onchange="toggleInstantMode()"> Instant Mode</label>
+    <span id="instant-mode-indicator" style="font-size:10px;color:#33475a;display:none;">Instant Mode: ON</span>
     <div id="scenario-timer">00:00</div>
+  </div>
+</div>
+<div id="session-gate" style="position:fixed;inset:0;background:rgba(20,30,45,0.92);z-index:100;display:flex;align-items:center;justify-content:center;">
+  <div class="panel" style="width:280px;text-align:center;">
+    <h2 style="margin-bottom:10px;">Join Scenario Session</h2>
+    <input id="gate-code-input" type="text" inputmode="numeric" maxlength="6" placeholder="6-digit code" style="width:100%;font-size:18px;text-align:center;letter-spacing:4px;padding:8px;border:1px solid #d7dee6;border-radius:6px;font-family:'Courier New',monospace;margin-bottom:8px;">
+    <button class="oo-btn" style="width:100%;padding:6px;font-size:12px;" onclick="connectSession(document.getElementById('gate-code-input').value.trim())">Connect</button>
+    <div id="gate-error" style="color:#b91c1c;font-size:11px;margin-top:8px;"></div>
   </div>
 </div>
 <div class="panel" id="patient-info" style="margin:10px 10px 0;">
@@ -101,20 +109,61 @@ body { display: flex; flex-direction: column; min-height: 100vh; }
 <script src="https://1984tpearson.github.io/AV/ecg_engine.js"></script>
 <script src="https://1984tpearson.github.io/AV/sim_engine.js"></script>
 <script>
-// --- STATIC TEST TRAJECTORY (proof-of-render only; no session sync yet) ---
-const testConfig = {
-  baseline: { HR: 92, RR: 20, SpO2: 96, EtCO2: 38, BPsys: 148, BPdia: 90 },
-  severity: 'moderate',
-  direction: 'deteriorating',
-  startTimeMs: Date.now(),
-  treatments: [],
-  instantMode: false
-};
+// --- Supabase session sync ------------------------------------------------
+const SUPABASE_URL = 'https://befsjenbaruxqrntuhpn.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJlZnNqZW5iYXJ1eHFybnR1aHBuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI2MjA5MjAsImV4cCI6MjA4ODE5NjkyMH0.hOFFbIvd1wAgu-QyghupQ-7ttSpg7sxz_UsJbXyXztA';
 
-let instantMode = false;
-function toggleInstantMode() {
-  instantMode = document.getElementById('instantModeToggle').checked;
-  testConfig.instantMode = instantMode; // also collapses the deterioration ramp
+async function sbGet(path) {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
+    headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.json();
+}
+
+let testConfig = null; // populated once a session is joined — see connectSession()
+let instantMode = false; // synced from the session row; assessor-controlled, not editable here
+
+// --- Session join flow -----------------------------------------------------
+async function connectSession(code) {
+  const errEl = document.getElementById('gate-error');
+  errEl.textContent = '';
+  try {
+    const rows = await sbGet(`sim_sessions?session_code=eq.${encodeURIComponent(code)}&select=*`);
+    if (!rows.length) { errEl.textContent = 'No session found with that code.'; return; }
+    const row = rows[0];
+    testConfig = {
+      baseline: row.baseline,
+      severity: row.severity,
+      direction: row.direction,
+      startTimeMs: row.start_time_ms,
+      treatments: row.treatments || [],
+      instantMode: row.instant_mode
+    };
+    instantMode = row.instant_mode;
+    sessionCode = code;
+    document.getElementById('session-gate').style.display = 'none';
+    tick();
+    setInterval(tick, 1000);
+    setInterval(pollSession, 3000);
+  } catch (e) {
+    errEl.textContent = 'Could not reach the session — check the code and try again.';
+  }
+}
+
+let sessionCode = null;
+async function pollSession() {
+  if (!sessionCode || !testConfig) return;
+  try {
+    const rows = await sbGet(`sim_sessions?session_code=eq.${encodeURIComponent(sessionCode)}&select=severity,direction,treatments,instant_mode`);
+    if (!rows.length) return;
+    const row = rows[0];
+    testConfig.severity = row.severity;
+    testConfig.direction = row.direction;
+    testConfig.treatments = row.treatments || [];
+    testConfig.instantMode = row.instant_mode;
+    instantMode = row.instant_mode;
+  } catch (e) { /* transient network hiccup — try again next poll */ }
 }
 
 // --- Action delay/reveal system, with a 2-crew concurrency limit ---------
@@ -443,6 +492,7 @@ function renderOneOff() {
 }
 
 function tick() {
+  if (!testConfig) return;
   const now = Date.now();
   checkActionTimers(now);
 
@@ -452,10 +502,18 @@ function tick() {
   renderOneOff();
   _lastHR = v.HR;
   document.getElementById('scenario-timer').textContent = fmtTimer(now - testConfig.startTimeMs);
+  const indEl = document.getElementById('instant-mode-indicator');
+  indEl.style.display = instantMode ? 'inline' : 'none';
 }
 
-tick();
-setInterval(tick, 1000);
+window.addEventListener('DOMContentLoaded', () => {
+  const params = new URLSearchParams(window.location.search);
+  const code = params.get('code');
+  if (code && /^\d{6}$/.test(code)) {
+    document.getElementById('gate-code-input').value = code;
+    connectSession(code);
+  }
+});
 
 window.addEventListener('resize', () => {
   _currentRhythmKey = null;

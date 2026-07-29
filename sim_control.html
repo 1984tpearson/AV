@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Live Scenario — Control</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { min-height: 100%; background: linear-gradient(135deg, #2C4F7C 0%, #4E7FAE 55%, #6FA0CC 100%); color: #1e2a36; font-family: 'Courier New', monospace; }
+body { display: flex; flex-direction: column; min-height: 100vh; }
+#topbar { background: #ffffff; border-bottom: 2px solid #d7dee6; padding: 8px 14px; }
+#topbar .title { font-size: 12px; font-weight: 900; letter-spacing: 1px; color: #0369a1; text-transform: uppercase; }
+#main { flex: 1; padding: 14px; display: flex; flex-direction: column; gap: 12px; max-width: 720px; margin: 0 auto; width: 100%; }
+.panel { background: #ffffff; border: 1px solid #d7dee6; border-radius: 8px; padding: 14px; }
+.panel h2 { font-size: 12px; color: #0369a1; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px; }
+label { font-size: 11px; color: #33475a; display: block; margin-bottom: 3px; }
+select, input[type=number], input[type=text] { font-family: 'Courier New', monospace; font-size: 13px; padding: 6px 8px; border: 1px solid #d7dee6; border-radius: 5px; background: #fff; }
+.row { display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; margin-bottom: 10px; }
+.btn { font-size: 12px; font-weight: 700; color: #fff; background: #0369a1; border: none; border-radius: 5px; padding: 8px 14px; cursor: pointer; }
+.btn:disabled { opacity: 0.5; cursor: default; }
+.btn-secondary { background: #6b8299; }
+#code-display { font-size: 34px; font-weight: 900; letter-spacing: 6px; color: #15803d; text-align: center; margin: 6px 0; }
+.treat-item { font-size: 12px; padding: 6px 8px; border-bottom: 1px solid #eef2f6; display: flex; justify-content: space-between; }
+.muted { color: #6b8299; font-size: 11px; }
+</style>
+</head>
+<body>
+<div id="topbar"><div class="title">Live Scenario — Control</div></div>
+<div id="main">
+
+  <div class="panel" id="create-panel">
+    <h2>Session</h2>
+    <div id="pre-create">
+      <p class="muted" style="margin-bottom:10px;">No active session. Create one to get a pairing code for the patient device.</p>
+      <button class="btn" onclick="createSession()">Create Session</button>
+    </div>
+    <div id="post-create" style="display:none;">
+      <div class="muted" style="text-align:center;">Pairing code</div>
+      <div id="code-display">------</div>
+      <p class="muted" style="text-align:center;">Enter this on the patient device</p>
+    </div>
+  </div>
+
+  <div class="panel" id="controls-panel" style="display:none;">
+    <h2>Patient Condition</h2>
+    <div class="row">
+      <div>
+        <label for="severity-select">Severity</label>
+        <select id="severity-select" onchange="updateCondition()">
+          <option value="mild">Mild</option>
+          <option value="moderate" selected>Moderate</option>
+          <option value="severe">Severe</option>
+          <option value="critical">Critical</option>
+        </select>
+      </div>
+      <div>
+        <label for="direction-select">Direction</label>
+        <select id="direction-select" onchange="updateCondition()">
+          <option value="deteriorating" selected>Deteriorating</option>
+          <option value="improving">Improving</option>
+          <option value="stable">Stable</option>
+        </select>
+      </div>
+      <div>
+        <label><input type="checkbox" id="instant-toggle" onchange="updateCondition()"> Instant Mode</label>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel" id="treatment-panel" style="display:none;">
+    <h2>Log Treatment</h2>
+    <div class="row">
+      <div>
+        <label for="drug-select">Drug</label>
+        <select id="drug-select"></select>
+      </div>
+      <div>
+        <label for="dose-input">Dose</label>
+        <input type="number" id="dose-input" value="1" min="0" step="0.1" style="width:80px;">
+      </div>
+      <button class="btn" onclick="giveTreatment()">Give</button>
+    </div>
+    <div id="treatment-list"></div>
+  </div>
+
+</div>
+
+<script src="https://1984tpearson.github.io/AV/sim_engine.js"></script>
+<script>
+const SUPABASE_URL = 'https://befsjenbaruxqrntuhpn.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJlZnNqZW5iYXJ1eHFybnR1aHBuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI2MjA5MjAsImV4cCI6MjA4ODE5NjkyMH0.hOFFbIvd1wAgu-QyghupQ-7ttSpg7sxz_UsJbXyXztA';
+
+async function sbFetch(path, opts = {}) {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
+    ...opts,
+    headers: {
+      'apikey': SUPABASE_KEY,
+      'Authorization': `Bearer ${SUPABASE_KEY}`,
+      'Content-Type': 'application/json',
+      'Prefer': opts.prefer || 'return=representation',
+      ...(opts.headers || {})
+    }
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.message || `Supabase error ${res.status}`);
+  }
+  return res.status === 204 ? null : res.json();
+}
+
+const DEFAULT_BASELINE = { HR: 92, RR: 20, SpO2: 96, EtCO2: 38, BPsys: 148, BPdia: 90 };
+
+let sessionCode = null;
+let sessionStartMs = null;
+let treatments = [];
+
+function genCode() {
+  return String(Math.floor(100000 + Math.random() * 900000));
+}
+
+async function createSession() {
+  document.getElementById('pre-create').innerHTML = 'Creating\u2026';
+  let attempts = 0;
+  while (attempts < 5) {
+    const code = genCode();
+    const startMs = Date.now();
+    try {
+      await sbFetch('sim_sessions', {
+        method: 'POST',
+        body: JSON.stringify({
+          session_code: code,
+          baseline: DEFAULT_BASELINE,
+          severity: 'moderate',
+          direction: 'deteriorating',
+          start_time_ms: startMs,
+          treatments: [],
+          instant_mode: false
+        })
+      });
+      sessionCode = code;
+      sessionStartMs = startMs;
+      treatments = [];
+      document.getElementById('post-create').style.display = 'block';
+      document.getElementById('pre-create').style.display = 'none';
+      document.getElementById('code-display').textContent = code;
+      document.getElementById('controls-panel').style.display = 'block';
+      document.getElementById('treatment-panel').style.display = 'block';
+      renderTreatments();
+      return;
+    } catch (e) {
+      attempts++; // session_code collision (rare) — retry with a new code
+    }
+  }
+  document.getElementById('pre-create').innerHTML = '<p class="muted">Could not create a session — try again.</p><button class="btn" onclick="createSession()">Retry</button>';
+}
+
+async function updateCondition() {
+  if (!sessionCode) return;
+  const severity = document.getElementById('severity-select').value;
+  const direction = document.getElementById('direction-select').value;
+  const instantMode = document.getElementById('instant-toggle').checked;
+  try {
+    await sbFetch(`sim_sessions?session_code=eq.${sessionCode}`, {
+      method: 'PATCH',
+      prefer: 'return=minimal',
+      body: JSON.stringify({ severity, direction, instant_mode: instantMode, updated_at: new Date().toISOString() })
+    });
+  } catch (e) {
+    alert('Could not update the session — check the connection and try again.');
+  }
+}
+
+function populateDrugSelect() {
+  const sel = document.getElementById('drug-select');
+  sel.innerHTML = Object.keys(SimEngine.DRUG_LIBRARY).map(key =>
+    `<option value="${key}">${key}</option>`
+  ).join('');
+}
+
+async function giveTreatment() {
+  if (!sessionCode) return;
+  const drug = document.getElementById('drug-select').value;
+  const dose = parseFloat(document.getElementById('dose-input').value) || 0;
+  const givenAtMin = (Date.now() - sessionStartMs) / 60000;
+  treatments = [...treatments, { drug, dose, givenAtMin }];
+  try {
+    await sbFetch(`sim_sessions?session_code=eq.${sessionCode}`, {
+      method: 'PATCH',
+      prefer: 'return=minimal',
+      body: JSON.stringify({ treatments, updated_at: new Date().toISOString() })
+    });
+    renderTreatments();
+  } catch (e) {
+    treatments.pop(); // roll back local state since the write failed
+    alert('Could not log the treatment — check the connection and try again.');
+  }
+}
+
+function renderTreatments() {
+  const list = document.getElementById('treatment-list');
+  if (!treatments.length) {
+    list.innerHTML = '<p class="muted" style="margin-top:8px;">No treatments given yet.</p>';
+    return;
+  }
+  list.innerHTML = treatments.map(t => `
+    <div class="treat-item">
+      <span>${t.drug} \u2014 ${t.dose}</span>
+      <span class="muted">t+${t.givenAtMin.toFixed(1)} min</span>
+    </div>`).join('');
+}
+
+populateDrugSelect();
+</script>
+</body>
+</html>
