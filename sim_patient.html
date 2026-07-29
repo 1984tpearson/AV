@@ -138,6 +138,7 @@ async function connectSession(code) {
       direction: row.direction,
       startTimeMs: row.start_time_ms,
       treatments: row.treatments || [],
+      overrides: row.overrides || {},
       instantMode: row.instant_mode
     };
     instantMode = row.instant_mode;
@@ -155,12 +156,13 @@ let sessionCode = null;
 async function pollSession() {
   if (!sessionCode || !testConfig) return;
   try {
-    const rows = await sbGet(`sim_sessions?session_code=eq.${encodeURIComponent(sessionCode)}&select=severity,direction,treatments,instant_mode`);
+    const rows = await sbGet(`sim_sessions?session_code=eq.${encodeURIComponent(sessionCode)}&select=severity,direction,treatments,overrides,instant_mode`);
     if (!rows.length) return;
     const row = rows[0];
     testConfig.severity = row.severity;
     testConfig.direction = row.direction;
     testConfig.treatments = row.treatments || [];
+    testConfig.overrides = row.overrides || {};
     testConfig.instantMode = row.instant_mode;
     instantMode = row.instant_mode;
   } catch (e) { /* transient network hiccup — try again next poll */ }

@@ -22,6 +22,10 @@ select, input[type=number], input[type=text] { font-family: 'Courier New', monos
 #code-display { font-size: 34px; font-weight: 900; letter-spacing: 6px; color: #15803d; text-align: center; margin: 6px 0; }
 .treat-item { font-size: 12px; padding: 6px 8px; border-bottom: 1px solid #eef2f6; display: flex; justify-content: space-between; }
 .muted { color: #6b8299; font-size: 11px; }
+.vtile { flex: 1; min-width: 100px; background: #f3f6fa; border: 1px solid #d7dee6; border-radius: 6px; padding: 8px 10px; cursor: pointer; text-align: center; }
+.vtile:hover { background: #e6edf5; }
+.vtile .vlabel { font-size: 9px; color: #6b8299; text-transform: uppercase; letter-spacing: 1px; }
+.vtile .vval { font-size: 20px; font-weight: 900; color: #0369a1; }
 </style>
 </head>
 <body>
@@ -31,40 +35,39 @@ select, input[type=number], input[type=text] { font-family: 'Courier New', monos
   <div class="panel" id="create-panel">
     <h2>Session</h2>
     <div id="pre-create">
-      <p class="muted" style="margin-bottom:10px;">No active session. Create one to get a pairing code for the patient device.</p>
+      <p class="muted" style="margin-bottom:10px;">Set the starting trajectory, then create a session to get a pairing code for the patient device. Severity/direction run on their own from here — use overrides below to intervene once it's live.</p>
+      <div class="row">
+        <div>
+          <label for="severity-select">Severity</label>
+          <select id="severity-select">
+            <option value="mild">Mild</option>
+            <option value="moderate" selected>Moderate</option>
+            <option value="severe">Severe</option>
+            <option value="critical">Critical</option>
+          </select>
+        </div>
+        <div>
+          <label for="direction-select">Direction</label>
+          <select id="direction-select">
+            <option value="deteriorating" selected>Deteriorating</option>
+            <option value="improving">Improving</option>
+            <option value="stable">Stable</option>
+          </select>
+        </div>
+      </div>
       <button class="btn" onclick="createSession()">Create Session</button>
     </div>
     <div id="post-create" style="display:none;">
       <div class="muted" style="text-align:center;">Pairing code</div>
       <div id="code-display">------</div>
       <p class="muted" style="text-align:center;">Enter this on the patient device</p>
+      <label style="margin-top:8px;"><input type="checkbox" id="instant-toggle" onchange="updateInstantMode()"> Instant Mode</label>
     </div>
   </div>
 
-  <div class="panel" id="controls-panel" style="display:none;">
-    <h2>Patient Condition</h2>
-    <div class="row">
-      <div>
-        <label for="severity-select">Severity</label>
-        <select id="severity-select" onchange="updateCondition()">
-          <option value="mild">Mild</option>
-          <option value="moderate" selected>Moderate</option>
-          <option value="severe">Severe</option>
-          <option value="critical">Critical</option>
-        </select>
-      </div>
-      <div>
-        <label for="direction-select">Direction</label>
-        <select id="direction-select" onchange="updateCondition()">
-          <option value="deteriorating" selected>Deteriorating</option>
-          <option value="improving">Improving</option>
-          <option value="stable">Stable</option>
-        </select>
-      </div>
-      <div>
-        <label><input type="checkbox" id="instant-toggle" onchange="updateCondition()"> Instant Mode</label>
-      </div>
-    </div>
+  <div class="panel" id="vitals-panel" style="display:none;">
+    <h2>Live Vitals — click to override</h2>
+    <div id="vitals-grid" style="display:flex;flex-wrap:wrap;gap:8px;"></div>
   </div>
 
   <div class="panel" id="treatment-panel" style="display:none;">
@@ -83,6 +86,17 @@ select, input[type=number], input[type=text] { font-family: 'Courier New', monos
     <div id="treatment-list"></div>
   </div>
 
+</div>
+
+<div id="override-modal" style="display:none;position:fixed;inset:0;background:rgba(20,30,45,0.6);align-items:center;justify-content:center;z-index:50;">
+  <div class="panel" style="width:280px;">
+    <h2 id="ov-modal-title">Override</h2>
+    <div id="ov-modal-body"></div>
+    <div class="row" style="margin-top:10px;">
+      <button class="btn btn-secondary" onclick="closeOverrideModal()">Cancel</button>
+      <button class="btn" onclick="applyOverride()">Apply</button>
+    </div>
+  </div>
 </div>
 
 <script src="https://1984tpearson.github.io/AV/sim_engine.js"></script>
@@ -111,7 +125,8 @@ async function sbFetch(path, opts = {}) {
 const DEFAULT_BASELINE = { HR: 92, RR: 20, SpO2: 96, EtCO2: 38, BPsys: 148, BPdia: 90 };
 
 let sessionCode = null;
-let sessionStartMs = null;
+let liveConfig = null; // mirrors the patient page's testConfig shape
+let instantMode = false;
 let treatments = [];
 
 function genCode() {
@@ -119,7 +134,9 @@ function genCode() {
 }
 
 async function createSession() {
-  document.getElementById('pre-create').innerHTML = 'Creating\u2026';
+  document.getElementById('pre-create').querySelector('.btn').disabled = true;
+  const severity = document.getElementById('severity-select').value;
+  const direction = document.getElementById('direction-select').value;
   let attempts = 0;
   while (attempts < 5) {
     const code = genCode();
@@ -130,44 +147,92 @@ async function createSession() {
         body: JSON.stringify({
           session_code: code,
           baseline: DEFAULT_BASELINE,
-          severity: 'moderate',
-          direction: 'deteriorating',
+          severity, direction,
           start_time_ms: startMs,
           treatments: [],
+          overrides: {},
           instant_mode: false
         })
       });
       sessionCode = code;
-      sessionStartMs = startMs;
+      liveConfig = {
+        baseline: DEFAULT_BASELINE,
+        severity, direction,
+        startTimeMs: startMs,
+        treatments: [],
+        overrides: {},
+        instantMode: false
+      };
       treatments = [];
       document.getElementById('post-create').style.display = 'block';
       document.getElementById('pre-create').style.display = 'none';
       document.getElementById('code-display').textContent = code;
-      document.getElementById('controls-panel').style.display = 'block';
+      document.getElementById('vitals-panel').style.display = 'block';
       document.getElementById('treatment-panel').style.display = 'block';
       renderTreatments();
+      tickVitals();
+      setInterval(tickVitals, 1000);
+      setInterval(pollSession, 3000);
       return;
     } catch (e) {
       attempts++; // session_code collision (rare) — retry with a new code
     }
   }
-  document.getElementById('pre-create').innerHTML = '<p class="muted">Could not create a session — try again.</p><button class="btn" onclick="createSession()">Retry</button>';
+  document.getElementById('pre-create').innerHTML = '<p class="muted">Could not create a session — try again.</p><button class="btn" onclick="location.reload()">Retry</button>';
 }
 
-async function updateCondition() {
+async function pollSession() {
+  if (!sessionCode || !liveConfig) return;
+  try {
+    const rows = await sbFetch(`sim_sessions?session_code=eq.${sessionCode}&select=severity,direction,treatments,overrides,instant_mode`, { method: 'GET' });
+    if (!rows.length) return;
+    const row = rows[0];
+    liveConfig.severity = row.severity;
+    liveConfig.direction = row.direction;
+    liveConfig.treatments = row.treatments || [];
+    liveConfig.overrides = row.overrides || {};
+    liveConfig.instantMode = row.instant_mode;
+    instantMode = row.instant_mode;
+    treatments = liveConfig.treatments;
+    document.getElementById('instant-toggle').checked = instantMode;
+    renderTreatments();
+  } catch (e) { /* transient network hiccup — try again next poll */ }
+}
+
+async function updateInstantMode() {
   if (!sessionCode) return;
-  const severity = document.getElementById('severity-select').value;
-  const direction = document.getElementById('direction-select').value;
-  const instantMode = document.getElementById('instant-toggle').checked;
+  instantMode = document.getElementById('instant-toggle').checked;
+  liveConfig.instantMode = instantMode;
   try {
     await sbFetch(`sim_sessions?session_code=eq.${sessionCode}`, {
-      method: 'PATCH',
-      prefer: 'return=minimal',
-      body: JSON.stringify({ severity, direction, instant_mode: instantMode, updated_at: new Date().toISOString() })
+      method: 'PATCH', prefer: 'return=minimal',
+      body: JSON.stringify({ instant_mode: instantMode, updated_at: new Date().toISOString() })
     });
   } catch (e) {
-    alert('Could not update the session — check the connection and try again.');
+    alert('Could not update Instant Mode — check the connection and try again.');
   }
+}
+
+const VITAL_DEFS = [
+  { key: 'HR',    label: 'HR',    unit: 'bpm',  overrideKeys: ['HR'] },
+  { key: 'BP',    label: 'NIBP',  unit: 'mmHg', overrideKeys: ['BPsys', 'BPdia'] },
+  { key: 'SpO2',  label: 'SpO\u2082', unit: '%', overrideKeys: ['SpO2'] },
+  { key: 'RR',    label: 'Resp',  unit: '/min', overrideKeys: ['RR'] },
+  { key: 'EtCO2', label: 'EtCO\u2082', unit: 'mmHg', overrideKeys: ['EtCO2'] }
+];
+
+function tickVitals() {
+  if (!liveConfig) return;
+  const v = SimEngine.getVitals(liveConfig, Date.now());
+  const grid = document.getElementById('vitals-grid');
+  grid.innerHTML = VITAL_DEFS.map(def => {
+    const val = def.key === 'BP' ? `${v.BPsys}/${v.BPdia}` : v[def.key];
+    return `<div class="vtile" onclick="openOverrideModal('${def.key}')">
+      <div class="vlabel">${def.label}</div>
+      <div class="vval">${val}</div>
+      <div class="muted">${def.unit}</div>
+    </div>`;
+  }).join('');
 }
 
 function populateDrugSelect() {
@@ -181,17 +246,18 @@ async function giveTreatment() {
   if (!sessionCode) return;
   const drug = document.getElementById('drug-select').value;
   const dose = parseFloat(document.getElementById('dose-input').value) || 0;
-  const givenAtMin = (Date.now() - sessionStartMs) / 60000;
+  const givenAtMin = (Date.now() - liveConfig.startTimeMs) / 60000;
   treatments = [...treatments, { drug, dose, givenAtMin }];
+  liveConfig.treatments = treatments;
   try {
     await sbFetch(`sim_sessions?session_code=eq.${sessionCode}`, {
-      method: 'PATCH',
-      prefer: 'return=minimal',
+      method: 'PATCH', prefer: 'return=minimal',
       body: JSON.stringify({ treatments, updated_at: new Date().toISOString() })
     });
     renderTreatments();
   } catch (e) {
-    treatments.pop(); // roll back local state since the write failed
+    treatments.pop();
+    liveConfig.treatments = treatments;
     alert('Could not log the treatment — check the connection and try again.');
   }
 }
@@ -207,6 +273,70 @@ function renderTreatments() {
       <span>${t.drug} \u2014 ${t.dose}</span>
       <span class="muted">t+${t.givenAtMin.toFixed(1)} min</span>
     </div>`).join('');
+}
+
+let _ovDefKey = null;
+
+function openOverrideModal(defKey) {
+  _ovDefKey = defKey;
+  const def = VITAL_DEFS.find(d => d.key === defKey);
+  const v = SimEngine.getVitals(liveConfig, Date.now());
+  document.getElementById('ov-modal-title').textContent = `Override ${def.label}`;
+
+  const inputs = def.overrideKeys.map(k => {
+    const current = k === 'BPsys' ? v.BPsys : k === 'BPdia' ? v.BPdia : v[k];
+    return `<div><label for="ov-input-${k}">${k} target</label>
+      <input type="number" id="ov-input-${k}" value="${current}" style="width:100%;"></div>`;
+  }).join('');
+
+  document.getElementById('ov-modal-body').innerHTML = `
+    ${inputs}
+    <div style="margin-top:8px;">
+      <label for="ov-duration-mode">Transition</label>
+      <select id="ov-duration-mode" onchange="document.getElementById('ov-duration-amount').style.display = this.value==='immediate' ? 'none' : 'inline-block'">
+        <option value="immediate">Immediate</option>
+        <option value="seconds" selected>Over N seconds</option>
+        <option value="minutes">Over N minutes</option>
+      </select>
+      <input type="number" id="ov-duration-amount" value="30" min="1" style="width:70px;margin-top:6px;">
+    </div>`;
+  document.getElementById('override-modal').style.display = 'flex';
+}
+
+function closeOverrideModal() {
+  document.getElementById('override-modal').style.display = 'none';
+  _ovDefKey = null;
+}
+
+async function applyOverride() {
+  if (!_ovDefKey || !sessionCode) return;
+  const def = VITAL_DEFS.find(d => d.key === _ovDefKey);
+  const mode = document.getElementById('ov-duration-mode').value;
+  const amount = parseFloat(document.getElementById('ov-duration-amount').value) || 0;
+  const durationMs = mode === 'immediate' ? 0 : mode === 'seconds' ? amount * 1000 : amount * 60000;
+  const startMs = Date.now();
+  const endMs = startMs + durationMs;
+
+  try {
+    // Re-fetch the latest overrides right before writing, to avoid clobbering
+    // a change made in the moments since our last poll.
+    const rows = await sbFetch(`sim_sessions?session_code=eq.${sessionCode}&select=overrides`, { method: 'GET' });
+    const freshOverrides = (rows[0] && rows[0].overrides) || {};
+    def.overrideKeys.forEach(k => {
+      const target = parseFloat(document.getElementById(`ov-input-${k}`).value);
+      if (isNaN(target)) return;
+      if (!freshOverrides[k]) freshOverrides[k] = [];
+      freshOverrides[k].push({ targetValue: target, startMs, endMs });
+    });
+    await sbFetch(`sim_sessions?session_code=eq.${sessionCode}`, {
+      method: 'PATCH', prefer: 'return=minimal',
+      body: JSON.stringify({ overrides: freshOverrides, updated_at: new Date().toISOString() })
+    });
+    liveConfig.overrides = freshOverrides;
+    closeOverrideModal();
+  } catch (e) {
+    alert('Could not apply the override — check the connection and try again.');
+  }
 }
 
 populateDrugSelect();

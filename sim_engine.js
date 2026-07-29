@@ -16,13 +16,19 @@
   // Each preset describes where CONTINUOUS vitals trend toward, and how long
   // the deterioration/improvement takes to reach that target from baseline.
   const SEVERITY_PRESETS = {
-    mild:     { label: 'Mild',     rampMinutes: 20, target: { HR: 15,  RR: 4,  SpO2: -3,  EtCO2: 3  } },
-    moderate: { label: 'Moderate', rampMinutes: 14, target: { HR: 30,  RR: 8,  SpO2: -7,  EtCO2: 6  } },
-    severe:   { label: 'Severe',   rampMinutes: 9,  target: { HR: 45,  RR: 14, SpO2: -14, EtCO2: 10 } },
-    critical: { label: 'Critical', rampMinutes: 5,  target: { HR: 60,  RR: 20, SpO2: -22, EtCO2: 15 } }
+    mild:     { label: 'Mild',     rampMinutes: 20, target: { HR: 15,  RR: 4,  SpO2: -3,  EtCO2: 3,  BPsys: -6,  BPdia: -3  } },
+    moderate: { label: 'Moderate', rampMinutes: 14, target: { HR: 30,  RR: 8,  SpO2: -7,  EtCO2: 6,  BPsys: -15, BPdia: -8  } },
+    severe:   { label: 'Severe',   rampMinutes: 9,  target: { HR: 45,  RR: 14, SpO2: -14, EtCO2: 10, BPsys: -30, BPdia: -15 } },
+    critical: { label: 'Critical', rampMinutes: 5,  target: { HR: 60,  RR: 20, SpO2: -22, EtCO2: 15, BPsys: -45, BPdia: -22 } }
   };
   // target deltas are ADDED to baseline (or subtracted, e.g. SpO2) as the ramp progresses.
   // Direction (deteriorating vs improving) is controlled by scenarioConfig.direction.
+  // NOTE: BP deltas assume a shock-type deterioration (BP falling as condition
+  // worsens, e.g. anaphylaxis, sepsis, haemorrhage). Not every condition behaves
+  // this way (e.g. some causes of deterioration raise BP) — this is a generic
+  // placeholder shared across all severities/conditions for now, same
+  // simplification already applied to HR/RR/SpO2/EtCO2, flagged for review
+  // once conditions become distinguishable (i.e. once a scenario library exists).
 
   // ---- Starter drug library ---------------------------------------------
   // Onset/peak/duration in minutes. Effect deltas applied on top of trend value
@@ -111,6 +117,56 @@
     return deltas;
   }
 
+  // ---- Raw trend (no overrides, no jitter): baseline + severity ramp + treatments,
+  // evaluated at an arbitrary point in time (not just "now"). This is what overrides
+  // are layered on top of.
+  function rawTrendDeltasAt(cfg, tMs) {
+    const elapsedMin = Math.max(0, (tMs - cfg.startTimeMs) / 60000);
+    const preset = SEVERITY_PRESETS[cfg.severity] || SEVERITY_PRESETS.moderate;
+    const dir = cfg.direction === 'improving' ? -1 : (cfg.direction === 'stable' ? 0 : 1);
+    const progress = cfg.instantMode ? 1 : rampProgress(elapsedMin, preset.rampMinutes);
+    let deltas = {
+      HR: preset.target.HR * progress * dir,
+      RR: preset.target.RR * progress * dir,
+      SpO2: preset.target.SpO2 * progress * dir,
+      EtCO2: preset.target.EtCO2 * progress * dir,
+      BPsys: preset.target.BPsys * progress * dir,
+      BPdia: preset.target.BPdia * progress * dir
+    };
+    return applyTreatments(deltas, cfg.treatments || [], elapsedMin, cfg.instantMode);
+  }
+  function rawTrendAt(cfg, key, tMs) {
+    const deltas = rawTrendDeltasAt(cfg, tMs);
+    const raw = cfg.baseline[key] + (deltas[key] || 0);
+    return key === 'SpO2' ? Math.min(100, raw) : raw;
+  }
+
+  // ---- Overrides -----------------------------------------------------------
+  // overrides[key] = [{ targetValue, startMs, endMs }, ...] sorted by time.
+  // A completed override becomes a permanent additive OFFSET from the raw curve
+  // from that point on (so the vital keeps drifting per the underlying trend/
+  // treatments, just shifted to pass through the target at the moment the
+  // override finished) — i.e. "resume drifting", not "hold and freeze".
+  function applyOverrides(cfg, key, nowMs) {
+    const events = (cfg.overrides && cfg.overrides[key]) || [];
+    const raw = (t) => rawTrendAt(cfg, key, t);
+    let offset = 0;
+    const sorted = events.slice().sort((a, b) => a.startMs - b.startMs);
+    for (let i = 0; i < sorted.length; i++) {
+      const ov = sorted[i];
+      if (nowMs < ov.startMs) break; // not started yet — ignore
+      const startVal = raw(ov.startMs) + offset;
+      if (nowMs < ov.endMs) {
+        const span = Math.max(ov.endMs - ov.startMs, 1);
+        const progress = Math.min(1, Math.max(0, (nowMs - ov.startMs) / span));
+        return startVal + (ov.targetValue - startVal) * progress;
+      }
+      // override complete — shift the curve to pass through target at endMs
+      offset = ov.targetValue - raw(ov.endMs);
+    }
+    return raw(nowMs) + offset;
+  }
+
   // ---- Beat-to-beat jitter -----------------------------------------------
   // Seeded by the current second so any device computing "now" gets a very
   // similar wobble — cosmetic only, doesn't need to match exactly.
@@ -130,42 +186,31 @@
   //   direction: 'deteriorating'|'improving'|'stable',
   //   startTimeMs: <scenario start epoch ms>,
   //   treatments: [{ drug:'morphine', dose:5, givenAtMin: 3.2 }, ...],
+  //   overrides: { HR: [{targetValue,startMs,endMs}], BPsys: [...], ... },
   //   instantMode: boolean (skips onset/peak delay, effect applies immediately)
   // }
   function getVitals(scenarioConfig, nowMs) {
     const cfg = scenarioConfig;
-    const elapsedMin = Math.max(0, (nowMs - cfg.startTimeMs) / 60000);
-    const preset = SEVERITY_PRESETS[cfg.severity] || SEVERITY_PRESETS.moderate;
-    const dir = cfg.direction === 'improving' ? -1 : (cfg.direction === 'stable' ? 0 : 1);
-    const progress = cfg.instantMode ? 1 : rampProgress(elapsedMin, preset.rampMinutes);
-
-    let deltas = {
-      HR: preset.target.HR * progress * dir,
-      RR: preset.target.RR * progress * dir,
-      SpO2: preset.target.SpO2 * progress * dir,
-      EtCO2: preset.target.EtCO2 * progress * dir
-    };
-    deltas = applyTreatments(deltas, cfg.treatments || [], elapsedMin, cfg.instantMode);
-
     const nowSec = Math.floor(nowMs / 1000);
-    const trend = {
-      HR: cfg.baseline.HR + deltas.HR,
-      RR: cfg.baseline.RR + deltas.RR,
-      SpO2: Math.min(100, cfg.baseline.SpO2 + deltas.SpO2),
-      EtCO2: cfg.baseline.EtCO2 + deltas.EtCO2
-    };
+
+    const hrVal    = applyOverrides(cfg, 'HR', nowMs);
+    const rrVal    = applyOverrides(cfg, 'RR', nowMs);
+    const spo2Val  = Math.min(100, applyOverrides(cfg, 'SpO2', nowMs));
+    const etco2Val = applyOverrides(cfg, 'EtCO2', nowMs);
+    const bpSysVal = applyOverrides(cfg, 'BPsys', nowMs);
+    const bpDiaVal = applyOverrides(cfg, 'BPdia', nowMs);
 
     return {
-      HR: Math.round(jitter(trend.HR, 2, nowSec, 1)),
-      RR: Math.round(jitter(trend.RR, 1, nowSec, 2)),
-      SpO2: Math.round(Math.min(100, jitter(trend.SpO2, 0.5, nowSec, 3))),
-      EtCO2: Math.round(jitter(trend.EtCO2, 1, nowSec, 4)),
-      BPsys: Math.round(cfg.baseline.BPsys + deltas.HR * 0.4 * (dir >= 0 ? 1 : 1)),
-      BPdia: Math.round(cfg.baseline.BPdia + deltas.HR * 0.2),
-      _elapsedMin: elapsedMin,
-      _progress: progress
+      HR: Math.round(jitter(hrVal, 2, nowSec, 1)),
+      RR: Math.round(jitter(rrVal, 1, nowSec, 2)),
+      SpO2: Math.round(Math.min(100, jitter(spo2Val, 0.5, nowSec, 3))),
+      EtCO2: Math.round(jitter(etco2Val, 1, nowSec, 4)),
+      BPsys: Math.round(bpSysVal),
+      BPdia: Math.round(bpDiaVal),
+      _elapsedMin: Math.max(0, (nowMs - cfg.startTimeMs) / 60000)
     };
   }
 
   global.SimEngine = { SEVERITY_PRESETS, DRUG_LIBRARY, ACTION_DURATIONS, getActionDurationSec, getVitals };
 })(typeof window !== 'undefined' ? window : this);
+
