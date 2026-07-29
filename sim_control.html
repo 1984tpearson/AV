@@ -370,17 +370,17 @@ async function updateInstantMode() {
 // same overrides mechanism, so they all sample the same way — no more
 // special-case step-path branch.
 const GRAPH_SERIES = [
-  { key: 'HR',      label: 'HR',     color: '#c66469', unit: 'bpm',     min: 30, max: 200, get: v => v.HR },
-  { key: 'BPsys',   label: 'BP Sys', color: '#4f9a5b', unit: 'mmHg',    min: 20, max: 220, get: v => v.BPsys },
-  { key: 'BPdia',   label: 'BP Dia', color: '#8cc194', unit: 'mmHg',    min: 20, max: 220, get: v => v.BPdia },
-  { key: 'SpO2',    label: 'SpO\u2082', color: '#5b8fc7', unit: '%',    min: 50, max: 100, get: v => v.SpO2 },
-  { key: 'RR',      label: 'RR',     color: '#c99a4a', unit: '/min',    min: 0,  max: 50,  get: v => v.RR },
-  { key: 'EtCO2',   label: 'EtCO\u2082', color: '#c9a227', unit: 'mmHg', min: 0, max: 80,  get: v => v.EtCO2 },
-  { key: 'temp',    label: 'Temp',    color: '#9a7bc4', unit: '\u00b0C', min: 34, max: 41, get: v => v.temp },
-  { key: 'bgl',     label: 'BGL',     color: '#5aa8ad', unit: 'mmol/L', min: 0,  max: 25, get: v => v.bgl },
-  { key: 'ketones', label: 'Ketones', color: '#b98cd1', unit: 'mmol/L', min: 0,  max: 6,  get: v => v.ketones },
-  { key: 'gcs',     label: 'GCS',     color: '#c46f92', unit: '/15',    min: 3,  max: 15, get: v => v.gcsE + v.gcsV + v.gcsM },
-  { key: 'pain',    label: 'Pain',    color: '#cf9463', unit: '/10',    min: 0,  max: 10, get: v => v.pain }
+  { key: 'HR',      label: 'HR',     color: '#dc1114', unit: 'bpm',     min: 30, max: 200, get: v => v.HR },
+  { key: 'BPsys',   label: 'BP Sys', color: '#65b440', unit: 'mmHg',    min: 20, max: 220, get: v => v.BPsys },
+  { key: 'BPdia',   label: 'BP Dia', color: '#8bbf2c', unit: 'mmHg',    min: 20, max: 220, get: v => v.BPdia },
+  { key: 'SpO2',    label: 'SpO\u2082', color: '#2980c5', unit: '%',    min: 50, max: 100, get: v => v.SpO2 },
+  { key: 'RR',      label: 'RR',     color: '#dc5e19', unit: '/min',    min: 0,  max: 50,  get: v => v.RR },
+  { key: 'EtCO2',   label: 'EtCO\u2082', color: '#f3e511', unit: 'mmHg', min: 0, max: 80,  get: v => v.EtCO2 },
+  { key: 'temp',    label: 'Temp',    color: '#4e4193', unit: '\u00b0C', min: 34, max: 41, get: v => v.temp },
+  { key: 'bgl',     label: 'BGL',     color: '#54bec4', unit: 'mmol/L', min: 0,  max: 25, get: v => v.bgl },
+  { key: 'ketones', label: 'Ketones', color: '#a96aab', unit: 'mmol/L', min: 0,  max: 6,  get: v => v.ketones },
+  { key: 'gcs',     label: 'GCS',     color: '#d02e8b', unit: '/15',    min: 3,  max: 15, get: v => v.gcsE + v.gcsV + v.gcsM },
+  { key: 'pain',    label: 'Pain',    color: '#dd9806', unit: '/10',    min: 0,  max: 10, get: v => v.pain }
 ];
 const GRAPH_DEFAULT_ON = { HR: true, BPsys: true, BPdia: true, SpO2: true, RR: true, EtCO2: true, temp: false, bgl: false, ketones: false, gcs: false, pain: false };
 let graphSeriesOn = { ...GRAPH_DEFAULT_ON };
@@ -608,19 +608,39 @@ document.getElementById('graph-svg-wrap').addEventListener('click', handleGraphB
 // Catmull-Rom -> cubic Bezier through a sampled point array — smooths every
 // line on the graph (real curve, hit-path, ghost preview) using the same
 // sample data, just interpolated instead of drawn as straight segments.
+// Monotone cubic Hermite (Fritsch-Carlson) rather than plain Catmull-Rom —
+// Catmull-Rom overshoots (dips/bumps past the actual data) whenever two
+// consecutive segments have a sharp slope change, e.g. right at an override
+// transition. Monotone interpolation clamps tangents so the curve never
+// overshoots a local min/max between sample points.
 function pointsToSmoothPath(pts) {
-  if (pts.length < 3) return pts.map((p, i) => (i === 0 ? 'M' : 'L') + p[0].toFixed(1) + ',' + p[1].toFixed(1)).join(' ');
-  let d = `M${pts[0][0].toFixed(1)},${pts[0][1].toFixed(1)} `;
-  for (let i = 0; i < pts.length - 1; i++) {
-    const p0 = pts[i === 0 ? i : i - 1];
-    const p1 = pts[i];
-    const p2 = pts[i + 1];
-    const p3 = pts[i + 2 < pts.length ? i + 2 : i + 1];
-    const c1x = p1[0] + (p2[0] - p0[0]) / 6, c1y = p1[1] + (p2[1] - p0[1]) / 6;
-    const c2x = p2[0] - (p3[0] - p1[0]) / 6, c2y = p2[1] - (p3[1] - p1[1]) / 6;
-    d += `C${c1x.toFixed(1)},${c1y.toFixed(1)} ${c2x.toFixed(1)},${c2y.toFixed(1)} ${p2[0].toFixed(1)},${p2[1].toFixed(1)} `;
+  const n = pts.length;
+  if (n < 3) return pts.map((p, i) => (i === 0 ? 'M' : 'L') + p[0].toFixed(1) + ',' + p[1].toFixed(1)).join(' ');
+  const xs = pts.map(p => p[0]), ys = pts.map(p => p[1]);
+  const d = [];
+  for (let i = 0; i < n - 1; i++) d.push((ys[i + 1] - ys[i]) / (xs[i + 1] - xs[i]));
+  const m = new Array(n);
+  m[0] = d[0];
+  m[n - 1] = d[n - 2];
+  for (let i = 1; i < n - 1; i++) m[i] = (d[i - 1] * d[i] <= 0) ? 0 : (d[i - 1] + d[i]) / 2;
+  for (let i = 0; i < n - 1; i++) {
+    if (d[i] === 0) { m[i] = 0; m[i + 1] = 0; continue; }
+    const a = m[i] / d[i], b = m[i + 1] / d[i];
+    const sq = a * a + b * b;
+    if (sq > 9) {
+      const t = 3 / Math.sqrt(sq);
+      m[i] = t * a * d[i];
+      m[i + 1] = t * b * d[i];
+    }
   }
-  return d;
+  let path = `M${xs[0].toFixed(1)},${ys[0].toFixed(1)} `;
+  for (let i = 0; i < n - 1; i++) {
+    const h = xs[i + 1] - xs[i];
+    const c1x = xs[i] + h / 3, c1y = ys[i] + m[i] * h / 3;
+    const c2x = xs[i + 1] - h / 3, c2y = ys[i + 1] - m[i + 1] * h / 3;
+    path += `C${c1x.toFixed(1)},${c1y.toFixed(1)} ${c2x.toFixed(1)},${c2y.toFixed(1)} ${xs[i + 1].toFixed(1)},${ys[i + 1].toFixed(1)} `;
+  }
+  return path;
 }
 
 function niceStep(raw) {
@@ -667,7 +687,7 @@ function renderGraph() {
   let paths = '';
   let hitPaths = '';
   let overrideMarkers = '';
-  let edgeReadouts = '';
+  let edgeReadoutEntries = [];
   const ptsByKey = {};
   GRAPH_SERIES.forEach(s => {
     if (!graphSeriesOn[s.key]) return;
@@ -701,7 +721,7 @@ function renderGraph() {
     const edgeRaw = s.get(SimEngine.getVitalsRaw(liveConfig, edgeTMs));
     const edgeStr = decimalReadoutKeys.includes(s.key) ? edgeRaw.toFixed(1) : Math.round(edgeRaw).toString();
     const edgeY = Math.min(Math.max(padT + 8, pts[pts.length - 1][1]), padT + plotH - 8);
-    edgeReadouts += `<text x="${W - padR + 4}" y="${edgeY + 3}" font-size="10" fill="${s.color}" font-weight="700" opacity="${opacity}">${edgeStr}</text>`;
+    edgeReadoutEntries.push({ y: edgeY, str: edgeStr, color: s.color, opacity });
 
     if (isArmed && !pendingDrag) {
       // Wide invisible hit-stroke over the FUTURE portion only (right of the
@@ -755,6 +775,24 @@ function renderGraph() {
     paths += `<path d="${sysSmooth} ${diaSmooth} Z" fill="url(#grad-BPsys)" stroke="none" opacity="${bpBandFade}" />`;
   }
 
+  // Right-edge readouts: resolve overlaps by pushing later (lower) labels
+  // down until there's a minimum gap, since several series can land at
+  // very close values/heights at the visible window's edge.
+  edgeReadoutEntries.sort((a, b) => a.y - b.y);
+  const edgeMinGap = 12;
+  for (let i = 1; i < edgeReadoutEntries.length; i++) {
+    if (edgeReadoutEntries[i].y < edgeReadoutEntries[i - 1].y + edgeMinGap) {
+      edgeReadoutEntries[i].y = edgeReadoutEntries[i - 1].y + edgeMinGap;
+    }
+  }
+  if (edgeReadoutEntries.length) {
+    const overflow = edgeReadoutEntries[edgeReadoutEntries.length - 1].y - (padT + plotH - 4);
+    if (overflow > 0) edgeReadoutEntries.forEach(e => { e.y -= overflow; });
+  }
+  const edgeReadouts = edgeReadoutEntries.map(e =>
+    `<text x="${W - padR + 4}" y="${e.y + 3}" font-size="10" fill="${e.color}" font-weight="700" opacity="${e.opacity}">${e.str}</text>`
+  ).join('');
+
   let grid = '';
   const gridStepMin = niceStep(graphViewWindowMin / 6);
   const minorStepMin = gridStepMin / 5;
@@ -788,7 +826,7 @@ function renderGraph() {
       const tMs = liveConfig.startTimeMs + elapsedMin * 60000;
       const val = s.get(SimEngine.getVitalsRaw(liveConfig, tMs));
       const y = yFor(s, val);
-      playhead += `<circle cx="${x}" cy="${y}" r="4.5" fill="${s.color}" stroke="#fff" stroke-width="1.5" />`;
+      playhead += `<circle cx="${x}" cy="${y}" r="4.5" fill="${s.color}" />`;
     });
   }
 
