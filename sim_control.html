@@ -92,18 +92,19 @@ select, input[type=number], input[type=text] { font-family: 'Courier New', monos
           <label style="margin:0;"><input type="checkbox" id="instant-toggle" onchange="updateInstantMode()"> Instant Mode</label>
           <button class="btn btn-secondary" style="font-size:10px;padding:5px 8px;" onclick="seedDemoVariation()">Load Demo Variation (testing only)</button>
         </div>
-        <h2 style="margin-top:12px;">Log Treatment</h2>
+        <h2 style="margin-top:12px;">Log Treatment / Management</h2>
         <div class="row">
-          <div>
-            <label for="drug-select">Drug</label>
-            <select id="drug-select"></select>
+          <div style="flex:1;min-width:140px;">
+            <label for="action-input">Drug / Action</label>
+            <input type="text" id="action-input" placeholder="e.g. Morphine IV, Apply tourniquet" style="width:100%;">
           </div>
-          <div>
-            <label for="dose-input">Dose</label>
-            <input type="number" id="dose-input" value="1" min="0" step="0.1" style="width:80px;">
+          <div style="flex:1;min-width:100px;">
+            <label for="detail-input">Dose / Detail</label>
+            <input type="text" id="detail-input" placeholder="e.g. 10mg, left thigh">
           </div>
           <button class="btn" onclick="giveTreatment()">Give</button>
         </div>
+        <div id="treatment-status" class="muted"></div>
       </div>
 
       <div class="panel" id="feed-panel">
@@ -183,6 +184,7 @@ async function getAnthropicKey() {
 }
 
 let sessionCode = null;
+let currentScenario = null; // set on session creation — provides context for treatment-effect regeneration
 let liveConfig = null; // mirrors the patient page's testConfig shape, plus pause fields
 let instantMode = false;
 let treatments = [];
@@ -259,11 +261,13 @@ async function generateSimTimeline(scenario) {
 
 Ground everything in the scenario's actual provisional diagnosis and clinical picture — do not invent a different condition. Only vitals that would plausibly change from this condition's natural progression should have entries; omit any vital that would reasonably stay flat.
 
+Project all the way to the condition's genuine untreated endpoint if that would realistically occur — including cardiac/respiratory arrest (vitals reaching true arrest values: HR 0, BP 0/0, RR 0, EtCO2 near 0, GCS 3) where the diagnosis and timeframe make that the honest outcome. Do not stop short at a "critical but stable" plateau if arrest would actually follow. Cap the total timeline at 60 minutes — if the natural course would take longer than that to reach arrest, project only as far as 60 minutes and leave the patient critically deteriorated rather than extending further.
+
 Return ONLY valid JSON, no prose, in exactly this shape:
 {"startingPain": 0, "overrides": {"HR": [{"targetValue":0,"startMin":0,"endMin":0}], "RR": [], "SpO2": [], "EtCO2": [], "BPsys": [], "BPdia": [], "temp": [], "bgl": [], "ketones": [], "pain": [], "gcsE": [], "gcsV": [], "gcsM": []}}
 
 Rules:
-- Times are minutes elapsed since the crew arrived on scene (arrival = minute 0), covering roughly the next 20-25 minutes.
+- Times are minutes elapsed since the crew arrived on scene (arrival = minute 0). Use as much of the 0-60 minute window as the condition genuinely needs — a rapidly fatal presentation may reach arrest in under 10 minutes; a slower one may need the full 60.
 - Each array entry is a transition: the vital moves toward targetValue between startMin and endMin, then holds/continues drifting from there — a deteriorating condition typically needs 2-4 sequential entries per affected vital, each startMin >= the previous entry's endMin.
 - gcsE range 1-4, gcsV range 1-5, gcsM range 1-6 — never exceed these.
 - Omit a vital's key entirely if it should stay flat.
@@ -303,6 +307,8 @@ Project the deterioration/progression from these starting vitals assuming no tre
 
   // Store as OFFSETS from arrival (T0=0), not absolute times — the real
   // start_time_ms only exists once an actual session is created from this.
+  // Hard-clamped to 60 min even though the prompt already asks for this, in
+  // case the AI overshoots.
   const overridesOffset = {};
   Object.entries(parsed.overrides || {}).forEach(([key, arr]) => {
     if (!Array.isArray(arr)) return;
@@ -310,8 +316,8 @@ Project the deterioration/progression from these starting vitals assuming no tre
       .filter(ov => typeof ov.targetValue === 'number' && typeof ov.startMin === 'number' && typeof ov.endMin === 'number')
       .map(ov => ({
         targetValue: ov.targetValue,
-        startOffsetMs: Math.max(0, ov.startMin) * 60000,
-        endOffsetMs: Math.max(0, ov.endMin) * 60000
+        startOffsetMs: Math.min(60, Math.max(0, ov.startMin)) * 60000,
+        endOffsetMs: Math.min(60, Math.max(0, ov.endMin)) * 60000
       }));
   });
 
@@ -390,6 +396,7 @@ async function createSession() {
         })
       });
       sessionCode = code;
+      currentScenario = scenario;
       liveConfig = {
         baseline: timeline.starting_vitals,
         startTimeMs: startMs,
@@ -1264,19 +1271,15 @@ function tickVitals() {
   renderGraph();
 }
 
-function populateDrugSelect() {
-  const sel = document.getElementById('drug-select');
-  sel.innerHTML = Object.keys(SimEngine.DRUG_LIBRARY).map(key =>
-    `<option value="${key}">${key}</option>`
-  ).join('');
-}
-
 async function giveTreatment() {
   if (!sessionCode) return;
-  const drug = document.getElementById('drug-select').value;
-  const dose = parseFloat(document.getElementById('dose-input').value) || 0;
-  const givenAtMin = (simNow() - liveConfig.startTimeMs) / 60000;
-  treatments = [...treatments, { drug, dose, givenAtMin }];
+  const action = document.getElementById('action-input').value.trim();
+  const detail = document.getElementById('detail-input').value.trim();
+  if (!action) { alert('Enter a drug or management action.'); return; }
+  const statusEl = document.getElementById('treatment-status');
+  const givenAtMs = simNow();
+  const givenAtMin = (givenAtMs - liveConfig.startTimeMs) / 60000;
+  treatments = [...treatments, { action, detail, givenAtMin }];
   liveConfig.treatments = treatments;
   try {
     await sbFetch(`sim_sessions?session_code=eq.${sessionCode}`, {
@@ -1284,11 +1287,108 @@ async function giveTreatment() {
       body: JSON.stringify({ treatments, updated_at: new Date().toISOString() })
     });
     renderTreatments();
+    document.getElementById('action-input').value = '';
+    document.getElementById('detail-input').value = '';
   } catch (e) {
     treatments.pop();
     liveConfig.treatments = treatments;
     alert('Could not log the treatment — check the connection and try again.');
+    return;
   }
+  // Log entry above is already saved regardless of what happens next —
+  // the trajectory recalculation is a separate, best-effort follow-up.
+  if (statusEl) statusEl.textContent = 'Recalculating trajectory…';
+  try {
+    await regenerateTimelineAfterTreatment(action, detail, givenAtMs);
+    if (statusEl) statusEl.textContent = '';
+  } catch (e) {
+    if (statusEl) statusEl.textContent = 'Could not recalculate the trajectory: ' + e.message;
+  }
+}
+
+// Recalculates the patient's future trajectory in response to a specific
+// treatment/management action, using the AI to reason about THIS action on
+// THIS patient's THIS condition — replaces the old generic per-drug effect
+// table entirely. Anything already elapsed or mid-transition is left alone;
+// only not-yet-started future overrides are replaced.
+async function regenerateTimelineAfterTreatment(action, detail, givenAtMs) {
+  if (!currentScenario) return; // no scenario context available — treatment stays logged, trajectory just won't update
+  const vitalsNow = SimEngine.getVitalsRaw(liveConfig, givenAtMs);
+  const elapsedMin = (givenAtMs - liveConfig.startTimeMs) / 60000;
+  const remainingMin = Math.max(5, 60 - elapsedMin);
+  const apiKey = await getAnthropicKey();
+
+  const systemPrompt = `You are updating a paramedic training patient's projected vital-signs trajectory because the treating crew just gave a treatment/management action. This feeds a training simulator's trajectory graph.
+
+Ground your reasoning in the scenario's actual provisional diagnosis and the specific action just taken — reason about how THIS action would realistically affect THIS patient's THIS condition. There is no generic effect table; you are the clinical model.
+
+Return ONLY valid JSON, no prose, in exactly this shape:
+{"overrides": {"HR": [{"targetValue":0,"startMin":0,"endMin":0}], "RR": [], "SpO2": [], "EtCO2": [], "BPsys": [], "BPdia": [], "temp": [], "bgl": [], "ketones": [], "pain": [], "gcsE": [], "gcsV": [], "gcsM": []}}
+
+Rules:
+- Times are minutes from THIS MOMENT (the action being given = minute 0), not from scenario start.
+- Reflect the action's realistic onset delay before any effect starts (e.g. IV drugs ~1-3 min, IM/neb slower) — don't apply an instant effect.
+- If the action only partially or temporarily addresses the underlying condition, model it wearing off and the condition resuming its natural course afterward — worse than before if the intervention was just masking ongoing pathology, stable/improving if it substantively corrected the problem. Reason about which applies here.
+- If the action is clinically inappropriate, ineffective, or an insufficient dose for this condition, reflect that honestly — including continued deterioration if that is the truthful outcome. Do not reward an incorrect action with improvement it wouldn't realistically produce.
+- Only include a vital's key if this specific action would plausibly change it; omit anything unaffected.
+- gcsE range 1-4, gcsV range 1-5, gcsM range 1-6 — never exceed these.
+- Project up to ${Math.round(remainingMin)} minutes forward from now, or less if the outcome resolves sooner. Never project past 60 minutes of total scenario time.
+- This is a training placeholder pending clinical review, not a validated clinical model.`;
+
+  const userPrompt = `Scenario: ${currentScenario.title || ''}
+Provisional diagnosis: ${currentScenario.provisional || 'unspecified'}
+CPG: ${currentScenario.cpg || 'unspecified'}
+Key history: ${currentScenario.key_hx || ''}
+Flags: ${JSON.stringify(currentScenario.flags || [])}
+Life threats: ${JSON.stringify(currentScenario.life_threats || [])}
+
+Action just given by the crew (at minute ${elapsedMin.toFixed(1)} of the scenario): ${action}${detail ? ' — ' + detail : ''}
+Patient's vitals at the moment this was given: ${JSON.stringify(vitalsNow)}
+
+Project how this patient's vitals change from here, given this specific action.`;
+
+  const response = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' },
+    body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 3000, system: systemPrompt, messages: [{ role: 'user', content: userPrompt }] })
+  });
+  if (!response.ok) { const e = await response.json().catch(() => ({})); throw new Error(e.error?.message || `Anthropic API error ${response.status}`); }
+  const data = await response.json();
+  const text = (data.content || []).map(b => b.text || '').join('');
+  let parsed;
+  try {
+    parsed = JSON.parse(text.replace(/```json|```/g, '').trim());
+  } catch (e) {
+    throw new Error('AI returned an unparseable trajectory update.');
+  }
+
+  const rows = await sbFetch(`sim_sessions?session_code=eq.${sessionCode}&select=overrides`, { method: 'GET' });
+  const freshOverrides = (rows[0] && rows[0].overrides) || {};
+  // Drop the old "no longer valid" future plan for every vital — anything
+  // already elapsed or mid-transition (startMs < givenAtMs) is left alone,
+  // matching the existing "can't edit what's already started" rule.
+  Object.keys(freshOverrides).forEach(key => {
+    freshOverrides[key] = (freshOverrides[key] || []).filter(ov => ov.startMs < givenAtMs);
+  });
+  Object.entries(parsed.overrides || {}).forEach(([key, arr]) => {
+    if (!Array.isArray(arr)) return;
+    const cleanArr = arr
+      .filter(ov => typeof ov.targetValue === 'number' && typeof ov.startMin === 'number' && typeof ov.endMin === 'number')
+      .map(ov => ({
+        targetValue: ov.targetValue,
+        startMs: givenAtMs + Math.min(60, Math.max(0, ov.startMin)) * 60000,
+        endMs: givenAtMs + Math.min(60, Math.max(0, ov.endMin)) * 60000
+      }));
+    if (!freshOverrides[key]) freshOverrides[key] = [];
+    freshOverrides[key] = freshOverrides[key].concat(cleanArr);
+  });
+
+  await sbFetch(`sim_sessions?session_code=eq.${sessionCode}`, {
+    method: 'PATCH', prefer: 'return=minimal',
+    body: JSON.stringify({ overrides: freshOverrides, updated_at: new Date().toISOString() })
+  });
+  liveConfig.overrides = freshOverrides;
+  renderGraph();
 }
 
 function renderTreatments() {
@@ -1299,7 +1399,7 @@ function renderTreatments() {
   }
   list.innerHTML = treatments.map(t => `
     <div class="treat-item">
-      <span>${t.drug} \u2014 ${t.dose}</span>
+      <span>${escapeHtml(t.action)}${t.detail ? ' \u2014 ' + escapeHtml(t.detail) : ''}</span>
       <span class="muted">t+${t.givenAtMin.toFixed(1)} min</span>
     </div>`).join('');
 }
@@ -1369,7 +1469,7 @@ async function seedDemoVariation() {
   if (!sessionCode || !liveConfig) return;
   if (!confirm('This overwrites the current session\'s treatments/overrides with example demo data, purely to preview the graph. Only use this on a test session. Continue?')) return;
   const base = liveConfig.startTimeMs;
-  const demoTreatments = [{ drug: 'adrenaline', dose: 0.5, givenAtMin: 0.2 }];
+  const demoTreatments = [{ action: 'Adrenaline IM', detail: '0.5mg', givenAtMin: 0.2 }];
   const demoOverrides = {
     HR: [{ targetValue: 130, startMs: base + 6 * 60000, endMs: base + 6.5 * 60000 }],
     BPsys: [{ targetValue: 90, startMs: base + 12 * 60000, endMs: base + 12.5 * 60000 }],
@@ -1475,7 +1575,6 @@ async function applyOverride() {
   }
 }
 
-populateDrugSelect();
 loadRecentScenarios();
 
 // Background tabs get their setInterval timers throttled by the browser, so

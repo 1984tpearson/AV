@@ -6,7 +6,6 @@
  *
  * Public API:
  *   SimEngine.getVitals(scenarioConfig, nowMs) -> { HR, BP:{sys,dia}, SpO2, RR, EtCO2, ...+ raw trend }
- *   SimEngine.DRUG_LIBRARY (starter set; to be expanded from CPG data)
  */
 (function (global) {
   'use strict';
@@ -16,27 +15,16 @@
   // Vitals progression is now entirely authored per-scenario by AI-generated
   // overrides (see scenario_sim_timelines), which are clinically grounded in
   // the specific condition rather than a generic shock-pattern placeholder.
-  // rawTrendDeltasAt() below now just returns a flat (zero) baseline trend,
-  // with treatments still applying on top as before.
+  // rawTrendDeltasAt() below now just returns a flat (zero) baseline trend.
 
-  // ---- Starter drug library ---------------------------------------------
-  // Onset/peak/duration in minutes. Effect deltas applied on top of trend value
-  // at treatment's current "potency" (rises to peak, then wanes over duration).
-  // NOTE: starter values only — flag for Tim's clinical review before trusting.
-  const DRUG_LIBRARY = {
-    'morphine':   { route: 'IV', onsetMin: 2,  peakMin: 10, durationMin: 90,
-                    effectPerMg: { RR: -1.2, HR: -2, SpO2: -0.5 } },
-    'fentanyl':   { route: 'IV', onsetMin: 1,  peakMin: 5,  durationMin: 45,
-                    effectPerMcg: { RR: -0.05, HR: -0.1 } },
-    'salbutamol': { route: 'NEB', onsetMin: 3, peakMin: 15, durationMin: 120,
-                    effectPerMg: { HR: 4, RR: -1 } },
-    'adrenaline': { route: 'IM', onsetMin: 3,  peakMin: 8,  durationMin: 20,
-                    effectPerMg: { HR: 25, RR: -3, SpO2: 4 } },
-    'oxygen':     { route: 'O2', onsetMin: 0.5, peakMin: 2, durationMin: 9999,
-                    effectPerL: { SpO2: 1.2, EtCO2: -0.3 } },
-    'glucose10':  { route: 'IV', onsetMin: 1,  peakMin: 10, durationMin: 60,
-                    effectPerGram: { HR: -1 } } // rough proxy for correcting hypoglycaemia tachycardia
-  };
+  // ---- Treatments -------------------------------------------------------
+  // REMOVED: the old generic per-drug effect table (DRUG_LIBRARY) and its
+  // onset/peak/duration potency curve. Treatment effects are now decided by
+  // the AI per-patient, per-condition, per-action — it directly authors new
+  // overrides for the future (see regenerateTimelineAfterTreatment() in
+  // sim_control.html) rather than this engine applying a generic delta.
+  // cfg.treatments is still stored/logged for the assessor's record, but no
+  // longer feeds vitals calculation here.
 
   // ---- Action durations (reveal-delay system) ---------------------------
   // Seconds each assessment action takes before its value/waveform reveals.
@@ -63,55 +51,14 @@
     return 10; // fallback
   }
 
-  function treatmentPotency(elapsedMinSinceGiven, drug) {
-    // 0 -> 1 rising to peak, holds briefly, then decays to 0 by end of duration.
-    if (elapsedMinSinceGiven < 0) return 0;
-    if (elapsedMinSinceGiven <= drug.onsetMin) {
-      return (elapsedMinSinceGiven / Math.max(drug.onsetMin, 0.01)) * 0.3; // slow start
-    }
-    if (elapsedMinSinceGiven <= drug.peakMin) {
-      const span = Math.max(drug.peakMin - drug.onsetMin, 0.01);
-      return 0.3 + 0.7 * ((elapsedMinSinceGiven - drug.onsetMin) / span);
-    }
-    if (elapsedMinSinceGiven >= drug.durationMin) return 0;
-    const waneSpan = Math.max(drug.durationMin - drug.peakMin, 0.01);
-    return Math.max(0, 1 - (elapsedMinSinceGiven - drug.peakMin) / waneSpan);
-  }
-
-  function doseAmount(event) {
-    // event.dose is a plain number; unit implied by drug's effect key (mg/mcg/L/gram)
-    return typeof event.dose === 'number' ? event.dose : 1;
-  }
-
-  function applyTreatments(baseDeltas, events, nowMin, instantMode) {
-    const deltas = Object.assign({}, baseDeltas);
-    events.forEach(ev => {
-      const drug = DRUG_LIBRARY[ev.drug];
-      if (!drug) return; // unknown drug -> no modelled effect yet
-      const potency = instantMode ? 1 : treatmentPotency(nowMin - ev.givenAtMin, drug);
-      if (potency <= 0) return;
-      const effectKey = Object.keys(drug).find(k => k.startsWith('effectPer'));
-      const effects = drug[effectKey] || {};
-      const amount = doseAmount(ev);
-      Object.keys(effects).forEach(vital => {
-        deltas[vital] = (deltas[vital] || 0) + effects[vital] * amount * potency;
-      });
-    });
-    return deltas;
-  }
-
-  // ---- Raw trend (no overrides, no jitter): baseline + severity ramp + treatments,
-  // evaluated at an arbitrary point in time (not just "now"). This is what overrides
-  // are layered on top of.
+  // ---- Raw trend (no overrides, no jitter): flat baseline, evaluated at an
+  // arbitrary point in time (not just "now"). This is what overrides are
+  // layered on top of. Treatments no longer contribute here (see note above).
   function rawTrendDeltasAt(cfg, tMs) {
-    // Flat baseline trend — all progression now comes from cfg.overrides
-    // (AI-authored per scenario). Treatments still layer on top as before.
-    const elapsedMin = Math.max(0, (tMs - cfg.startTimeMs) / 60000);
-    const deltas = {
+    return {
       HR: 0, RR: 0, SpO2: 0, EtCO2: 0, BPsys: 0, BPdia: 0,
       temp: 0, bgl: 0, ketones: 0, pain: 0, gcsE: 0, gcsV: 0, gcsM: 0
     };
-    return applyTreatments(deltas, cfg.treatments || [], elapsedMin, cfg.instantMode);
   }
   function rawTrendAt(cfg, key, tMs) {
     const deltas = rawTrendDeltasAt(cfg, tMs);
@@ -159,13 +106,11 @@
 
   // ---- Main entry point ---------------------------------------------------
   // scenarioConfig = {
-  //   baseline: { HR, RR, SpO2, EtCO2, BPsys, BPdia },
-  //   severity: 'mild'|'moderate'|'severe'|'critical',
-  //   direction: 'deteriorating'|'improving'|'stable',
+  //   baseline: { HR, RR, SpO2, EtCO2, BPsys, BPdia, temp, bgl, ketones, pain, gcsE, gcsV, gcsM },
   //   startTimeMs: <scenario start epoch ms>,
-  //   treatments: [{ drug:'morphine', dose:5, givenAtMin: 3.2 }, ...],
+  //   treatments: [{ action, detail, givenAtMin }, ...] — logged for the record only, doesn't drive vitals here
   //   overrides: { HR: [{targetValue,startMs,endMs}], BPsys: [...], ... },
-  //   instantMode: boolean (skips onset/peak delay, effect applies immediately)
+  //   instantMode: boolean (currently unused now that treatments don't have onset/peak timing here)
   // }
   // ---- Raw (unjittered) vitals — useful for graphing/projection, where the
   // small cosmetic wobble would just add noise to a planning chart.
@@ -237,6 +182,6 @@
     return result;
   }
 
-  global.SimEngine = { DRUG_LIBRARY, ACTION_DURATIONS, getActionDurationSec, getVitals, getVitalsRaw, getSimNow, getStaticVitalAt };
+  global.SimEngine = { ACTION_DURATIONS, getActionDurationSec, getVitals, getVitalsRaw, getSimNow, getStaticVitalAt };
 })(typeof window !== 'undefined' ? window : this);
 
