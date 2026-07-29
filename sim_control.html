@@ -387,6 +387,12 @@ let graphSeriesOn = { ...GRAPH_DEFAULT_ON };
 let graphViewStartMin = 0;
 let graphViewWindowMin = 30;
 let graphUserPanned = false;
+let armedTileKey = null;
+let armedGraphKeys = [];
+let pendingDrag = null; // { graphKey, startMs, targetValue, endMs } — nothing written until confirmed
+let _dragMode = null;   // 'value' | 'duration' | null
+let _dragPointerId = null;
+let _lastLayout = null; // cached from the last renderGraph() call, used to invert screen coords -> (min, value)
 
 function toggleGraphSeries(key, on) {
   graphSeriesOn[key] = on;
@@ -407,6 +413,140 @@ function graphSnapToNow() {
   graphUserPanned = false;
   renderGraph();
 }
+
+// --- Draggable trajectory lines --------------------------------------------
+// Two-stage drag: (1) drag vertically on an armed series' future line to set
+// a pending target value at that point in time, (2) drag the duration handle
+// that appears afterward to stretch/shrink the transition window. Confirm by
+// tapping empty graph background or the checkmark; cancel via the X or by
+// tapping the armed tile again. Nothing is written to Supabase until confirmed.
+
+function handleVtileClick(defKey) {
+  const def = VITAL_DEFS.find(d => d.key === defKey);
+  const graphKeys = def.overrideKeys.filter(k => GRAPH_SERIES.some(s => s.key === k));
+  if (!graphKeys.length) { openOverrideModal(defKey); return; } // e.g. GCS — combined graph line, no clean per-component drag mapping; falls back to the modal
+
+  if (armedTileKey === defKey) {
+    if (pendingDrag) cancelPendingDrag();
+    else { openOverrideModal(defKey); return; }
+    renderGraph();
+    return;
+  }
+  cancelPendingDrag();
+  armedTileKey = defKey;
+  armedGraphKeys = graphKeys;
+  graphKeys.forEach(k => { graphSeriesOn[k] = true; });
+  renderGraph();
+}
+
+function handleGraphBackgroundClick() {
+  if (pendingDrag) { confirmPendingDrag(); return; }
+  if (armedTileKey) { armedTileKey = null; armedGraphKeys = []; renderGraph(); }
+}
+
+function svgCoordFromEvent(evt) {
+  const svg = document.querySelector('#graph-svg-wrap svg');
+  if (!svg) return null;
+  const rect = svg.getBoundingClientRect();
+  if (!rect.width || !rect.height) return null;
+  const vb = svg.viewBox.baseVal;
+  return {
+    x: ((evt.clientX - rect.left) / rect.width) * vb.width + vb.x,
+    y: ((evt.clientY - rect.top) / rect.height) * vb.height + vb.y
+  };
+}
+function minForX(x) {
+  const L = _lastLayout;
+  return L.viewStart + ((x - L.padL) / L.plotW) * (L.viewEnd - L.viewStart);
+}
+function valForY(s, y) {
+  const L = _lastLayout;
+  const frac = 1 - (y - L.padT) / L.plotH;
+  return s.min + frac * (s.max - s.min);
+}
+
+function startValueDrag(evt, graphKey) {
+  if (!liveConfig || !_lastLayout) return;
+  evt.preventDefault();
+  cancelPendingDrag();
+  const coords = svgCoordFromEvent(evt);
+  if (!coords) return;
+  const s = GRAPH_SERIES.find(g => g.key === graphKey);
+  const elapsedMin = (simNow() - liveConfig.startTimeMs) / 60000;
+  const m = Math.max(liveConfig.hasStarted ? elapsedMin : 0, minForX(coords.x));
+  const val = Math.min(s.max, Math.max(s.min, valForY(s, coords.y)));
+  const startMs = liveConfig.startTimeMs + m * 60000;
+  pendingDrag = { graphKey, startMs, targetValue: val, endMs: startMs + 30000 };
+  _dragMode = 'value';
+  _dragPointerId = evt.pointerId;
+  renderGraph();
+}
+
+function startDurationDrag(evt) {
+  if (!pendingDrag) return;
+  evt.preventDefault();
+  _dragMode = 'duration';
+  _dragPointerId = evt.pointerId;
+}
+
+function onDragPointerMove(evt) {
+  if (!_dragMode || !pendingDrag || evt.pointerId !== _dragPointerId || !_lastLayout) return;
+  evt.preventDefault();
+  const coords = svgCoordFromEvent(evt);
+  if (!coords) return;
+  const s = GRAPH_SERIES.find(g => g.key === pendingDrag.graphKey);
+  if (_dragMode === 'value') {
+    const elapsedMin = (simNow() - liveConfig.startTimeMs) / 60000;
+    const m = Math.max(liveConfig.hasStarted ? elapsedMin : 0, minForX(coords.x));
+    const durationMs = pendingDrag.endMs - pendingDrag.startMs;
+    pendingDrag.startMs = liveConfig.startTimeMs + m * 60000;
+    pendingDrag.endMs = pendingDrag.startMs + durationMs;
+    pendingDrag.targetValue = Math.min(s.max, Math.max(s.min, valForY(s, coords.y)));
+  } else if (_dragMode === 'duration') {
+    const startMin = (pendingDrag.startMs - liveConfig.startTimeMs) / 60000;
+    const m = Math.max(startMin + (5 / 60), minForX(coords.x));
+    pendingDrag.endMs = liveConfig.startTimeMs + m * 60000;
+  }
+  renderGraph();
+}
+
+function onDragPointerUp(evt) {
+  if (!_dragMode || evt.pointerId !== _dragPointerId) return;
+  evt.preventDefault();
+  _dragMode = null;
+  _dragPointerId = null;
+}
+
+async function confirmPendingDrag() {
+  if (!pendingDrag || !sessionCode) return;
+  const { graphKey, startMs, targetValue, endMs } = pendingDrag;
+  try {
+    const rows = await sbFetch(`sim_sessions?session_code=eq.${sessionCode}&select=overrides`, { method: 'GET' });
+    const freshOverrides = (rows[0] && rows[0].overrides) || {};
+    if (!freshOverrides[graphKey]) freshOverrides[graphKey] = [];
+    freshOverrides[graphKey].push({ targetValue, startMs, endMs: Math.max(endMs, startMs + 1000) });
+    await sbFetch(`sim_sessions?session_code=eq.${sessionCode}`, {
+      method: 'PATCH', prefer: 'return=minimal',
+      body: JSON.stringify({ overrides: freshOverrides, updated_at: new Date().toISOString() })
+    });
+    liveConfig.overrides = freshOverrides;
+    pendingDrag = null;
+    renderGraph();
+  } catch (e) {
+    alert('Could not apply the drag change — check the connection and try again.');
+  }
+}
+
+function cancelPendingDrag() {
+  pendingDrag = null;
+  _dragMode = null;
+  _dragPointerId = null;
+}
+
+document.addEventListener('pointermove', onDragPointerMove);
+document.addEventListener('pointerup', onDragPointerUp);
+document.addEventListener('pointercancel', onDragPointerUp);
+document.getElementById('graph-svg-wrap').addEventListener('click', handleGraphBackgroundClick);
 
 function niceStep(raw) {
   const steps = [1, 2, 5, 10, 15, 30, 60];
@@ -446,11 +586,14 @@ function renderGraph() {
   const viewStart = graphViewStartMin, viewEnd = graphViewStartMin + graphViewWindowMin;
   const xForMin = (m) => padL + ((m - viewStart) / (viewEnd - viewStart)) * plotW;
   const yFor = (s, val) => padT + (1 - Math.min(1, Math.max(0, (val - s.min) / (s.max - s.min)))) * plotH;
+  _lastLayout = { padL, padT, plotW, plotH, viewStart, viewEnd };
 
   const SAMPLES = 80;
   let paths = '';
+  let hitPaths = '';
   GRAPH_SERIES.forEach(s => {
     if (!graphSeriesOn[s.key]) return;
+    const isArmed = armedGraphKeys.includes(s.key);
     let d = '';
     for (let i = 0; i <= SAMPLES; i++) {
       const m = viewStart + (viewEnd - viewStart) * (i / SAMPLES);
@@ -460,7 +603,27 @@ function renderGraph() {
       const y = yFor(s, val);
       d += (i === 0 ? 'M' : 'L') + x.toFixed(1) + ',' + y.toFixed(1) + ' ';
     }
-    paths += `<path d="${d}" fill="none" stroke="${s.color}" stroke-width="2" />`;
+    paths += `<path d="${d}" fill="none" stroke="${s.color}" stroke-width="${isArmed ? 3.5 : 2}" />`;
+
+    if (isArmed && !pendingDrag) {
+      // Wide invisible hit-stroke over the FUTURE portion only (right of the
+      // playhead) — a 2px visible line is a poor touch target on iPad, so
+      // this is what actually catches the pointerdown that starts a drag.
+      const futureStartMin = liveConfig.hasStarted ? Math.max(viewStart, elapsedMin) : viewStart;
+      let hd = '';
+      for (let i = 0; i <= SAMPLES; i++) {
+        const m = viewStart + (viewEnd - viewStart) * (i / SAMPLES);
+        if (m < futureStartMin) continue;
+        const tMs = liveConfig.startTimeMs + m * 60000;
+        const val = s.get(SimEngine.getVitalsRaw(liveConfig, tMs));
+        const x = xForMin(m);
+        const y = yFor(s, val);
+        hd += (hd === '' ? 'M' : 'L') + x.toFixed(1) + ',' + y.toFixed(1) + ' ';
+      }
+      if (hd) {
+        hitPaths += `<path d="${hd}" fill="none" stroke="transparent" stroke-width="26" style="touch-action:none;cursor:ns-resize;" onpointerdown="startValueDrag(event,'${s.key}')" onclick="event.stopPropagation()" />`;
+      }
+    }
   });
 
   let grid = '';
@@ -481,7 +644,26 @@ function renderGraph() {
     playhead = `<line x1="${x}" y1="${padT}" x2="${x}" y2="${padT + plotH}" stroke="#0369a1" stroke-width="2" stroke-dasharray="4,3" />`;
   }
 
-  wrap.innerHTML = `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" style="width:100%;height:100%;display:block;">${grid}${paths}${playhead}</svg>`;
+  let pendingUI = '';
+  if (pendingDrag) {
+    const s = GRAPH_SERIES.find(g => g.key === pendingDrag.graphKey);
+    const startMin = (pendingDrag.startMs - liveConfig.startTimeMs) / 60000;
+    const endMin = (pendingDrag.endMs - liveConfig.startTimeMs) / 60000;
+    if (startMin >= viewStart && startMin <= viewEnd) {
+      const x1 = xForMin(startMin), y1 = yFor(s, pendingDrag.targetValue);
+      const x2 = xForMin(Math.min(endMin, viewEnd));
+      pendingUI += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y1}" stroke="${s.color}" stroke-width="2" stroke-dasharray="3,3" />`;
+      pendingUI += `<circle cx="${x1}" cy="${y1}" r="6" fill="${s.color}" stroke="#fff" stroke-width="1.5" />`;
+      if (endMin <= viewEnd) {
+        pendingUI += `<circle cx="${x2}" cy="${y1}" r="7" fill="#fff" stroke="${s.color}" stroke-width="2" style="touch-action:none;cursor:ew-resize;" onpointerdown="startDurationDrag(event)" onclick="event.stopPropagation()" />`;
+      }
+      const iconY = Math.max(padT + 10, y1 - 18);
+      pendingUI += `<g onclick="event.stopPropagation();confirmPendingDrag()" style="cursor:pointer;"><circle cx="${x1 - 12}" cy="${iconY}" r="9" fill="#15803d" /><text x="${x1 - 12}" y="${iconY + 4}" font-size="12" fill="#fff" text-anchor="middle" font-weight="900">&#10003;</text></g>`;
+      pendingUI += `<g onclick="event.stopPropagation();cancelPendingDrag();renderGraph()" style="cursor:pointer;"><circle cx="${x1 + 12}" cy="${iconY}" r="9" fill="#b91c1c" /><text x="${x1 + 12}" y="${iconY + 4}" font-size="12" fill="#fff" text-anchor="middle" font-weight="900">&#10005;</text></g>`;
+    }
+  }
+
+  wrap.innerHTML = `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" style="width:100%;height:100%;display:block;touch-action:none;">${grid}${paths}${hitPaths}${playhead}${pendingUI}</svg>`;
 }
 
 const VITAL_DEFS = [
@@ -507,7 +689,8 @@ function tickVitals() {
     else if (def.isGCS) val = Math.round(v.gcsE + v.gcsV + v.gcsM);
     else if (['Temp', 'BGL', 'Ketones'].includes(def.key)) val = v[def.overrideKeys[0]].toFixed(1);
     else val = Math.round(v[def.overrideKeys[0]]);
-    return `<div class="vtile" onclick="openOverrideModal('${def.key}')">
+    const armedStyle = armedTileKey === def.key ? 'border-color:#0369a1;box-shadow:0 0 0 2px #bae0fd inset;' : '';
+    return `<div class="vtile" style="${armedStyle}" onclick="handleVtileClick('${def.key}')">
       <div class="vlabel">${def.label}</div>
       <div class="vval">${val}</div>
       <div class="muted">${def.unit}</div>
