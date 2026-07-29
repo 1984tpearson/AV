@@ -43,7 +43,30 @@
                     effectPerGram: { HR: -1 } } // rough proxy for correcting hypoglycaemia tachycardia
   };
 
-  // ---- Core trajectory math ----------------------------------------------
+  // ---- Action durations (reveal-delay system) ---------------------------
+  // Seconds each assessment action takes before its value/waveform reveals.
+  // ecg12lead is conditional: faster if monitoring leads are already on.
+  const ACTION_DURATIONS = {
+    ecg: 20,
+    ecg12lead: { withMonitoring: 35, fromScratch: 50 },
+    spo2: 12,
+    etco2: 15,
+    bp: 35,
+    temp: 8,
+    gcs: 5,
+    bgl: 15,
+    ketones: 15,
+    pain: 3
+  };
+  function getActionDurationSec(key, context) {
+    const d = ACTION_DURATIONS[key];
+    if (typeof d === 'number') return d;
+    if (key === 'ecg12lead') {
+      return (context && context.ecgApplied) ? d.withMonitoring : d.fromScratch;
+    }
+    return 10; // fallback
+  }
+
   function rampProgress(elapsedMin, rampMinutes) {
     // 0 -> 1 over rampMinutes, then holds at 1 (plateau at target severity)
     if (rampMinutes <= 0) return 1;
@@ -143,5 +166,5 @@
     };
   }
 
-  global.SimEngine = { SEVERITY_PRESETS, DRUG_LIBRARY, getVitals };
+  global.SimEngine = { SEVERITY_PRESETS, DRUG_LIBRARY, ACTION_DURATIONS, getActionDurationSec, getVitals };
 })(typeof window !== 'undefined' ? window : this);

@@ -8,8 +8,10 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 html, body { height: 100%; background: #f7f9fc; color: #1e2a36; font-family: 'Courier New', monospace; }
 body { display: flex; flex-direction: column; min-height: 100vh; }
-#topbar { background: #ffffff; border-bottom: 2px solid #d7dee6; padding: 8px 14px; display: flex; align-items: center; justify-content: space-between; }
+#topbar { background: #ffffff; border-bottom: 2px solid #d7dee6; padding: 8px 14px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 #topbar .title { font-size: 12px; font-weight: 900; letter-spacing: 1px; color: #0369a1; text-transform: uppercase; }
+#topbar-right { display: flex; align-items: center; gap: 14px; }
+#instant-mode-label { font-size: 10px; display: flex; align-items: center; gap: 4px; color: #33475a; cursor: pointer; user-select: none; }
 #scenario-timer { font-size: 13px; font-weight: 700; color: #15803d; }
 #main { flex: 1; display: flex; flex-direction: column; gap: 10px; padding: 10px; }
 @media (min-width: 800px) { #main { flex-direction: row; } }
@@ -26,7 +28,12 @@ body { display: flex; flex-direction: column; min-height: 100vh; }
 #ecg-section { flex: 1; min-width: 0; display: flex; flex-direction: column; background: #060606; overflow: hidden; border-right: 2px solid #0d1f35; }
 .ecg-section-bar { display: flex; align-items: center; justify-content: space-between; padding: 6px 12px; background: #060910; border-bottom: 1px solid #0d1f35; font-size: 10px; letter-spacing: 1.5px; color: #00ff88; text-transform: uppercase; flex-shrink: 0; }
 .ecg-snapshot-btn { background: rgba(0,255,136,0.08); border: 2px solid #00ff88; color: #00ff88; font-family: 'Courier New', monospace; font-size: 11px; font-weight: bold; letter-spacing: 1px; padding: 4px 12px; cursor: pointer; text-transform: uppercase; border-radius: 4px; }
+.ecg-snapshot-btn:disabled { opacity: 0.5; cursor: default; }
+#ecg-display-wrap { position: relative; flex: 1; min-height: 0; overflow: hidden; }
 #ecg-12lead-container { width: 100%; height: 100%; overflow: hidden; }
+#ecg-apply-overlay { position: absolute; inset: 0; display: none; align-items: center; justify-content: center; background: rgba(6,9,16,0.94); text-align: center; padding: 10px; z-index: 5; }
+.ecg-overlay-text { color: #00ff88; font-size: 12px; letter-spacing: 1px; }
+.apply-btn-lg { background: rgba(0,255,136,0.1); border: 2px solid #00ff88; color: #00ff88; font-family: 'Courier New', monospace; font-size: 12px; font-weight: bold; padding: 10px 18px; border-radius: 6px; cursor: pointer; letter-spacing: 1px; }
 
 /* Vitals sidebar — narrow column beside the ECG, each block flex:1 (matches monitor.html #vitals-panel) */
 #monitor-box { width: 150px; flex-shrink: 0; display: flex; flex-direction: column; background: #080c14; overflow: hidden; }
@@ -40,18 +47,24 @@ body { display: flex; flex-direction: column; min-height: 100vh; }
 .v-rr   .vlabel { color: #ffd54f; } .v-rr   .vvalue { color: #ffd54f; }
 .v-etco2 .vlabel { color: #ff8a65; } .v-etco2 .vvalue { color: #ff8a65; }
 #bp-timer { font-size: 7px; color: #4a6a8a; }
+.apply-btn { font-size: 8px; background: none; border: 1px solid currentColor; border-radius: 3px; padding: 2px 5px; cursor: pointer; color: inherit; font-family: inherit; }
+.pending-txt { font-size: 10px; opacity: 0.85; }
 
 #oneoff-strip { display: flex; flex-wrap: wrap; gap: 0; border-top: 2px solid #0d1f35; }
 .oo-card { flex: 1; min-width: 90px; padding: 6px 8px; border-right: 1px solid #1a2a3a; border-bottom: 1px solid #1a2a3a; }
 .oo-label { font-size: 8px; font-weight: 700; color: #4a6a8a; text-transform: uppercase; letter-spacing: 1px; }
 .oo-value { font-size: 15px; font-weight: 700; color: #c0d4e8; }
 .oo-btn { font-size: 9px; color: #4fc3f7; background: none; border: 1px solid #1a3a5a; border-radius: 3px; padding: 1px 5px; cursor: pointer; margin-top: 2px; }
+.oo-pending { font-size: 10px; color: #4fc3f7; margin-top: 2px; }
 </style>
 </head>
 <body>
 <div id="topbar">
   <div class="title">Live Scenario — Student View</div>
-  <div id="scenario-timer">00:00</div>
+  <div id="topbar-right">
+    <label id="instant-mode-label"><input type="checkbox" id="instantModeToggle" onchange="toggleInstantMode()"> Instant Mode</label>
+    <div id="scenario-timer">00:00</div>
+  </div>
 </div>
 <div class="panel" id="patient-info" style="margin:10px 10px 0;">
   <h2>Patient / Scene Info</h2>
@@ -64,10 +77,13 @@ body { display: flex; flex-direction: column; min-height: 100vh; }
     <div id="monitor-main">
       <div id="ecg-section">
         <div class="ecg-section-bar">
-          <span id="ecg-bar-label">LEAD II — RHYTHM STRIP</span>
-          <button class="ecg-snapshot-btn" onclick="toggleLead()" id="leadToggleBtn">Show 12-Lead</button>
+          <span id="ecg-bar-label">ECG NOT APPLIED</span>
+          <button class="ecg-snapshot-btn" onclick="ecgBarBtnClick()" id="leadToggleBtn">Apply 12-Lead ECG</button>
         </div>
-        <div id="ecg-12lead-container"></div>
+        <div id="ecg-display-wrap">
+          <div id="ecg-12lead-container"></div>
+          <div id="ecg-apply-overlay"></div>
+        </div>
       </div>
       <div id="monitor-box"></div>
     </div>
@@ -78,7 +94,6 @@ body { display: flex; flex-direction: column; min-height: 100vh; }
   </div>
 </div>
 
-
 <script src="https://1984tpearson.github.io/AV/ecg_engine.js"></script>
 <script src="https://1984tpearson.github.io/AV/sim_engine.js"></script>
 <script>
@@ -88,21 +103,104 @@ const testConfig = {
   severity: 'moderate',
   direction: 'deteriorating',
   startTimeMs: Date.now(),
-  treatments: [], // e.g. { drug:'morphine', dose:5, givenAtMin: 1 }
+  treatments: [],
   instantMode: false
 };
 
-const oneOffVitals = {
-  Temp:   { value: '36.8', unit: '°C',     taken: true },
-  GCS:    { value: '15/15', unit: '',      taken: true },
-  BGL:    { value: '6.1',  unit: 'mmol/L', taken: true },
-  Ketones:{ value: '—',    unit: 'mmol/L', taken: false },
-  Pain:   { value: '8/10', unit: '',       taken: true }
+let instantMode = false;
+function toggleInstantMode() {
+  instantMode = document.getElementById('instantModeToggle').checked;
+  testConfig.instantMode = instantMode; // also collapses the deterioration ramp
+}
+
+// --- Action delay/reveal system -----------------------------------------
+// Every assessable item starts 'idle' (nothing shown). Clicking Apply/Assess
+// moves it to 'pending' for its configured duration, then 'done' reveals it.
+const actionState = {};
+['ecg','ecg12lead','spo2','etco2','temp','gcs','bgl','ketones','pain'].forEach(k => {
+  actionState[k] = { status: 'idle' };
+});
+
+const oneOffDefs = {
+  temp:    { label: 'Temp',    unit: '\u00b0C',    getValue: () => (36.5 + (Math.random()*0.6-0.3)).toFixed(1) },
+  gcs:     { label: 'GCS',     unit: '',            getValue: () => '15/15' },
+  bgl:     { label: 'BGL',     unit: 'mmol/L',      getValue: () => (6.0 + (Math.random()*0.6-0.3)).toFixed(1) },
+  ketones: { label: 'Ketones', unit: 'mmol/L',      getValue: () => (0.1).toFixed(1) },
+  pain:    { label: 'Pain',    unit: '',             getValue: () => '8/10' }
 };
 
-let bpNextDueMs = Date.now() + 15 * 60000; // default 15 min
+function startAction(key) {
+  const st = actionState[key];
+  if (!st || st.status !== 'idle') return;
+  const context = { ecgApplied: actionState.ecg.status === 'done' };
+  const durSec = SimEngine.getActionDurationSec(key, context);
+  const now = Date.now();
+  const durMs = instantMode ? 0 : durSec * 1000;
+  if (durMs <= 0) {
+    st.status = 'done';
+    onActionComplete(key);
+  } else {
+    st.status = 'pending';
+    st.startedAt = now;
+    st.completesAt = now + durMs;
+  }
+}
+
+function onActionComplete(key) {
+  if (key === 'ecg12lead') {
+    if (actionState.ecg.status !== 'done') actionState.ecg.status = 'done';
+    _show12Lead = true;
+  }
+  if (oneOffDefs[key]) {
+    actionState[key].value = oneOffDefs[key].getValue();
+  }
+}
+
+function reassess(key) {
+  actionState[key].status = 'idle';
+  startAction(key);
+}
+
+function checkActionTimers(now) {
+  Object.keys(actionState).forEach(key => {
+    const st = actionState[key];
+    if (st.status === 'pending' && now >= st.completesAt) {
+      st.status = 'done';
+      onActionComplete(key);
+    }
+  });
+}
+
+function countdownRemain(st) {
+  return Math.max(0, Math.ceil((st.completesAt - Date.now()) / 1000));
+}
+
+// --- BP: repeating action (manual first take, then auto-refires) --------
+let bpState = { status: 'idle' };
+let bpNextDueMs = null;
 let bpIntervalMin = 15;
-let lastBP = { sys: testConfig.baseline.BPsys, dia: testConfig.baseline.BPdia };
+let lastBP = { sys: null, dia: null };
+
+function startBP() {
+  if (bpState.status === 'pending') return;
+  const durSec = SimEngine.getActionDurationSec('bp');
+  const now = Date.now();
+  const durMs = instantMode ? 0 : durSec * 1000;
+  if (durMs <= 0) {
+    completeBP(now);
+  } else {
+    bpState.status = 'pending';
+    bpState.startedAt = now;
+    bpState.completesAt = now + durMs;
+  }
+}
+
+function completeBP(now) {
+  const v = SimEngine.getVitals(testConfig, now);
+  lastBP = { sys: v.BPsys, dia: v.BPdia };
+  bpState.status = 'done';
+  bpNextDueMs = now + bpIntervalMin * 60000;
+}
 
 // --- ECG: dynamic rhythm derived from current HR (no name ever shown) ---
 let _ecgInst = null;
@@ -121,12 +219,11 @@ function deriveRhythmFromHR(hr) {
 function ensureECG(hr) {
   const rhythmStr = deriveRhythmFromHR(hr);
   const mapped = ECGEngine.mapRhythm(rhythmStr, hr);
-  if (mapped.key === _currentRhythmKey && _ecgInst) return; // no change needed
+  if (mapped.key === _currentRhythmKey && _ecgInst) return;
   _currentRhythmKey = mapped.key;
   const container = document.getElementById('ecg-12lead-container');
-  const bar = document.querySelector('.ecg-section-bar');
-  const section = document.getElementById('ecg-section');
-  const availH = section.clientHeight - (bar ? bar.offsetHeight : 30);
+  const wrap = document.getElementById('ecg-display-wrap');
+  const availH = wrap.clientHeight;
   if (_ecgInst) _ecgInst.destroy();
   _ecgInst = new ECGEngine(container, { mode: '12lead', theme: 'monitor', height: availH });
   _ecgInst.setRhythm(mapped.key, mapped.bpm, mapped.bbbMode);
@@ -138,13 +235,59 @@ function setLeadDisplay() {
   const container = document.getElementById('ecg-12lead-container');
   const grid = container.querySelector('#_ecg_leadsGrid');
   if (grid) grid.style.display = _show12Lead ? 'grid' : 'none';
-  document.getElementById('ecg-bar-label').textContent = _show12Lead ? '12-LEAD ECG' : 'LEAD II — RHYTHM STRIP';
-  document.getElementById('leadToggleBtn').textContent = _show12Lead ? 'Show Lead II' : 'Show 12-Lead';
 }
 
 function toggleLead() {
   _show12Lead = !_show12Lead;
   setLeadDisplay();
+  updateEcgBar();
+}
+
+function ecgBarBtnClick() {
+  const ecg12St = actionState.ecg12lead;
+  if (ecg12St.status === 'done') { toggleLead(); return; }
+  if (ecg12St.status === 'idle') { startAction('ecg12lead'); }
+}
+
+function updateEcgBar() {
+  const btn = document.getElementById('leadToggleBtn');
+  const label = document.getElementById('ecg-bar-label');
+  const ecg12St = actionState.ecg12lead;
+  const ecgDone = actionState.ecg.status === 'done';
+  if (ecg12St.status === 'done') {
+    btn.textContent = _show12Lead ? 'Show Lead II' : 'Show 12-Lead';
+    btn.disabled = false;
+    label.textContent = _show12Lead ? '12-LEAD ECG' : 'LEAD II \u2014 RHYTHM STRIP';
+  } else if (ecg12St.status === 'pending') {
+    btn.textContent = `Applying\u2026 ${countdownRemain(ecg12St)}s`;
+    btn.disabled = true;
+    label.textContent = ecgDone ? 'LEAD II \u2014 RHYTHM STRIP' : 'ECG NOT APPLIED';
+  } else {
+    btn.textContent = 'Apply 12-Lead ECG';
+    btn.disabled = false;
+    label.textContent = ecgDone ? 'LEAD II \u2014 RHYTHM STRIP' : 'ECG NOT APPLIED';
+  }
+}
+
+function updateEcgMain(hr) {
+  const overlay = document.getElementById('ecg-apply-overlay');
+  const ecgSt = actionState.ecg;
+  const ecg12St = actionState.ecg12lead;
+
+  if (ecg12St.status === 'pending') {
+    overlay.style.display = 'flex';
+    overlay.innerHTML = `<div class="ecg-overlay-text">Applying 12-Lead ECG\u2026 ${countdownRemain(ecg12St)}s</div>`;
+  } else if (ecgSt.status === 'pending') {
+    overlay.style.display = 'flex';
+    overlay.innerHTML = `<div class="ecg-overlay-text">Applying ECG (Monitoring Leads)\u2026 ${countdownRemain(ecgSt)}s</div>`;
+  } else if (ecgSt.status === 'idle') {
+    overlay.style.display = 'flex';
+    overlay.innerHTML = `<button class="apply-btn-lg" onclick="startAction('ecg')">Apply ECG (Monitoring Leads)</button>`;
+  } else {
+    overlay.style.display = 'none';
+    ensureECG(hr);
+  }
+  updateEcgBar();
 }
 
 function fmtTimer(ms) {
@@ -154,75 +297,74 @@ function fmtTimer(ms) {
   return `${mm}:${ss}`;
 }
 
-function renderMonitor(v) {
+function cellFor(actionKey) {
+  const st = actionState[actionKey];
+  if (st.status === 'idle') return `<button class="apply-btn" onclick="startAction('${actionKey}')">Apply</button>`;
+  return `<span class="pending-txt">${countdownRemain(st)}s</span>`;
+}
+
+function renderBPCell(now) {
+  if (bpState.status === 'idle') return `<button class="apply-btn" onclick="startBP()">Take BP</button>`;
+  if (bpState.status === 'pending') return `<span class="pending-txt">Inflating\u2026 ${countdownRemain(bpState)}s</span>`;
+  const remainMs = Math.max(0, bpNextDueMs - now);
+  return `${lastBP.sys}/${lastBP.dia}<span class="vunit">mmHg</span><div id="bp-timer">next auto BP in ${fmtTimer(remainMs)}</div>`;
+}
+
+function renderMonitor(v, now) {
   const box = document.getElementById('monitor-box');
-  const rows = [
-    { key:'HR',    cls:'v-hr',    label:'HR',    unit:'bpm',  val:v.HR },
-    { key:'BP',    cls:'v-bp',    label:'NIBP',  unit:'mmHg', val:`${lastBP.sys}/${lastBP.dia}`, bp:true },
-    { key:'SpO2',  cls:'v-spo2',  label:'SpO\u2082', unit:'%', val:v.SpO2 },
-    { key:'RR',    cls:'v-rr',    label:'Resp',  unit:'/min', val:v.RR },
-    { key:'EtCO2', cls:'v-etco2', label:'EtCO\u2082',unit:'mmHg',val:v.EtCO2 }
-  ];
-  box.innerHTML = rows.map(r => `
-    <div class="vblock ${r.cls}">
-      <div class="vlabel">${r.label}</div>
-      <div class="vvalue">${r.val}<span class="vunit">${r.unit}</span></div>
-      ${r.bp ? `<div id="bp-timer"></div>` : ''}
-    </div>`).join('');
+  const ecgDone = actionState.ecg.status === 'done';
+  const hrCell = ecgDone ? `${v.HR}<span class="vunit">bpm</span>` : cellFor('ecg');
+  const rrCell = ecgDone ? `${v.RR}<span class="vunit">/min</span>` : cellFor('ecg');
+  const spo2Cell = actionState.spo2.status === 'done' ? `${v.SpO2}<span class="vunit">%</span>` : cellFor('spo2');
+  const etco2Cell = actionState.etco2.status === 'done' ? `${v.EtCO2}<span class="vunit">mmHg</span>` : cellFor('etco2');
+  const bpCell = renderBPCell(now);
+
+  box.innerHTML = `
+    <div class="vblock v-hr"><div class="vlabel">HR</div><div class="vvalue">${hrCell}</div></div>
+    <div class="vblock v-bp"><div class="vlabel">NIBP</div><div class="vvalue">${bpCell}</div></div>
+    <div class="vblock v-spo2"><div class="vlabel">SpO\u2082</div><div class="vvalue">${spo2Cell}</div></div>
+    <div class="vblock v-rr"><div class="vlabel">Resp</div><div class="vvalue">${rrCell}</div></div>
+    <div class="vblock v-etco2"><div class="vlabel">EtCO\u2082</div><div class="vvalue">${etco2Cell}</div></div>
+  `;
 }
 
 function renderOneOff() {
   const strip = document.getElementById('oneoff-strip');
-  strip.innerHTML = Object.entries(oneOffVitals).map(([key, o]) => `
-    <div class="oo-card">
-      <div class="oo-label">${key}</div>
-      <div class="oo-value">${o.taken ? o.value : '\u2014'}${o.taken && o.unit ? `<span style="font-size:9px"> ${o.unit}</span>` : ''}</div>
-      <button class="oo-btn" onclick="reassess('${key}')">Reassess</button>
-    </div>`).join('');
-}
-
-function reassess(key) {
-  // Placeholder: in the real build this reads/derives a value from current trend.
-  // For this proof, just mark as taken with a dummy jittered value.
-  oneOffVitals[key].taken = true;
-  renderOneOff();
+  strip.innerHTML = Object.entries(oneOffDefs).map(([key, def]) => {
+    const st = actionState[key];
+    let body;
+    if (st.status === 'idle') {
+      body = `<button class="oo-btn" onclick="startAction('${key}')">Assess</button>`;
+    } else if (st.status === 'pending') {
+      body = `<div class="oo-pending">${countdownRemain(st)}s\u2026</div>`;
+    } else {
+      body = `<div class="oo-value">${st.value}${def.unit ? `<span style="font-size:9px"> ${def.unit}</span>` : ''}</div><button class="oo-btn" onclick="reassess('${key}')">Reassess</button>`;
+    }
+    return `<div class="oo-card"><div class="oo-label">${def.label}</div>${body}</div>`;
+  }).join('');
 }
 
 function tick() {
   const now = Date.now();
+  checkActionTimers(now);
+  if (bpState.status === 'pending' && now >= bpState.completesAt) completeBP(now);
+  if (bpState.status === 'done' && bpNextDueMs && now >= bpNextDueMs) startBP();
+
   const v = SimEngine.getVitals(testConfig, now);
-  renderMonitor(v);
-  ensureECG(v.HR);
+  renderMonitor(v, now);
+  updateEcgMain(v.HR);
+  renderOneOff();
   _lastHR = v.HR;
   document.getElementById('scenario-timer').textContent = fmtTimer(now - testConfig.startTimeMs);
-
-  // BP auto-refire on its own timer, independent of the 1s continuous refresh
-  const bpTimerEl = document.getElementById('bp-timer');
-  if (now >= bpNextDueMs) {
-    lastBP = { sys: v.BPsys, dia: v.BPdia };
-    bpNextDueMs = now + bpIntervalMin * 60000;
-  }
-  if (bpTimerEl) {
-    const remainMs = bpNextDueMs - now;
-    bpTimerEl.textContent = `next auto BP in ${fmtTimer(remainMs)}`;
-  }
 }
 
-function takeManualBP() {
-  const v = SimEngine.getVitals(testConfig, Date.now());
-  lastBP = { sys: v.BPsys, dia: v.BPdia };
-  bpNextDueMs = Date.now() + bpIntervalMin * 60000;
-}
-
-renderOneOff();
 tick();
 setInterval(tick, 1000);
 
 window.addEventListener('resize', () => {
-  _currentRhythmKey = null; // force ECG rebuild at new container size
-  ensureECG(_lastHR);
+  _currentRhythmKey = null;
+  if (actionState.ecg.status === 'done') ensureECG(_lastHR);
 });
 </script>
 </body>
 </html>
-
