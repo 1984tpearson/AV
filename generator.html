@@ -1151,7 +1151,7 @@ async function classifyCPGFromText(freeText) {
   }
 }
 
-const SCENARIO_JSON_TEMPLATE = `{"title":"","subtitle":"","category":"CAT","subcategory":"SUB","type":"","cpg":"","additional_cpgs":[],"level":"C/D","dispatch":"","vitals":{"GCS":{"E":0,"V":0,"M":0,"total":0,"description":""},"SpO2":"","RR":"","HR":"","BP":"","Temp":"","BGL":"","Rhythm":"","Weight":"","Ketones":"","EtCO2":""},"caller_hx":"","arrival_hx":"","hx":{"timeline":"","nature":"","prodromal":"","aggreliev":"","assoc":"","similar":""},"medical_conditions":["","",""],"medications":["","",""],"allergies":"","flags":{"red":[],"yellow":[]},"ddx":["","","",""],"provisional":"","ra":{"wob":"","skin":""},"ps_exposure":"","social":"","rsa":{"appearance":"","speech":"","breath_sounds":"","rhythm":"","wob":""},"secondary_survey":{},"life_threats":["",""],"kq":[{"q":"","max":2,"answer":"","cpgCode":""},{"q":"","max":2,"answer":"","cpgCode":""},{"q":"","max":1,"answer":"","cpgCode":""}]}`;
+const SCENARIO_JSON_TEMPLATE = `{"title":"","subtitle":"","category":"CAT","subcategory":"SUB","type":"","cpg":"","additional_cpgs":[],"level":"C/D","dispatch":"","vitals":{"GCS":{"E":0,"V":0,"M":0,"total":0,"description":""},"SpO2":"","RR":"","HR":"","BP":"","Temp":"","BGL":"","Rhythm":"","Weight":"","Ketones":"","EtCO2":"","PainScore":0},"caller_hx":"","arrival_hx":"","hx":{"timeline":"","nature":"","prodromal":"","aggreliev":"","assoc":"","similar":""},"medical_conditions":["","",""],"medications":["","",""],"allergies":"","flags":{"red":[],"yellow":[]},"ddx":["","","",""],"provisional":"","ra":{"wob":"","skin":""},"ps_exposure":"","social":"","rsa":{"appearance":"","speech":"","breath_sounds":"","rhythm":"","wob":""},"secondary_survey":{},"life_threats":["",""],"kq":[{"q":"","max":2,"answer":"","cpgCode":""},{"q":"","max":2,"answer":"","cpgCode":""},{"q":"","max":1,"answer":"","cpgCode":""}]}`;
 // Note: medical_conditions = short list e.g. ["Asthma (previous ICU admission)", "Type 2 Diabetes", "Hypertension"]
 // medications = short list e.g. ["Metoprolol 50mg daily", "Aspirin 100mg", "Candesartan 8mg"]
 // key_hx = legacy field kept for backwards compat with built-in scenarios; new scenarios use caller_hx + arrival_hx
@@ -1325,6 +1325,7 @@ Do NOT generate adult-range vitals for paediatric patients (e.g. RR 18 is NOT el
 For CROUP scenarios specifically: always generate a child aged 6 months to 5 years (most common age group per CPG P0601). Present with barking cough, inspiratory stridor, hoarse voice, and increased work of breathing. Symptoms worse at night. Classify as mild, moderate, or severe and ensure vitals, behaviour, and RSA findings are consistent with that severity. Provisional diagnosis must be "Croup". CPG field must be "P0601". Do NOT generate epiglottitis or foreign body obstruction as a croup scenario — these are differentials to be considered, not the diagnosis.
 For vitals.Ketones: always provide a realistic blood ketone value in mmol/L (e.g. "0.2 mmol/L"). Use elevated values (>1.5 mmol/L) for DKA, hyperglycaemia, or diabetic emergencies. Use normal/low values (0.1–0.5 mmol/L) for all other presentations. Never leave blank.
 For vitals.EtCO2: always provide a realistic end-tidal CO₂ value in mmHg (e.g. "38 mmHg"). Use low values for hyperventilation or poor perfusion states; high values for hypoventilation, opioid OD, or severe respiratory failure; normal range (35–45 mmHg) for most presentations. Never leave blank.
+For vitals.PainScore: an integer 0–10 (numeric pain score, not a string). Use 0 if pain is not a relevant feature of this presentation (e.g. unresponsive patient, primarily respiratory/medical complaint with no pain component). If pain is clinically relevant (e.g. chest pain, fractures, burns, abdominal pain, in-labour contractions), give a realistic score consistent with the presentation and severity.
 For the "ra" field (Rapid Assessment — what is seen at a glance on approach):
 - ra.wob: brief visual impression of breathing effort — one of: "Adequate" | "Increased effort" | "Decreased effort" | "Agonal" | "Not breathing" | "Laboured" | "Shallow"
 - ra.skin: brief visual impression of skin on approach — concise phrase describing colour, moisture, and temperature (e.g. "Warm, pink, dry" | "Pale, diaphoretic" | "Cyanosed, mottled" | "Flushed, warm" | "Cold, pale, mottled" | "Jaundiced" | "Urticarial rash"). Match to patient's clinical state and ethnicity where relevant.
@@ -1396,6 +1397,9 @@ ${SCENARIO_JSON_TEMPLATE.replace('CAT', category).replace('SUB', subcategory)}`;
         const n = parseFloat(String(rawGCS)) || 15;
         scenario.vitals.GCS = { E: 0, V: 0, M: 0, total: n, description: '' };
       }
+      // Validate and normalise PainScore — must be an integer 0–10, default 0
+      const rawPain = parseInt(scenario.vitals.PainScore);
+      scenario.vitals.PainScore = Number.isFinite(rawPain) ? Math.max(0, Math.min(10, rawPain)) : 0;
     }
     // Validate and normalise flags object (red/yellow per CPG A0108)
     if (Array.isArray(scenario.flags)) {
@@ -2415,6 +2419,7 @@ async function saveManualScenario() {
       Weight: document.getElementById('m-weight').value.trim() || '—',
       Ketones: document.getElementById('m-ketones').value.trim() || '—',
       EtCO2: document.getElementById('m-etco2').value.trim() || '—',
+      PainScore: 0,
     },
     ra: {
       wob: document.getElementById('m-ra-wob').value,

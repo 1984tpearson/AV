@@ -234,6 +234,10 @@ function parseScenarioVitals(scenario) {
     temp: num(v.Temp) ?? 36.8,
     bgl: num(v.BGL) ?? 5.5,
     ketones: num(v.Ketones) ?? 0.1,
+    // Newer scenarios carry a real PainScore (0-10, from generator.html) —
+    // older ones predate that field, so leave it null and let the AI
+    // estimate a starting value from the presentation instead (see below).
+    pain: typeof v.PainScore === 'number' ? v.PainScore : null,
     gcsE: typeof gcs.E === 'number' ? gcs.E : 4,
     gcsV: typeof gcs.V === 'number' ? gcs.V : 5,
     gcsM: typeof gcs.M === 'number' ? gcs.M : 6
@@ -242,10 +246,11 @@ function parseScenarioVitals(scenario) {
 
 // --- AI timeline generation -------------------------------------------------
 // Projects vitals forward from arrival (minute 0) assuming NO treatment is
-// given, grounded in the scenario's own provisional dx/history/flags. Only
-// "pain" is asked of the AI as a starting value, since it's the one vital the
-// verbal-scenario schema doesn't capture — everything else at T0 comes
-// straight from parseScenarioVitals(), not from the AI.
+// given, grounded in the scenario's own provisional dx/history/flags. All
+// starting vitals — including pain, for scenarios generated after PainScore
+// was added — come straight from parseScenarioVitals(), never from the AI.
+// The AI's startingPain guess is only used as a fallback for older scenarios
+// that predate that field.
 async function generateSimTimeline(scenario) {
   const startingVitals = parseScenarioVitals(scenario);
   const apiKey = await getAnthropicKey();
@@ -292,7 +297,9 @@ Project the deterioration/progression from these starting vitals assuming no tre
     throw new Error('AI returned an unparseable timeline.');
   }
 
-  startingVitals.pain = typeof parsed.startingPain === 'number' ? Math.min(10, Math.max(0, parsed.startingPain)) : 0;
+  if (startingVitals.pain === null) {
+    startingVitals.pain = typeof parsed.startingPain === 'number' ? Math.min(10, Math.max(0, parsed.startingPain)) : 0;
+  }
 
   // Store as OFFSETS from arrival (T0=0), not absolute times — the real
   // start_time_ms only exists once an actual session is created from this.
