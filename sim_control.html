@@ -605,6 +605,24 @@ document.addEventListener('pointerup', onDragPointerUp);
 document.addEventListener('pointercancel', onDragPointerUp);
 document.getElementById('graph-svg-wrap').addEventListener('click', handleGraphBackgroundClick);
 
+// Catmull-Rom -> cubic Bezier through a sampled point array — smooths every
+// line on the graph (real curve, hit-path, ghost preview) using the same
+// sample data, just interpolated instead of drawn as straight segments.
+function pointsToSmoothPath(pts) {
+  if (pts.length < 3) return pts.map((p, i) => (i === 0 ? 'M' : 'L') + p[0].toFixed(1) + ',' + p[1].toFixed(1)).join(' ');
+  let d = `M${pts[0][0].toFixed(1)},${pts[0][1].toFixed(1)} `;
+  for (let i = 0; i < pts.length - 1; i++) {
+    const p0 = pts[i === 0 ? i : i - 1];
+    const p1 = pts[i];
+    const p2 = pts[i + 1];
+    const p3 = pts[i + 2 < pts.length ? i + 2 : i + 1];
+    const c1x = p1[0] + (p2[0] - p0[0]) / 6, c1y = p1[1] + (p2[1] - p0[1]) / 6;
+    const c2x = p2[0] - (p3[0] - p1[0]) / 6, c2y = p2[1] - (p3[1] - p1[1]) / 6;
+    d += `C${c1x.toFixed(1)},${c1y.toFixed(1)} ${c2x.toFixed(1)},${c2y.toFixed(1)} ${p2[0].toFixed(1)},${p2[1].toFixed(1)} `;
+  }
+  return d;
+}
+
 function niceStep(raw) {
   const steps = [1, 2, 5, 10, 15, 30, 60];
   return steps.find(s => s >= raw) || 60;
@@ -628,7 +646,7 @@ function renderGraph() {
   if (!liveConfig) return;
   renderGraphLegend();
   const wrap = document.getElementById('graph-svg-wrap');
-  const W = 800, H = 240, padL = 6, padR = 6, padT = 10, padB = 24;
+  const W = 800, H = 240, padL = 6, padR = 34, padT = 10, padB = 24;
   const plotW = W - padL - padR, plotH = H - padT - padB;
   const elapsedMin = (simNow() - liveConfig.startTimeMs) / 60000;
 
@@ -649,38 +667,43 @@ function renderGraph() {
   let paths = '';
   let hitPaths = '';
   let overrideMarkers = '';
+  let edgeReadouts = '';
   GRAPH_SERIES.forEach(s => {
     if (!graphSeriesOn[s.key]) return;
     const isArmed = armedGraphKeys.includes(s.key);
-    let d = '';
+    const pts = [];
     for (let i = 0; i <= SAMPLES; i++) {
       const m = viewStart + (viewEnd - viewStart) * (i / SAMPLES);
       const tMs = liveConfig.startTimeMs + m * 60000;
       const val = s.get(SimEngine.getVitalsRaw(liveConfig, tMs));
-      const x = xForMin(m);
-      const y = yFor(s, val);
-      d += (i === 0 ? 'M' : 'L') + x.toFixed(1) + ',' + y.toFixed(1) + ' ';
+      pts.push([xForMin(m), yFor(s, val)]);
     }
     const fadeOthers = armedGraphKeys.length > 0 && !isArmed;
-    paths += `<path d="${d}" fill="none" stroke="${s.color}" stroke-width="${isArmed ? 3.5 : 2}" opacity="${fadeOthers ? 0.12 : 1}" />`;
+    const opacity = fadeOthers ? 0.12 : 1;
+    const d = pointsToSmoothPath(pts);
+    const baseline = padT + plotH;
+    const areaD = `${d} L${pts[pts.length - 1][0].toFixed(1)},${baseline} L${pts[0][0].toFixed(1)},${baseline} Z`;
+    paths += `<defs><linearGradient id="grad-${s.key}" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="${s.color}" stop-opacity="0.22" /><stop offset="100%" stop-color="${s.color}" stop-opacity="0" /></linearGradient></defs>`;
+    paths += `<path d="${areaD}" fill="url(#grad-${s.key})" stroke="none" opacity="${opacity}" />`;
+    paths += `<path d="${d}" fill="none" stroke="${s.color}" stroke-width="${isArmed ? 3.5 : 2}" opacity="${opacity}" stroke-linecap="round" />`;
+
+    // Right-edge value readout — the value at the visible window's edge,
+    // pinned like a monitor's live digit readout.
+    const decimalReadoutKeys = ['temp', 'bgl', 'ketones'];
+    const edgeTMs = liveConfig.startTimeMs + viewEnd * 60000;
+    const edgeRaw = s.get(SimEngine.getVitalsRaw(liveConfig, edgeTMs));
+    const edgeStr = decimalReadoutKeys.includes(s.key) ? edgeRaw.toFixed(1) : Math.round(edgeRaw).toString();
+    const edgeY = Math.min(Math.max(padT + 8, pts[pts.length - 1][1]), padT + plotH - 8);
+    edgeReadouts += `<text x="${W - padR + 4}" y="${edgeY + 3}" font-size="10" fill="${s.color}" font-weight="700" opacity="${opacity}">${edgeStr}</text>`;
 
     if (isArmed && !pendingDrag) {
       // Wide invisible hit-stroke over the FUTURE portion only (right of the
       // playhead) — a 2px visible line is a poor touch target on iPad, so
       // this is what actually catches the pointerdown that starts a drag.
       const futureStartMin = liveConfig.hasStarted ? Math.max(viewStart, elapsedMin) : viewStart;
-      let hd = '';
-      for (let i = 0; i <= SAMPLES; i++) {
-        const m = viewStart + (viewEnd - viewStart) * (i / SAMPLES);
-        if (m < futureStartMin) continue;
-        const tMs = liveConfig.startTimeMs + m * 60000;
-        const val = s.get(SimEngine.getVitalsRaw(liveConfig, tMs));
-        const x = xForMin(m);
-        const y = yFor(s, val);
-        hd += (hd === '' ? 'M' : 'L') + x.toFixed(1) + ',' + y.toFixed(1) + ' ';
-      }
-      if (hd) {
-        hitPaths += `<path d="${hd}" fill="none" stroke="transparent" stroke-width="26" style="touch-action:none;cursor:ns-resize;" onpointerdown="startValueDrag(event,'${s.key}')" onclick="event.stopPropagation()" />`;
+      const hpts = pts.filter((p, i) => (viewStart + (viewEnd - viewStart) * (i / SAMPLES)) >= futureStartMin);
+      if (hpts.length) {
+        hitPaths += `<path d="${pointsToSmoothPath(hpts)}" fill="none" stroke="transparent" stroke-width="26" style="touch-action:none;cursor:ns-resize;" onpointerdown="startValueDrag(event,'${s.key}')" onclick="event.stopPropagation()" />`;
       }
 
       // Existing (confirmed) overrides on this series get a tappable marker
@@ -714,6 +737,15 @@ function renderGraph() {
 
   let grid = '';
   const gridStepMin = niceStep(graphViewWindowMin / 6);
+  const minorStepMin = gridStepMin / 5;
+  if (minorStepMin >= 0.5 && minorStepMin < gridStepMin) {
+    for (let m = Math.ceil(viewStart / minorStepMin) * minorStepMin; m <= viewEnd; m += minorStepMin) {
+      const nearestMajor = Math.round(m / gridStepMin) * gridStepMin;
+      if (Math.abs(m - nearestMajor) < 1e-6) continue; // skip where it'd coincide with a major line
+      const x = xForMin(m);
+      grid += `<line x1="${x}" y1="${padT}" x2="${x}" y2="${padT + plotH}" stroke="#eef2f6" stroke-width="1" />`;
+    }
+  }
   for (let m = Math.ceil(viewStart / gridStepMin) * gridStepMin; m <= viewEnd; m += gridStepMin) {
     const x = xForMin(m);
     grid += `<line x1="${x}" y1="${padT}" x2="${x}" y2="${padT + plotH}" stroke="#e2e8f0" stroke-width="1" />`;
@@ -728,6 +760,16 @@ function renderGraph() {
   if (liveConfig.hasStarted && elapsedMin >= viewStart && elapsedMin <= viewEnd) {
     const x = xForMin(elapsedMin);
     playhead = `<line x1="${x}" y1="${padT}" x2="${x}" y2="${padT + plotH}" stroke="#0369a1" stroke-width="2" stroke-dasharray="4,3" />`;
+    // A coloured dot per visible series marking exactly where its line
+    // crosses "now" — colour matches the line, so it only shows for
+    // whichever vitals are currently toggled on.
+    GRAPH_SERIES.forEach(s => {
+      if (!graphSeriesOn[s.key]) return;
+      const tMs = liveConfig.startTimeMs + elapsedMin * 60000;
+      const val = s.get(SimEngine.getVitalsRaw(liveConfig, tMs));
+      const y = yFor(s, val);
+      playhead += `<circle cx="${x}" cy="${y}" r="4.5" fill="${s.color}" stroke="#fff" stroke-width="1.5" />`;
+    });
   }
 
   let pendingUI = '';
@@ -752,16 +794,14 @@ function renderGraph() {
       const previewConfig = Object.assign({}, liveConfig, { overrides: previewOverrides });
       const ghostFromMin = Math.max(viewStart, startMin);
       if (ghostFromMin < viewEnd) {
-        let gd = '';
+        const gpts = [];
         for (let i = 0; i <= SAMPLES; i++) {
           const m = ghostFromMin + (viewEnd - ghostFromMin) * (i / SAMPLES);
           const tMs = liveConfig.startTimeMs + m * 60000;
           const val = s.get(SimEngine.getVitalsRaw(previewConfig, tMs));
-          const x = xForMin(m);
-          const y = yFor(s, val);
-          gd += (i === 0 ? 'M' : 'L') + x.toFixed(1) + ',' + y.toFixed(1) + ' ';
+          gpts.push([xForMin(m), yFor(s, val)]);
         }
-        out += `<path d="${gd}" fill="none" stroke="${s.color}" stroke-width="${isPrimary ? 2.5 : 2}" stroke-dasharray="6,4" opacity="${isPrimary ? 0.9 : 0.55}" />`;
+        out += `<path d="${pointsToSmoothPath(gpts)}" fill="none" stroke="${s.color}" stroke-width="${isPrimary ? 2.5 : 2}" stroke-dasharray="6,4" opacity="${isPrimary ? 0.9 : 0.55}" />`;
       }
 
       const yAnchor = yFor(s, targetValue);
@@ -802,7 +842,7 @@ function renderGraph() {
     }
   }
 
-  wrap.innerHTML = `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" style="width:100%;height:100%;display:block;touch-action:none;">${grid}${paths}${hitPaths}${overrideMarkers}${playhead}${pendingUI}</svg>`;
+  wrap.innerHTML = `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" style="width:100%;height:100%;display:block;touch-action:none;">${grid}${paths}${hitPaths}${overrideMarkers}${playhead}${pendingUI}${edgeReadouts}</svg>`;
 }
 
 const VITAL_DEFS = [
