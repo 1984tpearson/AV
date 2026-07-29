@@ -211,6 +211,21 @@
     };
   }
 
-  global.SimEngine = { SEVERITY_PRESETS, DRUG_LIBRARY, ACTION_DURATIONS, getActionDurationSec, getVitals };
+  // ---- Pause-aware clock --------------------------------------------------
+  // Every timestamp fed into getVitals/overrides/treatments should be this
+  // "sim time", not raw Date.now(), so the whole trajectory (and any
+  // in-progress override transition) genuinely freezes while paused rather
+  // than just hiding the fact that time kept moving underneath.
+  // cfg needs: isPaused, pausedAtMs (when the current pause began), totalPausedMs
+  // (sum of all completed pauses, not including one currently in progress).
+  function getSimNow(cfg, rawNowMs) {
+    const totalPaused = cfg.totalPausedMs || 0;
+    const pausedNow = cfg.isPaused
+      ? Math.max(0, rawNowMs - (cfg.pausedAtMs != null ? cfg.pausedAtMs : rawNowMs))
+      : 0;
+    return rawNowMs - totalPaused - pausedNow;
+  }
+
+  global.SimEngine = { SEVERITY_PRESETS, DRUG_LIBRARY, ACTION_DURATIONS, getActionDurationSec, getVitals, getSimNow };
 })(typeof window !== 'undefined' ? window : this);
 

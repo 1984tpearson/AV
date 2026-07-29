@@ -69,6 +69,7 @@ body { display: flex; flex-direction: column; }
 <div id="topbar">
   <div class="title">Live Scenario — Patient View</div>
   <div id="topbar-right">
+    <span id="pause-indicator" style="font-size:11px;font-weight:700;color:#b45309;display:none;">&#9208; PAUSED</span>
     <span id="instant-mode-indicator" style="font-size:10px;color:#33475a;display:none;">Instant Mode: ON</span>
     <div id="scenario-timer">00:00</div>
   </div>
@@ -77,7 +78,7 @@ body { display: flex; flex-direction: column; }
   <div class="panel" style="width:280px;text-align:center;">
     <h2 style="margin-bottom:10px;">Join Scenario Session</h2>
     <input id="gate-code-input" type="text" inputmode="numeric" maxlength="6" placeholder="6-digit code" style="width:100%;font-size:18px;text-align:center;letter-spacing:4px;padding:8px;border:1px solid #d7dee6;border-radius:6px;font-family:'Courier New',monospace;margin-bottom:8px;">
-    <button class="oo-btn" style="width:100%;padding:6px;font-size:12px;" onclick="connectSession(document.getElementById('gate-code-input').value.trim())">Connect</button>
+    <button style="width:100%;padding:8px;font-size:13px;font-weight:700;color:#fff;background:#0369a1;border:none;border-radius:6px;cursor:pointer;" onclick="connectSession(document.getElementById('gate-code-input').value.trim())">Connect</button>
     <div id="gate-error" style="color:#b91c1c;font-size:11px;margin-top:8px;"></div>
   </div>
 </div>
@@ -127,6 +128,7 @@ async function sbGet(path) {
 
 let testConfig = null; // populated once a session is joined — see connectSession()
 let instantMode = false; // synced from the session row; assessor-controlled, not editable here
+const DEFAULT_STATIC = { temp: 36.8, gcs: '15/15', bgl: 6.1, ketones: 0.1, pain: '8/10' };
 
 // --- Session join flow -----------------------------------------------------
 async function connectSession(code) {
@@ -143,7 +145,12 @@ async function connectSession(code) {
       startTimeMs: row.start_time_ms,
       treatments: row.treatments || [],
       overrides: row.overrides || {},
-      instantMode: row.instant_mode
+      staticVitals: row.static_vitals || DEFAULT_STATIC,
+      instantMode: row.instant_mode,
+      hasStarted: row.has_started,
+      isPaused: row.is_paused,
+      pausedAtMs: row.paused_at_ms,
+      totalPausedMs: row.total_paused_ms
     };
     instantMode = row.instant_mode;
     sessionCode = code;
@@ -160,14 +167,19 @@ let sessionCode = null;
 async function pollSession() {
   if (!sessionCode || !testConfig) return;
   try {
-    const rows = await sbGet(`sim_sessions?session_code=eq.${encodeURIComponent(sessionCode)}&select=severity,direction,treatments,overrides,instant_mode`);
+    const rows = await sbGet(`sim_sessions?session_code=eq.${encodeURIComponent(sessionCode)}&select=severity,direction,treatments,overrides,static_vitals,instant_mode,has_started,is_paused,paused_at_ms,total_paused_ms`);
     if (!rows.length) return;
     const row = rows[0];
     testConfig.severity = row.severity;
     testConfig.direction = row.direction;
     testConfig.treatments = row.treatments || [];
     testConfig.overrides = row.overrides || {};
+    testConfig.staticVitals = row.static_vitals || DEFAULT_STATIC;
     testConfig.instantMode = row.instant_mode;
+    testConfig.hasStarted = row.has_started;
+    testConfig.isPaused = row.is_paused;
+    testConfig.pausedAtMs = row.paused_at_ms;
+    testConfig.totalPausedMs = row.total_paused_ms;
     instantMode = row.instant_mode;
   } catch (e) { /* transient network hiccup — try again next poll */ }
 }
@@ -184,11 +196,11 @@ const actionState = {};
 });
 
 const oneOffDefs = {
-  temp:    { label: 'Temp',    unit: '\u00b0C',    getValue: () => (36.5 + (Math.random()*0.6-0.3)).toFixed(1) },
-  gcs:     { label: 'GCS',     unit: '',            getValue: () => '15/15' },
-  bgl:     { label: 'BGL',     unit: 'mmol/L',      getValue: () => (6.0 + (Math.random()*0.6-0.3)).toFixed(1) },
-  ketones: { label: 'Ketones', unit: 'mmol/L',      getValue: () => (0.1).toFixed(1) },
-  pain:    { label: 'Pain',    unit: '',             getValue: () => '8/10' }
+  temp:    { label: 'Temp',    unit: '\u00b0C' },
+  gcs:     { label: 'GCS',     unit: '' },
+  bgl:     { label: 'BGL',     unit: 'mmol/L' },
+  ketones: { label: 'Ketones', unit: 'mmol/L' },
+  pain:    { label: 'Pain',    unit: '' }
 };
 
 function countPending() {
@@ -220,7 +232,7 @@ function beginPending(key) {
   const durSec = SimEngine.getActionDurationSec(key, context);
   const durMs = instantMode ? 0 : durSec * 1000;
   if (key === 'bp') {
-    const v = SimEngine.getVitals(testConfig, now);
+    const v = SimEngine.getVitals(testConfig, SimEngine.getSimNow(testConfig, now));
     st.targetSys = v.BPsys;
   }
   if (durMs <= 0) {
@@ -242,12 +254,12 @@ function onActionComplete(key, now) {
     if (_ecgInst) _ecgInst.setStripLead('II');
   }
   if (key === 'bp') {
-    const v = SimEngine.getVitals(testConfig, now);
+    const v = SimEngine.getVitals(testConfig, SimEngine.getSimNow(testConfig, now));
     lastBP = { sys: v.BPsys, dia: v.BPdia };
     bpNextDueMs = now + bpIntervalMin * 60000;
   }
   if (oneOffDefs[key]) {
-    actionState[key].value = oneOffDefs[key].getValue();
+    actionState[key].value = (testConfig.staticVitals || DEFAULT_STATIC)[key];
   }
 }
 
@@ -538,16 +550,21 @@ function renderOneOff() {
 function tick() {
   if (!testConfig) return;
   const now = Date.now();
-  checkActionTimers(now);
+  const simNow = SimEngine.getSimNow(testConfig, now);
+  checkActionTimers(now); // local action-delay timers stay real-time — a scenario
+                           // pause freezes the patient's physiology, not the
+                           // real-world time it takes a crew member to do something
 
-  const v = SimEngine.getVitals(testConfig, now);
+  const v = SimEngine.getVitals(testConfig, simNow);
   renderMonitor(v, now);
   updateEcgMain(v.HR);
   renderOneOff();
   _lastHR = v.HR;
-  document.getElementById('scenario-timer').textContent = fmtTimer(now - testConfig.startTimeMs);
+  document.getElementById('scenario-timer').textContent = fmtTimer(simNow - testConfig.startTimeMs);
   const indEl = document.getElementById('instant-mode-indicator');
   indEl.style.display = instantMode ? 'inline' : 'none';
+  const pauseEl = document.getElementById('pause-indicator');
+  pauseEl.style.display = testConfig.isPaused ? 'inline' : 'none';
 }
 
 window.addEventListener('DOMContentLoaded', () => {

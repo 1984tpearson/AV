@@ -8,8 +8,9 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 html, body { min-height: 100%; background: linear-gradient(135deg, #2C4F7C 0%, #4E7FAE 55%, #6FA0CC 100%); color: #1e2a36; font-family: 'Courier New', monospace; }
 body { display: flex; flex-direction: column; min-height: 100vh; }
-#topbar { background: #ffffff; border-bottom: 2px solid #d7dee6; padding: 8px 14px; }
+#topbar { background: #ffffff; border-bottom: 2px solid #d7dee6; padding: 8px 14px; display: flex; align-items: center; justify-content: space-between; }
 #topbar .title { font-size: 12px; font-weight: 900; letter-spacing: 1px; color: #0369a1; text-transform: uppercase; }
+#run-status { font-size: 11px; font-weight: 700; }
 #main { flex: 1; padding: 14px; display: flex; flex-direction: column; gap: 12px; max-width: 720px; margin: 0 auto; width: 100%; }
 .panel { background: #ffffff; border: 1px solid #d7dee6; border-radius: 8px; padding: 14px; }
 .panel h2 { font-size: 12px; color: #0369a1; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px; }
@@ -19,23 +20,30 @@ select, input[type=number], input[type=text] { font-family: 'Courier New', monos
 .btn { font-size: 12px; font-weight: 700; color: #fff; background: #0369a1; border: none; border-radius: 5px; padding: 8px 14px; cursor: pointer; }
 .btn:disabled { opacity: 0.5; cursor: default; }
 .btn-secondary { background: #6b8299; }
+.btn-pause { background: #b45309; }
+.btn-start { background: #15803d; }
 #code-display { font-size: 34px; font-weight: 900; letter-spacing: 6px; color: #15803d; text-align: center; margin: 6px 0; }
+#qr-code { display: flex; justify-content: center; margin: 8px 0; }
 .treat-item { font-size: 12px; padding: 6px 8px; border-bottom: 1px solid #eef2f6; display: flex; justify-content: space-between; }
 .muted { color: #6b8299; font-size: 11px; }
-.vtile { flex: 1; min-width: 100px; background: #f3f6fa; border: 1px solid #d7dee6; border-radius: 6px; padding: 8px 10px; cursor: pointer; text-align: center; }
+.vtile { flex: 1; min-width: 90px; background: #f3f6fa; border: 1px solid #d7dee6; border-radius: 6px; padding: 8px 10px; cursor: pointer; text-align: center; }
 .vtile:hover { background: #e6edf5; }
 .vtile .vlabel { font-size: 9px; color: #6b8299; text-transform: uppercase; letter-spacing: 1px; }
-.vtile .vval { font-size: 20px; font-weight: 900; color: #0369a1; }
+.vtile .vval { font-size: 18px; font-weight: 900; color: #0369a1; }
+.vsection-label { font-size: 10px; color: #6b8299; text-transform: uppercase; letter-spacing: 1px; margin: 10px 0 6px; }
 </style>
 </head>
 <body>
-<div id="topbar"><div class="title">Live Scenario — Control</div></div>
+<div id="topbar">
+  <div class="title">Live Scenario — Control</div>
+  <div id="run-status"></div>
+</div>
 <div id="main">
 
   <div class="panel" id="create-panel">
     <h2>Session</h2>
     <div id="pre-create">
-      <p class="muted" style="margin-bottom:10px;">Set the starting trajectory, then create a session to get a pairing code for the patient device. Severity/direction run on their own from here — use overrides below to intervene once it's live.</p>
+      <p class="muted" style="margin-bottom:10px;">Set the starting trajectory, then create a session to get a pairing code (or QR) for the patient device. Severity/direction run on their own once started — use the vitals grid below to intervene.</p>
       <div class="row">
         <div>
           <label for="severity-select">Severity</label>
@@ -60,14 +68,20 @@ select, input[type=number], input[type=text] { font-family: 'Courier New', monos
     <div id="post-create" style="display:none;">
       <div class="muted" style="text-align:center;">Pairing code</div>
       <div id="code-display">------</div>
-      <p class="muted" style="text-align:center;">Enter this on the patient device</p>
-      <label style="margin-top:8px;"><input type="checkbox" id="instant-toggle" onchange="updateInstantMode()"> Instant Mode</label>
+      <div id="qr-code"></div>
+      <p class="muted" style="text-align:center;">Enter the code, or scan the QR, on the patient device</p>
+      <div class="row" style="justify-content:center;margin-top:10px;">
+        <button class="btn btn-start" id="run-btn" onclick="toggleRun()">Start Scenario</button>
+        <label style="margin:0;"><input type="checkbox" id="instant-toggle" onchange="updateInstantMode()"> Instant Mode</label>
+      </div>
     </div>
   </div>
 
   <div class="panel" id="vitals-panel" style="display:none;">
     <h2>Live Vitals — click to override</h2>
     <div id="vitals-grid" style="display:flex;flex-wrap:wrap;gap:8px;"></div>
+    <div class="vsection-label">One-off readings — click to set</div>
+    <div id="static-vitals-grid" style="display:flex;flex-wrap:wrap;gap:8px;"></div>
   </div>
 
   <div class="panel" id="treatment-panel" style="display:none;">
@@ -99,6 +113,19 @@ select, input[type=number], input[type=text] { font-family: 'Courier New', monos
   </div>
 </div>
 
+<div id="static-modal" style="display:none;position:fixed;inset:0;background:rgba(20,30,45,0.6);align-items:center;justify-content:center;z-index:50;">
+  <div class="panel" style="width:260px;">
+    <h2 id="sv-modal-title">Set Value</h2>
+    <div id="sv-modal-body"></div>
+    <div class="row" style="margin-top:10px;">
+      <button class="btn btn-secondary" onclick="closeStaticModal()">Cancel</button>
+      <button class="btn" onclick="applyStaticVital()">Apply</button>
+    </div>
+  </div>
+</div>
+
+
+<script src="https://cdn.jsdelivr.net/npm/qrcode@1.4.4/build/qrcode.min.js"></script>
 <script src="https://1984tpearson.github.io/AV/sim_engine.js"></script>
 <script>
 const SUPABASE_URL = 'https://befsjenbaruxqrntuhpn.supabase.co';
@@ -123,14 +150,19 @@ async function sbFetch(path, opts = {}) {
 }
 
 const DEFAULT_BASELINE = { HR: 92, RR: 20, SpO2: 96, EtCO2: 38, BPsys: 148, BPdia: 90 };
+const DEFAULT_STATIC = { temp: 36.8, gcs: '15/15', bgl: 6.1, ketones: 0.1, pain: '8/10' };
 
 let sessionCode = null;
-let liveConfig = null; // mirrors the patient page's testConfig shape
+let liveConfig = null; // mirrors the patient page's testConfig shape, plus pause fields
 let instantMode = false;
 let treatments = [];
 
 function genCode() {
   return String(Math.floor(100000 + Math.random() * 900000));
+}
+
+function simNow() {
+  return SimEngine.getSimNow(liveConfig, Date.now());
 }
 
 async function createSession() {
@@ -151,7 +183,12 @@ async function createSession() {
           start_time_ms: startMs,
           treatments: [],
           overrides: {},
-          instant_mode: false
+          static_vitals: DEFAULT_STATIC,
+          instant_mode: false,
+          has_started: false,
+          is_paused: true,
+          paused_at_ms: startMs,
+          total_paused_ms: 0
         })
       });
       sessionCode = code;
@@ -161,7 +198,12 @@ async function createSession() {
         startTimeMs: startMs,
         treatments: [],
         overrides: {},
-        instantMode: false
+        staticVitals: { ...DEFAULT_STATIC },
+        instantMode: false,
+        hasStarted: false,
+        isPaused: true,
+        pausedAtMs: startMs,
+        totalPausedMs: 0
       };
       treatments = [];
       document.getElementById('post-create').style.display = 'block';
@@ -169,6 +211,8 @@ async function createSession() {
       document.getElementById('code-display').textContent = code;
       document.getElementById('vitals-panel').style.display = 'block';
       document.getElementById('treatment-panel').style.display = 'block';
+      renderJoinQR();
+      renderRunControls();
       renderTreatments();
       tickVitals();
       setInterval(tickVitals, 1000);
@@ -181,20 +225,84 @@ async function createSession() {
   document.getElementById('pre-create').innerHTML = '<p class="muted">Could not create a session — try again.</p><button class="btn" onclick="location.reload()">Retry</button>';
 }
 
+function renderJoinQR() {
+  const joinUrl = new URL('sim_patient.html?code=' + sessionCode, window.location.href).href;
+  const container = document.getElementById('qr-code');
+  container.innerHTML = '';
+  const canvas = document.createElement('canvas');
+  container.appendChild(canvas);
+  QRCode.toCanvas(canvas, joinUrl, { width: 160, margin: 1, color: { dark: '#0369a1', light: '#ffffff' } }, function (err) {
+    if (err) container.innerHTML = '<div class="muted">(QR unavailable — use the code above)</div>';
+  });
+}
+
+async function toggleRun() {
+  if (!sessionCode) return;
+  const nowRaw = Date.now();
+  let patch;
+  if (!liveConfig.hasStarted) {
+    patch = { has_started: true, is_paused: false, paused_at_ms: null };
+  } else if (liveConfig.isPaused) {
+    const addPaused = nowRaw - liveConfig.pausedAtMs;
+    patch = { is_paused: false, paused_at_ms: null, total_paused_ms: liveConfig.totalPausedMs + addPaused };
+  } else {
+    patch = { is_paused: true, paused_at_ms: nowRaw };
+  }
+  try {
+    await sbFetch(`sim_sessions?session_code=eq.${sessionCode}`, {
+      method: 'PATCH', prefer: 'return=minimal',
+      body: JSON.stringify({ ...patch, updated_at: new Date().toISOString() })
+    });
+    if (patch.has_started !== undefined) liveConfig.hasStarted = patch.has_started;
+    liveConfig.isPaused = patch.is_paused;
+    liveConfig.pausedAtMs = patch.paused_at_ms;
+    if (patch.total_paused_ms !== undefined) liveConfig.totalPausedMs = patch.total_paused_ms;
+    renderRunControls();
+  } catch (e) {
+    alert('Could not update the run state — check the connection and try again.');
+  }
+}
+
+function renderRunControls() {
+  const btn = document.getElementById('run-btn');
+  const status = document.getElementById('run-status');
+  if (!liveConfig.hasStarted) {
+    btn.textContent = 'Start Scenario';
+    btn.className = 'btn btn-start';
+    status.textContent = '';
+  } else if (liveConfig.isPaused) {
+    btn.textContent = 'Resume';
+    btn.className = 'btn btn-start';
+    status.textContent = '\u23f8 PAUSED';
+    status.style.color = '#b45309';
+  } else {
+    btn.textContent = 'Pause';
+    btn.className = 'btn btn-pause';
+    status.textContent = '\u25cf RUNNING';
+    status.style.color = '#15803d';
+  }
+}
+
 async function pollSession() {
   if (!sessionCode || !liveConfig) return;
   try {
-    const rows = await sbFetch(`sim_sessions?session_code=eq.${sessionCode}&select=severity,direction,treatments,overrides,instant_mode`, { method: 'GET' });
+    const rows = await sbFetch(`sim_sessions?session_code=eq.${sessionCode}&select=severity,direction,treatments,overrides,static_vitals,instant_mode,has_started,is_paused,paused_at_ms,total_paused_ms`, { method: 'GET' });
     if (!rows.length) return;
     const row = rows[0];
     liveConfig.severity = row.severity;
     liveConfig.direction = row.direction;
     liveConfig.treatments = row.treatments || [];
     liveConfig.overrides = row.overrides || {};
+    liveConfig.staticVitals = row.static_vitals || DEFAULT_STATIC;
     liveConfig.instantMode = row.instant_mode;
+    liveConfig.hasStarted = row.has_started;
+    liveConfig.isPaused = row.is_paused;
+    liveConfig.pausedAtMs = row.paused_at_ms;
+    liveConfig.totalPausedMs = row.total_paused_ms;
     instantMode = row.instant_mode;
     treatments = liveConfig.treatments;
     document.getElementById('instant-toggle').checked = instantMode;
+    renderRunControls();
     renderTreatments();
   } catch (e) { /* transient network hiccup — try again next poll */ }
 }
@@ -221,9 +329,17 @@ const VITAL_DEFS = [
   { key: 'EtCO2', label: 'EtCO\u2082', unit: 'mmHg', overrideKeys: ['EtCO2'] }
 ];
 
+const STATIC_VITAL_DEFS = [
+  { key: 'temp',    label: 'Temp',    unit: '\u00b0C',    type: 'number', step: '0.1' },
+  { key: 'gcs',     label: 'GCS',     unit: '',            type: 'text' },
+  { key: 'bgl',     label: 'BGL',     unit: 'mmol/L',      type: 'number', step: '0.1' },
+  { key: 'ketones', label: 'Ketones', unit: 'mmol/L',      type: 'number', step: '0.1' },
+  { key: 'pain',    label: 'Pain',    unit: '',             type: 'text' }
+];
+
 function tickVitals() {
   if (!liveConfig) return;
-  const v = SimEngine.getVitals(liveConfig, Date.now());
+  const v = SimEngine.getVitals(liveConfig, simNow());
   const grid = document.getElementById('vitals-grid');
   grid.innerHTML = VITAL_DEFS.map(def => {
     const val = def.key === 'BP' ? `${v.BPsys}/${v.BPdia}` : v[def.key];
@@ -233,6 +349,18 @@ function tickVitals() {
       <div class="muted">${def.unit}</div>
     </div>`;
   }).join('');
+  renderStaticGrid();
+}
+
+function renderStaticGrid() {
+  const grid = document.getElementById('static-vitals-grid');
+  const sv = liveConfig.staticVitals || DEFAULT_STATIC;
+  grid.innerHTML = STATIC_VITAL_DEFS.map(def => `
+    <div class="vtile" onclick="openStaticModal('${def.key}')">
+      <div class="vlabel">${def.label}</div>
+      <div class="vval">${sv[def.key]}</div>
+      <div class="muted">${def.unit}</div>
+    </div>`).join('');
 }
 
 function populateDrugSelect() {
@@ -246,7 +374,7 @@ async function giveTreatment() {
   if (!sessionCode) return;
   const drug = document.getElementById('drug-select').value;
   const dose = parseFloat(document.getElementById('dose-input').value) || 0;
-  const givenAtMin = (Date.now() - liveConfig.startTimeMs) / 60000;
+  const givenAtMin = (simNow() - liveConfig.startTimeMs) / 60000;
   treatments = [...treatments, { drug, dose, givenAtMin }];
   liveConfig.treatments = treatments;
   try {
@@ -280,7 +408,7 @@ let _ovDefKey = null;
 function openOverrideModal(defKey) {
   _ovDefKey = defKey;
   const def = VITAL_DEFS.find(d => d.key === defKey);
-  const v = SimEngine.getVitals(liveConfig, Date.now());
+  const v = SimEngine.getVitals(liveConfig, simNow());
   document.getElementById('ov-modal-title').textContent = `Override ${def.label}`;
 
   const inputs = def.overrideKeys.map(k => {
@@ -314,12 +442,10 @@ async function applyOverride() {
   const mode = document.getElementById('ov-duration-mode').value;
   const amount = parseFloat(document.getElementById('ov-duration-amount').value) || 0;
   const durationMs = mode === 'immediate' ? 0 : mode === 'seconds' ? amount * 1000 : amount * 60000;
-  const startMs = Date.now();
+  const startMs = simNow();
   const endMs = startMs + durationMs;
 
   try {
-    // Re-fetch the latest overrides right before writing, to avoid clobbering
-    // a change made in the moments since our last poll.
     const rows = await sbFetch(`sim_sessions?session_code=eq.${sessionCode}&select=overrides`, { method: 'GET' });
     const freshOverrides = (rows[0] && rows[0].overrides) || {};
     def.overrideKeys.forEach(k => {
@@ -336,6 +462,45 @@ async function applyOverride() {
     closeOverrideModal();
   } catch (e) {
     alert('Could not apply the override — check the connection and try again.');
+  }
+}
+
+let _svKey = null;
+
+function openStaticModal(key) {
+  _svKey = key;
+  const def = STATIC_VITAL_DEFS.find(d => d.key === key);
+  const current = (liveConfig.staticVitals || DEFAULT_STATIC)[key];
+  document.getElementById('sv-modal-title').textContent = `Set ${def.label}`;
+  document.getElementById('sv-modal-body').innerHTML = `
+    <label for="sv-input">${def.label} (${def.unit || 'text'})</label>
+    <input type="${def.type}" id="sv-input" value="${current}" style="width:100%;" ${def.step ? `step="${def.step}"` : ''}>`;
+  document.getElementById('static-modal').style.display = 'flex';
+}
+
+function closeStaticModal() {
+  document.getElementById('static-modal').style.display = 'none';
+  _svKey = null;
+}
+
+async function applyStaticVital() {
+  if (!_svKey || !sessionCode) return;
+  const def = STATIC_VITAL_DEFS.find(d => d.key === _svKey);
+  const raw = document.getElementById('sv-input').value;
+  const value = def.type === 'number' ? (parseFloat(raw) || 0) : raw;
+  try {
+    const rows = await sbFetch(`sim_sessions?session_code=eq.${sessionCode}&select=static_vitals`, { method: 'GET' });
+    const fresh = (rows[0] && rows[0].static_vitals) || { ...DEFAULT_STATIC };
+    fresh[_svKey] = value;
+    await sbFetch(`sim_sessions?session_code=eq.${sessionCode}`, {
+      method: 'PATCH', prefer: 'return=minimal',
+      body: JSON.stringify({ static_vitals: fresh, updated_at: new Date().toISOString() })
+    });
+    liveConfig.staticVitals = fresh;
+    renderStaticGrid();
+    closeStaticModal();
+  } catch (e) {
+    alert('Could not set the value — check the connection and try again.');
   }
 }
 
