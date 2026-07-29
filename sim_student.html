@@ -30,7 +30,7 @@ body { display: flex; flex-direction: column; min-height: 100vh; }
 .ecg-snapshot-btn { background: rgba(0,255,136,0.08); border: 2px solid #00ff88; color: #00ff88; font-family: 'Courier New', monospace; font-size: 11px; font-weight: bold; letter-spacing: 1px; padding: 4px 12px; cursor: pointer; text-transform: uppercase; border-radius: 4px; }
 .ecg-snapshot-btn:disabled { opacity: 0.5; cursor: default; }
 #ecg-display-wrap { position: relative; flex: 1; min-height: 0; overflow: hidden; }
-#ecg-12lead-container { width: 100%; height: 100%; overflow: hidden; }
+#ecg-12lead-container { width: 100%; height: 100%; overflow: hidden; cursor: pointer; }
 #ecg-apply-overlay { position: absolute; inset: 0; display: none; align-items: center; justify-content: center; background: rgba(6,9,16,0.94); text-align: center; padding: 10px; z-index: 5; }
 .ecg-overlay-text { color: #00ff88; font-size: 12px; letter-spacing: 1px; }
 .apply-btn-lg { background: rgba(0,255,136,0.1); border: 2px solid #00ff88; color: #00ff88; font-family: 'Courier New', monospace; font-size: 12px; font-weight: bold; padding: 10px 18px; border-radius: 6px; cursor: pointer; letter-spacing: 1px; }
@@ -183,7 +183,8 @@ function onActionComplete(key, now) {
   if (key === 'ecg12lead') {
     if (actionState.ecg.status !== 'done') actionState.ecg.status = 'done';
     _show12Lead = true;
-    resetGridInlineStyles(); // hand back to the engine's normal grid/toggle view
+    _limbLeadIndex = 1; // back to 'II' baseline once full 12-lead is available
+    if (_ecgInst) _ecgInst.setStripLead('II');
   }
   if (key === 'bp') {
     const v = SimEngine.getVitals(testConfig, now);
@@ -286,84 +287,16 @@ function toggleLead() {
 }
 
 // --- Limb-lead cycling for monitoring-only mode (before 12-lead applied) --
-// CAVEAT: this reaches into ecg_engine.js's internal DOM structure
-// (.lead-cell / .lead-label-tag / #_ecg_leadsGrid) rather than a documented
-// public API, because the engine only exposes a fixed Lead-II strip or the
-// full 12-lead grid. If that internal markup changes, this will silently
-// stop working. Worth adding a real setSingleLead() method to the engine
-// itself if this becomes a permanent feature rather than a stopgap.
+// Uses ecg_engine.js's setStripLead(name) — a real API added for this feature,
+// rendering the chosen lead at the same full-width/crisp resolution Lead II
+// always used, rather than reusing the small 12-lead-grid cells.
 const limbLeadOrder = ['I', 'II', 'III', 'aVR', 'aVL', 'aVF'];
 let _limbLeadIndex = 1; // start on 'II'
 
 function cycleLimbLead() {
-  // PAUSED: cycling through grid-cell leads produces a small/blurry trace
-  // (see conversation) since the engine only renders a full-width crisp strip
-  // for Lead II. Re-enable once ecg_engine.js gains a proper setStripLead().
-  return;
-}
-
-// Recomputes the engine's own cell-size formula (LEAD_W/LEAD_H) fresh each
-// time, rather than caching, so it stays correct across instance rebuilds
-// (ensureECG destroys/recreates the whole DOM whenever the rhythm changes).
-function computeLeadCellSize() {
-  const wrap = document.getElementById('ecg-display-wrap');
-  const monitorW = wrap.clientWidth || 856;
-  const totalH = wrap.clientHeight || 470;
-  return { w: Math.floor(monitorW / 4), h: Math.floor(totalH * 0.70 / 3) };
-}
-
-function showLimbLead(name) {
-  if (!_ecgInst) return;
-  const { w, h } = computeLeadCellSize();
-  const container = document.getElementById('ecg-12lead-container');
-  const grid = container.querySelector('#_ecg_leadsGrid');
-  const strip = container.querySelector('#_ecg_stripWrapper');
-  if (!grid) return;
-  grid.style.display = 'flex';
-  grid.style.alignItems = 'center';
-  grid.style.justifyContent = 'center';
-  grid.style.width = '100%';
-  grid.style.height = '100%';
-  grid.querySelectorAll('.lead-cell').forEach(cell => {
-    const tag = cell.querySelector('.lead-label-tag');
-    const match = tag && tag.textContent.trim() === name;
-    const canvas = cell.querySelector('canvas');
-    cell.style.width = w + 'px';
-    cell.style.height = h + 'px';
-    cell.style.position = 'relative';
-    if (match) {
-      cell.style.display = 'block';
-    } else {
-      cell.style.display = 'none';
-    }
-    if (canvas) { canvas.style.width = ''; canvas.style.height = ''; }
-  });
-  if (strip) strip.style.display = 'none';
-  document.getElementById('ecg-bar-label').textContent = `LEAD ${name} (tap to cycle)`;
-}
-
-function resetGridInlineStyles() {
-  if (!_ecgInst) return;
-  const { w, h } = computeLeadCellSize();
-  const container = document.getElementById('ecg-12lead-container');
-  const grid = container.querySelector('#_ecg_leadsGrid');
-  if (!grid) return;
-  grid.style.display = '';
-  grid.style.alignItems = '';
-  grid.style.justifyContent = '';
-  grid.style.width = '';
-  grid.style.height = '';
-  grid.querySelectorAll('.lead-cell').forEach(cell => {
-    cell.style.display = '';
-    cell.style.position = '';
-    cell.style.transform = '';
-    cell.style.width = w + 'px';
-    cell.style.height = h + 'px';
-    const canvas = cell.querySelector('canvas');
-    if (canvas) { canvas.style.width = ''; canvas.style.height = ''; }
-  });
-  const strip = container.querySelector('#_ecg_stripWrapper');
-  if (strip) strip.style.display = '';
+  if (actionState.ecg.status !== 'done' || actionState.ecg12lead.status === 'done') return;
+  _limbLeadIndex = (_limbLeadIndex + 1) % limbLeadOrder.length;
+  if (_ecgInst) _ecgInst.setStripLead(limbLeadOrder[_limbLeadIndex]);
 }
 
 function ecgBarBtnClick() {
@@ -410,6 +343,12 @@ function updateEcgMain(hr) {
     overlay.style.display = 'none';
     ensureECG(hr);
     setLeadDisplay(); // plain Lead II strip when ecg12 not done, grid when it is
+    if (ecg12St.status !== 'done' && _ecgInst) {
+      // Re-apply the cycled lead selection each tick — a no-op if unchanged,
+      // but necessary because ensureECG() may have rebuilt the instance
+      // (rhythm change), which resets its internal selection back to 'II'.
+      _ecgInst.setStripLead(limbLeadOrder[_limbLeadIndex]);
+    }
     if (ecg12St.status === 'done') {
       banner.style.display = 'none';
     } else {

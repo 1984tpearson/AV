@@ -122,6 +122,7 @@ class ECGEngine {
 
   setTheme(name)  { if (this._pub.setTheme)  this._pub.setTheme(name);  }
   setBBB(mode)    { if (this._pub.setBBB)    this._pub.setBBB(mode);    }
+  setStripLead(name) { if (this._pub.setStripLead) this._pub.setStripLead(name); }
   getMorphSeed()  { return this._pub.getMorphSeed ? this._pub.getMorphSeed() : null; }
   applySeed(seed) { if (this._pub.applySeed) this._pub.applySeed(seed); }
   capture()       { if (this._pub.toggleCapture) this._pub.toggleCapture(); }
@@ -1413,7 +1414,7 @@ function draw(ts){
         const stripBbbMs=stripState.ms;
         const samples=computeSamplesStrip(msPerStripPx);
         const x=stripHead%STRIP_W;
-        const stripBBB=applyBBB(samples['II'],stripBbbMs,'II');
+        const stripBBB=applyBBB(samples[stripLeadName],stripBbbMs,stripLeadName);
         traceData['strip'][x]=MID_STRIP-(stripBBB*patient.ampScale+sampleNoise()*0.5);
         spikeData['strip'][x]=0;
         if(stripState.spikeA){ spikeData['strip'][x]=1; stripState.spikeA=false; }
@@ -1425,7 +1426,7 @@ function draw(ts){
       const stripBbbMs=stripState.ms;
       const samples=computeSamplesStrip(msPerStripPx);
       const x=stripHead%STRIP_W;
-      const stripBBB=applyBBB(samples['II'],stripBbbMs,'II');
+      const stripBBB=applyBBB(samples[stripLeadName],stripBbbMs,stripLeadName);
       traceData['strip'][x]=MID_STRIP-(stripBBB*patient.ampScale+sampleNoise()*0.5);
       spikeData['strip'][x]=0;
       if(stripState.spikeA){ spikeData['strip'][x]=1; stripState.spikeA=false; }
@@ -1506,8 +1507,24 @@ function _drawPath(ctx,data,W,startX,erasePx){
 // STRIP STATE
 // =====================================================================
 let stripState=makeState();
+let stripLeadName='II';
 function computeSamplesStrip(dtMs){
   return computeSamples(stripState,dtMs,currentBpm,currentKey);
+}
+function setStripLead(name){
+  if(LEAD_LAYOUT.indexOf(name)===-1) return; // unknown lead name, ignore
+  if(name===stripLeadName) return; // already showing this lead — no-op, avoids a reset glitch on every call
+  stripLeadName=name;
+  // Avoid a visual jump-cut when switching leads mid-trace
+  traceData['strip'].fill(MID_STRIP);
+  spikeData['strip'].fill(0);
+  stripHead=0;
+  const labels=container.querySelectorAll('.ecg-strip-label');
+  labels.forEach(el=>{
+    el.textContent = (el.textContent.indexOf('RHYTHM STRIP')!==-1)
+      ? `LEAD ${name} \u2014 RHYTHM STRIP`
+      : `LEAD ${name}`;
+  });
 }
 
 // =====================================================================
@@ -1799,6 +1816,7 @@ function doCapture() {
     _self._pub.applySeed    = applySeed;
     _self._pub.setTheme     = setTheme;
     _self._pub.setBBB       = setBBB;
+    _self._pub.setStripLead = setStripLead;
     _self._pub.onSlider     = onSlider;
     _self._pub.toggleCapture = (typeof toggleCapture !== 'undefined') ? toggleCapture : null;
     _self._pub.resume       = function() {
