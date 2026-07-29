@@ -140,7 +140,18 @@ async function sbPatch(path, body) {
 
 let testConfig = null; // populated once a session is joined — see connectSession()
 let instantMode = false; // synced from the session row; assessor-controlled, not editable here
-const DEFAULT_STATIC = { temp: 36.8, gcs: '15/15', bgl: 6.1, ketones: 0.1, pain: '8/10' };
+const DEFAULT_STATIC = {
+  temp:    [{ value: 36.8, atMin: 0 }],
+  gcs:     [{ e: 4, v: 5, m: 6, atMin: 0 }],
+  bgl:     [{ value: 6.1, atMin: 0 }],
+  ketones: [{ value: 0.1, atMin: 0 }],
+  pain:    [{ value: 8, atMin: 0 }]
+};
+function staticVitalNow(key) {
+  const hist = (testConfig.staticVitals || DEFAULT_STATIC)[key];
+  const elapsedMinNow = Math.max(0, (SimEngine.getSimNow(testConfig, Date.now()) - testConfig.startTimeMs) / 60000);
+  return SimEngine.getStaticVitalAt(hist, elapsedMinNow);
+}
 
 // --- Session join flow -----------------------------------------------------
 async function connectSession(code) {
@@ -211,11 +222,16 @@ const actionState = {};
 
 const oneOffDefs = {
   temp:    { label: 'Temp',    unit: '\u00b0C' },
-  gcs:     { label: 'GCS',     unit: '' },
+  gcs:     { label: 'GCS',     unit: '/15' },
   bgl:     { label: 'BGL',     unit: 'mmol/L' },
   ketones: { label: 'Ketones', unit: 'mmol/L' },
-  pain:    { label: 'Pain',    unit: '' }
+  pain:    { label: 'Pain',    unit: '/10' }
 };
+function formatStaticVital(key, entry) {
+  if (!entry) return '\u2014';
+  if (key === 'gcs') return `${entry.e + entry.v + entry.m}`;
+  return `${entry.value}`;
+}
 
 function countPending() {
   return Object.values(actionState).filter(s => s.status === 'pending').length;
@@ -273,7 +289,7 @@ function onActionComplete(key, now) {
     bpNextDueMs = now + bpIntervalMin * 60000;
   }
   if (oneOffDefs[key]) {
-    actionState[key].value = (testConfig.staticVitals || DEFAULT_STATIC)[key];
+    actionState[key].value = staticVitalNow(key);
   }
 }
 
@@ -555,7 +571,7 @@ function renderOneOff() {
     } else if (st.status === 'pending') {
       body = `<div class="oo-pending">${countdownRemain(st)}s\u2026</div>`;
     } else {
-      body = `<div class="oo-value">${st.value}${def.unit ? `<span style="font-size:9px"> ${def.unit}</span>` : ''}</div><div class="oo-tap-again">tap to reassess</div>`;
+      body = `<div class="oo-value">${formatStaticVital(key, st.value)}${def.unit ? `<span style="font-size:9px"> ${def.unit}</span>` : ''}</div><div class="oo-tap-again">tap to reassess</div>`;
     }
     return `<div class="oo-card" onclick="handleOneOffTap('${key}')"><div class="oo-label">${def.label}</div>${body}</div>`;
   }).join('');

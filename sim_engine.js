@@ -235,6 +235,21 @@
     return rawNowMs - totalPaused - pausedNow;
   }
 
-  global.SimEngine = { SEVERITY_PRESETS, DRUG_LIBRARY, ACTION_DURATIONS, getActionDurationSec, getVitals, getVitalsRaw, getSimNow };
+  // ---- Static-vital history (Temp/GCS/BGL/Ketones/Pain) -------------------
+  // These aren't continuous curves — they're point-in-time readings that hold
+  // until explicitly reassessed. Modelled as a step function: a list of
+  // {..., atMin} entries, and "current value at time T" is whichever entry's
+  // atMin is the most recent one at-or-before T.
+  function getStaticVitalAt(historyArr, atMin) {
+    if (!historyArr || !historyArr.length) return null;
+    const sorted = historyArr.slice().sort((a, b) => a.atMin - b.atMin);
+    let result = sorted[0];
+    for (const ev of sorted) {
+      if (ev.atMin <= atMin) result = ev; else break;
+    }
+    return result;
+  }
+
+  global.SimEngine = { SEVERITY_PRESETS, DRUG_LIBRARY, ACTION_DURATIONS, getActionDurationSec, getVitals, getVitalsRaw, getSimNow, getStaticVitalAt };
 })(typeof window !== 'undefined' ? window : this);
 

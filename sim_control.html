@@ -99,6 +99,7 @@ select, input[type=number], input[type=text] { font-family: 'Courier New', monos
         <div class="row">
           <button class="btn btn-start" id="run-btn" onclick="toggleRun()">Start Scenario</button>
           <label style="margin:0;"><input type="checkbox" id="instant-toggle" onchange="updateInstantMode()"> Instant Mode</label>
+          <button class="btn btn-secondary" style="font-size:10px;padding:5px 8px;" onclick="seedDemoVariation()">Load Demo Variation (testing only)</button>
         </div>
         <h2 style="margin-top:12px;">Log Treatment</h2>
         <div class="row">
@@ -182,7 +183,23 @@ async function sbFetch(path, opts = {}) {
 }
 
 const DEFAULT_BASELINE = { HR: 92, RR: 20, SpO2: 96, EtCO2: 38, BPsys: 148, BPdia: 90 };
-const DEFAULT_STATIC = { temp: 36.8, gcs: '15/15', bgl: 6.1, ketones: 0.1, pain: '8/10' };
+const DEFAULT_STATIC = {
+  temp:    [{ value: 36.8, atMin: 0 }],
+  gcs:     [{ e: 4, v: 5, m: 6, atMin: 0 }],
+  bgl:     [{ value: 6.1, atMin: 0 }],
+  ketones: [{ value: 0.1, atMin: 0 }],
+  pain:    [{ value: 8, atMin: 0 }]
+};
+
+// Current elapsed sim-minutes of the running session — every static-vital
+// read/write is keyed off this so history entries land at the right time.
+function elapsedMin() {
+  return Math.max(0, (simNow() - liveConfig.startTimeMs) / 60000);
+}
+function staticVitalNow(key) {
+  const hist = (liveConfig.staticVitals || DEFAULT_STATIC)[key];
+  return SimEngine.getStaticVitalAt(hist, elapsedMin());
+}
 
 let sessionCode = null;
 let liveConfig = null; // mirrors the patient page's testConfig shape, plus pause fields
@@ -388,9 +405,14 @@ const GRAPH_SERIES = [
   { key: 'temp',    label: 'Temp',    color: '#7c3aed', unit: '\u00b0C', min: 34, max: 41, staticKey: true },
   { key: 'bgl',     label: 'BGL',     color: '#0891b2', unit: 'mmol/L', min: 0,  max: 25, staticKey: true },
   { key: 'ketones', label: 'Ketones', color: '#9333ea', unit: 'mmol/L', min: 0,  max: 6,  staticKey: true },
-  { key: 'gcs',     label: 'GCS',     color: '#be185d', unit: '/15',    min: 3,  max: 15, staticKey: true, parse: v => parseInt(String(v).split('/')[0]) || 0 },
-  { key: 'pain',    label: 'Pain',    color: '#c2410c', unit: '/10',    min: 0,  max: 10, staticKey: true, parse: v => parseInt(String(v).split('/')[0]) || 0 }
+  { key: 'gcs',     label: 'GCS',     color: '#be185d', unit: '/15',    min: 3,  max: 15, staticKey: true },
+  { key: 'pain',    label: 'Pain',    color: '#c2410c', unit: '/10',    min: 0,  max: 10, staticKey: true }
 ];
+// Numeric value for graphing/legend — GCS plots as its e+v+m total.
+function staticVitalNumeric(key, entry) {
+  if (!entry) return 0;
+  return key === 'gcs' ? (entry.e + entry.v + entry.m) : entry.value;
+}
 const GRAPH_DEFAULT_ON = { HR: true, BPsys: true, BPdia: true, SpO2: true, RR: true, EtCO2: true, temp: false, bgl: false, ketones: false, gcs: false, pain: false };
 let graphSeriesOn = { ...GRAPH_DEFAULT_ON };
 let graphViewStartMin = 0;
@@ -425,12 +447,10 @@ function niceStep(raw) {
 function renderGraphLegend() {
   const el = document.getElementById('graph-legend');
   const v = SimEngine.getVitalsRaw(liveConfig, simNow());
-  const sv = liveConfig.staticVitals || DEFAULT_STATIC;
   el.innerHTML = GRAPH_SERIES.map(s => {
     let curVal;
     if (s.staticKey) {
-      const raw = sv[s.key];
-      curVal = s.parse ? s.parse(raw) : raw;
+      curVal = staticVitalNumeric(s.key, staticVitalNow(s.key));
     } else {
       curVal = Math.round(v[s.key]);
     }
@@ -467,23 +487,34 @@ function renderGraph() {
 
   const SAMPLES = 80;
   let paths = '';
+  const yFor = (s, val) => padT + (1 - Math.min(1, Math.max(0, (val - s.min) / (s.max - s.min)))) * plotH;
   GRAPH_SERIES.forEach(s => {
     if (!graphSeriesOn[s.key]) return;
     let d = '';
-    for (let i = 0; i <= SAMPLES; i++) {
-      const m = viewStart + (viewEnd - viewStart) * (i / SAMPLES);
-      let val;
-      if (s.staticKey) {
-        const raw = (liveConfig.staticVitals || DEFAULT_STATIC)[s.key];
-        val = s.parse ? s.parse(raw) : parseFloat(raw);
-      } else {
+    if (s.staticKey) {
+      // Draw as a proper right-angle step (not interpolated) — accurately
+      // reflects "flat, then a step change" rather than a slanted ramp.
+      const hist = ((liveConfig.staticVitals || DEFAULT_STATIC)[s.key] || []).slice().sort((a, b) => a.atMin - b.atMin);
+      let curVal = staticVitalNumeric(s.key, SimEngine.getStaticVitalAt(hist, viewStart));
+      let y = yFor(s, curVal);
+      d = `M${xForMin(viewStart).toFixed(1)},${y.toFixed(1)} `;
+      hist.forEach(ev => {
+        if (ev.atMin <= viewStart || ev.atMin > viewEnd) return;
+        const x = xForMin(ev.atMin);
+        d += `L${x.toFixed(1)},${y.toFixed(1)} `;
+        y = yFor(s, staticVitalNumeric(s.key, ev));
+        d += `L${x.toFixed(1)},${y.toFixed(1)} `;
+      });
+      d += `L${xForMin(viewEnd).toFixed(1)},${y.toFixed(1)} `;
+    } else {
+      for (let i = 0; i <= SAMPLES; i++) {
+        const m = viewStart + (viewEnd - viewStart) * (i / SAMPLES);
         const tMs = liveConfig.startTimeMs + m * 60000;
-        val = SimEngine.getVitalsRaw(liveConfig, tMs)[s.key];
+        const val = SimEngine.getVitalsRaw(liveConfig, tMs)[s.key];
+        const x = xForMin(m);
+        const y = yFor(s, val);
+        d += (i === 0 ? 'M' : 'L') + x.toFixed(1) + ',' + y.toFixed(1) + ' ';
       }
-      const norm = Math.min(1, Math.max(0, (val - s.min) / (s.max - s.min)));
-      const x = xForMin(m);
-      const y = padT + (1 - norm) * plotH;
-      d += (i === 0 ? 'M' : 'L') + x.toFixed(1) + ',' + y.toFixed(1) + ' ';
     }
     paths += `<path d="${d}" fill="none" stroke="${s.color}" stroke-width="2" />`;
   });
@@ -518,12 +549,18 @@ const VITAL_DEFS = [
 ];
 
 const STATIC_VITAL_DEFS = [
-  { key: 'temp',    label: 'Temp',    unit: '\u00b0C',    type: 'number', step: '0.1' },
-  { key: 'gcs',     label: 'GCS',     unit: '',            type: 'text' },
-  { key: 'bgl',     label: 'BGL',     unit: 'mmol/L',      type: 'number', step: '0.1' },
-  { key: 'ketones', label: 'Ketones', unit: 'mmol/L',      type: 'number', step: '0.1' },
-  { key: 'pain',    label: 'Pain',    unit: '',             type: 'text' }
+  { key: 'temp',    label: 'Temp',    unit: '\u00b0C' },
+  { key: 'gcs',     label: 'GCS',     unit: '/15' },
+  { key: 'bgl',     label: 'BGL',     unit: 'mmol/L' },
+  { key: 'ketones', label: 'Ketones', unit: 'mmol/L' },
+  { key: 'pain',    label: 'Pain',    unit: '/10' }
 ];
+
+function formatStaticVital(key, entry) {
+  if (!entry) return '\u2014';
+  if (key === 'gcs') return `${entry.e + entry.v + entry.m}`;
+  return `${entry.value}`;
+}
 
 function tickVitals() {
   if (!liveConfig) return;
@@ -543,11 +580,10 @@ function tickVitals() {
 
 function renderStaticGrid() {
   const grid = document.getElementById('static-vitals-grid');
-  const sv = liveConfig.staticVitals || DEFAULT_STATIC;
   grid.innerHTML = STATIC_VITAL_DEFS.map(def => `
     <div class="vtile" onclick="openStaticModal('${def.key}')">
       <div class="vlabel">${def.label}</div>
-      <div class="vval">${sv[def.key]}</div>
+      <div class="vval">${formatStaticVital(def.key, staticVitalNow(def.key))}</div>
       <div class="muted">${def.unit}</div>
     </div>`).join('');
 }
@@ -576,6 +612,43 @@ async function giveTreatment() {
     treatments.pop();
     liveConfig.treatments = treatments;
     alert('Could not log the treatment — check the connection and try again.');
+  }
+}
+
+// Testing/preview aid only — populates the current session with a spread of
+// example treatments/overrides/static-vital changes over ~20 minutes so the
+// graph has something varied to look at. Overwrites whatever's currently
+// logged for this session; never call this on a real training run.
+async function seedDemoVariation() {
+  if (!sessionCode || !liveConfig) return;
+  if (!confirm('This overwrites the current session\'s treatments/overrides with example demo data, purely to preview the graph. Only use this on a test session. Continue?')) return;
+  const base = liveConfig.startTimeMs;
+  const demoTreatments = [{ drug: 'adrenaline', dose: 0.5, givenAtMin: 0.2 }];
+  const demoOverrides = {
+    HR: [{ targetValue: 130, startMs: base + 6 * 60000, endMs: base + 6.5 * 60000 }],
+    BPsys: [{ targetValue: 90, startMs: base + 12 * 60000, endMs: base + 12.5 * 60000 }],
+    BPdia: [{ targetValue: 60, startMs: base + 12 * 60000, endMs: base + 12.5 * 60000 }]
+  };
+  const demoStatic = {
+    temp:    [{ value: 36.8, atMin: 0 }, { value: 38.5, atMin: 20 }],
+    gcs:     [{ e: 4, v: 5, m: 6, atMin: 0 }, { e: 3, v: 4, m: 5, atMin: 15 }],
+    bgl:     [{ value: 6.1, atMin: 0 }, { value: 3.2, atMin: 8 }],
+    ketones: [{ value: 0.1, atMin: 0 }],
+    pain:    [{ value: 8, atMin: 0 }, { value: 4, atMin: 10 }]
+  };
+  try {
+    await sbFetch(`sim_sessions?session_code=eq.${sessionCode}`, {
+      method: 'PATCH', prefer: 'return=minimal',
+      body: JSON.stringify({ treatments: demoTreatments, overrides: demoOverrides, static_vitals: demoStatic, updated_at: new Date().toISOString() })
+    });
+    treatments = demoTreatments;
+    liveConfig.treatments = demoTreatments;
+    liveConfig.overrides = demoOverrides;
+    liveConfig.staticVitals = demoStatic;
+    renderTreatments();
+    renderGraph();
+  } catch (e) {
+    alert('Could not load demo data — check the connection and try again.');
   }
 }
 
@@ -659,11 +732,22 @@ let _svKey = null;
 function openStaticModal(key) {
   _svKey = key;
   const def = STATIC_VITAL_DEFS.find(d => d.key === key);
-  const current = (liveConfig.staticVitals || DEFAULT_STATIC)[key];
+  const current = staticVitalNow(key);
   document.getElementById('sv-modal-title').textContent = `Set ${def.label}`;
-  document.getElementById('sv-modal-body').innerHTML = `
-    <label for="sv-input">${def.label} (${def.unit || 'text'})</label>
-    <input type="${def.type}" id="sv-input" value="${current}" style="width:100%;" ${def.step ? `step="${def.step}"` : ''}>`;
+  if (key === 'gcs') {
+    document.getElementById('sv-modal-body').innerHTML = `
+      <div class="row">
+        <div><label for="sv-e">Eye (1-4)</label><input type="number" id="sv-e" min="1" max="4" value="${current.e}" style="width:70px;"></div>
+        <div><label for="sv-v">Verbal (1-5)</label><input type="number" id="sv-v" min="1" max="5" value="${current.v}" style="width:70px;"></div>
+        <div><label for="sv-m">Motor (1-6)</label><input type="number" id="sv-m" min="1" max="6" value="${current.m}" style="width:70px;"></div>
+      </div>
+      <p class="muted">Takes effect now, at t+${elapsedMin().toFixed(1)} min.</p>`;
+  } else {
+    document.getElementById('sv-modal-body').innerHTML = `
+      <label for="sv-input">${def.label} (${def.unit})</label>
+      <input type="number" step="0.1" id="sv-input" value="${current.value}" style="width:100%;">
+      <p class="muted">Takes effect now, at t+${elapsedMin().toFixed(1)} min.</p>`;
+  }
   document.getElementById('static-modal').style.display = 'flex';
 }
 
@@ -674,19 +758,30 @@ function closeStaticModal() {
 
 async function applyStaticVital() {
   if (!_svKey || !sessionCode) return;
-  const def = STATIC_VITAL_DEFS.find(d => d.key === _svKey);
-  const raw = document.getElementById('sv-input').value;
-  const value = def.type === 'number' ? (parseFloat(raw) || 0) : raw;
+  const atMin = elapsedMin();
+  let newEntry;
+  if (_svKey === 'gcs') {
+    newEntry = {
+      e: parseInt(document.getElementById('sv-e').value) || 1,
+      v: parseInt(document.getElementById('sv-v').value) || 1,
+      m: parseInt(document.getElementById('sv-m').value) || 1,
+      atMin
+    };
+  } else {
+    newEntry = { value: parseFloat(document.getElementById('sv-input').value) || 0, atMin };
+  }
   try {
     const rows = await sbFetch(`sim_sessions?session_code=eq.${sessionCode}&select=static_vitals`, { method: 'GET' });
-    const fresh = (rows[0] && rows[0].static_vitals) || { ...DEFAULT_STATIC };
-    fresh[_svKey] = value;
+    const fresh = (rows[0] && rows[0].static_vitals) || JSON.parse(JSON.stringify(DEFAULT_STATIC));
+    if (!fresh[_svKey]) fresh[_svKey] = [];
+    fresh[_svKey].push(newEntry);
     await sbFetch(`sim_sessions?session_code=eq.${sessionCode}`, {
       method: 'PATCH', prefer: 'return=minimal',
       body: JSON.stringify({ static_vitals: fresh, updated_at: new Date().toISOString() })
     });
     liveConfig.staticVitals = fresh;
     renderStaticGrid();
+
     closeStaticModal();
   } catch (e) {
     alert('Could not set the value — check the connection and try again.');
