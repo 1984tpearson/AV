@@ -1311,7 +1311,9 @@ async function giveTreatment() {
   if (statusEl) statusEl.textContent = 'Recalculating trajectory…';
   try {
     await regenerateTimelineAfterTreatment(action, givenAtMs);
-    if (statusEl) statusEl.textContent = '';
+    // NOTE: status text intentionally left as-is here while the temporary
+    // diagnostic is in place — regenerateTimelineAfterTreatment sets its own
+    // message. Restore `if (statusEl) statusEl.textContent = '';` once removed.
   } catch (e) {
     if (statusEl) statusEl.textContent = 'Could not recalculate the trajectory: ' + e.message;
   }
@@ -1378,6 +1380,20 @@ Project how this patient's vitals change from here, given this specific action.`
 
   const rows = await sbFetch(`sim_sessions?session_code=eq.${sessionCode}&select=overrides`, { method: 'GET' });
   const freshOverrides = (rows[0] && rows[0].overrides) || {};
+
+  // TEMPORARY DIAGNOSTIC — surfaces exactly what the AI said, so we can tell
+  // whether a delay bug is the model's actual answer vs. something mangled
+  // afterward in this code. Remove once the onset-timing issue is resolved.
+  let _diagEarliest = Infinity, _diagKey = null;
+  Object.entries(parsed.overrides || {}).forEach(([k, arr]) => {
+    if (!Array.isArray(arr)) return;
+    arr.forEach(ov => { if (typeof ov.startMin === 'number' && ov.startMin < _diagEarliest) { _diagEarliest = ov.startMin; _diagKey = k; } });
+  });
+  console.log('[treatment AI raw response]', parsed);
+  console.log(`[treatment AI earliest onset] ${isFinite(_diagEarliest) ? _diagEarliest.toFixed(2) + ' min (' + _diagKey + ')' : 'none found'}`);
+  const statusEl2 = document.getElementById('treatment-status');
+  if (statusEl2) statusEl2.textContent = 'AI raw earliest onset: ' + (isFinite(_diagEarliest) ? _diagEarliest.toFixed(1) + ' min (' + _diagKey + ')' : 'none found — check console');
+
   // Drop the old "no longer valid" future plan for every vital — anything
   // already elapsed or mid-transition (startMs < givenAtMs) is left alone,
   // matching the existing "can't edit what's already started" rule.
