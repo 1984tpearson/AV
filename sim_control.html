@@ -655,10 +655,32 @@ function renderGraph() {
     const s = GRAPH_SERIES.find(g => g.key === pendingDrag.graphKey);
     const startMin = (pendingDrag.startMs - liveConfig.startTimeMs) / 60000;
     const endMin = (pendingDrag.endMs - liveConfig.startTimeMs) / 60000;
+
+    // Ghost preview: splice the pending change into a cloned config and
+    // re-sample through the real engine, so the dashed curve shown is the
+    // ACTUAL resulting trajectory (transition shape + post-transition drift
+    // resuming from the new offset) — not a straight-line guess.
+    const previewOverrides = Object.assign({}, liveConfig.overrides);
+    previewOverrides[pendingDrag.graphKey] = ((liveConfig.overrides && liveConfig.overrides[pendingDrag.graphKey]) || [])
+      .concat([{ targetValue: pendingDrag.targetValue, startMs: pendingDrag.startMs, endMs: Math.max(pendingDrag.endMs, pendingDrag.startMs + 1000) }]);
+    const previewConfig = Object.assign({}, liveConfig, { overrides: previewOverrides });
+    const ghostFromMin = Math.max(viewStart, startMin);
+    if (ghostFromMin < viewEnd) {
+      let gd = '';
+      for (let i = 0; i <= SAMPLES; i++) {
+        const m = ghostFromMin + (viewEnd - ghostFromMin) * (i / SAMPLES);
+        const tMs = liveConfig.startTimeMs + m * 60000;
+        const val = s.get(SimEngine.getVitalsRaw(previewConfig, tMs));
+        const x = xForMin(m);
+        const y = yFor(s, val);
+        gd += (i === 0 ? 'M' : 'L') + x.toFixed(1) + ',' + y.toFixed(1) + ' ';
+      }
+      pendingUI += `<path d="${gd}" fill="none" stroke="${s.color}" stroke-width="2.5" stroke-dasharray="6,4" opacity="0.9" />`;
+    }
+
     if (startMin >= viewStart && startMin <= viewEnd) {
       const x1 = xForMin(startMin), y1 = yFor(s, pendingDrag.targetValue);
       const x2 = xForMin(Math.min(endMin, viewEnd));
-      pendingUI += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y1}" stroke="${s.color}" stroke-width="2" stroke-dasharray="3,3" />`;
       pendingUI += `<circle cx="${x1}" cy="${y1}" r="6" fill="${s.color}" stroke="#fff" stroke-width="1.5" />`;
       const decimalKeys = ['temp', 'bgl', 'ketones'];
       const labelVal = decimalKeys.includes(s.key) ? pendingDrag.targetValue.toFixed(1) : Math.round(pendingDrag.targetValue);
