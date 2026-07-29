@@ -504,7 +504,12 @@ function onDragPointerMove(evt) {
     pendingDrag.targetValue = Math.min(s.max, Math.max(s.min, valForY(s, coords.y)));
   } else if (_dragMode === 'duration') {
     const startMin = (pendingDrag.startMs - liveConfig.startTimeMs) / 60000;
-    const m = Math.max(startMin + (5 / 60), minForX(coords.x));
+    const nowMin = (simNow() - liveConfig.startTimeMs) / 60000;
+    // Floor is whichever is later: the drag's own start point, or the live
+    // playhead (time keeps moving while the assessor is mid-drag) — never
+    // let the transition end fall before "now".
+    const floorMin = Math.max(startMin, liveConfig.hasStarted ? nowMin : 0) + (5 / 60);
+    const m = Math.max(floorMin, minForX(coords.x));
     pendingDrag.endMs = liveConfig.startTimeMs + m * 60000;
   }
   renderGraph();
@@ -603,7 +608,8 @@ function renderGraph() {
       const y = yFor(s, val);
       d += (i === 0 ? 'M' : 'L') + x.toFixed(1) + ',' + y.toFixed(1) + ' ';
     }
-    paths += `<path d="${d}" fill="none" stroke="${s.color}" stroke-width="${isArmed ? 3.5 : 2}" />`;
+    const fadeOthers = armedGraphKeys.length > 0 && !isArmed;
+    paths += `<path d="${d}" fill="none" stroke="${s.color}" stroke-width="${isArmed ? 3.5 : 2}" opacity="${fadeOthers ? 0.12 : 1}" />`;
 
     if (isArmed && !pendingDrag) {
       // Wide invisible hit-stroke over the FUTURE portion only (right of the
@@ -654,6 +660,13 @@ function renderGraph() {
       const x2 = xForMin(Math.min(endMin, viewEnd));
       pendingUI += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y1}" stroke="${s.color}" stroke-width="2" stroke-dasharray="3,3" />`;
       pendingUI += `<circle cx="${x1}" cy="${y1}" r="6" fill="${s.color}" stroke="#fff" stroke-width="1.5" />`;
+      const decimalKeys = ['temp', 'bgl', 'ketones'];
+      const labelVal = decimalKeys.includes(s.key) ? pendingDrag.targetValue.toFixed(1) : Math.round(pendingDrag.targetValue);
+      const labelStr = `${labelVal}${s.unit}`;
+      const labelW = Math.max(32, labelStr.length * 7 + 12);
+      const labelX = Math.min(x1 + 10, W - padR - labelW);
+      pendingUI += `<rect x="${labelX}" y="${y1 - 10}" width="${labelW}" height="16" rx="4" fill="#1e2a36" opacity="0.85" />`;
+      pendingUI += `<text x="${labelX + 6}" y="${y1 + 2}" font-size="11" fill="#fff" font-weight="700">${labelStr}</text>`;
       if (endMin <= viewEnd) {
         pendingUI += `<circle cx="${x2}" cy="${y1}" r="7" fill="#fff" stroke="${s.color}" stroke-width="2" style="touch-action:none;cursor:ew-resize;" onpointerdown="startDurationDrag(event)" onclick="event.stopPropagation()" />`;
       }
