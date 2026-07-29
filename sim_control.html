@@ -340,6 +340,13 @@ async function applyOverride() {
 }
 
 populateDrugSelect();
+
+// Background tabs get their setInterval timers throttled by the browser, so
+// the control screen can visibly lag behind the DB while you're looking at
+// another tab. Force an immediate catch-up the moment this tab regains focus.
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden) { tickVitals(); pollSession(); }
+});
 </script>
 </body>
 </html>

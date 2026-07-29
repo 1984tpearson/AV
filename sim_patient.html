@@ -6,21 +6,22 @@
 <title>Live Scenario — Patient View</title>
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
-html, body { height: 100%; background: linear-gradient(135deg, #2C4F7C 0%, #4E7FAE 55%, #6FA0CC 100%); color: #1e2a36; font-family: 'Courier New', monospace; }
-body { display: flex; flex-direction: column; min-height: 100vh; }
-#topbar { background: #ffffff; border-bottom: 2px solid #d7dee6; padding: 8px 14px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+html, body { height: 100%; height: 100dvh; overflow: hidden; background: linear-gradient(135deg, #2C4F7C 0%, #4E7FAE 55%, #6FA0CC 100%); color: #1e2a36; font-family: 'Courier New', monospace; }
+body { display: flex; flex-direction: column; }
+#topbar { flex-shrink: 0; background: #ffffff; border-bottom: 2px solid #d7dee6; padding: 8px 14px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 #topbar .title { font-size: 12px; font-weight: 900; letter-spacing: 1px; color: #0369a1; text-transform: uppercase; }
 #topbar-right { display: flex; align-items: center; gap: 14px; }
 #instant-mode-label { font-size: 10px; display: flex; align-items: center; gap: 4px; color: #33475a; cursor: pointer; user-select: none; }
 #scenario-timer { font-size: 13px; font-weight: 700; color: #15803d; }
-#main { flex: 1; display: flex; flex-direction: column; gap: 10px; padding: 10px; }
+#patient-info { flex-shrink: 0; }
+#main { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 10px; padding: 10px; overflow: hidden; }
 @media (min-width: 800px) { #main { flex-direction: row; } }
 .panel { background: #ffffff; border: 1px solid #d7dee6; border-radius: 8px; padding: 10px; }
-#monitor-col { background: #0a0e16 !important; border-color: #142235 !important; }
-#info-col { flex: 1; max-width: 280px; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+#monitor-col { background: #0a0e16 !important; border-color: #142235 !important; min-height: 0; }
+#info-col { flex: 1; max-width: 280px; display: flex; flex-direction: column; gap: 10px; min-width: 0; min-height: 0; }
 #patient-info h2 { font-size: 12px; color: #0369a1; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; }
 #patient-info .row { font-size: 12px; color: #33475a; margin-bottom: 3px; }
-#patient-graphic { flex: 1; min-height: 140px; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+#patient-graphic { flex: 1; min-height: 100px; display: flex; align-items: center; justify-content: center; overflow: hidden; }
 #patient-graphic img { max-width: 100%; max-height: 100%; object-fit: contain; }
 
 /* Monitor main row (ECG + narrow vitals sidebar side-by-side, matching monitor.html) */
@@ -38,7 +39,8 @@ body { display: flex; flex-direction: column; min-height: 100vh; }
 
 /* Vitals sidebar — narrow column beside the ECG, each block flex:1 (matches monitor.html #vitals-panel) */
 #monitor-box { width: 150px; flex-shrink: 0; display: flex; flex-direction: column; background: #080c14; overflow: hidden; }
-.vblock { flex: 1; min-height: 0; display: flex; flex-direction: column; border-bottom: 2px solid #0d1f35; padding: 3px 8px; overflow: hidden; }
+.vblock { flex: 1; min-height: 0; display: flex; flex-direction: column; border-bottom: 2px solid #0d1f35; padding: 3px 8px; overflow: hidden; cursor: pointer; -webkit-tap-highlight-color: rgba(255,255,255,0.15); }
+.vblock:active { background: rgba(255,255,255,0.06); }
 .vlabel { font-size: 8px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; flex-shrink: 0; }
 .vvalue { flex: 1; display: flex; align-items: center; font-size: clamp(14px, 2.2vw, 22px); font-weight: 900; line-height: 1; font-family: 'Courier New', monospace; min-height: 0; overflow: hidden; }
 .vunit { font-size: 8px; font-weight: 400; opacity: 0.7; margin-left: 3px; align-self: flex-end; }
@@ -49,14 +51,16 @@ body { display: flex; flex-direction: column; min-height: 100vh; }
 .v-etco2 .vlabel { color: #ff8a65; } .v-etco2 .vvalue { color: #ff8a65; }
 #bp-timer { font-size: 7px; color: #4a6a8a; }
 .apply-btn { font-size: 8px; background: none; border: 1px solid currentColor; border-radius: 3px; padding: 2px 5px; cursor: pointer; color: inherit; font-family: inherit; }
+.tap-hint { font-size: 10px; opacity: 0.8; font-style: italic; }
 .pending-txt { font-size: 10px; opacity: 0.85; }
 .queued-txt { font-size: 9px; opacity: 0.7; font-style: italic; }
 
 #oneoff-strip { display: flex; flex-wrap: wrap; gap: 0; border-top: 2px solid #0d1f35; }
-.oo-card { flex: 1; min-width: 90px; padding: 6px 8px; border-right: 1px solid #1a2a3a; border-bottom: 1px solid #1a2a3a; }
+.oo-card { flex: 1; min-width: 90px; padding: 6px 8px; border-right: 1px solid #1a2a3a; border-bottom: 1px solid #1a2a3a; cursor: pointer; -webkit-tap-highlight-color: rgba(255,255,255,0.15); }
+.oo-card:active { background: rgba(255,255,255,0.06); }
 .oo-label { font-size: 8px; font-weight: 700; color: #4a6a8a; text-transform: uppercase; letter-spacing: 1px; }
 .oo-value { font-size: 15px; font-weight: 700; color: #c0d4e8; }
-.oo-btn { font-size: 9px; color: #4fc3f7; background: none; border: 1px solid #1a3a5a; border-radius: 3px; padding: 1px 5px; cursor: pointer; margin-top: 2px; }
+.oo-tap-again { font-size: 8px; color: #4fc3f7; margin-top: 2px; font-style: italic; }
 .oo-pending { font-size: 10px; color: #4fc3f7; margin-top: 2px; }
 .oo-queued { font-size: 9px; color: #6b8299; margin-top: 2px; font-style: italic; }
 </style>
@@ -313,15 +317,33 @@ function deriveRhythmFromHR(hr) {
 function ensureECG(hr) {
   const rhythmStr = deriveRhythmFromHR(hr);
   const mapped = ECGEngine.mapRhythm(rhythmStr, hr);
-  if (mapped.key === _currentRhythmKey && _ecgInst) return;
-  _currentRhythmKey = mapped.key;
-  const container = document.getElementById('ecg-12lead-container');
-  const wrap = document.getElementById('ecg-display-wrap');
-  const availH = wrap.clientHeight;
+  if (!_ecgInst) {
+    const container = document.getElementById('ecg-12lead-container');
+    const wrap = document.getElementById('ecg-display-wrap');
+    const availH = wrap.clientHeight;
+    _ecgInst = new ECGEngine(container, { mode: '12lead', theme: 'monitor', height: availH });
+    _ecgInst.setRhythm(mapped.key, mapped.bpm, mapped.bbbMode);
+    _currentRhythmKey = mapped.key;
+    setLeadDisplay();
+    return;
+  }
+  if (mapped.key !== _currentRhythmKey) {
+    // Rhythm reclassified (e.g. sinus -> tachycardia crosses a real engine key).
+    // setRhythm() on the EXISTING instance does not clear the trace buffer —
+    // it only resets beat-phase/morphology — so the waveform continues smoothly
+    // instead of wiping and restarting like a full destroy/recreate would.
+    _currentRhythmKey = mapped.key;
+    _ecgInst.setRhythm(mapped.key, mapped.bpm, mapped.bbbMode);
+  }
+}
+
+function rebuildECG(hr) {
+  // Only for genuine geometry changes (window resize) — an actual destroy is
+  // needed here since ECGEngine bakes container dimensions in at construction.
   if (_ecgInst) _ecgInst.destroy();
-  _ecgInst = new ECGEngine(container, { mode: '12lead', theme: 'monitor', height: availH });
-  _ecgInst.setRhythm(mapped.key, mapped.bpm, mapped.bbbMode);
-  setLeadDisplay();
+  _ecgInst = null;
+  _currentRhythmKey = null;
+  ensureECG(hr);
 }
 
 function setLeadDisplay() {
@@ -440,21 +462,40 @@ function fmtTimer(ms) {
 
 function cellFor(actionKey) {
   const st = actionState[actionKey];
-  if (st.status === 'idle') return `<button class="apply-btn" onclick="startAction('${actionKey}')">Apply</button>`;
+  if (st.status === 'idle') return `<span class="tap-hint">Tap to Apply</span>`;
   if (st.status === 'queued') return `<span class="queued-txt">Queued\u2026</span>`;
   return `<span class="pending-txt">${countdownRemain(st)}s</span>`;
 }
 
+// Whole-tile tap handlers — the entire box is the touch target (iPad-friendly),
+// not a small inner button. Idle -> start; done (BP/one-offs only) -> retake.
+function handleVitalTap(actionKey) {
+  const st = actionState[actionKey];
+  if (st.status === 'idle') startAction(actionKey);
+  // pending/queued -> already in progress, ignore taps
+  // done (continuous vitals) -> already live, nothing to retake
+}
+function handleBPTap() {
+  const st = actionState.bp;
+  if (st.status === 'idle') { startAction('bp'); return; }
+  if (st.status === 'done') { st.status = 'idle'; startAction('bp'); return; }
+}
+function handleOneOffTap(key) {
+  const st = actionState[key];
+  if (st.status === 'idle') startAction(key);
+  else if (st.status === 'done') reassess(key);
+}
+
 function renderBPCell(now) {
   const st = actionState.bp;
-  if (st.status === 'idle') return `<button class="apply-btn" onclick="startAction('bp')">Take BP</button>`;
+  if (st.status === 'idle') return `<span class="tap-hint">Tap to Take BP</span>`;
   if (st.status === 'queued') return `<span class="queued-txt">Queued\u2026</span>`;
   if (st.status === 'pending') {
     const p = computeCuffPressure(st, now);
     return `${p}<span class="vunit">mmHg</span><div id="bp-timer">cuff inflating\u2026</div>`;
   }
   const remainMs = Math.max(0, (bpNextDueMs || now) - now);
-  return `${lastBP.sys}/${lastBP.dia}<span class="vunit">mmHg</span><div id="bp-timer">next auto BP in ${fmtTimer(remainMs)}</div>`;
+  return `${lastBP.sys}/${lastBP.dia}<span class="vunit">mmHg</span><div id="bp-timer">next auto BP in ${fmtTimer(remainMs)} \u2022 tap to retake</div>`;
 }
 
 function renderMonitor(v, now) {
@@ -467,13 +508,14 @@ function renderMonitor(v, now) {
   const bpCell = renderBPCell(now);
 
   box.innerHTML = `
-    <div class="vblock v-hr"><div class="vlabel">HR</div><div class="vvalue">${hrCell}</div></div>
-    <div class="vblock v-bp"><div class="vlabel">NIBP</div><div class="vvalue">${bpCell}</div></div>
-    <div class="vblock v-spo2"><div class="vlabel">SpO\u2082</div><div class="vvalue">${spo2Cell}</div></div>
-    <div class="vblock v-rr"><div class="vlabel">Resp</div><div class="vvalue">${rrCell}</div></div>
-    <div class="vblock v-etco2"><div class="vlabel">EtCO\u2082</div><div class="vvalue">${etco2Cell}</div></div>
+    <div class="vblock v-hr" onclick="handleVitalTap('ecg')"><div class="vlabel">HR</div><div class="vvalue">${hrCell}</div></div>
+    <div class="vblock v-bp" onclick="handleBPTap()"><div class="vlabel">NIBP</div><div class="vvalue">${bpCell}</div></div>
+    <div class="vblock v-spo2" onclick="handleVitalTap('spo2')"><div class="vlabel">SpO\u2082</div><div class="vvalue">${spo2Cell}</div></div>
+    <div class="vblock v-rr" onclick="handleVitalTap('rr')"><div class="vlabel">Resp</div><div class="vvalue">${rrCell}</div></div>
+    <div class="vblock v-etco2" onclick="handleVitalTap('etco2')"><div class="vlabel">EtCO\u2082</div><div class="vvalue">${etco2Cell}</div></div>
   `;
 }
+
 
 function renderOneOff() {
   const strip = document.getElementById('oneoff-strip');
@@ -481,15 +523,15 @@ function renderOneOff() {
     const st = actionState[key];
     let body;
     if (st.status === 'idle') {
-      body = `<button class="oo-btn" onclick="startAction('${key}')">Assess</button>`;
+      body = `<div class="tap-hint">Tap to Assess</div>`;
     } else if (st.status === 'queued') {
       body = `<div class="oo-queued">Queued\u2026</div>`;
     } else if (st.status === 'pending') {
       body = `<div class="oo-pending">${countdownRemain(st)}s\u2026</div>`;
     } else {
-      body = `<div class="oo-value">${st.value}${def.unit ? `<span style="font-size:9px"> ${def.unit}</span>` : ''}</div><button class="oo-btn" onclick="reassess('${key}')">Reassess</button>`;
+      body = `<div class="oo-value">${st.value}${def.unit ? `<span style="font-size:9px"> ${def.unit}</span>` : ''}</div><div class="oo-tap-again">tap to reassess</div>`;
     }
-    return `<div class="oo-card"><div class="oo-label">${def.label}</div>${body}</div>`;
+    return `<div class="oo-card" onclick="handleOneOffTap('${key}')"><div class="oo-label">${def.label}</div>${body}</div>`;
   }).join('');
 }
 
@@ -518,8 +560,11 @@ window.addEventListener('DOMContentLoaded', () => {
 });
 
 window.addEventListener('resize', () => {
-  _currentRhythmKey = null;
-  if (actionState.ecg.status === 'done') ensureECG(_lastHR);
+  if (actionState.ecg.status === 'done') rebuildECG(_lastHR);
+});
+
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden) { tick(); pollSession(); }
 });
 </script>
 </body>
