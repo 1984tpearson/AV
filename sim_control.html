@@ -475,8 +475,11 @@ function startValueDrag(evt, graphKey) {
   const elapsedMin = (simNow() - liveConfig.startTimeMs) / 60000;
   const m = Math.max(liveConfig.hasStarted ? elapsedMin : 0, minForX(coords.x));
   const val = Math.min(s.max, Math.max(s.min, valForY(s, coords.y)));
-  const startMs = liveConfig.startTimeMs + m * 60000;
-  pendingDrag = { graphKey, startMs, targetValue: val, endMs: startMs + 30000 };
+  const anchorMs = liveConfig.startTimeMs + m * 60000;
+  // anchorMs+targetValue is the fixed point set by this touch. handleMs is the
+  // separately-draggable marker, defaulted 30s later — see onDragPointerMove
+  // for how the two combine into an actual startMs/endMs.
+  pendingDrag = { graphKey, anchorMs, targetValue: val, handleMs: anchorMs + 30000 };
   _dragMode = 'value';
   _dragPointerId = evt.pointerId;
   renderGraph();
@@ -495,22 +498,27 @@ function onDragPointerMove(evt) {
   const coords = svgCoordFromEvent(evt);
   if (!coords) return;
   const s = GRAPH_SERIES.find(g => g.key === pendingDrag.graphKey);
+  const elapsedMin = (simNow() - liveConfig.startTimeMs) / 60000;
+  const floorMs = liveConfig.startTimeMs + (liveConfig.hasStarted ? elapsedMin : 0) * 60000;
   if (_dragMode === 'value') {
-    const elapsedMin = (simNow() - liveConfig.startTimeMs) / 60000;
     const m = Math.max(liveConfig.hasStarted ? elapsedMin : 0, minForX(coords.x));
-    const durationMs = pendingDrag.endMs - pendingDrag.startMs;
-    pendingDrag.startMs = liveConfig.startTimeMs + m * 60000;
-    pendingDrag.endMs = pendingDrag.startMs + durationMs;
+    const offsetMs = pendingDrag.handleMs - pendingDrag.anchorMs; // preserve the current handle gap while moving the anchor
+    pendingDrag.anchorMs = liveConfig.startTimeMs + m * 60000;
+    pendingDrag.handleMs = pendingDrag.anchorMs + offsetMs;
     pendingDrag.targetValue = Math.min(s.max, Math.max(s.min, valForY(s, coords.y)));
   } else if (_dragMode === 'duration') {
-    const startMin = (pendingDrag.startMs - liveConfig.startTimeMs) / 60000;
-    const nowMin = (simNow() - liveConfig.startTimeMs) / 60000;
-    // Floor is whichever is later: the drag's own start point, or the live
-    // playhead (time keeps moving while the assessor is mid-drag) — never
-    // let the transition end fall before "now".
-    const floorMin = Math.max(startMin, liveConfig.hasStarted ? nowMin : 0) + (5 / 60);
-    const m = Math.max(floorMin, minForX(coords.x));
-    pendingDrag.endMs = liveConfig.startTimeMs + m * 60000;
+    // The handle is free to move either side of the anchor: to the right it
+    // pushes out WHEN the target is fully reached; dragged past the anchor
+    // to the left, the anchor becomes the "reached at" point instead and the
+    // handle becomes the "starts changing at" point — i.e. whichever marker
+    // is earlier is the transition start, whichever is later is the target
+    // time. Only floor is live "now" — never edit what's already happened.
+    let newHandleMs = liveConfig.startTimeMs + minForX(coords.x) * 60000;
+    const minGapMs = 5000;
+    if (Math.abs(newHandleMs - pendingDrag.anchorMs) < minGapMs) {
+      newHandleMs = newHandleMs < pendingDrag.anchorMs ? pendingDrag.anchorMs - minGapMs : pendingDrag.anchorMs + minGapMs;
+    }
+    pendingDrag.handleMs = Math.max(newHandleMs, floorMs);
   }
   renderGraph();
 }
@@ -524,7 +532,9 @@ function onDragPointerUp(evt) {
 
 async function confirmPendingDrag() {
   if (!pendingDrag || !sessionCode) return;
-  const { graphKey, startMs, targetValue, endMs } = pendingDrag;
+  const { graphKey, targetValue, anchorMs, handleMs } = pendingDrag;
+  const startMs = Math.min(anchorMs, handleMs);
+  const endMs = Math.max(anchorMs, handleMs);
   try {
     const rows = await sbFetch(`sim_sessions?session_code=eq.${sessionCode}&select=overrides`, { method: 'GET' });
     const freshOverrides = (rows[0] && rows[0].overrides) || {};
@@ -653,8 +663,12 @@ function renderGraph() {
   let pendingUI = '';
   if (pendingDrag) {
     const s = GRAPH_SERIES.find(g => g.key === pendingDrag.graphKey);
-    const startMin = (pendingDrag.startMs - liveConfig.startTimeMs) / 60000;
-    const endMin = (pendingDrag.endMs - liveConfig.startTimeMs) / 60000;
+    const anchorMin = (pendingDrag.anchorMs - liveConfig.startTimeMs) / 60000;
+    const handleMin = (pendingDrag.handleMs - liveConfig.startTimeMs) / 60000;
+    const startMin = Math.min(anchorMin, handleMin);
+    const endMin = Math.max(anchorMin, handleMin);
+    const startMs = liveConfig.startTimeMs + startMin * 60000;
+    const endMs = liveConfig.startTimeMs + endMin * 60000;
 
     // Ghost preview: splice the pending change into a cloned config and
     // re-sample through the real engine, so the dashed curve shown is the
@@ -662,7 +676,7 @@ function renderGraph() {
     // resuming from the new offset) — not a straight-line guess.
     const previewOverrides = Object.assign({}, liveConfig.overrides);
     previewOverrides[pendingDrag.graphKey] = ((liveConfig.overrides && liveConfig.overrides[pendingDrag.graphKey]) || [])
-      .concat([{ targetValue: pendingDrag.targetValue, startMs: pendingDrag.startMs, endMs: Math.max(pendingDrag.endMs, pendingDrag.startMs + 1000) }]);
+      .concat([{ targetValue: pendingDrag.targetValue, startMs, endMs: Math.max(endMs, startMs + 1000) }]);
     const previewConfig = Object.assign({}, liveConfig, { overrides: previewOverrides });
     const ghostFromMin = Math.max(viewStart, startMin);
     if (ghostFromMin < viewEnd) {
@@ -678,23 +692,29 @@ function renderGraph() {
       pendingUI += `<path d="${gd}" fill="none" stroke="${s.color}" stroke-width="2.5" stroke-dasharray="6,4" opacity="0.9" />`;
     }
 
-    if (startMin >= viewStart && startMin <= viewEnd) {
-      const x1 = xForMin(startMin), y1 = yFor(s, pendingDrag.targetValue);
-      const x2 = xForMin(Math.min(endMin, viewEnd));
-      pendingUI += `<circle cx="${x1}" cy="${y1}" r="6" fill="${s.color}" stroke="#fff" stroke-width="1.5" />`;
+    const yAnchor = yFor(s, pendingDrag.targetValue);
+
+    // The anchor marker (where the target value was set) is always drawn at
+    // its own fixed spot. The handle marker is independently draggable and
+    // can sit either side of it — see onDragPointerMove for what that means.
+    if (anchorMin >= viewStart && anchorMin <= viewEnd) {
+      const xA = xForMin(anchorMin);
+      pendingUI += `<circle cx="${xA}" cy="${yAnchor}" r="6" fill="${s.color}" stroke="#fff" stroke-width="1.5" />`;
       const decimalKeys = ['temp', 'bgl', 'ketones'];
       const labelVal = decimalKeys.includes(s.key) ? pendingDrag.targetValue.toFixed(1) : Math.round(pendingDrag.targetValue);
       const labelStr = `${labelVal}${s.unit}`;
       const labelW = Math.max(32, labelStr.length * 7 + 12);
-      const labelX = Math.min(x1 + 10, W - padR - labelW);
-      pendingUI += `<rect x="${labelX}" y="${y1 - 10}" width="${labelW}" height="16" rx="4" fill="#1e2a36" opacity="0.85" />`;
-      pendingUI += `<text x="${labelX + 6}" y="${y1 + 2}" font-size="11" fill="#fff" font-weight="700">${labelStr}</text>`;
-      if (endMin <= viewEnd) {
-        pendingUI += `<circle cx="${x2}" cy="${y1}" r="7" fill="#fff" stroke="${s.color}" stroke-width="2" style="touch-action:none;cursor:ew-resize;" onpointerdown="startDurationDrag(event)" onclick="event.stopPropagation()" />`;
-      }
-      const iconY = Math.max(padT + 10, y1 - 18);
-      pendingUI += `<g onclick="event.stopPropagation();confirmPendingDrag()" style="cursor:pointer;"><circle cx="${x1 - 12}" cy="${iconY}" r="9" fill="#15803d" /><text x="${x1 - 12}" y="${iconY + 4}" font-size="12" fill="#fff" text-anchor="middle" font-weight="900">&#10003;</text></g>`;
-      pendingUI += `<g onclick="event.stopPropagation();cancelPendingDrag();renderGraph()" style="cursor:pointer;"><circle cx="${x1 + 12}" cy="${iconY}" r="9" fill="#b91c1c" /><text x="${x1 + 12}" y="${iconY + 4}" font-size="12" fill="#fff" text-anchor="middle" font-weight="900">&#10005;</text></g>`;
+      const labelDir = handleMin >= anchorMin ? -1 : 1; // keep the label clear of the handle side
+      const labelX = Math.min(Math.max(padL, xA + labelDir * (labelDir > 0 ? labelW + 10 : 10)), W - padR - labelW);
+      pendingUI += `<rect x="${labelX}" y="${yAnchor - 10}" width="${labelW}" height="16" rx="4" fill="#1e2a36" opacity="0.85" />`;
+      pendingUI += `<text x="${labelX + 6}" y="${yAnchor + 2}" font-size="11" fill="#fff" font-weight="700">${labelStr}</text>`;
+      const iconY = Math.max(padT + 10, yAnchor - 18);
+      pendingUI += `<g onclick="event.stopPropagation();confirmPendingDrag()" style="cursor:pointer;"><circle cx="${xA - 12}" cy="${iconY}" r="9" fill="#15803d" /><text x="${xA - 12}" y="${iconY + 4}" font-size="12" fill="#fff" text-anchor="middle" font-weight="900">&#10003;</text></g>`;
+      pendingUI += `<g onclick="event.stopPropagation();cancelPendingDrag();renderGraph()" style="cursor:pointer;"><circle cx="${xA + 12}" cy="${iconY}" r="9" fill="#b91c1c" /><text x="${xA + 12}" y="${iconY + 4}" font-size="12" fill="#fff" text-anchor="middle" font-weight="900">&#10005;</text></g>`;
+    }
+    if (handleMin >= viewStart && handleMin <= viewEnd) {
+      const xH = xForMin(handleMin);
+      pendingUI += `<circle cx="${xH}" cy="${yAnchor}" r="7" fill="#fff" stroke="${s.color}" stroke-width="2" style="touch-action:none;cursor:ew-resize;" onpointerdown="startDurationDrag(event)" onclick="event.stopPropagation()" />`;
     }
   }
 
