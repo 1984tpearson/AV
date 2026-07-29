@@ -49,6 +49,7 @@
   const ACTION_DURATIONS = {
     ecg: 20,
     ecg12lead: { withMonitoring: 35, fromScratch: 50 },
+    rr: 30,
     spo2: 12,
     etco2: 15,
     bp: 35,

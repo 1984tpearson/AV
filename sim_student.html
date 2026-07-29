@@ -30,7 +30,7 @@ body { display: flex; flex-direction: column; min-height: 100vh; }
 .ecg-snapshot-btn { background: rgba(0,255,136,0.08); border: 2px solid #00ff88; color: #00ff88; font-family: 'Courier New', monospace; font-size: 11px; font-weight: bold; letter-spacing: 1px; padding: 4px 12px; cursor: pointer; text-transform: uppercase; border-radius: 4px; }
 .ecg-snapshot-btn:disabled { opacity: 0.5; cursor: default; }
 #ecg-display-wrap { position: relative; flex: 1; min-height: 0; overflow: hidden; }
-#ecg-12lead-container { width: 100%; height: 100%; overflow: hidden; cursor: pointer; }
+#ecg-12lead-container { width: 100%; height: 100%; overflow: hidden; }
 #ecg-apply-overlay { position: absolute; inset: 0; display: none; align-items: center; justify-content: center; background: rgba(6,9,16,0.94); text-align: center; padding: 10px; z-index: 5; }
 .ecg-overlay-text { color: #00ff88; font-size: 12px; letter-spacing: 1px; }
 .apply-btn-lg { background: rgba(0,255,136,0.1); border: 2px solid #00ff88; color: #00ff88; font-family: 'Courier New', monospace; font-size: 12px; font-weight: bold; padding: 10px 18px; border-radius: 6px; cursor: pointer; letter-spacing: 1px; }
@@ -124,7 +124,7 @@ function toggleInstantMode() {
 const MAX_CONCURRENT = 2;
 let actionQueue = [];
 const actionState = {};
-['ecg','ecg12lead','spo2','etco2','bp','temp','gcs','bgl','ketones','pain'].forEach(k => {
+['ecg','ecg12lead','rr','spo2','etco2','bp','temp','gcs','bgl','ketones','pain'].forEach(k => {
   actionState[k] = { status: 'idle' };
 });
 
@@ -296,9 +296,10 @@ const limbLeadOrder = ['I', 'II', 'III', 'aVR', 'aVL', 'aVF'];
 let _limbLeadIndex = 1; // start on 'II'
 
 function cycleLimbLead() {
-  if (actionState.ecg.status !== 'done' || actionState.ecg12lead.status === 'done') return;
-  _limbLeadIndex = (_limbLeadIndex + 1) % limbLeadOrder.length;
-  showLimbLead(limbLeadOrder[_limbLeadIndex]);
+  // PAUSED: cycling through grid-cell leads produces a small/blurry trace
+  // (see conversation) since the engine only renders a full-width crisp strip
+  // for Lead II. Re-enable once ecg_engine.js gains a proper setStripLead().
+  return;
 }
 
 // Recomputes the engine's own cell-size formula (LEAD_W/LEAD_H) fresh each
@@ -408,11 +409,10 @@ function updateEcgMain(hr) {
     // A pending/queued 12-lead only gets a thin non-blocking banner.
     overlay.style.display = 'none';
     ensureECG(hr);
+    setLeadDisplay(); // plain Lead II strip when ecg12 not done, grid when it is
     if (ecg12St.status === 'done') {
-      setLeadDisplay();
       banner.style.display = 'none';
     } else {
-      showLimbLead(limbLeadOrder[_limbLeadIndex]);
       if (ecg12St.status === 'pending') {
         banner.style.display = 'block';
         banner.textContent = `Applying 12-Lead ECG\u2026 ${countdownRemain(ecg12St)}s`;
@@ -471,7 +471,7 @@ function renderMonitor(v, now) {
   const box = document.getElementById('monitor-box');
   const ecgDone = actionState.ecg.status === 'done';
   const hrCell = ecgDone ? `${v.HR}<span class="vunit">bpm</span>` : cellFor('ecg');
-  const rrCell = ecgDone ? `${v.RR}<span class="vunit">/min</span>` : cellFor('ecg');
+  const rrCell = actionState.rr.status === 'done' ? `${v.RR}<span class="vunit">/min</span>` : cellFor('rr');
   const spo2Cell = actionState.spo2.status === 'done' ? `${v.SpO2}<span class="vunit">%</span>` : cellFor('spo2');
   const etco2Cell = actionState.etco2.status === 'done' ? `${v.EtCO2}<span class="vunit">mmHg</span>` : cellFor('etco2');
   const bpCell = renderBPCell(now);
