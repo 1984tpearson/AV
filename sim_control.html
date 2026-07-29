@@ -1044,7 +1044,12 @@ function renderGraph() {
       return { label: s.label, str, color: s.color };
     });
     if (rows.length) {
-      const rowH = 14, panelW = 82, panelH = rows.length * rowH + 10;
+      // Size the panel to the widest label+value pair instead of a fixed
+      // width — "BP Sys"/"BP Dia" plus a 3-digit mmHg value were colliding
+      // in a fixed 82px box.
+      const rowH = 14;
+      const panelW = Math.max(90, Math.min(150, Math.max(...rows.map(r => 18 + r.label.length * 5.4 + 10 + r.str.length * 5.9 + 8))));
+      const panelH = rows.length * rowH + 10;
       const onLeftHalf = ix < padL + plotW / 2;
       const panelX = onLeftHalf ? Math.min(ix + 10, W - padR - panelW) : Math.max(ix - 10 - panelW, padL);
       const panelY = Math.max(padT, Math.min(padT + plotH - panelH, padT + (plotH - panelH) / 2));
