@@ -1015,8 +1015,8 @@ function renderGraph() {
         const val = s.get(SimEngine.getVitalsRaw(baselineCfg, tMs));
         gpts.push([xForMin(m), yFor(s, val)]);
       }
-      const ghostOpacity = fadeOthers ? 0.06 : 0.5;
-      paths += `<path d="${pointsToSmoothPath(gpts)}" fill="none" stroke="#94a3b8" stroke-width="1.5" opacity="${ghostOpacity}" stroke-linecap="round" />`;
+      const ghostOpacity = fadeOthers ? 0.15 : 1;
+      paths += `<path d="${pointsToSmoothPath(gpts)}" fill="none" stroke="#f7f7f7" stroke-width="1.5" opacity="${ghostOpacity}" stroke-linecap="round" />`;
     }
 
     const d = pointsToSmoothPath(pts);
