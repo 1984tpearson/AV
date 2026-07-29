@@ -6,7 +6,7 @@
 <title>Live Scenario — Student View</title>
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
-html, body { height: 100%; background: #f7f9fc; color: #1e2a36; font-family: 'Courier New', monospace; }
+html, body { height: 100%; background: linear-gradient(135deg, #2C4F7C 0%, #4E7FAE 55%, #6FA0CC 100%); color: #1e2a36; font-family: 'Courier New', monospace; }
 body { display: flex; flex-direction: column; min-height: 100vh; }
 #topbar { background: #ffffff; border-bottom: 2px solid #d7dee6; padding: 8px 14px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 #topbar .title { font-size: 12px; font-weight: 900; letter-spacing: 1px; color: #0369a1; text-transform: uppercase; }
@@ -30,10 +30,11 @@ body { display: flex; flex-direction: column; min-height: 100vh; }
 .ecg-snapshot-btn { background: rgba(0,255,136,0.08); border: 2px solid #00ff88; color: #00ff88; font-family: 'Courier New', monospace; font-size: 11px; font-weight: bold; letter-spacing: 1px; padding: 4px 12px; cursor: pointer; text-transform: uppercase; border-radius: 4px; }
 .ecg-snapshot-btn:disabled { opacity: 0.5; cursor: default; }
 #ecg-display-wrap { position: relative; flex: 1; min-height: 0; overflow: hidden; }
-#ecg-12lead-container { width: 100%; height: 100%; overflow: hidden; }
+#ecg-12lead-container { width: 100%; height: 100%; overflow: hidden; cursor: pointer; }
 #ecg-apply-overlay { position: absolute; inset: 0; display: none; align-items: center; justify-content: center; background: rgba(6,9,16,0.94); text-align: center; padding: 10px; z-index: 5; }
 .ecg-overlay-text { color: #00ff88; font-size: 12px; letter-spacing: 1px; }
 .apply-btn-lg { background: rgba(0,255,136,0.1); border: 2px solid #00ff88; color: #00ff88; font-family: 'Courier New', monospace; font-size: 12px; font-weight: bold; padding: 10px 18px; border-radius: 6px; cursor: pointer; letter-spacing: 1px; }
+#ecg-progress-banner { position: absolute; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.75); color: #00ff88; font-size: 10px; text-align: center; padding: 3px 6px; letter-spacing: 1px; display: none; z-index: 6; pointer-events: none; }
 
 /* Vitals sidebar — narrow column beside the ECG, each block flex:1 (matches monitor.html #vitals-panel) */
 #monitor-box { width: 150px; flex-shrink: 0; display: flex; flex-direction: column; background: #080c14; overflow: hidden; }
@@ -49,6 +50,7 @@ body { display: flex; flex-direction: column; min-height: 100vh; }
 #bp-timer { font-size: 7px; color: #4a6a8a; }
 .apply-btn { font-size: 8px; background: none; border: 1px solid currentColor; border-radius: 3px; padding: 2px 5px; cursor: pointer; color: inherit; font-family: inherit; }
 .pending-txt { font-size: 10px; opacity: 0.85; }
+.queued-txt { font-size: 9px; opacity: 0.7; font-style: italic; }
 
 #oneoff-strip { display: flex; flex-wrap: wrap; gap: 0; border-top: 2px solid #0d1f35; }
 .oo-card { flex: 1; min-width: 90px; padding: 6px 8px; border-right: 1px solid #1a2a3a; border-bottom: 1px solid #1a2a3a; }
@@ -56,6 +58,7 @@ body { display: flex; flex-direction: column; min-height: 100vh; }
 .oo-value { font-size: 15px; font-weight: 700; color: #c0d4e8; }
 .oo-btn { font-size: 9px; color: #4fc3f7; background: none; border: 1px solid #1a3a5a; border-radius: 3px; padding: 1px 5px; cursor: pointer; margin-top: 2px; }
 .oo-pending { font-size: 10px; color: #4fc3f7; margin-top: 2px; }
+.oo-queued { font-size: 9px; color: #6b8299; margin-top: 2px; font-style: italic; }
 </style>
 </head>
 <body>
@@ -81,8 +84,9 @@ body { display: flex; flex-direction: column; min-height: 100vh; }
           <button class="ecg-snapshot-btn" onclick="ecgBarBtnClick()" id="leadToggleBtn">Apply 12-Lead ECG</button>
         </div>
         <div id="ecg-display-wrap">
-          <div id="ecg-12lead-container"></div>
+          <div id="ecg-12lead-container" onclick="cycleLimbLead()"></div>
           <div id="ecg-apply-overlay"></div>
+          <div id="ecg-progress-banner"></div>
         </div>
       </div>
       <div id="monitor-box"></div>
@@ -113,11 +117,14 @@ function toggleInstantMode() {
   testConfig.instantMode = instantMode; // also collapses the deterioration ramp
 }
 
-// --- Action delay/reveal system -----------------------------------------
-// Every assessable item starts 'idle' (nothing shown). Clicking Apply/Assess
-// moves it to 'pending' for its configured duration, then 'done' reveals it.
+// --- Action delay/reveal system, with a 2-crew concurrency limit ---------
+// Status lifecycle: idle -> (queued ->) pending -> done
+// Only MAX_CONCURRENT actions may be 'pending' (a crew member actively doing
+// it) at once; further requests wait as 'queued' until a slot frees up.
+const MAX_CONCURRENT = 2;
+let actionQueue = [];
 const actionState = {};
-['ecg','ecg12lead','spo2','etco2','temp','gcs','bgl','ketones','pain'].forEach(k => {
+['ecg','ecg12lead','spo2','etco2','bp','temp','gcs','bgl','ketones','pain'].forEach(k => {
   actionState[k] = { status: 'idle' };
 });
 
@@ -129,16 +136,42 @@ const oneOffDefs = {
   pain:    { label: 'Pain',    unit: '',             getValue: () => '8/10' }
 };
 
+function countPending() {
+  return Object.values(actionState).filter(s => s.status === 'pending').length;
+}
+
+function tryStartQueued() {
+  while (countPending() < MAX_CONCURRENT && actionQueue.length > 0) {
+    const key = actionQueue.shift();
+    if (actionState[key] && actionState[key].status === 'queued') beginPending(key);
+  }
+}
+
 function startAction(key) {
   const st = actionState[key];
   if (!st || st.status !== 'idle') return;
+  if (countPending() < MAX_CONCURRENT) {
+    beginPending(key);
+  } else {
+    st.status = 'queued';
+    actionQueue.push(key);
+  }
+}
+
+function beginPending(key) {
+  const st = actionState[key];
+  const now = Date.now();
   const context = { ecgApplied: actionState.ecg.status === 'done' };
   const durSec = SimEngine.getActionDurationSec(key, context);
-  const now = Date.now();
   const durMs = instantMode ? 0 : durSec * 1000;
+  if (key === 'bp') {
+    const v = SimEngine.getVitals(testConfig, now);
+    st.targetSys = v.BPsys;
+  }
   if (durMs <= 0) {
     st.status = 'done';
-    onActionComplete(key);
+    onActionComplete(key, now);
+    tryStartQueued();
   } else {
     st.status = 'pending';
     st.startedAt = now;
@@ -146,10 +179,16 @@ function startAction(key) {
   }
 }
 
-function onActionComplete(key) {
+function onActionComplete(key, now) {
   if (key === 'ecg12lead') {
     if (actionState.ecg.status !== 'done') actionState.ecg.status = 'done';
     _show12Lead = true;
+    resetGridInlineStyles(); // hand back to the engine's normal grid/toggle view
+  }
+  if (key === 'bp') {
+    const v = SimEngine.getVitals(testConfig, now);
+    lastBP = { sys: v.BPsys, dia: v.BPdia };
+    bpNextDueMs = now + bpIntervalMin * 60000;
   }
   if (oneOffDefs[key]) {
     actionState[key].value = oneOffDefs[key].getValue();
@@ -166,40 +205,45 @@ function checkActionTimers(now) {
     const st = actionState[key];
     if (st.status === 'pending' && now >= st.completesAt) {
       st.status = 'done';
-      onActionComplete(key);
+      onActionComplete(key, now);
+      tryStartQueued();
     }
   });
+  // BP auto-refire: goes through the same 2-crew queue as everything else
+  if (actionState.bp.status === 'done' && bpNextDueMs && now >= bpNextDueMs) {
+    bpNextDueMs = null;
+    actionState.bp.status = 'idle';
+    startAction('bp');
+  }
 }
 
 function countdownRemain(st) {
   return Math.max(0, Math.ceil((st.completesAt - Date.now()) / 1000));
 }
 
-// --- BP: repeating action (manual first take, then auto-refires) --------
-let bpState = { status: 'idle' };
 let bpNextDueMs = null;
 let bpIntervalMin = 15;
 let lastBP = { sys: null, dia: null };
 
-function startBP() {
-  if (bpState.status === 'pending') return;
-  const durSec = SimEngine.getActionDurationSec('bp');
-  const now = Date.now();
-  const durMs = instantMode ? 0 : durSec * 1000;
-  if (durMs <= 0) {
-    completeBP(now);
+// Simulated oscillometric cuff pressure while BP is 'pending': climbs to
+// ~systolic+20, brief hold, then descends with a couple of realistic stutters.
+function computeCuffPressure(st, now) {
+  const total = st.completesAt - st.startedAt;
+  const f = Math.min(1, Math.max(0, (now - st.startedAt) / Math.max(total, 1)));
+  const target = (st.targetSys || 140) + 20;
+  let val;
+  if (f < 0.35) {
+    val = 10 + (target - 10) * (f / 0.35);
+  } else if (f < 0.45) {
+    val = target;
   } else {
-    bpState.status = 'pending';
-    bpState.startedAt = now;
-    bpState.completesAt = now + durMs;
+    const df = (f - 0.45) / 0.55;
+    val = target * (1 - df);
+    const w = 0.05;
+    if (Math.abs(df - 0.25) < w) val += 6 * (1 - Math.abs(df - 0.25) / w);
+    if (Math.abs(df - 0.6) < w) val -= 5 * (1 - Math.abs(df - 0.6) / w);
   }
-}
-
-function completeBP(now) {
-  const v = SimEngine.getVitals(testConfig, now);
-  lastBP = { sys: v.BPsys, dia: v.BPdia };
-  bpState.status = 'done';
-  bpNextDueMs = now + bpIntervalMin * 60000;
+  return Math.max(0, Math.round(val));
 }
 
 // --- ECG: dynamic rhythm derived from current HR (no name ever shown) ---
@@ -209,8 +253,6 @@ let _currentRhythmKey = null;
 let _lastHR = 90;
 
 function deriveRhythmFromHR(hr) {
-  // Simple threshold model for this proof; will need clinical review re: what
-  // rhythm progressions make sense per condition once this is CPG-linked.
   if (hr < 60) return 'sinus bradycardia';
   if (hr > 100) return 'sinus tachycardia';
   return 'sinus rhythm';
@@ -243,6 +285,71 @@ function toggleLead() {
   updateEcgBar();
 }
 
+// --- Limb-lead cycling for monitoring-only mode (before 12-lead applied) --
+// CAVEAT: this reaches into ecg_engine.js's internal DOM structure
+// (.lead-cell / .lead-label-tag / #_ecg_leadsGrid) rather than a documented
+// public API, because the engine only exposes a fixed Lead-II strip or the
+// full 12-lead grid. If that internal markup changes, this will silently
+// stop working. Worth adding a real setSingleLead() method to the engine
+// itself if this becomes a permanent feature rather than a stopgap.
+const limbLeadOrder = ['I', 'II', 'III', 'aVR', 'aVL', 'aVF'];
+let _limbLeadIndex = 1; // start on 'II'
+
+function cycleLimbLead() {
+  if (actionState.ecg.status !== 'done' || actionState.ecg12lead.status === 'done') return;
+  _limbLeadIndex = (_limbLeadIndex + 1) % limbLeadOrder.length;
+  showLimbLead(limbLeadOrder[_limbLeadIndex]);
+}
+
+function showLimbLead(name) {
+  if (!_ecgInst) return;
+  const container = document.getElementById('ecg-12lead-container');
+  const grid = container.querySelector('#_ecg_leadsGrid');
+  const strip = container.querySelector('#_ecg_stripWrapper');
+  if (!grid) return;
+  grid.style.display = 'block';
+  grid.style.position = 'relative';
+  grid.style.width = '100%';
+  grid.style.height = '100%';
+  grid.querySelectorAll('.lead-cell').forEach(cell => {
+    const tag = cell.querySelector('.lead-label-tag');
+    const match = tag && tag.textContent.trim() === name;
+    cell.style.display = match ? 'block' : 'none';
+    if (match) {
+      cell.style.position = 'absolute';
+      cell.style.inset = '0';
+      cell.style.width = '100%';
+      cell.style.height = '100%';
+      const canvas = cell.querySelector('canvas');
+      if (canvas) { canvas.style.width = '100%'; canvas.style.height = '100%'; }
+    }
+  });
+  if (strip) strip.style.display = 'none';
+  document.getElementById('ecg-bar-label').textContent = `LEAD ${name} (tap to cycle)`;
+}
+
+function resetGridInlineStyles() {
+  if (!_ecgInst) return;
+  const container = document.getElementById('ecg-12lead-container');
+  const grid = container.querySelector('#_ecg_leadsGrid');
+  if (!grid) return;
+  grid.style.display = '';
+  grid.style.position = '';
+  grid.style.width = '';
+  grid.style.height = '';
+  grid.querySelectorAll('.lead-cell').forEach(cell => {
+    cell.style.display = '';
+    cell.style.position = '';
+    cell.style.inset = '';
+    cell.style.width = '';
+    cell.style.height = '';
+    const canvas = cell.querySelector('canvas');
+    if (canvas) { canvas.style.width = ''; canvas.style.height = ''; }
+  });
+  const strip = container.querySelector('#_ecg_stripWrapper');
+  if (strip) strip.style.display = '';
+}
+
 function ecgBarBtnClick() {
   const ecg12St = actionState.ecg12lead;
   if (ecg12St.status === 'done') { toggleLead(); return; }
@@ -258,34 +365,63 @@ function updateEcgBar() {
     btn.textContent = _show12Lead ? 'Show Lead II' : 'Show 12-Lead';
     btn.disabled = false;
     label.textContent = _show12Lead ? '12-LEAD ECG' : 'LEAD II \u2014 RHYTHM STRIP';
-  } else if (ecg12St.status === 'pending') {
-    btn.textContent = `Applying\u2026 ${countdownRemain(ecg12St)}s`;
-    btn.disabled = true;
-    label.textContent = ecgDone ? 'LEAD II \u2014 RHYTHM STRIP' : 'ECG NOT APPLIED';
   } else {
-    btn.textContent = 'Apply 12-Lead ECG';
-    btn.disabled = false;
-    label.textContent = ecgDone ? 'LEAD II \u2014 RHYTHM STRIP' : 'ECG NOT APPLIED';
+    if (ecg12St.status === 'pending') {
+      btn.textContent = `Applying\u2026 ${countdownRemain(ecg12St)}s`;
+      btn.disabled = true;
+    } else if (ecg12St.status === 'queued') {
+      btn.textContent = 'Queued\u2026';
+      btn.disabled = true;
+    } else {
+      btn.textContent = 'Apply 12-Lead ECG';
+      btn.disabled = false;
+    }
+    // While monitoring ECG isn't done, show not-applied state. Once it IS done,
+    // showLimbLead() owns the label (cycling hint) — leave it alone here.
+    if (!ecgDone) label.textContent = 'ECG NOT APPLIED';
   }
 }
 
 function updateEcgMain(hr) {
   const overlay = document.getElementById('ecg-apply-overlay');
+  const banner = document.getElementById('ecg-progress-banner');
   const ecgSt = actionState.ecg;
   const ecg12St = actionState.ecg12lead;
 
-  if (ecg12St.status === 'pending') {
-    overlay.style.display = 'flex';
-    overlay.innerHTML = `<div class="ecg-overlay-text">Applying 12-Lead ECG\u2026 ${countdownRemain(ecg12St)}s</div>`;
-  } else if (ecgSt.status === 'pending') {
-    overlay.style.display = 'flex';
-    overlay.innerHTML = `<div class="ecg-overlay-text">Applying ECG (Monitoring Leads)\u2026 ${countdownRemain(ecgSt)}s</div>`;
-  } else if (ecgSt.status === 'idle') {
-    overlay.style.display = 'flex';
-    overlay.innerHTML = `<button class="apply-btn-lg" onclick="startAction('ecg')">Apply ECG (Monitoring Leads)</button>`;
-  } else {
+  if (ecgSt.status === 'done') {
+    // Lead II (or a cycled limb lead) is already visible — never cover it.
+    // A pending/queued 12-lead only gets a thin non-blocking banner.
     overlay.style.display = 'none';
     ensureECG(hr);
+    if (ecg12St.status === 'done') {
+      setLeadDisplay();
+      banner.style.display = 'none';
+    } else {
+      showLimbLead(limbLeadOrder[_limbLeadIndex]);
+      if (ecg12St.status === 'pending') {
+        banner.style.display = 'block';
+        banner.textContent = `Applying 12-Lead ECG\u2026 ${countdownRemain(ecg12St)}s`;
+      } else if (ecg12St.status === 'queued') {
+        banner.style.display = 'block';
+        banner.textContent = '12-Lead ECG queued\u2026 crew busy';
+      } else {
+        banner.style.display = 'none';
+      }
+    }
+  } else {
+    banner.style.display = 'none';
+    overlay.style.display = 'flex';
+    if (ecgSt.status === 'pending') {
+      overlay.innerHTML = `<div class="ecg-overlay-text">Applying ECG (Monitoring Leads)\u2026 ${countdownRemain(ecgSt)}s</div>`;
+    } else if (ecgSt.status === 'queued') {
+      overlay.innerHTML = `<div class="ecg-overlay-text">ECG queued\u2026 crew busy</div>`;
+    } else if (ecg12St.status === 'pending') {
+      overlay.innerHTML = `<div class="ecg-overlay-text">Applying 12-Lead ECG\u2026 ${countdownRemain(ecg12St)}s</div>`;
+    } else if (ecg12St.status === 'queued') {
+      overlay.innerHTML = `<div class="ecg-overlay-text">12-Lead ECG queued\u2026 crew busy</div>`;
+    } else {
+      overlay.innerHTML = `<button class="apply-btn-lg" onclick="startAction('ecg')">Apply ECG (Monitoring Leads)</button>`;
+    }
   }
   updateEcgBar();
 }
@@ -300,13 +436,19 @@ function fmtTimer(ms) {
 function cellFor(actionKey) {
   const st = actionState[actionKey];
   if (st.status === 'idle') return `<button class="apply-btn" onclick="startAction('${actionKey}')">Apply</button>`;
+  if (st.status === 'queued') return `<span class="queued-txt">Queued\u2026</span>`;
   return `<span class="pending-txt">${countdownRemain(st)}s</span>`;
 }
 
 function renderBPCell(now) {
-  if (bpState.status === 'idle') return `<button class="apply-btn" onclick="startBP()">Take BP</button>`;
-  if (bpState.status === 'pending') return `<span class="pending-txt">Inflating\u2026 ${countdownRemain(bpState)}s</span>`;
-  const remainMs = Math.max(0, bpNextDueMs - now);
+  const st = actionState.bp;
+  if (st.status === 'idle') return `<button class="apply-btn" onclick="startAction('bp')">Take BP</button>`;
+  if (st.status === 'queued') return `<span class="queued-txt">Queued\u2026</span>`;
+  if (st.status === 'pending') {
+    const p = computeCuffPressure(st, now);
+    return `${p}<span class="vunit">mmHg</span><div id="bp-timer">cuff inflating\u2026</div>`;
+  }
+  const remainMs = Math.max(0, (bpNextDueMs || now) - now);
   return `${lastBP.sys}/${lastBP.dia}<span class="vunit">mmHg</span><div id="bp-timer">next auto BP in ${fmtTimer(remainMs)}</div>`;
 }
 
@@ -335,6 +477,8 @@ function renderOneOff() {
     let body;
     if (st.status === 'idle') {
       body = `<button class="oo-btn" onclick="startAction('${key}')">Assess</button>`;
+    } else if (st.status === 'queued') {
+      body = `<div class="oo-queued">Queued\u2026</div>`;
     } else if (st.status === 'pending') {
       body = `<div class="oo-pending">${countdownRemain(st)}s\u2026</div>`;
     } else {
@@ -347,8 +491,6 @@ function renderOneOff() {
 function tick() {
   const now = Date.now();
   checkActionTimers(now);
-  if (bpState.status === 'pending' && now >= bpState.completesAt) completeBP(now);
-  if (bpState.status === 'done' && bpNextDueMs && now >= bpNextDueMs) startBP();
 
   const v = SimEngine.getVitals(testConfig, now);
   renderMonitor(v, now);
