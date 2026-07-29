@@ -190,6 +190,16 @@ async function getAnthropicKey() {
   throw new Error('AI generation is temporarily unavailable. Please contact the administrator.');
 }
 
+// Pulls the JSON object out of an AI response even if it's wrapped in code
+// fences or has stray prose before/after — more forgiving than a bare
+// JSON.parse(text), which fails outright on anything but a pure JSON string.
+function extractJsonObject(text) {
+  const start = text.indexOf('{');
+  const end = text.lastIndexOf('}');
+  if (start === -1 || end === -1 || end < start) throw new Error('no JSON object found in response');
+  return JSON.parse(text.slice(start, end + 1));
+}
+
 let sessionCode = null;
 let currentScenario = null; // set on session creation — provides context for treatment-effect regeneration
 let aiModel = 'claude-sonnet-4-6'; // switchable via the AI Model picker in the topbar
@@ -297,16 +307,16 @@ Project the deterioration/progression from these starting vitals assuming no tre
   const response = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' },
-    body: JSON.stringify({ model: aiModel, max_tokens: 3000, system: systemPrompt, messages: [{ role: 'user', content: userPrompt }] })
+    body: JSON.stringify({ model: aiModel, max_tokens: 4096, system: systemPrompt, messages: [{ role: 'user', content: userPrompt }] })
   });
   if (!response.ok) { const e = await response.json().catch(() => ({})); throw new Error(e.error?.message || `Anthropic API error ${response.status}`); }
   const data = await response.json();
   const text = (data.content || []).map(b => b.text || '').join('');
   let parsed;
   try {
-    parsed = JSON.parse(text.replace(/```json|```/g, '').trim());
+    parsed = extractJsonObject(text);
   } catch (e) {
-    throw new Error('AI returned an unparseable timeline.');
+    throw new Error('AI returned an unparseable timeline' + (text ? ': ' + text.slice(0, 150).replace(/\s+/g, ' ') : ''));
   }
 
   if (startingVitals.pain === null) {
@@ -1358,16 +1368,16 @@ Project how this patient's vitals change from here, given this specific action.`
   const response = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' },
-    body: JSON.stringify({ model: aiModel, max_tokens: 3000, system: systemPrompt, messages: [{ role: 'user', content: userPrompt }] })
+    body: JSON.stringify({ model: aiModel, max_tokens: 4096, system: systemPrompt, messages: [{ role: 'user', content: userPrompt }] })
   });
   if (!response.ok) { const e = await response.json().catch(() => ({})); throw new Error(e.error?.message || `Anthropic API error ${response.status}`); }
   const data = await response.json();
   const text = (data.content || []).map(b => b.text || '').join('');
   let parsed;
   try {
-    parsed = JSON.parse(text.replace(/```json|```/g, '').trim());
+    parsed = extractJsonObject(text);
   } catch (e) {
-    throw new Error('AI returned an unparseable trajectory update.');
+    throw new Error('AI returned an unparseable trajectory update' + (text ? ': ' + text.slice(0, 150).replace(/\s+/g, ' ') : ''));
   }
 
   const rows = await sbFetch(`sim_sessions?session_code=eq.${sessionCode}&select=overrides`, { method: 'GET' });
