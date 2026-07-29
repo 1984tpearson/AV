@@ -97,7 +97,6 @@ select, input[type=number], input[type=text] { font-family: 'Courier New', monos
         <div class="row">
           <button class="btn btn-start" id="run-btn" onclick="toggleRun()">Start Scenario</button>
           <label style="margin:0;"><input type="checkbox" id="instant-toggle" onchange="updateInstantMode()"> Instant Mode</label>
-          <button class="btn btn-secondary" style="font-size:10px;padding:5px 8px;" onclick="seedDemoVariation()">Load Demo Variation (testing only)</button>
         </div>
         <h2 style="margin-top:12px;">Log Treatment / Management</h2>
         <div class="row">
@@ -1339,8 +1338,10 @@ Return ONLY valid JSON, no prose, in exactly this shape:
 
 Rules:
 - Times are minutes from THIS MOMENT (the action being given = minute 0), not from scenario start.
-- The action text may or may not state a route (IV, IM, neb, PO, etc). If a route IS stated, use it. If NOT stated, infer the single most standard/likely route for that specific drug in this clinical context (e.g. adrenaline in anaphylaxis is IM; adrenaline in cardiac arrest is IV/IO) and apply that route's realistic onset delay — don't default to instant or to whichever route happens to look fastest.
-- Reflect the action's realistic onset delay before any effect starts (e.g. IV drugs ~1-3 min, IM/neb slower) — don't apply an instant effect.
+- The action text may or may not state a route (IV, IM, neb, PO, etc). If a route IS stated, use it. If NOT stated, infer the single most standard/likely route for that specific drug in this clinical context (e.g. adrenaline in anaphylaxis is IM; adrenaline in cardiac arrest is IV/IO).
+- Base the onset delay on your actual pharmacological knowledge of THIS SPECIFIC drug/action — not a generic "route implies a fixed timing" shortcut. Real onset varies a lot even within the same route (e.g. IV adrenaline in anaphylaxis/arrest acts within seconds to about a minute; IV amiodarone's rhythm effect takes several minutes to build; IM glucagon takes 10-15 minutes; thrombolytics act over 30-90+ minutes; some oral drugs take hours). Get the actual figure right for the actual drug — don't default to a conservative guess just because the route is the same as some other drug.
+- A large or supratherapeutic dose does not slow onset down — if anything it acts faster and/or more intensely, potentially into toxicity, not more cautiously.
+- Non-pharmacological, non-clinical, or purely psychological/comfort actions (reassurance, holding a hand, a kind word, and similar) can only produce a small, physiologically plausible effect on anxiety-mediated vitals — at most a mild, temporary easing of a stress-driven tachycardia or hyperventilation — and must NEVER meaningfully reverse a genuine organic process such as hypoxia, haemorrhage, airway obstruction, toxicity, or arrhythmia. If the action provides no real clinical mechanism relevant to this patient's actual pathology, the patient's course must continue essentially as it would with no intervention at all.
 - If the action only partially or temporarily addresses the underlying condition, model it wearing off and the condition resuming its natural course afterward — worse than before if the intervention was just masking ongoing pathology, stable/improving if it substantively corrected the problem. Reason about which applies here.
 - If the action is clinically inappropriate, ineffective, or an insufficient/excessive dose for this condition, reflect that honestly — including continued deterioration, or a supratherapeutic/toxic effect, if that is the truthful outcome. Do not reward an incorrect action with improvement it wouldn't realistically produce.
 - Only include a vital's key if this specific action would plausibly change it; omit anything unaffected.
@@ -1471,41 +1472,6 @@ async function deleteOverride(key, startMs, endMs, targetValue) {
     renderGraph();
   } catch (e) {
     alert('Could not delete the override — check the connection and try again.');
-  }
-}
-
-// Testing/preview aid only — populates the current session with a spread of
-// example treatments/overrides over ~20 minutes so the graph has something
-// varied to look at. Overwrites whatever's currently logged; never call this
-// on a real training run.
-async function seedDemoVariation() {
-  if (!sessionCode || !liveConfig) return;
-  if (!confirm('This overwrites the current session\'s treatments/overrides with example demo data, purely to preview the graph. Only use this on a test session. Continue?')) return;
-  const base = liveConfig.startTimeMs;
-  const demoTreatments = [{ action: 'Adrenaline 0.5mg IM', givenAtMin: 0.2 }];
-  const demoOverrides = {
-    HR: [{ targetValue: 130, startMs: base + 6 * 60000, endMs: base + 6.5 * 60000 }],
-    BPsys: [{ targetValue: 90, startMs: base + 12 * 60000, endMs: base + 12.5 * 60000 }],
-    BPdia: [{ targetValue: 60, startMs: base + 12 * 60000, endMs: base + 12.5 * 60000 }],
-    temp: [{ targetValue: 38.5, startMs: base + 20 * 60000, endMs: base + 20 * 60000 + 120000 }],
-    bgl: [{ targetValue: 3.2, startMs: base + 8 * 60000, endMs: base + 8 * 60000 + 60000 }],
-    pain: [{ targetValue: 4, startMs: base + 10 * 60000, endMs: base + 10 * 60000 + 30000 }],
-    gcsE: [{ targetValue: 3, startMs: base + 15 * 60000, endMs: base + 15 * 60000 + 30000 }],
-    gcsV: [{ targetValue: 4, startMs: base + 15 * 60000, endMs: base + 15 * 60000 + 30000 }],
-    gcsM: [{ targetValue: 5, startMs: base + 15 * 60000, endMs: base + 15 * 60000 + 30000 }]
-  };
-  try {
-    await sbFetch(`sim_sessions?session_code=eq.${sessionCode}`, {
-      method: 'PATCH', prefer: 'return=minimal',
-      body: JSON.stringify({ treatments: demoTreatments, overrides: demoOverrides, updated_at: new Date().toISOString() })
-    });
-    treatments = demoTreatments;
-    liveConfig.treatments = demoTreatments;
-    liveConfig.overrides = demoOverrides;
-    renderTreatments();
-    renderGraph();
-  } catch (e) {
-    alert('Could not load demo data — check the connection and try again.');
   }
 }
 
