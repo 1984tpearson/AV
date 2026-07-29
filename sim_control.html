@@ -416,6 +416,8 @@ let _dragMode = null;   // 'value' | 'duration' | null
 let _dragPointerId = null;
 let _lastLayout = null; // cached from the last renderGraph() call, used to invert screen coords -> (min, value)
 let selectedOverride = null; // { key, startMs, endMs, targetValue } — a tapped existing override marker, pending delete confirmation
+let inspectMin = null; // default-mode scrub position (minutes), null when not actively inspecting
+let _inspectPointerId = null;
 
 function toggleGraphSeries(key, on) {
   graphSeriesOn[key] = on;
@@ -575,6 +577,19 @@ function clampBpValue(graphKey, val, tMs) {
   return { value: val, linked: { graphKey: counterKey, targetValue: Math.min(counterSeries.max, counterVal + overflow) } };
 }
 
+// Default-mode scrub/inspect: press-and-drag anywhere on the unarmed graph
+// to see every visible vital's value at that point in time. Read-only, so
+// no confirm/cancel — it just shows and disappears on release.
+function startInspect(evt) {
+  if (armedTileKey || !_lastLayout) return;
+  evt.preventDefault();
+  const coords = svgCoordFromEvent(evt);
+  if (!coords) return;
+  inspectMin = Math.min(_lastLayout.viewEnd, Math.max(_lastLayout.viewStart, minForX(coords.x)));
+  _inspectPointerId = evt.pointerId;
+  renderGraph();
+}
+
 function startValueDrag(evt, graphKey) {
   if (!liveConfig || !_lastLayout) return;
   evt.preventDefault();
@@ -605,6 +620,15 @@ function startDurationDrag(evt) {
 }
 
 function onDragPointerMove(evt) {
+  if (_inspectPointerId !== null && evt.pointerId === _inspectPointerId) {
+    evt.preventDefault();
+    const coords = svgCoordFromEvent(evt);
+    if (coords && _lastLayout) {
+      inspectMin = Math.min(_lastLayout.viewEnd, Math.max(_lastLayout.viewStart, minForX(coords.x)));
+      renderGraph();
+    }
+    return;
+  }
   if (!_dragMode || !pendingDrag || evt.pointerId !== _dragPointerId || !_lastLayout) return;
   evt.preventDefault();
   const coords = svgCoordFromEvent(evt);
@@ -640,6 +664,12 @@ function onDragPointerMove(evt) {
 }
 
 function onDragPointerUp(evt) {
+  if (_inspectPointerId !== null && evt.pointerId === _inspectPointerId) {
+    _inspectPointerId = null;
+    inspectMin = null;
+    renderGraph();
+    return;
+  }
   if (!_dragMode || evt.pointerId !== _dragPointerId) return;
   evt.preventDefault();
   _dragMode = null;
@@ -998,7 +1028,43 @@ function renderGraph() {
     }
   }
 
-  wrap.innerHTML = `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" style="width:100%;height:100%;display:block;touch-action:none;">${grid}${paths}${hitPaths}${overrideMarkers}${playhead}${pendingUI}${edgeReadouts}</svg>`;
+  // Default-mode inspector: vertical scrub line + a value panel for every
+  // currently visible series, positioned on whichever side of the line has
+  // room so it clears the finger doing the dragging.
+  let inspectUI = '';
+  if (inspectMin !== null && !armedTileKey) {
+    const ix = xForMin(inspectMin);
+    inspectUI += `<line x1="${ix}" y1="${padT}" x2="${ix}" y2="${padT + plotH}" stroke="#33475a" stroke-width="1.5" stroke-dasharray="2,2" />`;
+    const tMs = liveConfig.startTimeMs + inspectMin * 60000;
+    const v = SimEngine.getVitalsRaw(liveConfig, tMs);
+    const decimalKeys = ['temp', 'bgl', 'ketones'];
+    const rows = GRAPH_SERIES.filter(s => graphSeriesOn[s.key]).map(s => {
+      const val = s.get(v);
+      const str = (decimalKeys.includes(s.key) ? val.toFixed(1) : Math.round(val).toString()) + s.unit;
+      return { label: s.label, str, color: s.color };
+    });
+    if (rows.length) {
+      const rowH = 14, panelW = 82, panelH = rows.length * rowH + 10;
+      const onLeftHalf = ix < padL + plotW / 2;
+      const panelX = onLeftHalf ? Math.min(ix + 10, W - padR - panelW) : Math.max(ix - 10 - panelW, padL);
+      const panelY = Math.max(padT, Math.min(padT + plotH - panelH, padT + (plotH - panelH) / 2));
+      inspectUI += `<rect x="${panelX}" y="${panelY}" width="${panelW}" height="${panelH}" rx="6" fill="#1e2a36" opacity="0.92" />`;
+      rows.forEach((r, i) => {
+        const ry = panelY + 14 + i * rowH;
+        inspectUI += `<circle cx="${panelX + 10}" cy="${ry - 4}" r="3" fill="${r.color}" />`;
+        inspectUI += `<text x="${panelX + 18}" y="${ry}" font-size="9" fill="#cdd6e0">${r.label}</text>`;
+        inspectUI += `<text x="${panelX + panelW - 8}" y="${ry}" font-size="9" fill="#fff" font-weight="700" text-anchor="end">${r.str}</text>`;
+      });
+    }
+    inspectUI += `<text x="${ix}" y="${padT - 2}" font-size="9" fill="#33475a" text-anchor="middle">${Math.round(inspectMin)}m</text>`;
+  }
+  // Invisible catcher for starting/continuing the scrub — only present in
+  // default mode (armed mode already has its own hit-paths/markers using
+  // this space), and kept topmost so it actually receives the pointerdown.
+  const inspectCatcher = armedTileKey ? '' :
+    `<rect x="${padL}" y="${padT}" width="${plotW}" height="${plotH}" fill="transparent" style="touch-action:none;cursor:crosshair;" onpointerdown="startInspect(event)" />`;
+
+  wrap.innerHTML = `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" style="width:100%;height:100%;display:block;touch-action:none;">${grid}${paths}${hitPaths}${overrideMarkers}${playhead}${pendingUI}${edgeReadouts}${inspectUI}${inspectCatcher}</svg>`;
 }
 
 const VITAL_DEFS = [
