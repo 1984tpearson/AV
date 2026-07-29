@@ -1311,9 +1311,7 @@ async function giveTreatment() {
   if (statusEl) statusEl.textContent = 'Recalculating trajectory…';
   try {
     await regenerateTimelineAfterTreatment(action, givenAtMs);
-    // NOTE: status text intentionally left as-is here while the temporary
-    // diagnostic is in place — regenerateTimelineAfterTreatment sets its own
-    // message. Restore `if (statusEl) statusEl.textContent = '';` once removed.
+    if (statusEl) statusEl.textContent = '';
   } catch (e) {
     if (statusEl) statusEl.textContent = 'Could not recalculate the trajectory: ' + e.message;
   }
@@ -1331,6 +1329,20 @@ async function regenerateTimelineAfterTreatment(action, givenAtMs) {
   const remainingMin = Math.max(5, 60 - elapsedMin);
   const apiKey = await getAnthropicKey();
 
+  // Fetch the session's current overrides FIRST — used both to tell the AI
+  // what's currently scheduled (so it can react to/adjust/override it
+  // instead of being kept in the dark about a plan it can't see) and later
+  // to splice the new plan in.
+  const rows = await sbFetch(`sim_sessions?session_code=eq.${sessionCode}&select=overrides`, { method: 'GET' });
+  const freshOverrides = (rows[0] && rows[0].overrides) || {};
+  const scheduledSummary = {};
+  Object.entries(freshOverrides).forEach(([key, arr]) => {
+    const future = (arr || [])
+      .filter(ov => ov.startMs >= givenAtMs)
+      .map(ov => ({ targetValue: ov.targetValue, startsInMin: +((ov.startMs - givenAtMs) / 60000).toFixed(1), endsInMin: +((ov.endMs - givenAtMs) / 60000).toFixed(1) }));
+    if (future.length) scheduledSummary[key] = future;
+  });
+
   const systemPrompt = `You are updating a paramedic training patient's projected vital-signs trajectory because the treating crew just gave a treatment/management action. This feeds a training simulator's trajectory graph.
 
 Ground your reasoning in the scenario's actual provisional diagnosis and the specific action just taken — reason about how THIS action would realistically affect THIS patient's THIS condition. There is no generic effect table; you are the clinical model.
@@ -1340,6 +1352,7 @@ Return ONLY valid JSON, no prose, in exactly this shape:
 
 Rules:
 - Times are minutes from THIS MOMENT (the action being given = minute 0), not from scenario start.
+- You will be given the plan currently scheduled for this patient (which may reflect the prior no-treatment course, or earlier manual/automatic adjustments). Treat it as informative context, not binding — keep any part of it that's still realistic given this new action, and override whatever isn't.
 - The action text may or may not state a route (IV, IM, neb, PO, etc). If a route IS stated, use it. If NOT stated, infer the single most standard/likely route for that specific drug in this clinical context (e.g. adrenaline in anaphylaxis is IM; adrenaline in cardiac arrest is IV/IO).
 - Base the onset delay on your actual pharmacological knowledge of THIS SPECIFIC drug/action — not a generic "route implies a fixed timing" shortcut. Real onset varies a lot even within the same route (e.g. IV adrenaline in anaphylaxis/arrest acts within seconds to about a minute; IV amiodarone's rhythm effect takes several minutes to build; IM glucagon takes 10-15 minutes; thrombolytics act over 30-90+ minutes; some oral drugs take hours). For reference/calibration: IV adrenaline given in anaphylaxis or cardiac arrest produces visible tachycardia and/or a rise in blood pressure within well under a minute — get the actual figure right for the actual drug, don't default to a conservative guess just because the route is the same as some other drug.
 - A large or supratherapeutic dose does not slow onset down — if anything it acts faster and/or more intensely, potentially into toxicity, not more cautiously.
@@ -1360,6 +1373,7 @@ Life threats: ${JSON.stringify(currentScenario.life_threats || [])}
 
 Action just given by the crew (at minute ${elapsedMin.toFixed(1)} of the scenario): ${action}
 Patient's vitals at the moment this was given: ${JSON.stringify(vitalsNow)}
+Currently scheduled future changes (minutes from now; not binding — see rules): ${Object.keys(scheduledSummary).length ? JSON.stringify(scheduledSummary) : 'none'}
 
 Project how this patient's vitals change from here, given this specific action.`;
 
@@ -1378,27 +1392,28 @@ Project how this patient's vitals change from here, given this specific action.`
     throw new Error('AI returned an unparseable trajectory update' + (text ? ': ' + text.slice(0, 150).replace(/\s+/g, ' ') : ''));
   }
 
-  const rows = await sbFetch(`sim_sessions?session_code=eq.${sessionCode}&select=overrides`, { method: 'GET' });
-  const freshOverrides = (rows[0] && rows[0].overrides) || {};
-
-  // TEMPORARY DIAGNOSTIC — surfaces exactly what the AI said, so we can tell
-  // whether a delay bug is the model's actual answer vs. something mangled
-  // afterward in this code. Remove once the onset-timing issue is resolved.
-  let _diagEarliest = Infinity, _diagKey = null;
-  Object.entries(parsed.overrides || {}).forEach(([k, arr]) => {
-    if (!Array.isArray(arr)) return;
-    arr.forEach(ov => { if (typeof ov.startMin === 'number' && ov.startMin < _diagEarliest) { _diagEarliest = ov.startMin; _diagKey = k; } });
-  });
-  console.log('[treatment AI raw response]', parsed);
-  console.log(`[treatment AI earliest onset] ${isFinite(_diagEarliest) ? _diagEarliest.toFixed(2) + ' min (' + _diagKey + ')' : 'none found'}`);
-  const statusEl2 = document.getElementById('treatment-status');
-  if (statusEl2) statusEl2.textContent = 'AI raw earliest onset: ' + (isFinite(_diagEarliest) ? _diagEarliest.toFixed(1) + ' min (' + _diagKey + ')' : 'none found — check console');
-
-  // Drop the old "no longer valid" future plan for every vital — anything
-  // already elapsed or mid-transition (startMs < givenAtMs) is left alone,
-  // matching the existing "can't edit what's already started" rule.
+  // Splice the new plan in. THE ACTUAL BUG THIS FIXES: an override that was
+  // still mid-transition at the moment of treatment can't just be left
+  // alone — the engine always uses whichever override (in start-time order)
+  // contains "now", so an untouched wide-window entry would keep winning
+  // over anything queued after it for its ENTIRE remaining original
+  // duration, silently masking the new plan. So any in-progress entry gets
+  // truncated to end exactly now, at its real current value (from
+  // vitalsNow, which the engine already computed correctly) — fully
+  // completed entries are left alone as accurate history, anything not yet
+  // started is dropped as superseded.
   Object.keys(freshOverrides).forEach(key => {
-    freshOverrides[key] = (freshOverrides[key] || []).filter(ov => ov.startMs < givenAtMs);
+    const arr = freshOverrides[key] || [];
+    const kept = [];
+    arr.forEach(ov => {
+      if (ov.endMs <= givenAtMs) {
+        kept.push(ov);
+      } else if (ov.startMs < givenAtMs) {
+        kept.push({ startMs: ov.startMs, endMs: givenAtMs, targetValue: vitalsNow[key] });
+      }
+      // else: startMs >= givenAtMs — superseded future plan, drop
+    });
+    freshOverrides[key] = kept;
   });
   Object.entries(parsed.overrides || {}).forEach(([key, arr]) => {
     if (!Array.isArray(arr)) return;
