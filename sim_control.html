@@ -66,10 +66,16 @@ select, input[type=number], input[type=text] { font-family: 'Courier New', monos
       <button class="btn" onclick="createSession()">Create Session</button>
     </div>
     <div id="post-create" style="display:none;">
-      <div class="muted" style="text-align:center;">Pairing code</div>
-      <div id="code-display">------</div>
-      <div id="qr-code"></div>
-      <p class="muted" style="text-align:center;">Enter the code, or scan the QR, on the patient device</p>
+      <div id="join-info">
+        <div class="muted" style="text-align:center;">Pairing code</div>
+        <div id="code-display">------</div>
+        <div id="qr-code"></div>
+        <p class="muted" style="text-align:center;">Enter the code, or scan the QR, on the patient device</p>
+      </div>
+      <div id="patient-status" style="display:none;text-align:center;padding:8px 0;">
+        <span class="muted">&#10003; Patient device connected</span>
+        <button class="btn btn-secondary" style="margin-left:8px;padding:4px 10px;font-size:11px;" onclick="showJoinInfo()">Show Join Info</button>
+      </div>
       <div class="row" style="justify-content:center;margin-top:10px;">
         <button class="btn btn-start" id="run-btn" onclick="toggleRun()">Start Scenario</button>
         <label style="margin:0;"><input type="checkbox" id="instant-toggle" onchange="updateInstantMode()"> Instant Mode</label>
@@ -156,6 +162,7 @@ let sessionCode = null;
 let liveConfig = null; // mirrors the patient page's testConfig shape, plus pause fields
 let instantMode = false;
 let treatments = [];
+let _joinInfoManuallyShown = false;
 
 function genCode() {
   return String(Math.floor(100000 + Math.random() * 900000));
@@ -203,8 +210,10 @@ async function createSession() {
         hasStarted: false,
         isPaused: true,
         pausedAtMs: startMs,
-        totalPausedMs: 0
+        totalPausedMs: 0,
+        patientConnected: false
       };
+      _joinInfoManuallyShown = false;
       treatments = [];
       document.getElementById('post-create').style.display = 'block';
       document.getElementById('pre-create').style.display = 'none';
@@ -212,6 +221,7 @@ async function createSession() {
       document.getElementById('vitals-panel').style.display = 'block';
       document.getElementById('treatment-panel').style.display = 'block';
       renderJoinQR();
+      updatePatientStatus();
       renderRunControls();
       renderTreatments();
       tickVitals();
@@ -283,10 +293,22 @@ function renderRunControls() {
   }
 }
 
+function updatePatientStatus() {
+  const connected = !!liveConfig.patientConnected;
+  const showJoin = !connected || _joinInfoManuallyShown;
+  document.getElementById('join-info').style.display = showJoin ? 'block' : 'none';
+  document.getElementById('patient-status').style.display = connected ? 'block' : 'none';
+}
+
+function showJoinInfo() {
+  _joinInfoManuallyShown = true;
+  updatePatientStatus();
+}
+
 async function pollSession() {
   if (!sessionCode || !liveConfig) return;
   try {
-    const rows = await sbFetch(`sim_sessions?session_code=eq.${sessionCode}&select=severity,direction,treatments,overrides,static_vitals,instant_mode,has_started,is_paused,paused_at_ms,total_paused_ms`, { method: 'GET' });
+    const rows = await sbFetch(`sim_sessions?session_code=eq.${sessionCode}&select=severity,direction,treatments,overrides,static_vitals,instant_mode,has_started,is_paused,paused_at_ms,total_paused_ms,patient_connected`, { method: 'GET' });
     if (!rows.length) return;
     const row = rows[0];
     liveConfig.severity = row.severity;
@@ -299,13 +321,20 @@ async function pollSession() {
     liveConfig.isPaused = row.is_paused;
     liveConfig.pausedAtMs = row.paused_at_ms;
     liveConfig.totalPausedMs = row.total_paused_ms;
+    const wasConnected = liveConfig.patientConnected;
+    liveConfig.patientConnected = row.patient_connected;
+    if (!wasConnected && liveConfig.patientConnected) {
+      _joinInfoManuallyShown = false; // fresh (re)connect — collapse the join panel again
+    }
     instantMode = row.instant_mode;
     treatments = liveConfig.treatments;
     document.getElementById('instant-toggle').checked = instantMode;
     renderRunControls();
+    updatePatientStatus();
     renderTreatments();
   } catch (e) { /* transient network hiccup — try again next poll */ }
 }
+
 
 async function updateInstantMode() {
   if (!sessionCode) return;
