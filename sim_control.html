@@ -37,7 +37,6 @@ select, input[type=number], input[type=text] { font-family: 'Courier New', monos
 .vtile:hover { background: #e6edf5; }
 .vtile .vlabel { font-size: 9px; color: #6b8299; text-transform: uppercase; letter-spacing: 1px; }
 .vtile .vval { font-size: 17px; font-weight: 900; color: #0369a1; }
-.vsection-label { font-size: 10px; color: #6b8299; text-transform: uppercase; letter-spacing: 1px; margin: 10px 0 6px; }
 </style>
 </head>
 <body>
@@ -90,7 +89,6 @@ select, input[type=number], input[type=text] { font-family: 'Courier New', monos
 
     <div class="panel" id="vitals-panel">
       <div id="vitals-grid" style="display:flex;flex-wrap:wrap;gap:8px;"></div>
-      <div id="static-vitals-grid" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;"></div>
     </div>
 
     <div id="bottom-row">
@@ -146,18 +144,6 @@ select, input[type=number], input[type=text] { font-family: 'Courier New', monos
   </div>
 </div>
 
-<div id="static-modal" style="display:none;position:fixed;inset:0;background:rgba(20,30,45,0.6);align-items:center;justify-content:center;z-index:50;">
-  <div class="panel" style="width:260px;">
-    <h2 id="sv-modal-title">Set Value</h2>
-    <div id="sv-modal-body"></div>
-    <div class="row" style="margin-top:10px;">
-      <button class="btn btn-secondary" onclick="closeStaticModal()">Cancel</button>
-      <button class="btn" onclick="applyStaticVital()">Apply</button>
-    </div>
-  </div>
-</div>
-
-
 <script src="https://cdn.jsdelivr.net/npm/qrcode@1.4.4/build/qrcode.min.js"></script>
 <script src="https://1984tpearson.github.io/AV/sim_engine.js"></script>
 <script>
@@ -182,24 +168,13 @@ async function sbFetch(path, opts = {}) {
   return res.status === 204 ? null : res.json();
 }
 
-const DEFAULT_BASELINE = { HR: 92, RR: 20, SpO2: 96, EtCO2: 38, BPsys: 148, BPdia: 90 };
-const DEFAULT_STATIC = {
-  temp:    [{ value: 36.8, atMin: 0 }],
-  gcs:     [{ e: 4, v: 5, m: 6, atMin: 0 }],
-  bgl:     [{ value: 6.1, atMin: 0 }],
-  ketones: [{ value: 0.1, atMin: 0 }],
-  pain:    [{ value: 8, atMin: 0 }]
+// Baseline now covers every vital that can be overridden — HR/BP/etc AND the
+// one-and-done readings (temp/bgl/ketones/pain/GCS components), since they
+// all now go through the same override mechanism.
+const DEFAULT_BASELINE = {
+  HR: 92, RR: 20, SpO2: 96, EtCO2: 38, BPsys: 148, BPdia: 90,
+  temp: 36.8, bgl: 6.1, ketones: 0.1, pain: 8, gcsE: 4, gcsV: 5, gcsM: 6
 };
-
-// Current elapsed sim-minutes of the running session — every static-vital
-// read/write is keyed off this so history entries land at the right time.
-function elapsedMin() {
-  return Math.max(0, (simNow() - liveConfig.startTimeMs) / 60000);
-}
-function staticVitalNow(key) {
-  const hist = (liveConfig.staticVitals || DEFAULT_STATIC)[key];
-  return SimEngine.getStaticVitalAt(hist, elapsedMin());
-}
 
 let sessionCode = null;
 let liveConfig = null; // mirrors the patient page's testConfig shape, plus pause fields
@@ -233,7 +208,6 @@ async function createSession() {
           start_time_ms: startMs,
           treatments: [],
           overrides: {},
-          static_vitals: DEFAULT_STATIC,
           instant_mode: false,
           has_started: false,
           is_paused: true,
@@ -248,7 +222,6 @@ async function createSession() {
         startTimeMs: startMs,
         treatments: [],
         overrides: {},
-        staticVitals: { ...DEFAULT_STATIC },
         instantMode: false,
         hasStarted: false,
         isPaused: true,
@@ -352,14 +325,13 @@ function showJoinInfo() {
 async function pollSession() {
   if (!sessionCode || !liveConfig) return;
   try {
-    const rows = await sbFetch(`sim_sessions?session_code=eq.${sessionCode}&select=severity,direction,treatments,overrides,static_vitals,instant_mode,has_started,is_paused,paused_at_ms,total_paused_ms,patient_connected`, { method: 'GET' });
+    const rows = await sbFetch(`sim_sessions?session_code=eq.${sessionCode}&select=severity,direction,treatments,overrides,instant_mode,has_started,is_paused,paused_at_ms,total_paused_ms,patient_connected`, { method: 'GET' });
     if (!rows.length) return;
     const row = rows[0];
     liveConfig.severity = row.severity;
     liveConfig.direction = row.direction;
     liveConfig.treatments = row.treatments || [];
     liveConfig.overrides = row.overrides || {};
-    liveConfig.staticVitals = row.static_vitals || DEFAULT_STATIC;
     liveConfig.instantMode = row.instant_mode;
     liveConfig.hasStarted = row.has_started;
     liveConfig.isPaused = row.is_paused;
@@ -379,7 +351,6 @@ async function pollSession() {
   } catch (e) { /* transient network hiccup — try again next poll */ }
 }
 
-
 async function updateInstantMode() {
   if (!sessionCode) return;
   instantMode = document.getElementById('instant-toggle').checked;
@@ -395,24 +366,22 @@ async function updateInstantMode() {
 }
 
 // --- Projected trajectory graph -------------------------------------------
+// Every series (including the former "static" ones) now goes through the
+// same overrides mechanism, so they all sample the same way — no more
+// special-case step-path branch.
 const GRAPH_SERIES = [
-  { key: 'HR',      label: 'HR',     color: '#dc2626', unit: 'bpm',     min: 30, max: 200 },
-  { key: 'BPsys',   label: 'BP Sys', color: '#16a34a', unit: 'mmHg',    min: 40, max: 220 },
-  { key: 'BPdia',   label: 'BP Dia', color: '#4ade80', unit: 'mmHg',    min: 20, max: 140 },
-  { key: 'SpO2',    label: 'SpO\u2082', color: '#2563eb', unit: '%',    min: 50, max: 100 },
-  { key: 'RR',      label: 'RR',     color: '#d97706', unit: '/min',    min: 0,  max: 50  },
-  { key: 'EtCO2',   label: 'EtCO\u2082', color: '#ea580c', unit: 'mmHg', min: 0, max: 80  },
-  { key: 'temp',    label: 'Temp',    color: '#7c3aed', unit: '\u00b0C', min: 34, max: 41, staticKey: true },
-  { key: 'bgl',     label: 'BGL',     color: '#0891b2', unit: 'mmol/L', min: 0,  max: 25, staticKey: true },
-  { key: 'ketones', label: 'Ketones', color: '#9333ea', unit: 'mmol/L', min: 0,  max: 6,  staticKey: true },
-  { key: 'gcs',     label: 'GCS',     color: '#be185d', unit: '/15',    min: 3,  max: 15, staticKey: true },
-  { key: 'pain',    label: 'Pain',    color: '#c2410c', unit: '/10',    min: 0,  max: 10, staticKey: true }
+  { key: 'HR',      label: 'HR',     color: '#dc2626', unit: 'bpm',     min: 30, max: 200, get: v => v.HR },
+  { key: 'BPsys',   label: 'BP Sys', color: '#16a34a', unit: 'mmHg',    min: 40, max: 220, get: v => v.BPsys },
+  { key: 'BPdia',   label: 'BP Dia', color: '#4ade80', unit: 'mmHg',    min: 20, max: 140, get: v => v.BPdia },
+  { key: 'SpO2',    label: 'SpO\u2082', color: '#2563eb', unit: '%',    min: 50, max: 100, get: v => v.SpO2 },
+  { key: 'RR',      label: 'RR',     color: '#d97706', unit: '/min',    min: 0,  max: 50,  get: v => v.RR },
+  { key: 'EtCO2',   label: 'EtCO\u2082', color: '#ea580c', unit: 'mmHg', min: 0, max: 80,  get: v => v.EtCO2 },
+  { key: 'temp',    label: 'Temp',    color: '#7c3aed', unit: '\u00b0C', min: 34, max: 41, get: v => v.temp },
+  { key: 'bgl',     label: 'BGL',     color: '#0891b2', unit: 'mmol/L', min: 0,  max: 25, get: v => v.bgl },
+  { key: 'ketones', label: 'Ketones', color: '#9333ea', unit: 'mmol/L', min: 0,  max: 6,  get: v => v.ketones },
+  { key: 'gcs',     label: 'GCS',     color: '#be185d', unit: '/15',    min: 3,  max: 15, get: v => v.gcsE + v.gcsV + v.gcsM },
+  { key: 'pain',    label: 'Pain',    color: '#c2410c', unit: '/10',    min: 0,  max: 10, get: v => v.pain }
 ];
-// Numeric value for graphing/legend — GCS plots as its e+v+m total.
-function staticVitalNumeric(key, entry) {
-  if (!entry) return 0;
-  return key === 'gcs' ? (entry.e + entry.v + entry.m) : entry.value;
-}
 const GRAPH_DEFAULT_ON = { HR: true, BPsys: true, BPdia: true, SpO2: true, RR: true, EtCO2: true, temp: false, bgl: false, ketones: false, gcs: false, pain: false };
 let graphSeriesOn = { ...GRAPH_DEFAULT_ON };
 let graphViewStartMin = 0;
@@ -448,12 +417,7 @@ function renderGraphLegend() {
   const el = document.getElementById('graph-legend');
   const v = SimEngine.getVitalsRaw(liveConfig, simNow());
   el.innerHTML = GRAPH_SERIES.map(s => {
-    let curVal;
-    if (s.staticKey) {
-      curVal = staticVitalNumeric(s.key, staticVitalNow(s.key));
-    } else {
-      curVal = Math.round(v[s.key]);
-    }
+    const curVal = Math.round(s.get(v));
     const checked = graphSeriesOn[s.key] ? 'checked' : '';
     return `<label style="display:flex;align-items:center;gap:4px;font-size:10px;background:#f3f6fa;border:1px solid #d7dee6;border-radius:4px;padding:3px 6px;cursor:pointer;">
       <input type="checkbox" ${checked} onchange="toggleGraphSeries('${s.key}', this.checked)">
@@ -471,9 +435,6 @@ function renderGraph() {
   const plotW = W - padL - padR, plotH = H - padT - padB;
   const elapsedMin = (simNow() - liveConfig.startTimeMs) / 60000;
 
-  // Auto-follow the playhead as time advances, unless the assessor has
-  // manually zoomed/panned away — in which case respect their view until
-  // they press "Now" again.
   if (!graphUserPanned && liveConfig.hasStarted) {
     if (elapsedMin > graphViewStartMin + graphViewWindowMin * 0.9) {
       graphViewStartMin = Math.max(0, elapsedMin - graphViewWindowMin * 0.75);
@@ -484,37 +445,20 @@ function renderGraph() {
 
   const viewStart = graphViewStartMin, viewEnd = graphViewStartMin + graphViewWindowMin;
   const xForMin = (m) => padL + ((m - viewStart) / (viewEnd - viewStart)) * plotW;
+  const yFor = (s, val) => padT + (1 - Math.min(1, Math.max(0, (val - s.min) / (s.max - s.min)))) * plotH;
 
   const SAMPLES = 80;
   let paths = '';
-  const yFor = (s, val) => padT + (1 - Math.min(1, Math.max(0, (val - s.min) / (s.max - s.min)))) * plotH;
   GRAPH_SERIES.forEach(s => {
     if (!graphSeriesOn[s.key]) return;
     let d = '';
-    if (s.staticKey) {
-      // Draw as a proper right-angle step (not interpolated) — accurately
-      // reflects "flat, then a step change" rather than a slanted ramp.
-      const hist = ((liveConfig.staticVitals || DEFAULT_STATIC)[s.key] || []).slice().sort((a, b) => a.atMin - b.atMin);
-      let curVal = staticVitalNumeric(s.key, SimEngine.getStaticVitalAt(hist, viewStart));
-      let y = yFor(s, curVal);
-      d = `M${xForMin(viewStart).toFixed(1)},${y.toFixed(1)} `;
-      hist.forEach(ev => {
-        if (ev.atMin <= viewStart || ev.atMin > viewEnd) return;
-        const x = xForMin(ev.atMin);
-        d += `L${x.toFixed(1)},${y.toFixed(1)} `;
-        y = yFor(s, staticVitalNumeric(s.key, ev));
-        d += `L${x.toFixed(1)},${y.toFixed(1)} `;
-      });
-      d += `L${xForMin(viewEnd).toFixed(1)},${y.toFixed(1)} `;
-    } else {
-      for (let i = 0; i <= SAMPLES; i++) {
-        const m = viewStart + (viewEnd - viewStart) * (i / SAMPLES);
-        const tMs = liveConfig.startTimeMs + m * 60000;
-        const val = SimEngine.getVitalsRaw(liveConfig, tMs)[s.key];
-        const x = xForMin(m);
-        const y = yFor(s, val);
-        d += (i === 0 ? 'M' : 'L') + x.toFixed(1) + ',' + y.toFixed(1) + ' ';
-      }
+    for (let i = 0; i <= SAMPLES; i++) {
+      const m = viewStart + (viewEnd - viewStart) * (i / SAMPLES);
+      const tMs = liveConfig.startTimeMs + m * 60000;
+      const val = s.get(SimEngine.getVitalsRaw(liveConfig, tMs));
+      const x = xForMin(m);
+      const y = yFor(s, val);
+      d += (i === 0 ? 'M' : 'L') + x.toFixed(1) + ',' + y.toFixed(1) + ' ';
     }
     paths += `<path d="${d}" fill="none" stroke="${s.color}" stroke-width="2" />`;
   });
@@ -541,51 +485,35 @@ function renderGraph() {
 }
 
 const VITAL_DEFS = [
-  { key: 'HR',    label: 'HR',    unit: 'bpm',  overrideKeys: ['HR'] },
-  { key: 'BP',    label: 'NIBP',  unit: 'mmHg', overrideKeys: ['BPsys', 'BPdia'] },
-  { key: 'SpO2',  label: 'SpO\u2082', unit: '%', overrideKeys: ['SpO2'] },
-  { key: 'RR',    label: 'Resp',  unit: '/min', overrideKeys: ['RR'] },
-  { key: 'EtCO2', label: 'EtCO\u2082', unit: 'mmHg', overrideKeys: ['EtCO2'] }
+  { key: 'HR',      label: 'HR',      unit: 'bpm',     overrideKeys: ['HR'] },
+  { key: 'BP',      label: 'NIBP',    unit: 'mmHg',    overrideKeys: ['BPsys', 'BPdia'] },
+  { key: 'SpO2',    label: 'SpO\u2082', unit: '%',     overrideKeys: ['SpO2'] },
+  { key: 'RR',      label: 'Resp',    unit: '/min',    overrideKeys: ['RR'] },
+  { key: 'EtCO2',   label: 'EtCO\u2082', unit: 'mmHg', overrideKeys: ['EtCO2'] },
+  { key: 'Temp',    label: 'Temp',    unit: '\u00b0C', overrideKeys: ['temp'] },
+  { key: 'BGL',     label: 'BGL',     unit: 'mmol/L',  overrideKeys: ['bgl'] },
+  { key: 'Ketones', label: 'Ketones', unit: 'mmol/L',  overrideKeys: ['ketones'] },
+  { key: 'Pain',    label: 'Pain',    unit: '/10',     overrideKeys: ['pain'] },
+  { key: 'GCS',     label: 'GCS',     unit: '/15',     overrideKeys: ['gcsE', 'gcsV', 'gcsM'], isGCS: true }
 ];
-
-const STATIC_VITAL_DEFS = [
-  { key: 'temp',    label: 'Temp',    unit: '\u00b0C' },
-  { key: 'gcs',     label: 'GCS',     unit: '/15' },
-  { key: 'bgl',     label: 'BGL',     unit: 'mmol/L' },
-  { key: 'ketones', label: 'Ketones', unit: 'mmol/L' },
-  { key: 'pain',    label: 'Pain',    unit: '/10' }
-];
-
-function formatStaticVital(key, entry) {
-  if (!entry) return '\u2014';
-  if (key === 'gcs') return `${entry.e + entry.v + entry.m}`;
-  return `${entry.value}`;
-}
 
 function tickVitals() {
   if (!liveConfig) return;
-  const v = SimEngine.getVitals(liveConfig, simNow());
+  const v = SimEngine.getVitalsRaw(liveConfig, simNow());
   const grid = document.getElementById('vitals-grid');
   grid.innerHTML = VITAL_DEFS.map(def => {
-    const val = def.key === 'BP' ? `${v.BPsys}/${v.BPdia}` : v[def.key];
+    let val;
+    if (def.key === 'BP') val = `${Math.round(v.BPsys)}/${Math.round(v.BPdia)}`;
+    else if (def.isGCS) val = Math.round(v.gcsE + v.gcsV + v.gcsM);
+    else if (['Temp', 'BGL', 'Ketones'].includes(def.key)) val = v[def.overrideKeys[0]].toFixed(1);
+    else val = Math.round(v[def.overrideKeys[0]]);
     return `<div class="vtile" onclick="openOverrideModal('${def.key}')">
       <div class="vlabel">${def.label}</div>
       <div class="vval">${val}</div>
       <div class="muted">${def.unit}</div>
     </div>`;
   }).join('');
-  renderStaticGrid();
   renderGraph();
-}
-
-function renderStaticGrid() {
-  const grid = document.getElementById('static-vitals-grid');
-  grid.innerHTML = STATIC_VITAL_DEFS.map(def => `
-    <div class="vtile" onclick="openStaticModal('${def.key}')">
-      <div class="vlabel">${def.label}</div>
-      <div class="vval">${formatStaticVital(def.key, staticVitalNow(def.key))}</div>
-      <div class="muted">${def.unit}</div>
-    </div>`).join('');
 }
 
 function populateDrugSelect() {
@@ -615,43 +543,6 @@ async function giveTreatment() {
   }
 }
 
-// Testing/preview aid only — populates the current session with a spread of
-// example treatments/overrides/static-vital changes over ~20 minutes so the
-// graph has something varied to look at. Overwrites whatever's currently
-// logged for this session; never call this on a real training run.
-async function seedDemoVariation() {
-  if (!sessionCode || !liveConfig) return;
-  if (!confirm('This overwrites the current session\'s treatments/overrides with example demo data, purely to preview the graph. Only use this on a test session. Continue?')) return;
-  const base = liveConfig.startTimeMs;
-  const demoTreatments = [{ drug: 'adrenaline', dose: 0.5, givenAtMin: 0.2 }];
-  const demoOverrides = {
-    HR: [{ targetValue: 130, startMs: base + 6 * 60000, endMs: base + 6.5 * 60000 }],
-    BPsys: [{ targetValue: 90, startMs: base + 12 * 60000, endMs: base + 12.5 * 60000 }],
-    BPdia: [{ targetValue: 60, startMs: base + 12 * 60000, endMs: base + 12.5 * 60000 }]
-  };
-  const demoStatic = {
-    temp:    [{ value: 36.8, atMin: 0 }, { value: 38.5, atMin: 20 }],
-    gcs:     [{ e: 4, v: 5, m: 6, atMin: 0 }, { e: 3, v: 4, m: 5, atMin: 15 }],
-    bgl:     [{ value: 6.1, atMin: 0 }, { value: 3.2, atMin: 8 }],
-    ketones: [{ value: 0.1, atMin: 0 }],
-    pain:    [{ value: 8, atMin: 0 }, { value: 4, atMin: 10 }]
-  };
-  try {
-    await sbFetch(`sim_sessions?session_code=eq.${sessionCode}`, {
-      method: 'PATCH', prefer: 'return=minimal',
-      body: JSON.stringify({ treatments: demoTreatments, overrides: demoOverrides, static_vitals: demoStatic, updated_at: new Date().toISOString() })
-    });
-    treatments = demoTreatments;
-    liveConfig.treatments = demoTreatments;
-    liveConfig.overrides = demoOverrides;
-    liveConfig.staticVitals = demoStatic;
-    renderTreatments();
-    renderGraph();
-  } catch (e) {
-    alert('Could not load demo data — check the connection and try again.');
-  }
-}
-
 function renderTreatments() {
   const list = document.getElementById('treatment-list');
   if (!treatments.length) {
@@ -665,22 +556,65 @@ function renderTreatments() {
     </div>`).join('');
 }
 
+// Testing/preview aid only — populates the current session with a spread of
+// example treatments/overrides over ~20 minutes so the graph has something
+// varied to look at. Overwrites whatever's currently logged; never call this
+// on a real training run.
+async function seedDemoVariation() {
+  if (!sessionCode || !liveConfig) return;
+  if (!confirm('This overwrites the current session\'s treatments/overrides with example demo data, purely to preview the graph. Only use this on a test session. Continue?')) return;
+  const base = liveConfig.startTimeMs;
+  const demoTreatments = [{ drug: 'adrenaline', dose: 0.5, givenAtMin: 0.2 }];
+  const demoOverrides = {
+    HR: [{ targetValue: 130, startMs: base + 6 * 60000, endMs: base + 6.5 * 60000 }],
+    BPsys: [{ targetValue: 90, startMs: base + 12 * 60000, endMs: base + 12.5 * 60000 }],
+    BPdia: [{ targetValue: 60, startMs: base + 12 * 60000, endMs: base + 12.5 * 60000 }],
+    temp: [{ targetValue: 38.5, startMs: base + 20 * 60000, endMs: base + 20 * 60000 + 120000 }],
+    bgl: [{ targetValue: 3.2, startMs: base + 8 * 60000, endMs: base + 8 * 60000 + 60000 }],
+    pain: [{ targetValue: 4, startMs: base + 10 * 60000, endMs: base + 10 * 60000 + 30000 }],
+    gcsE: [{ targetValue: 3, startMs: base + 15 * 60000, endMs: base + 15 * 60000 + 30000 }],
+    gcsV: [{ targetValue: 4, startMs: base + 15 * 60000, endMs: base + 15 * 60000 + 30000 }],
+    gcsM: [{ targetValue: 5, startMs: base + 15 * 60000, endMs: base + 15 * 60000 + 30000 }]
+  };
+  try {
+    await sbFetch(`sim_sessions?session_code=eq.${sessionCode}`, {
+      method: 'PATCH', prefer: 'return=minimal',
+      body: JSON.stringify({ treatments: demoTreatments, overrides: demoOverrides, updated_at: new Date().toISOString() })
+    });
+    treatments = demoTreatments;
+    liveConfig.treatments = demoTreatments;
+    liveConfig.overrides = demoOverrides;
+    renderTreatments();
+    renderGraph();
+  } catch (e) {
+    alert('Could not load demo data — check the connection and try again.');
+  }
+}
+
 let _ovDefKey = null;
 
 function openOverrideModal(defKey) {
   _ovDefKey = defKey;
   const def = VITAL_DEFS.find(d => d.key === defKey);
-  const v = SimEngine.getVitals(liveConfig, simNow());
+  const v = SimEngine.getVitalsRaw(liveConfig, simNow());
   document.getElementById('ov-modal-title').textContent = `Override ${def.label}`;
 
+  const gcsRanges = { gcsE: [1, 4], gcsV: [1, 5], gcsM: [1, 6] };
+  const gcsLabels = { gcsE: 'Eye', gcsV: 'Verbal', gcsM: 'Motor' };
   const inputs = def.overrideKeys.map(k => {
-    const current = k === 'BPsys' ? v.BPsys : k === 'BPdia' ? v.BPdia : v[k];
+    const current = Math.round(v[k] * 10) / 10;
+    if (def.isGCS) {
+      const [lo, hi] = gcsRanges[k];
+      return `<div><label for="ov-input-${k}">${gcsLabels[k]} (${lo}-${hi})</label>
+        <input type="number" id="ov-input-${k}" min="${lo}" max="${hi}" value="${current}" style="width:70px;"></div>`;
+    }
     return `<div><label for="ov-input-${k}">${k} target</label>
       <input type="number" id="ov-input-${k}" value="${current}" style="width:100%;"></div>`;
   }).join('');
+  const wrapped = def.isGCS ? `<div class="row">${inputs}</div>` : inputs;
 
   document.getElementById('ov-modal-body').innerHTML = `
-    ${inputs}
+    ${wrapped}
     <div style="margin-top:8px;">
       <label for="ov-duration-mode">Transition</label>
       <select id="ov-duration-mode" onchange="document.getElementById('ov-duration-amount').style.display = this.value==='immediate' ? 'none' : 'inline-block'">
@@ -724,67 +658,6 @@ async function applyOverride() {
     closeOverrideModal();
   } catch (e) {
     alert('Could not apply the override — check the connection and try again.');
-  }
-}
-
-let _svKey = null;
-
-function openStaticModal(key) {
-  _svKey = key;
-  const def = STATIC_VITAL_DEFS.find(d => d.key === key);
-  const current = staticVitalNow(key);
-  document.getElementById('sv-modal-title').textContent = `Set ${def.label}`;
-  if (key === 'gcs') {
-    document.getElementById('sv-modal-body').innerHTML = `
-      <div class="row">
-        <div><label for="sv-e">Eye (1-4)</label><input type="number" id="sv-e" min="1" max="4" value="${current.e}" style="width:70px;"></div>
-        <div><label for="sv-v">Verbal (1-5)</label><input type="number" id="sv-v" min="1" max="5" value="${current.v}" style="width:70px;"></div>
-        <div><label for="sv-m">Motor (1-6)</label><input type="number" id="sv-m" min="1" max="6" value="${current.m}" style="width:70px;"></div>
-      </div>
-      <p class="muted">Takes effect now, at t+${elapsedMin().toFixed(1)} min.</p>`;
-  } else {
-    document.getElementById('sv-modal-body').innerHTML = `
-      <label for="sv-input">${def.label} (${def.unit})</label>
-      <input type="number" step="0.1" id="sv-input" value="${current.value}" style="width:100%;">
-      <p class="muted">Takes effect now, at t+${elapsedMin().toFixed(1)} min.</p>`;
-  }
-  document.getElementById('static-modal').style.display = 'flex';
-}
-
-function closeStaticModal() {
-  document.getElementById('static-modal').style.display = 'none';
-  _svKey = null;
-}
-
-async function applyStaticVital() {
-  if (!_svKey || !sessionCode) return;
-  const atMin = elapsedMin();
-  let newEntry;
-  if (_svKey === 'gcs') {
-    newEntry = {
-      e: parseInt(document.getElementById('sv-e').value) || 1,
-      v: parseInt(document.getElementById('sv-v').value) || 1,
-      m: parseInt(document.getElementById('sv-m').value) || 1,
-      atMin
-    };
-  } else {
-    newEntry = { value: parseFloat(document.getElementById('sv-input').value) || 0, atMin };
-  }
-  try {
-    const rows = await sbFetch(`sim_sessions?session_code=eq.${sessionCode}&select=static_vitals`, { method: 'GET' });
-    const fresh = (rows[0] && rows[0].static_vitals) || JSON.parse(JSON.stringify(DEFAULT_STATIC));
-    if (!fresh[_svKey]) fresh[_svKey] = [];
-    fresh[_svKey].push(newEntry);
-    await sbFetch(`sim_sessions?session_code=eq.${sessionCode}`, {
-      method: 'PATCH', prefer: 'return=minimal',
-      body: JSON.stringify({ static_vitals: fresh, updated_at: new Date().toISOString() })
-    });
-    liveConfig.staticVitals = fresh;
-    renderStaticGrid();
-
-    closeStaticModal();
-  } catch (e) {
-    alert('Could not set the value — check the connection and try again.');
   }
 }
 

@@ -140,17 +140,10 @@ async function sbPatch(path, body) {
 
 let testConfig = null; // populated once a session is joined — see connectSession()
 let instantMode = false; // synced from the session row; assessor-controlled, not editable here
-const DEFAULT_STATIC = {
-  temp:    [{ value: 36.8, atMin: 0 }],
-  gcs:     [{ e: 4, v: 5, m: 6, atMin: 0 }],
-  bgl:     [{ value: 6.1, atMin: 0 }],
-  ketones: [{ value: 0.1, atMin: 0 }],
-  pain:    [{ value: 8, atMin: 0 }]
-};
-function staticVitalNow(key) {
-  const hist = (testConfig.staticVitals || DEFAULT_STATIC)[key];
-  const elapsedMinNow = Math.max(0, (SimEngine.getSimNow(testConfig, Date.now()) - testConfig.startTimeMs) / 60000);
-  return SimEngine.getStaticVitalAt(hist, elapsedMinNow);
+// Temp/BGL/Ketones/Pain/GCS now go through the same overrides mechanism as
+// HR/BP/etc — read the current projected value straight from the engine.
+function extendedVitalsNow() {
+  return SimEngine.getVitalsRaw(testConfig, SimEngine.getSimNow(testConfig, Date.now()));
 }
 
 // --- Session join flow -----------------------------------------------------
@@ -168,7 +161,6 @@ async function connectSession(code) {
       startTimeMs: row.start_time_ms,
       treatments: row.treatments || [],
       overrides: row.overrides || {},
-      staticVitals: row.static_vitals || DEFAULT_STATIC,
       instantMode: row.instant_mode,
       hasStarted: row.has_started,
       isPaused: row.is_paused,
@@ -192,14 +184,13 @@ let sessionCode = null;
 async function pollSession() {
   if (!sessionCode || !testConfig) return;
   try {
-    const rows = await sbGet(`sim_sessions?session_code=eq.${encodeURIComponent(sessionCode)}&select=severity,direction,treatments,overrides,static_vitals,instant_mode,has_started,is_paused,paused_at_ms,total_paused_ms`);
+    const rows = await sbGet(`sim_sessions?session_code=eq.${encodeURIComponent(sessionCode)}&select=severity,direction,treatments,overrides,instant_mode,has_started,is_paused,paused_at_ms,total_paused_ms`);
     if (!rows.length) return;
     const row = rows[0];
     testConfig.severity = row.severity;
     testConfig.direction = row.direction;
     testConfig.treatments = row.treatments || [];
     testConfig.overrides = row.overrides || {};
-    testConfig.staticVitals = row.static_vitals || DEFAULT_STATIC;
     testConfig.instantMode = row.instant_mode;
     testConfig.hasStarted = row.has_started;
     testConfig.isPaused = row.is_paused;
@@ -227,10 +218,11 @@ const oneOffDefs = {
   ketones: { label: 'Ketones', unit: 'mmol/L' },
   pain:    { label: 'Pain',    unit: '/10' }
 };
-function formatStaticVital(key, entry) {
-  if (!entry) return '\u2014';
-  if (key === 'gcs') return `${entry.e + entry.v + entry.m}`;
-  return `${entry.value}`;
+function formatStaticVital(key, val) {
+  if (val == null) return '\u2014';
+  if (key === 'gcs') return `${val}`; // already summed to a total before this is called
+  if (key === 'temp' || key === 'bgl' || key === 'ketones') return val.toFixed(1);
+  return `${Math.round(val)}`;
 }
 
 function countPending() {
@@ -289,7 +281,8 @@ function onActionComplete(key, now) {
     bpNextDueMs = now + bpIntervalMin * 60000;
   }
   if (oneOffDefs[key]) {
-    actionState[key].value = staticVitalNow(key);
+    const v = extendedVitalsNow();
+    actionState[key].value = key === 'gcs' ? Math.round(v.gcsE + v.gcsV + v.gcsM) : v[key];
   }
 }
 

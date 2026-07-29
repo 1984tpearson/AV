@@ -15,11 +15,12 @@
   // ---- Severity presets ------------------------------------------------
   // Each preset describes where CONTINUOUS vitals trend toward, and how long
   // the deterioration/improvement takes to reach that target from baseline.
+  const EXT_ZERO = { temp: 0, bgl: 0, ketones: 0, pain: 0, gcsE: 0, gcsV: 0, gcsM: 0 };
   const SEVERITY_PRESETS = {
-    mild:     { label: 'Mild',     rampMinutes: 20, target: { HR: 15,  RR: 4,  SpO2: -3,  EtCO2: 3,  BPsys: -6,  BPdia: -3  } },
-    moderate: { label: 'Moderate', rampMinutes: 14, target: { HR: 30,  RR: 8,  SpO2: -7,  EtCO2: 6,  BPsys: -15, BPdia: -8  } },
-    severe:   { label: 'Severe',   rampMinutes: 9,  target: { HR: 45,  RR: 14, SpO2: -14, EtCO2: 10, BPsys: -30, BPdia: -15 } },
-    critical: { label: 'Critical', rampMinutes: 5,  target: { HR: 60,  RR: 20, SpO2: -22, EtCO2: 15, BPsys: -45, BPdia: -22 } }
+    mild:     { label: 'Mild',     rampMinutes: 20, target: { HR: 15,  RR: 4,  SpO2: -3,  EtCO2: 3,  BPsys: -6,  BPdia: -3,  ...EXT_ZERO } },
+    moderate: { label: 'Moderate', rampMinutes: 14, target: { HR: 30,  RR: 8,  SpO2: -7,  EtCO2: 6,  BPsys: -15, BPdia: -8,  ...EXT_ZERO } },
+    severe:   { label: 'Severe',   rampMinutes: 9,  target: { HR: 45,  RR: 14, SpO2: -14, EtCO2: 10, BPsys: -30, BPdia: -15, ...EXT_ZERO } },
+    critical: { label: 'Critical', rampMinutes: 5,  target: { HR: 60,  RR: 20, SpO2: -22, EtCO2: 15, BPsys: -45, BPdia: -22, ...EXT_ZERO } }
   };
   // target deltas are ADDED to baseline (or subtracted, e.g. SpO2) as the ramp progresses.
   // Direction (deteriorating vs improving) is controlled by scenarioConfig.direction.
@@ -29,6 +30,10 @@
   // placeholder shared across all severities/conditions for now, same
   // simplification already applied to HR/RR/SpO2/EtCO2, flagged for review
   // once conditions become distinguishable (i.e. once a scenario library exists).
+  // Temp/BGL/Ketones/Pain/GCS components have ZERO autonomous drift by design —
+  // they only move when the assessor sets an override. Unlike HR/BP/etc there's
+  // no generic clinical basis for how these should drift with "deterioration"
+  // in the abstract (condition-specific), so they stay flat until acted on.
 
   // ---- Starter drug library ---------------------------------------------
   // Onset/peak/duration in minutes. Effect deltas applied on top of trend value
@@ -131,7 +136,14 @@
       SpO2: preset.target.SpO2 * progress * dir,
       EtCO2: preset.target.EtCO2 * progress * dir,
       BPsys: preset.target.BPsys * progress * dir,
-      BPdia: preset.target.BPdia * progress * dir
+      BPdia: preset.target.BPdia * progress * dir,
+      temp: preset.target.temp * progress * dir,
+      bgl: preset.target.bgl * progress * dir,
+      ketones: preset.target.ketones * progress * dir,
+      pain: preset.target.pain * progress * dir,
+      gcsE: preset.target.gcsE * progress * dir,
+      gcsV: preset.target.gcsV * progress * dir,
+      gcsM: preset.target.gcsM * progress * dir
     };
     return applyTreatments(deltas, cfg.treatments || [], elapsedMin, cfg.instantMode);
   }
@@ -193,15 +205,24 @@
   // small cosmetic wobble would just add noise to a planning chart.
   function getVitalsRaw(scenarioConfig, nowMs) {
     const cfg = scenarioConfig;
+    const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
     return {
       HR: applyOverrides(cfg, 'HR', nowMs),
       RR: applyOverrides(cfg, 'RR', nowMs),
       SpO2: Math.min(100, applyOverrides(cfg, 'SpO2', nowMs)),
       EtCO2: applyOverrides(cfg, 'EtCO2', nowMs),
       BPsys: applyOverrides(cfg, 'BPsys', nowMs),
-      BPdia: applyOverrides(cfg, 'BPdia', nowMs)
+      BPdia: applyOverrides(cfg, 'BPdia', nowMs),
+      temp: applyOverrides(cfg, 'temp', nowMs),
+      bgl: Math.max(0, applyOverrides(cfg, 'bgl', nowMs)),
+      ketones: Math.max(0, applyOverrides(cfg, 'ketones', nowMs)),
+      pain: clamp(applyOverrides(cfg, 'pain', nowMs), 0, 10),
+      gcsE: clamp(applyOverrides(cfg, 'gcsE', nowMs), 1, 4),
+      gcsV: clamp(applyOverrides(cfg, 'gcsV', nowMs), 1, 5),
+      gcsM: clamp(applyOverrides(cfg, 'gcsM', nowMs), 1, 6)
     };
   }
+
 
   function getVitals(scenarioConfig, nowMs) {
     const nowSec = Math.floor(nowMs / 1000);
