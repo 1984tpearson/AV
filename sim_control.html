@@ -370,17 +370,17 @@ async function updateInstantMode() {
 // same overrides mechanism, so they all sample the same way — no more
 // special-case step-path branch.
 const GRAPH_SERIES = [
-  { key: 'HR',      label: 'HR',     color: '#dc2626', unit: 'bpm',     min: 30, max: 200, get: v => v.HR },
-  { key: 'BPsys',   label: 'BP Sys', color: '#16a34a', unit: 'mmHg',    min: 20, max: 220, get: v => v.BPsys },
-  { key: 'BPdia',   label: 'BP Dia', color: '#4ade80', unit: 'mmHg',    min: 20, max: 220, get: v => v.BPdia },
-  { key: 'SpO2',    label: 'SpO\u2082', color: '#2563eb', unit: '%',    min: 50, max: 100, get: v => v.SpO2 },
-  { key: 'RR',      label: 'RR',     color: '#d97706', unit: '/min',    min: 0,  max: 50,  get: v => v.RR },
-  { key: 'EtCO2',   label: 'EtCO\u2082', color: '#ea580c', unit: 'mmHg', min: 0, max: 80,  get: v => v.EtCO2 },
-  { key: 'temp',    label: 'Temp',    color: '#7c3aed', unit: '\u00b0C', min: 34, max: 41, get: v => v.temp },
-  { key: 'bgl',     label: 'BGL',     color: '#0891b2', unit: 'mmol/L', min: 0,  max: 25, get: v => v.bgl },
-  { key: 'ketones', label: 'Ketones', color: '#9333ea', unit: 'mmol/L', min: 0,  max: 6,  get: v => v.ketones },
-  { key: 'gcs',     label: 'GCS',     color: '#be185d', unit: '/15',    min: 3,  max: 15, get: v => v.gcsE + v.gcsV + v.gcsM },
-  { key: 'pain',    label: 'Pain',    color: '#c2410c', unit: '/10',    min: 0,  max: 10, get: v => v.pain }
+  { key: 'HR',      label: 'HR',     color: '#c66469', unit: 'bpm',     min: 30, max: 200, get: v => v.HR },
+  { key: 'BPsys',   label: 'BP Sys', color: '#4f9a5b', unit: 'mmHg',    min: 20, max: 220, get: v => v.BPsys },
+  { key: 'BPdia',   label: 'BP Dia', color: '#8cc194', unit: 'mmHg',    min: 20, max: 220, get: v => v.BPdia },
+  { key: 'SpO2',    label: 'SpO\u2082', color: '#5b8fc7', unit: '%',    min: 50, max: 100, get: v => v.SpO2 },
+  { key: 'RR',      label: 'RR',     color: '#c99a4a', unit: '/min',    min: 0,  max: 50,  get: v => v.RR },
+  { key: 'EtCO2',   label: 'EtCO\u2082', color: '#c9a227', unit: 'mmHg', min: 0, max: 80,  get: v => v.EtCO2 },
+  { key: 'temp',    label: 'Temp',    color: '#9a7bc4', unit: '\u00b0C', min: 34, max: 41, get: v => v.temp },
+  { key: 'bgl',     label: 'BGL',     color: '#5aa8ad', unit: 'mmol/L', min: 0,  max: 25, get: v => v.bgl },
+  { key: 'ketones', label: 'Ketones', color: '#b98cd1', unit: 'mmol/L', min: 0,  max: 6,  get: v => v.ketones },
+  { key: 'gcs',     label: 'GCS',     color: '#c46f92', unit: '/15',    min: 3,  max: 15, get: v => v.gcsE + v.gcsV + v.gcsM },
+  { key: 'pain',    label: 'Pain',    color: '#cf9463', unit: '/10',    min: 0,  max: 10, get: v => v.pain }
 ];
 const GRAPH_DEFAULT_ON = { HR: true, BPsys: true, BPdia: true, SpO2: true, RR: true, EtCO2: true, temp: false, bgl: false, ketones: false, gcs: false, pain: false };
 let graphSeriesOn = { ...GRAPH_DEFAULT_ON };
@@ -668,6 +668,7 @@ function renderGraph() {
   let hitPaths = '';
   let overrideMarkers = '';
   let edgeReadouts = '';
+  const ptsByKey = {};
   GRAPH_SERIES.forEach(s => {
     if (!graphSeriesOn[s.key]) return;
     const isArmed = armedGraphKeys.includes(s.key);
@@ -678,13 +679,19 @@ function renderGraph() {
       const val = s.get(SimEngine.getVitalsRaw(liveConfig, tMs));
       pts.push([xForMin(m), yFor(s, val)]);
     }
+    ptsByKey[s.key] = pts;
     const fadeOthers = armedGraphKeys.length > 0 && !isArmed;
     const opacity = fadeOthers ? 0.12 : 1;
     const d = pointsToSmoothPath(pts);
     const baseline = padT + plotH;
     const areaD = `${d} L${pts[pts.length - 1][0].toFixed(1)},${baseline} L${pts[0][0].toFixed(1)},${baseline} Z`;
-    paths += `<defs><linearGradient id="grad-${s.key}" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="${s.color}" stop-opacity="0.22" /><stop offset="100%" stop-color="${s.color}" stop-opacity="0" /></linearGradient></defs>`;
-    paths += `<path d="${areaD}" fill="url(#grad-${s.key})" stroke="none" opacity="${opacity}" />`;
+    paths += `<defs><linearGradient id="grad-${s.key}" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="${s.color}" stop-opacity="0.05" /><stop offset="100%" stop-color="${s.color}" stop-opacity="0" /></linearGradient></defs>`;
+    // BP is filled separately as a band between systolic and diastolic (see
+    // below, after this loop) rather than each line filling to the baseline.
+    const isBpComponent = s.key === 'BPsys' || s.key === 'BPdia';
+    if (!isBpComponent) {
+      paths += `<path d="${areaD}" fill="url(#grad-${s.key})" stroke="none" opacity="${opacity}" />`;
+    }
     paths += `<path d="${d}" fill="none" stroke="${s.color}" stroke-width="${isArmed ? 3.5 : 2}" opacity="${opacity}" stroke-linecap="round" />`;
 
     // Right-edge value readout — the value at the visible window's edge,
@@ -734,6 +741,19 @@ function renderGraph() {
       });
     }
   });
+
+  // BP fill: a single band between the systolic and diastolic curves rather
+  // than each filling to the chart baseline — makes the pulse-pressure gap
+  // between the two visually obvious. Reuses the systolic gradient, which
+  // naturally fades out over the band's own height (top of sys to bottom of
+  // dia), so it reads as "starts at systolic, cuts off toward diastolic".
+  if (ptsByKey.BPsys && ptsByKey.BPdia) {
+    const sysSmooth = pointsToSmoothPath(ptsByKey.BPsys);
+    const diaReversed = ptsByKey.BPdia.slice().reverse();
+    const diaSmooth = pointsToSmoothPath(diaReversed).replace(/^M/, 'L');
+    const bpBandFade = armedGraphKeys.length > 0 && !armedGraphKeys.includes('BPsys') && !armedGraphKeys.includes('BPdia') ? 0.12 : 1;
+    paths += `<path d="${sysSmooth} ${diaSmooth} Z" fill="url(#grad-BPsys)" stroke="none" opacity="${bpBandFade}" />`;
+  }
 
   let grid = '';
   const gridStepMin = niceStep(graphViewWindowMin / 6);
