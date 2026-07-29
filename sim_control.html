@@ -101,13 +101,9 @@ select, input[type=number], input[type=text] { font-family: 'Courier New', monos
         </div>
         <h2 style="margin-top:12px;">Log Treatment / Management</h2>
         <div class="row">
-          <div style="flex:1;min-width:140px;">
+          <div style="flex:1;min-width:220px;">
             <label for="action-input">Drug / Action</label>
-            <input type="text" id="action-input" placeholder="e.g. Morphine IV, Apply tourniquet" style="width:100%;">
-          </div>
-          <div style="flex:1;min-width:100px;">
-            <label for="detail-input">Dose / Detail</label>
-            <input type="text" id="detail-input" placeholder="e.g. 10mg, left thigh">
+            <input type="text" id="action-input" placeholder="e.g. Adrenaline 0.5mg IM, Apply tourniquet left thigh" style="width:100%;">
           </div>
           <button class="btn" onclick="giveTreatment()">Give</button>
         </div>
@@ -1292,12 +1288,11 @@ function tickVitals() {
 async function giveTreatment() {
   if (!sessionCode) return;
   const action = document.getElementById('action-input').value.trim();
-  const detail = document.getElementById('detail-input').value.trim();
   if (!action) { alert('Enter a drug or management action.'); return; }
   const statusEl = document.getElementById('treatment-status');
   const givenAtMs = simNow();
   const givenAtMin = (givenAtMs - liveConfig.startTimeMs) / 60000;
-  treatments = [...treatments, { action, detail, givenAtMin }];
+  treatments = [...treatments, { action, givenAtMin }];
   liveConfig.treatments = treatments;
   try {
     await sbFetch(`sim_sessions?session_code=eq.${sessionCode}`, {
@@ -1306,7 +1301,6 @@ async function giveTreatment() {
     });
     renderTreatments();
     document.getElementById('action-input').value = '';
-    document.getElementById('detail-input').value = '';
   } catch (e) {
     treatments.pop();
     liveConfig.treatments = treatments;
@@ -1317,7 +1311,7 @@ async function giveTreatment() {
   // the trajectory recalculation is a separate, best-effort follow-up.
   if (statusEl) statusEl.textContent = 'Recalculating trajectory…';
   try {
-    await regenerateTimelineAfterTreatment(action, detail, givenAtMs);
+    await regenerateTimelineAfterTreatment(action, givenAtMs);
     if (statusEl) statusEl.textContent = '';
   } catch (e) {
     if (statusEl) statusEl.textContent = 'Could not recalculate the trajectory: ' + e.message;
@@ -1329,7 +1323,7 @@ async function giveTreatment() {
 // THIS patient's THIS condition — replaces the old generic per-drug effect
 // table entirely. Anything already elapsed or mid-transition is left alone;
 // only not-yet-started future overrides are replaced.
-async function regenerateTimelineAfterTreatment(action, detail, givenAtMs) {
+async function regenerateTimelineAfterTreatment(action, givenAtMs) {
   if (!currentScenario) return; // no scenario context available — treatment stays logged, trajectory just won't update
   const vitalsNow = SimEngine.getVitalsRaw(liveConfig, givenAtMs);
   const elapsedMin = (givenAtMs - liveConfig.startTimeMs) / 60000;
@@ -1345,9 +1339,10 @@ Return ONLY valid JSON, no prose, in exactly this shape:
 
 Rules:
 - Times are minutes from THIS MOMENT (the action being given = minute 0), not from scenario start.
+- The action text may or may not state a route (IV, IM, neb, PO, etc). If a route IS stated, use it. If NOT stated, infer the single most standard/likely route for that specific drug in this clinical context (e.g. adrenaline in anaphylaxis is IM; adrenaline in cardiac arrest is IV/IO) and apply that route's realistic onset delay — don't default to instant or to whichever route happens to look fastest.
 - Reflect the action's realistic onset delay before any effect starts (e.g. IV drugs ~1-3 min, IM/neb slower) — don't apply an instant effect.
 - If the action only partially or temporarily addresses the underlying condition, model it wearing off and the condition resuming its natural course afterward — worse than before if the intervention was just masking ongoing pathology, stable/improving if it substantively corrected the problem. Reason about which applies here.
-- If the action is clinically inappropriate, ineffective, or an insufficient dose for this condition, reflect that honestly — including continued deterioration if that is the truthful outcome. Do not reward an incorrect action with improvement it wouldn't realistically produce.
+- If the action is clinically inappropriate, ineffective, or an insufficient/excessive dose for this condition, reflect that honestly — including continued deterioration, or a supratherapeutic/toxic effect, if that is the truthful outcome. Do not reward an incorrect action with improvement it wouldn't realistically produce.
 - Only include a vital's key if this specific action would plausibly change it; omit anything unaffected.
 - gcsE range 1-4, gcsV range 1-5, gcsM range 1-6 — never exceed these.
 - Project up to ${Math.round(remainingMin)} minutes forward from now, or less if the outcome resolves sooner. Never project past 60 minutes of total scenario time.
@@ -1360,7 +1355,7 @@ Key history: ${currentScenario.key_hx || ''}
 Flags: ${JSON.stringify(currentScenario.flags || [])}
 Life threats: ${JSON.stringify(currentScenario.life_threats || [])}
 
-Action just given by the crew (at minute ${elapsedMin.toFixed(1)} of the scenario): ${action}${detail ? ' — ' + detail : ''}
+Action just given by the crew (at minute ${elapsedMin.toFixed(1)} of the scenario): ${action}
 Patient's vitals at the moment this was given: ${JSON.stringify(vitalsNow)}
 
 Project how this patient's vitals change from here, given this specific action.`;
@@ -1417,7 +1412,7 @@ function renderTreatments() {
   }
   list.innerHTML = treatments.map(t => `
     <div class="treat-item">
-      <span>${escapeHtml(t.action)}${t.detail ? ' \u2014 ' + escapeHtml(t.detail) : ''}</span>
+      <span>${escapeHtml(t.action)}</span>
       <span class="muted">t+${t.givenAtMin.toFixed(1)} min</span>
     </div>`).join('');
 }
@@ -1487,7 +1482,7 @@ async function seedDemoVariation() {
   if (!sessionCode || !liveConfig) return;
   if (!confirm('This overwrites the current session\'s treatments/overrides with example demo data, purely to preview the graph. Only use this on a test session. Continue?')) return;
   const base = liveConfig.startTimeMs;
-  const demoTreatments = [{ action: 'Adrenaline IM', detail: '0.5mg', givenAtMin: 0.2 }];
+  const demoTreatments = [{ action: 'Adrenaline 0.5mg IM', givenAtMin: 0.2 }];
   const demoOverrides = {
     HR: [{ targetValue: 130, startMs: base + 6 * 60000, endMs: base + 6.5 * 60000 }],
     BPsys: [{ targetValue: 90, startMs: base + 12 * 60000, endMs: base + 12.5 * 60000 }],
