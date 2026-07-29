@@ -42,7 +42,12 @@ select, input[type=number], input[type=text] { font-family: 'Courier New', monos
 <body>
 <div id="topbar">
   <div class="title">Live Scenario — Control</div>
-  <div id="run-status"></div>
+  <div style="display:flex;align-items:center;gap:10px;">
+    <div id="run-status"></div>
+    <button class="btn btn-secondary" id="join-btn" style="font-size:11px;padding:6px 10px;display:none;" onclick="openJoinModal()">
+      <span id="join-btn-dot" style="display:inline-block;width:7px;height:7px;border-radius:50%;background:#b45309;margin-right:5px;"></span>Join Info
+    </button>
+  </div>
 </div>
 <div id="main">
 
@@ -111,26 +116,34 @@ select, input[type=number], input[type=text] { font-family: 'Courier New', monos
           </div>
           <button class="btn" onclick="giveTreatment()">Give</button>
         </div>
-        <div id="treatment-list"></div>
       </div>
 
       <div class="panel" id="feed-panel">
-        <h2>Join Info</h2>
-        <div id="join-info">
-          <div class="muted" style="text-align:center;">Pairing code</div>
-          <div id="code-display">------</div>
-          <div id="qr-code"></div>
-          <p class="muted" style="text-align:center;">Enter the code, or scan the QR, on the patient device</p>
-        </div>
-        <div id="patient-status" style="display:none;text-align:center;padding:8px 0;">
-          <span class="muted">&#10003; Patient device connected</span><br>
-          <button class="btn btn-secondary" style="margin-top:6px;padding:4px 10px;font-size:11px;" onclick="showJoinInfo()">Show Join Info</button>
-        </div>
-        <p class="muted" style="margin-top:10px;">Upcoming/previous management feed goes here (planned).</p>
+        <h2>Treatment Log</h2>
+        <div id="treatment-list"></div>
       </div>
     </div>
   </div>
 
+</div>
+
+<div id="join-modal" style="display:none;position:fixed;inset:0;background:rgba(20,30,45,0.6);align-items:center;justify-content:center;z-index:50;">
+  <div class="panel" style="width:280px;">
+    <div class="row" style="justify-content:space-between;align-items:center;margin-bottom:0;">
+      <h2 style="margin:0;">Join Info</h2>
+      <button class="btn btn-secondary" style="padding:2px 10px;font-size:14px;" onclick="closeJoinModal()">&times;</button>
+    </div>
+    <div id="join-info">
+      <div class="muted" style="text-align:center;">Pairing code</div>
+      <div id="code-display">------</div>
+      <div id="qr-code"></div>
+      <p class="muted" style="text-align:center;">Enter the code, or scan the QR, on the patient device</p>
+    </div>
+    <div id="patient-status" style="display:none;text-align:center;padding:8px 0;">
+      <span class="muted">&#10003; Patient device connected</span><br>
+      <button class="btn btn-secondary" style="margin-top:6px;padding:4px 10px;font-size:11px;" onclick="showJoinInfo()">Show Join Info</button>
+    </div>
+  </div>
 </div>
 
 <div id="override-modal" style="display:none;position:fixed;inset:0;background:rgba(20,30,45,0.6);align-items:center;justify-content:center;z-index:50;">
@@ -239,6 +252,7 @@ async function createSession() {
       graphUserPanned = false;
       renderJoinQR();
       updatePatientStatus();
+      openJoinModal();
       renderRunControls();
       renderTreatments();
       tickVitals();
@@ -315,11 +329,20 @@ function updatePatientStatus() {
   const showJoin = !connected || _joinInfoManuallyShown;
   document.getElementById('join-info').style.display = showJoin ? 'block' : 'none';
   document.getElementById('patient-status').style.display = connected ? 'block' : 'none';
+  document.getElementById('join-btn').style.display = 'inline-flex';
+  document.getElementById('join-btn-dot').style.background = connected ? '#15803d' : '#b45309';
 }
 
 function showJoinInfo() {
   _joinInfoManuallyShown = true;
   updatePatientStatus();
+}
+
+function openJoinModal() {
+  document.getElementById('join-modal').style.display = 'flex';
+}
+function closeJoinModal() {
+  document.getElementById('join-modal').style.display = 'none';
 }
 
 async function pollSession() {
@@ -424,8 +447,11 @@ function graphSnapToNow() {
 
 function handleVtileClick(defKey) {
   const def = VITAL_DEFS.find(d => d.key === defKey);
-  const graphKeys = def.overrideKeys.filter(k => GRAPH_SERIES.some(s => s.key === k));
-  if (!graphKeys.length) { openOverrideModal(defKey); return; } // e.g. GCS — combined graph line, no clean per-component drag mapping; falls back to the modal
+  // GCS is a combined graph line (E+V+M summed) but three separate override
+  // keys — dragging it distributes the change across the three components
+  // (see expandGcsOverride) rather than mapping 1:1 like every other vital.
+  const graphKeys = def.key === 'GCS' ? ['gcs'] : def.overrideKeys.filter(k => GRAPH_SERIES.some(s => s.key === k));
+  if (!graphKeys.length) { openOverrideModal(defKey); return; }
 
   if (armedTileKey === defKey) {
     if (pendingDrag) cancelPendingDrag();
@@ -466,6 +492,44 @@ function svgCoordFromEvent(evt) {
     y: ((evt.clientY - rect.top) / rect.height) * vb.height + vb.y
   };
 }
+
+// GCS's graph line is E+V+M combined, but overrides are per-component. Given
+// a dragged TOTAL, split the delta from the current total across the three
+// components — each step goes to whichever eligible component (still within
+// its own 1-4/1-5/1-6 range) has the most headroom, so it stays reasonably
+// balanced rather than dumping the whole change onto one component. This is
+// a judgement-call simplification, not a clinically-derived split — flag if
+// you'd rather weight it differently (e.g. always hit Motor first).
+function distributeGcsDelta(eVal, vVal, mVal, delta) {
+  const comps = [
+    { key: 'gcsE', val: eVal, min: 1, max: 4 },
+    { key: 'gcsV', val: vVal, min: 1, max: 5 },
+    { key: 'gcsM', val: mVal, min: 1, max: 6 }
+  ];
+  const dir = delta > 0 ? 1 : delta < 0 ? -1 : 0;
+  let remaining = Math.round(Math.abs(delta));
+  let guard = 0;
+  while (remaining > 0 && guard < 100) {
+    guard++;
+    const eligible = comps.filter(c => dir > 0 ? c.val < c.max : c.val > c.min);
+    if (!eligible.length) break;
+    eligible.sort((a, b) => dir > 0 ? (b.max - b.val) - (a.max - a.val) : (b.val - b.min) - (a.val - a.min));
+    eligible[0].val += dir;
+    remaining--;
+  }
+  return { gcsE: comps[0].val, gcsV: comps[1].val, gcsM: comps[2].val };
+}
+function expandGcsOverride(anchorMs, targetTotal, startMs, endMs) {
+  const cur = SimEngine.getVitalsRaw(liveConfig, anchorMs);
+  const e = Math.round(cur.gcsE), v = Math.round(cur.gcsV), m = Math.round(cur.gcsM);
+  const dist = distributeGcsDelta(e, v, m, Math.round(targetTotal) - (e + v + m));
+  return {
+    gcsE: { targetValue: dist.gcsE, startMs, endMs },
+    gcsV: { targetValue: dist.gcsV, startMs, endMs },
+    gcsM: { targetValue: dist.gcsM, startMs, endMs }
+  };
+}
+
 function minForX(x) {
   const L = _lastLayout;
   return L.viewStart + ((x - L.padL) / L.plotW) * (L.viewEnd - L.viewStart);
@@ -573,11 +637,20 @@ async function confirmPendingDrag() {
   const { graphKey, targetValue, anchorMs, handleMs, linked } = pendingDrag;
   const startMs = Math.min(anchorMs, handleMs);
   const endMs = Math.max(anchorMs, handleMs);
+  const finalEndMs = Math.max(endMs, startMs + 1000);
   try {
     const rows = await sbFetch(`sim_sessions?session_code=eq.${sessionCode}&select=overrides`, { method: 'GET' });
     const freshOverrides = (rows[0] && rows[0].overrides) || {};
-    if (!freshOverrides[graphKey]) freshOverrides[graphKey] = [];
-    freshOverrides[graphKey].push({ targetValue, startMs, endMs: Math.max(endMs, startMs + 1000) });
+    if (graphKey === 'gcs') {
+      const expanded = expandGcsOverride(anchorMs, targetValue, startMs, finalEndMs);
+      ['gcsE', 'gcsV', 'gcsM'].forEach(k => {
+        if (!freshOverrides[k]) freshOverrides[k] = [];
+        freshOverrides[k].push(expanded[k]);
+      });
+    } else {
+      if (!freshOverrides[graphKey]) freshOverrides[graphKey] = [];
+      freshOverrides[graphKey].push({ targetValue, startMs, endMs: finalEndMs });
+    }
     if (linked) {
       if (!freshOverrides[linked.graphKey]) freshOverrides[linked.graphKey] = [];
       freshOverrides[linked.graphKey].push({ targetValue: linked.targetValue, startMs, endMs: Math.max(endMs, startMs + 1000) });
@@ -847,8 +920,15 @@ function renderGraph() {
       let out = '';
 
       const previewOverrides = Object.assign({}, liveConfig.overrides);
-      previewOverrides[graphKey] = ((liveConfig.overrides && liveConfig.overrides[graphKey]) || [])
-        .concat([{ targetValue, startMs, endMs: Math.max(endMs, startMs + 1000) }]);
+      if (graphKey === 'gcs') {
+        const expanded = expandGcsOverride(anchorMs, targetValue, startMs, Math.max(endMs, startMs + 1000));
+        ['gcsE', 'gcsV', 'gcsM'].forEach(k => {
+          previewOverrides[k] = ((liveConfig.overrides && liveConfig.overrides[k]) || []).concat([expanded[k]]);
+        });
+      } else {
+        previewOverrides[graphKey] = ((liveConfig.overrides && liveConfig.overrides[graphKey]) || [])
+          .concat([{ targetValue, startMs, endMs: Math.max(endMs, startMs + 1000) }]);
+      }
       const previewConfig = Object.assign({}, liveConfig, { overrides: previewOverrides });
       const ghostFromMin = Math.max(viewStart, startMin);
       if (ghostFromMin < viewEnd) {
