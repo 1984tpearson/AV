@@ -112,8 +112,6 @@ select, input[type=number], input[type=text] { font-family: 'Courier New', monos
           <button class="btn" onclick="giveTreatment()">Give</button>
         </div>
         <div id="treatment-list"></div>
-        <h2 style="margin-top:12px;">Overrides Log</h2>
-        <div id="overrides-list"></div>
       </div>
 
       <div class="panel" id="feed-panel">
@@ -395,6 +393,7 @@ let pendingDrag = null; // { graphKey, startMs, targetValue, endMs } — nothing
 let _dragMode = null;   // 'value' | 'duration' | null
 let _dragPointerId = null;
 let _lastLayout = null; // cached from the last renderGraph() call, used to invert screen coords -> (min, value)
+let selectedOverride = null; // { key, startMs, endMs, targetValue } — a tapped existing override marker, pending delete confirmation
 
 function toggleGraphSeries(key, on) {
   graphSeriesOn[key] = on;
@@ -430,11 +429,13 @@ function handleVtileClick(defKey) {
 
   if (armedTileKey === defKey) {
     if (pendingDrag) cancelPendingDrag();
+    else if (selectedOverride) selectedOverride = null;
     else { openOverrideModal(defKey); return; }
     renderGraph();
     return;
   }
   cancelPendingDrag();
+  selectedOverride = null;
   armedTileKey = defKey;
   armedGraphKeys = graphKeys;
   graphKeys.forEach(k => { graphSeriesOn[k] = true; });
@@ -443,7 +444,15 @@ function handleVtileClick(defKey) {
 
 function handleGraphBackgroundClick() {
   if (pendingDrag) { confirmPendingDrag(); return; }
+  if (selectedOverride) { selectedOverride = null; renderGraph(); return; }
   if (armedTileKey) { armedTileKey = null; armedGraphKeys = []; renderGraph(); }
+}
+
+function selectOverrideMarker(key, startMs, endMs, targetValue) {
+  const same = selectedOverride && selectedOverride.key === key && selectedOverride.startMs === startMs
+    && selectedOverride.endMs === endMs && selectedOverride.targetValue === targetValue;
+  selectedOverride = same ? null : { key, startMs, endMs, targetValue };
+  renderGraph();
 }
 
 function svgCoordFromEvent(evt) {
@@ -639,6 +648,7 @@ function renderGraph() {
   const SAMPLES = 80;
   let paths = '';
   let hitPaths = '';
+  let overrideMarkers = '';
   GRAPH_SERIES.forEach(s => {
     if (!graphSeriesOn[s.key]) return;
     const isArmed = armedGraphKeys.includes(s.key);
@@ -672,6 +682,33 @@ function renderGraph() {
       if (hd) {
         hitPaths += `<path d="${hd}" fill="none" stroke="transparent" stroke-width="26" style="touch-action:none;cursor:ns-resize;" onpointerdown="startValueDrag(event,'${s.key}')" onclick="event.stopPropagation()" />`;
       }
+
+      // Existing (confirmed) overrides on this series get a tappable marker
+      // so they can be selected and deleted — only FUTURE ones though, since
+      // anything already in effect is locked (removing it would rewrite
+      // what's already happened).
+      const nowMsForMarkers = simNow();
+      ((liveConfig.overrides && liveConfig.overrides[s.key]) || []).forEach(ov => {
+        if (ov.startMs <= nowMsForMarkers) return;
+        const ovEndMin = (ov.endMs - liveConfig.startTimeMs) / 60000;
+        if (ovEndMin < viewStart || ovEndMin > viewEnd) return;
+        const mx = xForMin(ovEndMin), my = yFor(s, ov.targetValue);
+        const isSelected = selectedOverride && selectedOverride.key === s.key && selectedOverride.startMs === ov.startMs
+          && selectedOverride.endMs === ov.endMs && selectedOverride.targetValue === ov.targetValue;
+        overrideMarkers += `<circle cx="${mx}" cy="${my}" r="6" fill="${isSelected ? '#fff' : s.color}" stroke="${s.color}" stroke-width="2" style="touch-action:none;cursor:pointer;" onclick="event.stopPropagation();selectOverrideMarker('${s.key}', ${ov.startMs}, ${ov.endMs}, ${ov.targetValue})" />`;
+        if (isSelected) {
+          const decimalKeys = ['temp', 'bgl', 'ketones'];
+          const labelVal = decimalKeys.includes(s.key) ? ov.targetValue.toFixed(1) : Math.round(ov.targetValue);
+          const labelStr = `${labelVal}${s.unit}`;
+          const labelW = Math.max(32, labelStr.length * 7 + 12);
+          const labelY = Math.min(H - padB - 16, my + 24);
+          const labelX = Math.min(Math.max(padL, mx - labelW / 2), W - padR - labelW);
+          overrideMarkers += `<rect x="${labelX}" y="${labelY - 8}" width="${labelW}" height="16" rx="4" fill="#1e2a36" opacity="0.9" />`;
+          overrideMarkers += `<text x="${labelX + labelW / 2}" y="${labelY + 4}" font-size="11" fill="#fff" font-weight="700" text-anchor="middle">${labelStr}</text>`;
+          const delY = Math.max(padT + 10, my - 18);
+          overrideMarkers += `<g onclick="event.stopPropagation();deleteOverride('${s.key}', ${ov.startMs}, ${ov.endMs}, ${ov.targetValue})" style="cursor:pointer;"><circle cx="${mx}" cy="${delY}" r="9" fill="#b91c1c" /><text x="${mx}" y="${delY + 4}" font-size="12" fill="#fff" text-anchor="middle" font-weight="900">&#10005;</text></g>`;
+        }
+      });
     }
   });
 
@@ -765,7 +802,7 @@ function renderGraph() {
     }
   }
 
-  wrap.innerHTML = `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" style="width:100%;height:100%;display:block;touch-action:none;">${grid}${paths}${hitPaths}${playhead}${pendingUI}</svg>`;
+  wrap.innerHTML = `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" style="width:100%;height:100%;display:block;touch-action:none;">${grid}${paths}${hitPaths}${overrideMarkers}${playhead}${pendingUI}</svg>`;
 }
 
 const VITAL_DEFS = [
@@ -799,7 +836,6 @@ function tickVitals() {
     </div>`;
   }).join('');
   renderGraph();
-  renderOverridesList();
 }
 
 function populateDrugSelect() {
@@ -848,46 +884,6 @@ const OVERRIDE_KEY_LABELS = {
   gcsE: 'GCS Eye', gcsV: 'GCS Verbal', gcsM: 'GCS Motor'
 };
 
-function flattenOverrides() {
-  const list = [];
-  Object.keys(liveConfig.overrides || {}).forEach(key => {
-    (liveConfig.overrides[key] || []).forEach(ov => list.push({ key, ...ov }));
-  });
-  list.sort((a, b) => a.startMs - b.startMs);
-  return list;
-}
-
-function renderOverridesList() {
-  const el = document.getElementById('overrides-list');
-  if (!el || !liveConfig) return;
-  const nowMs = simNow();
-  const list = flattenOverrides();
-  if (!list.length) {
-    el.innerHTML = '<p class="muted" style="margin-top:8px;">No overrides logged yet.</p>';
-    return;
-  }
-  el.innerHTML = list.map(ov => {
-    const label = OVERRIDE_KEY_LABELS[ov.key] || ov.key;
-    const startMin = (ov.startMs - liveConfig.startTimeMs) / 60000;
-    const endMin = (ov.endMs - liveConfig.startTimeMs) / 60000;
-    // Once an override has started (or already finished) it's baked into
-    // what's already happened on the timeline — removing it would rewrite
-    // history, so it's locked from here on.
-    const locked = ov.startMs <= nowMs;
-    const timeStr = ov.endMs > ov.startMs ? `t+${startMin.toFixed(1)}\u2013${endMin.toFixed(1)}m` : `t+${startMin.toFixed(1)}m`;
-    const btn = locked
-      ? `<button class="btn btn-secondary" style="padding:2px 8px;font-size:10px;opacity:0.4;" disabled title="Already in effect — can't remove without changing what's already happened">Locked</button>`
-      : `<button class="btn btn-secondary" style="padding:2px 8px;font-size:10px;" onclick="deleteOverride('${ov.key}', ${ov.startMs}, ${ov.endMs}, ${ov.targetValue})">Delete</button>`;
-    return `<div class="treat-item">
-      <span>${label} \u2192 ${ov.targetValue}</span>
-      <span style="display:flex;align-items:center;gap:6px;">
-        <span class="muted">${timeStr}</span>
-        ${btn}
-      </span>
-    </div>`;
-  }).join('');
-}
-
 async function deleteOverride(key, startMs, endMs, targetValue) {
   if (!sessionCode) return;
   if (startMs <= simNow()) {
@@ -903,7 +899,8 @@ async function deleteOverride(key, startMs, endMs, targetValue) {
     if (matchIdx === -1) {
       alert('Could not find that override — it may have already been changed elsewhere.');
       liveConfig.overrides = freshOverrides;
-      renderOverridesList();
+      selectedOverride = null;
+      renderGraph();
       return;
     }
     arr.splice(matchIdx, 1);
@@ -913,7 +910,7 @@ async function deleteOverride(key, startMs, endMs, targetValue) {
       body: JSON.stringify({ overrides: freshOverrides, updated_at: new Date().toISOString() })
     });
     liveConfig.overrides = freshOverrides;
-    renderOverridesList();
+    selectedOverride = null;
     renderGraph();
   } catch (e) {
     alert('Could not delete the override — check the connection and try again.');
