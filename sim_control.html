@@ -252,7 +252,6 @@ async function createSession() {
       graphUserPanned = false;
       renderJoinQR();
       updatePatientStatus();
-      openJoinModal();
       renderRunControls();
       renderTreatments();
       tickVitals();
@@ -528,6 +527,21 @@ function expandGcsOverride(anchorMs, targetTotal, startMs, endMs) {
     gcsV: { targetValue: dist.gcsV, startMs, endMs },
     gcsM: { targetValue: dist.gcsM, startMs, endMs }
   };
+}
+// Reconstructs one combined "GCS override" per matching (startMs,endMs) set
+// across gcsE/gcsV/gcsM, so the graph can show/delete a single marker for
+// what was really one drag action, instead of three separate component ones.
+function getGcsOverrideGroups() {
+  const eArr = (liveConfig.overrides && liveConfig.overrides.gcsE) || [];
+  const vArr = (liveConfig.overrides && liveConfig.overrides.gcsV) || [];
+  const mArr = (liveConfig.overrides && liveConfig.overrides.gcsM) || [];
+  const groups = [];
+  eArr.forEach(eo => {
+    const vo = vArr.find(x => x.startMs === eo.startMs && x.endMs === eo.endMs);
+    const mo = mArr.find(x => x.startMs === eo.startMs && x.endMs === eo.endMs);
+    if (vo && mo) groups.push({ startMs: eo.startMs, endMs: eo.endMs, targetValue: eo.targetValue + vo.targetValue + mo.targetValue });
+  });
+  return groups;
 }
 
 function minForX(x) {
@@ -811,7 +825,11 @@ function renderGraph() {
       // anything already in effect is locked (removing it would rewrite
       // what's already happened).
       const nowMsForMarkers = simNow();
-      ((liveConfig.overrides && liveConfig.overrides[s.key]) || []).forEach(ov => {
+      // GCS overrides live under gcsE/gcsV/gcsM, not a 'gcs' key — reconstruct
+      // one combined marker per matching (startMs,endMs) triple across all
+      // three, since expandGcsOverride always writes them together.
+      const markerSource = s.key === 'gcs' ? getGcsOverrideGroups() : ((liveConfig.overrides && liveConfig.overrides[s.key]) || []);
+      markerSource.forEach(ov => {
         if (ov.startMs <= nowMsForMarkers) return;
         const ovEndMin = (ov.endMs - liveConfig.startTimeMs) / 60000;
         if (ovEndMin < viewStart || ovEndMin > viewEnd) return;
@@ -1072,17 +1090,35 @@ async function deleteOverride(key, startMs, endMs, targetValue) {
   try {
     const rows = await sbFetch(`sim_sessions?session_code=eq.${sessionCode}&select=overrides`, { method: 'GET' });
     const freshOverrides = (rows[0] && rows[0].overrides) || {};
-    const arr = freshOverrides[key] || [];
-    const matchIdx = arr.findIndex(ov => ov.startMs === startMs && ov.endMs === endMs && ov.targetValue === targetValue);
-    if (matchIdx === -1) {
-      alert('Could not find that override — it may have already been changed elsewhere.');
-      liveConfig.overrides = freshOverrides;
-      selectedOverride = null;
-      renderGraph();
-      return;
+    if (key === 'gcs') {
+      // One marker = three component entries sharing this startMs/endMs.
+      let foundAny = false;
+      ['gcsE', 'gcsV', 'gcsM'].forEach(k => {
+        const arr = freshOverrides[k] || [];
+        const idx = arr.findIndex(ov => ov.startMs === startMs && ov.endMs === endMs);
+        if (idx !== -1) { arr.splice(idx, 1); foundAny = true; }
+        freshOverrides[k] = arr;
+      });
+      if (!foundAny) {
+        alert('Could not find that override — it may have already been changed elsewhere.');
+        liveConfig.overrides = freshOverrides;
+        selectedOverride = null;
+        renderGraph();
+        return;
+      }
+    } else {
+      const arr = freshOverrides[key] || [];
+      const matchIdx = arr.findIndex(ov => ov.startMs === startMs && ov.endMs === endMs && ov.targetValue === targetValue);
+      if (matchIdx === -1) {
+        alert('Could not find that override — it may have already been changed elsewhere.');
+        liveConfig.overrides = freshOverrides;
+        selectedOverride = null;
+        renderGraph();
+        return;
+      }
+      arr.splice(matchIdx, 1);
+      freshOverrides[key] = arr;
     }
-    arr.splice(matchIdx, 1);
-    freshOverrides[key] = arr;
     await sbFetch(`sim_sessions?session_code=eq.${sessionCode}`, {
       method: 'PATCH', prefer: 'return=minimal',
       body: JSON.stringify({ overrides: freshOverrides, updated_at: new Date().toISOString() })
