@@ -301,28 +301,41 @@ function cycleLimbLead() {
   showLimbLead(limbLeadOrder[_limbLeadIndex]);
 }
 
+// Recomputes the engine's own cell-size formula (LEAD_W/LEAD_H) fresh each
+// time, rather than caching, so it stays correct across instance rebuilds
+// (ensureECG destroys/recreates the whole DOM whenever the rhythm changes).
+function computeLeadCellSize() {
+  const wrap = document.getElementById('ecg-display-wrap');
+  const monitorW = wrap.clientWidth || 856;
+  const totalH = wrap.clientHeight || 470;
+  return { w: Math.floor(monitorW / 4), h: Math.floor(totalH * 0.70 / 3) };
+}
+
 function showLimbLead(name) {
   if (!_ecgInst) return;
+  const { w, h } = computeLeadCellSize();
   const container = document.getElementById('ecg-12lead-container');
   const grid = container.querySelector('#_ecg_leadsGrid');
   const strip = container.querySelector('#_ecg_stripWrapper');
   if (!grid) return;
-  grid.style.display = 'block';
-  grid.style.position = 'relative';
+  grid.style.display = 'flex';
+  grid.style.alignItems = 'center';
+  grid.style.justifyContent = 'center';
   grid.style.width = '100%';
   grid.style.height = '100%';
   grid.querySelectorAll('.lead-cell').forEach(cell => {
     const tag = cell.querySelector('.lead-label-tag');
     const match = tag && tag.textContent.trim() === name;
-    cell.style.display = match ? 'block' : 'none';
+    const canvas = cell.querySelector('canvas');
+    cell.style.width = w + 'px';
+    cell.style.height = h + 'px';
+    cell.style.position = 'relative';
     if (match) {
-      cell.style.position = 'absolute';
-      cell.style.inset = '0';
-      cell.style.width = '100%';
-      cell.style.height = '100%';
-      const canvas = cell.querySelector('canvas');
-      if (canvas) { canvas.style.width = '100%'; canvas.style.height = '100%'; }
+      cell.style.display = 'block';
+    } else {
+      cell.style.display = 'none';
     }
+    if (canvas) { canvas.style.width = ''; canvas.style.height = ''; }
   });
   if (strip) strip.style.display = 'none';
   document.getElementById('ecg-bar-label').textContent = `LEAD ${name} (tap to cycle)`;
@@ -330,19 +343,21 @@ function showLimbLead(name) {
 
 function resetGridInlineStyles() {
   if (!_ecgInst) return;
+  const { w, h } = computeLeadCellSize();
   const container = document.getElementById('ecg-12lead-container');
   const grid = container.querySelector('#_ecg_leadsGrid');
   if (!grid) return;
   grid.style.display = '';
-  grid.style.position = '';
+  grid.style.alignItems = '';
+  grid.style.justifyContent = '';
   grid.style.width = '';
   grid.style.height = '';
   grid.querySelectorAll('.lead-cell').forEach(cell => {
     cell.style.display = '';
     cell.style.position = '';
-    cell.style.inset = '';
-    cell.style.width = '';
-    cell.style.height = '';
+    cell.style.transform = '';
+    cell.style.width = w + 'px';
+    cell.style.height = h + 'px';
     const canvas = cell.querySelector('canvas');
     if (canvas) { canvas.style.width = ''; canvas.style.height = ''; }
   });
