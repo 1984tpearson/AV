@@ -6,34 +6,18 @@
  *
  * Public API:
  *   SimEngine.getVitals(scenarioConfig, nowMs) -> { HR, BP:{sys,dia}, SpO2, RR, EtCO2, ...+ raw trend }
- *   SimEngine.SEVERITY_PRESETS
  *   SimEngine.DRUG_LIBRARY (starter set; to be expanded from CPG data)
  */
 (function (global) {
   'use strict';
 
   // ---- Severity presets ------------------------------------------------
-  // Each preset describes where CONTINUOUS vitals trend toward, and how long
-  // the deterioration/improvement takes to reach that target from baseline.
-  const EXT_ZERO = { temp: 0, bgl: 0, ketones: 0, pain: 0, gcsE: 0, gcsV: 0, gcsM: 0 };
-  const SEVERITY_PRESETS = {
-    mild:     { label: 'Mild',     rampMinutes: 20, target: { HR: 15,  RR: 4,  SpO2: -3,  EtCO2: 3,  BPsys: -6,  BPdia: -3,  ...EXT_ZERO } },
-    moderate: { label: 'Moderate', rampMinutes: 14, target: { HR: 30,  RR: 8,  SpO2: -7,  EtCO2: 6,  BPsys: -15, BPdia: -8,  ...EXT_ZERO } },
-    severe:   { label: 'Severe',   rampMinutes: 9,  target: { HR: 45,  RR: 14, SpO2: -14, EtCO2: 10, BPsys: -30, BPdia: -15, ...EXT_ZERO } },
-    critical: { label: 'Critical', rampMinutes: 5,  target: { HR: 60,  RR: 20, SpO2: -22, EtCO2: 15, BPsys: -45, BPdia: -22, ...EXT_ZERO } }
-  };
-  // target deltas are ADDED to baseline (or subtracted, e.g. SpO2) as the ramp progresses.
-  // Direction (deteriorating vs improving) is controlled by scenarioConfig.direction.
-  // NOTE: BP deltas assume a shock-type deterioration (BP falling as condition
-  // worsens, e.g. anaphylaxis, sepsis, haemorrhage). Not every condition behaves
-  // this way (e.g. some causes of deterioration raise BP) — this is a generic
-  // placeholder shared across all severities/conditions for now, same
-  // simplification already applied to HR/RR/SpO2/EtCO2, flagged for review
-  // once conditions become distinguishable (i.e. once a scenario library exists).
-  // Temp/BGL/Ketones/Pain/GCS components have ZERO autonomous drift by design —
-  // they only move when the assessor sets an override. Unlike HR/BP/etc there's
-  // no generic clinical basis for how these should drift with "deterioration"
-  // in the abstract (condition-specific), so they stay flat until acted on.
+  // REMOVED: the old generic severity/direction-driven autonomous ramp.
+  // Vitals progression is now entirely authored per-scenario by AI-generated
+  // overrides (see scenario_sim_timelines), which are clinically grounded in
+  // the specific condition rather than a generic shock-pattern placeholder.
+  // rawTrendDeltasAt() below now just returns a flat (zero) baseline trend,
+  // with treatments still applying on top as before.
 
   // ---- Starter drug library ---------------------------------------------
   // Onset/peak/duration in minutes. Effect deltas applied on top of trend value
@@ -79,12 +63,6 @@
     return 10; // fallback
   }
 
-  function rampProgress(elapsedMin, rampMinutes) {
-    // 0 -> 1 over rampMinutes, then holds at 1 (plateau at target severity)
-    if (rampMinutes <= 0) return 1;
-    return Math.max(0, Math.min(1, elapsedMin / rampMinutes));
-  }
-
   function treatmentPotency(elapsedMinSinceGiven, drug) {
     // 0 -> 1 rising to peak, holds briefly, then decays to 0 by end of duration.
     if (elapsedMinSinceGiven < 0) return 0;
@@ -126,24 +104,12 @@
   // evaluated at an arbitrary point in time (not just "now"). This is what overrides
   // are layered on top of.
   function rawTrendDeltasAt(cfg, tMs) {
+    // Flat baseline trend — all progression now comes from cfg.overrides
+    // (AI-authored per scenario). Treatments still layer on top as before.
     const elapsedMin = Math.max(0, (tMs - cfg.startTimeMs) / 60000);
-    const preset = SEVERITY_PRESETS[cfg.severity] || SEVERITY_PRESETS.moderate;
-    const dir = cfg.direction === 'improving' ? -1 : (cfg.direction === 'stable' ? 0 : 1);
-    const progress = cfg.instantMode ? 1 : rampProgress(elapsedMin, preset.rampMinutes);
-    let deltas = {
-      HR: preset.target.HR * progress * dir,
-      RR: preset.target.RR * progress * dir,
-      SpO2: preset.target.SpO2 * progress * dir,
-      EtCO2: preset.target.EtCO2 * progress * dir,
-      BPsys: preset.target.BPsys * progress * dir,
-      BPdia: preset.target.BPdia * progress * dir,
-      temp: preset.target.temp * progress * dir,
-      bgl: preset.target.bgl * progress * dir,
-      ketones: preset.target.ketones * progress * dir,
-      pain: preset.target.pain * progress * dir,
-      gcsE: preset.target.gcsE * progress * dir,
-      gcsV: preset.target.gcsV * progress * dir,
-      gcsM: preset.target.gcsM * progress * dir
+    const deltas = {
+      HR: 0, RR: 0, SpO2: 0, EtCO2: 0, BPsys: 0, BPdia: 0,
+      temp: 0, bgl: 0, ketones: 0, pain: 0, gcsE: 0, gcsV: 0, gcsM: 0
     };
     return applyTreatments(deltas, cfg.treatments || [], elapsedMin, cfg.instantMode);
   }
@@ -271,6 +237,6 @@
     return result;
   }
 
-  global.SimEngine = { SEVERITY_PRESETS, DRUG_LIBRARY, ACTION_DURATIONS, getActionDurationSec, getVitals, getVitalsRaw, getSimNow, getStaticVitalAt };
+  global.SimEngine = { DRUG_LIBRARY, ACTION_DURATIONS, getActionDurationSec, getVitals, getVitalsRaw, getSimNow, getStaticVitalAt };
 })(typeof window !== 'undefined' ? window : this);
 

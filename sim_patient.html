@@ -156,8 +156,6 @@ async function connectSession(code) {
     const row = rows[0];
     testConfig = {
       baseline: row.baseline,
-      severity: row.severity,
-      direction: row.direction,
       startTimeMs: row.start_time_ms,
       treatments: row.treatments || [],
       overrides: row.overrides || {},
@@ -184,11 +182,9 @@ let sessionCode = null;
 async function pollSession() {
   if (!sessionCode || !testConfig) return;
   try {
-    const rows = await sbGet(`sim_sessions?session_code=eq.${encodeURIComponent(sessionCode)}&select=severity,direction,treatments,overrides,instant_mode,has_started,is_paused,paused_at_ms,total_paused_ms`);
+    const rows = await sbGet(`sim_sessions?session_code=eq.${encodeURIComponent(sessionCode)}&select=treatments,overrides,instant_mode,has_started,is_paused,paused_at_ms,total_paused_ms`);
     if (!rows.length) return;
     const row = rows[0];
-    testConfig.severity = row.severity;
-    testConfig.direction = row.direction;
     testConfig.treatments = row.treatments || [];
     testConfig.overrides = row.overrides || {};
     testConfig.instantMode = row.instant_mode;
