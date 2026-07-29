@@ -189,16 +189,25 @@
   //   overrides: { HR: [{targetValue,startMs,endMs}], BPsys: [...], ... },
   //   instantMode: boolean (skips onset/peak delay, effect applies immediately)
   // }
-  function getVitals(scenarioConfig, nowMs) {
+  // ---- Raw (unjittered) vitals — useful for graphing/projection, where the
+  // small cosmetic wobble would just add noise to a planning chart.
+  function getVitalsRaw(scenarioConfig, nowMs) {
     const cfg = scenarioConfig;
-    const nowSec = Math.floor(nowMs / 1000);
+    return {
+      HR: applyOverrides(cfg, 'HR', nowMs),
+      RR: applyOverrides(cfg, 'RR', nowMs),
+      SpO2: Math.min(100, applyOverrides(cfg, 'SpO2', nowMs)),
+      EtCO2: applyOverrides(cfg, 'EtCO2', nowMs),
+      BPsys: applyOverrides(cfg, 'BPsys', nowMs),
+      BPdia: applyOverrides(cfg, 'BPdia', nowMs)
+    };
+  }
 
-    const hrVal    = applyOverrides(cfg, 'HR', nowMs);
-    const rrVal    = applyOverrides(cfg, 'RR', nowMs);
-    const spo2Val  = Math.min(100, applyOverrides(cfg, 'SpO2', nowMs));
-    const etco2Val = applyOverrides(cfg, 'EtCO2', nowMs);
-    const bpSysVal = applyOverrides(cfg, 'BPsys', nowMs);
-    const bpDiaVal = applyOverrides(cfg, 'BPdia', nowMs);
+  function getVitals(scenarioConfig, nowMs) {
+    const nowSec = Math.floor(nowMs / 1000);
+    const raw = getVitalsRaw(scenarioConfig, nowMs);
+    const hrVal = raw.HR, rrVal = raw.RR, spo2Val = raw.SpO2, etco2Val = raw.EtCO2,
+          bpSysVal = raw.BPsys, bpDiaVal = raw.BPdia;
 
     return {
       HR: Math.round(jitter(hrVal, 2, nowSec, 1)),
@@ -207,7 +216,7 @@
       EtCO2: Math.round(jitter(etco2Val, 1, nowSec, 4)),
       BPsys: Math.round(bpSysVal),
       BPdia: Math.round(bpDiaVal),
-      _elapsedMin: Math.max(0, (nowMs - cfg.startTimeMs) / 60000)
+      _elapsedMin: Math.max(0, (nowMs - scenarioConfig.startTimeMs) / 60000)
     };
   }
 
@@ -226,6 +235,6 @@
     return rawNowMs - totalPaused - pausedNow;
   }
 
-  global.SimEngine = { SEVERITY_PRESETS, DRUG_LIBRARY, ACTION_DURATIONS, getActionDurationSec, getVitals, getSimNow };
+  global.SimEngine = { SEVERITY_PRESETS, DRUG_LIBRARY, ACTION_DURATIONS, getActionDurationSec, getVitals, getVitalsRaw, getSimNow };
 })(typeof window !== 'undefined' ? window : this);
 

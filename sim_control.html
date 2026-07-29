@@ -83,6 +83,19 @@ select, input[type=number], input[type=text] { font-family: 'Courier New', monos
     </div>
   </div>
 
+  <div class="panel" id="graph-panel" style="display:none;">
+    <h2>Projected Trajectory</h2>
+    <div id="graph-legend" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;"></div>
+    <div class="row" style="margin-bottom:8px;">
+      <button class="btn btn-secondary" style="padding:4px 10px;font-size:11px;" onclick="graphZoom(2)">Zoom In</button>
+      <button class="btn btn-secondary" style="padding:4px 10px;font-size:11px;" onclick="graphZoom(0.5)">Zoom Out</button>
+      <button class="btn btn-secondary" style="padding:4px 10px;font-size:11px;" onclick="graphPan(-1)">&larr;</button>
+      <button class="btn btn-secondary" style="padding:4px 10px;font-size:11px;" onclick="graphPan(1)">&rarr;</button>
+      <button class="btn btn-secondary" style="padding:4px 10px;font-size:11px;" onclick="graphSnapToNow()">Now</button>
+    </div>
+    <div id="graph-svg-wrap" style="width:100%;overflow:hidden;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;"></div>
+  </div>
+
   <div class="panel" id="vitals-panel" style="display:none;">
     <h2>Live Vitals — click to override</h2>
     <div id="vitals-grid" style="display:flex;flex-wrap:wrap;gap:8px;"></div>
@@ -220,6 +233,10 @@ async function createSession() {
       document.getElementById('code-display').textContent = code;
       document.getElementById('vitals-panel').style.display = 'block';
       document.getElementById('treatment-panel').style.display = 'block';
+      document.getElementById('graph-panel').style.display = 'block';
+      graphViewStartMin = 0;
+      graphViewWindowMin = 30;
+      graphUserPanned = false;
       renderJoinQR();
       updatePatientStatus();
       renderRunControls();
@@ -350,6 +367,138 @@ async function updateInstantMode() {
   }
 }
 
+// --- Projected trajectory graph -------------------------------------------
+const GRAPH_SERIES = [
+  { key: 'HR',      label: 'HR',     color: '#dc2626', unit: 'bpm',     min: 30, max: 200 },
+  { key: 'BPsys',   label: 'BP Sys', color: '#16a34a', unit: 'mmHg',    min: 40, max: 220 },
+  { key: 'BPdia',   label: 'BP Dia', color: '#4ade80', unit: 'mmHg',    min: 20, max: 140 },
+  { key: 'SpO2',    label: 'SpO\u2082', color: '#2563eb', unit: '%',    min: 50, max: 100 },
+  { key: 'RR',      label: 'RR',     color: '#d97706', unit: '/min',    min: 0,  max: 50  },
+  { key: 'EtCO2',   label: 'EtCO\u2082', color: '#ea580c', unit: 'mmHg', min: 0, max: 80  },
+  { key: 'temp',    label: 'Temp',    color: '#7c3aed', unit: '\u00b0C', min: 34, max: 41, staticKey: true },
+  { key: 'bgl',     label: 'BGL',     color: '#0891b2', unit: 'mmol/L', min: 0,  max: 25, staticKey: true },
+  { key: 'ketones', label: 'Ketones', color: '#9333ea', unit: 'mmol/L', min: 0,  max: 6,  staticKey: true },
+  { key: 'gcs',     label: 'GCS',     color: '#be185d', unit: '/15',    min: 3,  max: 15, staticKey: true, parse: v => parseInt(String(v).split('/')[0]) || 0 },
+  { key: 'pain',    label: 'Pain',    color: '#c2410c', unit: '/10',    min: 0,  max: 10, staticKey: true, parse: v => parseInt(String(v).split('/')[0]) || 0 }
+];
+const GRAPH_DEFAULT_ON = { HR: true, BPsys: true, BPdia: true, SpO2: true, RR: true, EtCO2: true, temp: false, bgl: false, ketones: false, gcs: false, pain: false };
+let graphSeriesOn = { ...GRAPH_DEFAULT_ON };
+let graphViewStartMin = 0;
+let graphViewWindowMin = 30;
+let graphUserPanned = false;
+
+function toggleGraphSeries(key, on) {
+  graphSeriesOn[key] = on;
+  renderGraph();
+}
+
+function graphZoom(factor) {
+  graphViewWindowMin = Math.min(180, Math.max(3, graphViewWindowMin / factor));
+  graphUserPanned = true;
+  renderGraph();
+}
+function graphPan(dir) {
+  graphViewStartMin = Math.max(0, graphViewStartMin + dir * graphViewWindowMin * 0.5);
+  graphUserPanned = true;
+  renderGraph();
+}
+function graphSnapToNow() {
+  graphUserPanned = false;
+  renderGraph();
+}
+
+function niceStep(raw) {
+  const steps = [1, 2, 5, 10, 15, 30, 60];
+  return steps.find(s => s >= raw) || 60;
+}
+
+function renderGraphLegend() {
+  const el = document.getElementById('graph-legend');
+  const v = SimEngine.getVitalsRaw(liveConfig, simNow());
+  const sv = liveConfig.staticVitals || DEFAULT_STATIC;
+  el.innerHTML = GRAPH_SERIES.map(s => {
+    let curVal;
+    if (s.staticKey) {
+      const raw = sv[s.key];
+      curVal = s.parse ? s.parse(raw) : raw;
+    } else {
+      curVal = Math.round(v[s.key]);
+    }
+    const checked = graphSeriesOn[s.key] ? 'checked' : '';
+    return `<label style="display:flex;align-items:center;gap:4px;font-size:10px;background:#f3f6fa;border:1px solid #d7dee6;border-radius:4px;padding:3px 6px;cursor:pointer;">
+      <input type="checkbox" ${checked} onchange="toggleGraphSeries('${s.key}', this.checked)">
+      <span style="width:8px;height:8px;border-radius:50%;background:${s.color};display:inline-block;"></span>
+      ${s.label}: ${curVal}${s.unit}
+    </label>`;
+  }).join('');
+}
+
+function renderGraph() {
+  if (!liveConfig) return;
+  renderGraphLegend();
+  const wrap = document.getElementById('graph-svg-wrap');
+  const W = 800, H = 240, padL = 6, padR = 6, padT = 10, padB = 24;
+  const plotW = W - padL - padR, plotH = H - padT - padB;
+  const elapsedMin = (simNow() - liveConfig.startTimeMs) / 60000;
+
+  // Auto-follow the playhead as time advances, unless the assessor has
+  // manually zoomed/panned away — in which case respect their view until
+  // they press "Now" again.
+  if (!graphUserPanned && liveConfig.hasStarted) {
+    if (elapsedMin > graphViewStartMin + graphViewWindowMin * 0.9) {
+      graphViewStartMin = Math.max(0, elapsedMin - graphViewWindowMin * 0.75);
+    }
+  } else if (!graphUserPanned) {
+    graphViewStartMin = 0;
+  }
+
+  const viewStart = graphViewStartMin, viewEnd = graphViewStartMin + graphViewWindowMin;
+  const xForMin = (m) => padL + ((m - viewStart) / (viewEnd - viewStart)) * plotW;
+
+  const SAMPLES = 80;
+  let paths = '';
+  GRAPH_SERIES.forEach(s => {
+    if (!graphSeriesOn[s.key]) return;
+    let d = '';
+    for (let i = 0; i <= SAMPLES; i++) {
+      const m = viewStart + (viewEnd - viewStart) * (i / SAMPLES);
+      let val;
+      if (s.staticKey) {
+        const raw = (liveConfig.staticVitals || DEFAULT_STATIC)[s.key];
+        val = s.parse ? s.parse(raw) : parseFloat(raw);
+      } else {
+        const tMs = liveConfig.startTimeMs + m * 60000;
+        val = SimEngine.getVitalsRaw(liveConfig, tMs)[s.key];
+      }
+      const norm = Math.min(1, Math.max(0, (val - s.min) / (s.max - s.min)));
+      const x = xForMin(m);
+      const y = padT + (1 - norm) * plotH;
+      d += (i === 0 ? 'M' : 'L') + x.toFixed(1) + ',' + y.toFixed(1) + ' ';
+    }
+    paths += `<path d="${d}" fill="none" stroke="${s.color}" stroke-width="2" />`;
+  });
+
+  let grid = '';
+  const gridStepMin = niceStep(graphViewWindowMin / 6);
+  for (let m = Math.ceil(viewStart / gridStepMin) * gridStepMin; m <= viewEnd; m += gridStepMin) {
+    const x = xForMin(m);
+    grid += `<line x1="${x}" y1="${padT}" x2="${x}" y2="${padT + plotH}" stroke="#e2e8f0" stroke-width="1" />`;
+    grid += `<text x="${x}" y="${H - 6}" font-size="9" fill="#6b8299" text-anchor="middle">${Math.round(m)}m</text>`;
+  }
+  [0.25, 0.5, 0.75].forEach(f => {
+    const y = padT + (1 - f) * plotH;
+    grid += `<line x1="${padL}" y1="${y}" x2="${padL + plotW}" y2="${y}" stroke="#f1f5f9" stroke-width="1" />`;
+  });
+
+  let playhead = '';
+  if (liveConfig.hasStarted && elapsedMin >= viewStart && elapsedMin <= viewEnd) {
+    const x = xForMin(elapsedMin);
+    playhead = `<line x1="${x}" y1="${padT}" x2="${x}" y2="${padT + plotH}" stroke="#0369a1" stroke-width="2" stroke-dasharray="4,3" />`;
+  }
+
+  wrap.innerHTML = `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:220px;display:block;">${grid}${paths}${playhead}</svg>`;
+}
+
 const VITAL_DEFS = [
   { key: 'HR',    label: 'HR',    unit: 'bpm',  overrideKeys: ['HR'] },
   { key: 'BP',    label: 'NIBP',  unit: 'mmHg', overrideKeys: ['BPsys', 'BPdia'] },
@@ -379,6 +528,7 @@ function tickVitals() {
     </div>`;
   }).join('');
   renderStaticGrid();
+  renderGraph();
 }
 
 function renderStaticGrid() {
