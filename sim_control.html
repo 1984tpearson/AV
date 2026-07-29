@@ -112,6 +112,8 @@ select, input[type=number], input[type=text] { font-family: 'Courier New', monos
           <button class="btn" onclick="giveTreatment()">Give</button>
         </div>
         <div id="treatment-list"></div>
+        <h2 style="margin-top:12px;">Overrides Log</h2>
+        <div id="overrides-list"></div>
       </div>
 
       <div class="panel" id="feed-panel">
@@ -466,14 +468,24 @@ function valForY(s, y) {
 }
 
 // BP is two separately-dragged series, but systolic must always stay above
-// diastolic by a physiologically sane margin — clamp against the OTHER
-// component's real (unmodified) curve value at the same instant.
+// diastolic by a physiologically sane margin. Rather than a hard stop, once
+// you drag past the margin the OTHER component gets pushed along with you
+// by the overflow amount — returns the (possibly unclamped) dragged value
+// plus an optional linked change for the counterpart.
 function clampBpValue(graphKey, val, tMs) {
-  if (graphKey !== 'BPsys' && graphKey !== 'BPdia') return val;
+  if (graphKey !== 'BPsys' && graphKey !== 'BPdia') return { value: val, linked: null };
   const counterKey = graphKey === 'BPsys' ? 'BPdia' : 'BPsys';
+  const counterSeries = GRAPH_SERIES.find(g => g.key === counterKey);
   const counterVal = SimEngine.getVitalsRaw(liveConfig, tMs)[counterKey];
   const margin = 10;
-  return graphKey === 'BPsys' ? Math.max(val, counterVal + margin) : Math.min(val, counterVal - margin);
+  if (graphKey === 'BPsys') {
+    if (val >= counterVal + margin) return { value: val, linked: null };
+    const overflow = (counterVal + margin) - val;
+    return { value: val, linked: { graphKey: counterKey, targetValue: Math.max(counterSeries.min, counterVal - overflow) } };
+  }
+  if (val <= counterVal - margin) return { value: val, linked: null };
+  const overflow = val - (counterVal - margin);
+  return { value: val, linked: { graphKey: counterKey, targetValue: Math.min(counterSeries.max, counterVal + overflow) } };
 }
 
 function startValueDrag(evt, graphKey) {
@@ -487,12 +499,12 @@ function startValueDrag(evt, graphKey) {
   const m = Math.max(liveConfig.hasStarted ? elapsedMin : 0, minForX(coords.x));
   const anchorMs = liveConfig.startTimeMs + m * 60000;
   const rawVal = Math.min(s.max, Math.max(s.min, valForY(s, coords.y)));
-  const val = clampBpValue(graphKey, rawVal, anchorMs);
+  const clamped = clampBpValue(graphKey, rawVal, anchorMs);
   const floorMs = liveConfig.startTimeMs + (liveConfig.hasStarted ? elapsedMin : 0) * 60000;
   // Handle defaults onto the EXISTING line ~2 minutes before the anchor
   // (start-of-change role) — floored so it never lands before "now".
   const handleMs = Math.max(anchorMs - 120000, floorMs);
-  pendingDrag = { graphKey, anchorMs, targetValue: val, handleMs };
+  pendingDrag = { graphKey, anchorMs, targetValue: clamped.value, handleMs, linked: clamped.linked };
   _dragMode = 'value';
   _dragPointerId = evt.pointerId;
   renderGraph();
@@ -520,7 +532,9 @@ function onDragPointerMove(evt) {
     const rawVal = Math.min(s.max, Math.max(s.min, valForY(s, coords.y)));
     pendingDrag.anchorMs = newAnchorMs;
     pendingDrag.handleMs = newAnchorMs + offsetMs;
-    pendingDrag.targetValue = clampBpValue(pendingDrag.graphKey, rawVal, newAnchorMs);
+    const clamped = clampBpValue(pendingDrag.graphKey, rawVal, newAnchorMs);
+    pendingDrag.targetValue = clamped.value;
+    pendingDrag.linked = clamped.linked;
   } else if (_dragMode === 'duration') {
     // The handle is free to move either side of the anchor: to the right it
     // pushes out WHEN the target is fully reached; dragged past the anchor
@@ -547,7 +561,7 @@ function onDragPointerUp(evt) {
 
 async function confirmPendingDrag() {
   if (!pendingDrag || !sessionCode) return;
-  const { graphKey, targetValue, anchorMs, handleMs } = pendingDrag;
+  const { graphKey, targetValue, anchorMs, handleMs, linked } = pendingDrag;
   const startMs = Math.min(anchorMs, handleMs);
   const endMs = Math.max(anchorMs, handleMs);
   try {
@@ -555,6 +569,10 @@ async function confirmPendingDrag() {
     const freshOverrides = (rows[0] && rows[0].overrides) || {};
     if (!freshOverrides[graphKey]) freshOverrides[graphKey] = [];
     freshOverrides[graphKey].push({ targetValue, startMs, endMs: Math.max(endMs, startMs + 1000) });
+    if (linked) {
+      if (!freshOverrides[linked.graphKey]) freshOverrides[linked.graphKey] = [];
+      freshOverrides[linked.graphKey].push({ targetValue: linked.targetValue, startMs, endMs: Math.max(endMs, startMs + 1000) });
+    }
     await sbFetch(`sim_sessions?session_code=eq.${sessionCode}`, {
       method: 'PATCH', prefer: 'return=minimal',
       body: JSON.stringify({ overrides: freshOverrides, updated_at: new Date().toISOString() })
@@ -677,66 +695,73 @@ function renderGraph() {
 
   let pendingUI = '';
   if (pendingDrag) {
-    const s = GRAPH_SERIES.find(g => g.key === pendingDrag.graphKey);
-    const anchorMin = (pendingDrag.anchorMs - liveConfig.startTimeMs) / 60000;
-    const handleMin = (pendingDrag.handleMs - liveConfig.startTimeMs) / 60000;
-    const startMin = Math.min(anchorMin, handleMin);
-    const endMin = Math.max(anchorMin, handleMin);
-    const startMs = liveConfig.startTimeMs + startMin * 60000;
-    const endMs = liveConfig.startTimeMs + endMin * 60000;
+    // Draws the ghost curve + marker(s) for one series' pending change.
+    // isPrimary=true gets the full treatment (duration handle, confirm/cancel
+    // icons); the linked BP counterpart (if any) gets a lighter echo of the
+    // same preview so the coupled movement is visible but not interactive.
+    function buildPendingMarkup(graphKey, targetValue, anchorMs, handleMs, isPrimary) {
+      const s = GRAPH_SERIES.find(g => g.key === graphKey);
+      const anchorMin = (anchorMs - liveConfig.startTimeMs) / 60000;
+      const handleMin = (handleMs - liveConfig.startTimeMs) / 60000;
+      const startMin = Math.min(anchorMin, handleMin);
+      const endMin = Math.max(anchorMin, handleMin);
+      const startMs = liveConfig.startTimeMs + startMin * 60000;
+      const endMs = liveConfig.startTimeMs + endMin * 60000;
+      let out = '';
 
-    // Ghost preview: splice the pending change into a cloned config and
-    // re-sample through the real engine, so the dashed curve shown is the
-    // ACTUAL resulting trajectory (transition shape + post-transition drift
-    // resuming from the new offset) — not a straight-line guess.
-    const previewOverrides = Object.assign({}, liveConfig.overrides);
-    previewOverrides[pendingDrag.graphKey] = ((liveConfig.overrides && liveConfig.overrides[pendingDrag.graphKey]) || [])
-      .concat([{ targetValue: pendingDrag.targetValue, startMs, endMs: Math.max(endMs, startMs + 1000) }]);
-    const previewConfig = Object.assign({}, liveConfig, { overrides: previewOverrides });
-    const ghostFromMin = Math.max(viewStart, startMin);
-    if (ghostFromMin < viewEnd) {
-      let gd = '';
-      for (let i = 0; i <= SAMPLES; i++) {
-        const m = ghostFromMin + (viewEnd - ghostFromMin) * (i / SAMPLES);
-        const tMs = liveConfig.startTimeMs + m * 60000;
-        const val = s.get(SimEngine.getVitalsRaw(previewConfig, tMs));
-        const x = xForMin(m);
-        const y = yFor(s, val);
-        gd += (i === 0 ? 'M' : 'L') + x.toFixed(1) + ',' + y.toFixed(1) + ' ';
+      const previewOverrides = Object.assign({}, liveConfig.overrides);
+      previewOverrides[graphKey] = ((liveConfig.overrides && liveConfig.overrides[graphKey]) || [])
+        .concat([{ targetValue, startMs, endMs: Math.max(endMs, startMs + 1000) }]);
+      const previewConfig = Object.assign({}, liveConfig, { overrides: previewOverrides });
+      const ghostFromMin = Math.max(viewStart, startMin);
+      if (ghostFromMin < viewEnd) {
+        let gd = '';
+        for (let i = 0; i <= SAMPLES; i++) {
+          const m = ghostFromMin + (viewEnd - ghostFromMin) * (i / SAMPLES);
+          const tMs = liveConfig.startTimeMs + m * 60000;
+          const val = s.get(SimEngine.getVitalsRaw(previewConfig, tMs));
+          const x = xForMin(m);
+          const y = yFor(s, val);
+          gd += (i === 0 ? 'M' : 'L') + x.toFixed(1) + ',' + y.toFixed(1) + ' ';
+        }
+        out += `<path d="${gd}" fill="none" stroke="${s.color}" stroke-width="${isPrimary ? 2.5 : 2}" stroke-dasharray="6,4" opacity="${isPrimary ? 0.9 : 0.55}" />`;
       }
-      pendingUI += `<path d="${gd}" fill="none" stroke="${s.color}" stroke-width="2.5" stroke-dasharray="6,4" opacity="0.9" />`;
+
+      const yAnchor = yFor(s, targetValue);
+      if (anchorMin >= viewStart && anchorMin <= viewEnd) {
+        const xA = xForMin(anchorMin);
+        out += `<circle cx="${xA}" cy="${yAnchor}" r="${isPrimary ? 6 : 5}" fill="${s.color}" stroke="#fff" stroke-width="1.5" opacity="${isPrimary ? 1 : 0.85}" />`;
+        const decimalKeys = ['temp', 'bgl', 'ketones'];
+        const labelVal = decimalKeys.includes(s.key) ? targetValue.toFixed(1) : Math.round(targetValue);
+        const labelStr = `${labelVal}${s.unit}`;
+        const labelW = Math.max(32, labelStr.length * 7 + 12);
+        // Primary label sits well above the dot (clear of the dragging
+        // finger); the linked echo sits below so the two never collide.
+        const labelY = isPrimary ? Math.max(padT + 16, yAnchor - 34) : Math.min(H - padB - 16, yAnchor + 26);
+        const labelX = Math.min(Math.max(padL, xA - labelW / 2), W - padR - labelW);
+        out += `<rect x="${labelX}" y="${labelY - 8}" width="${labelW}" height="16" rx="4" fill="#1e2a36" opacity="${isPrimary ? 0.9 : 0.75}" />`;
+        out += `<text x="${labelX + labelW / 2}" y="${labelY + 4}" font-size="11" fill="#fff" font-weight="700" text-anchor="middle">${labelStr}</text>`;
+        if (isPrimary) {
+          const iconY = Math.max(padT + 10, yAnchor - 18);
+          out += `<g onclick="event.stopPropagation();confirmPendingDrag()" style="cursor:pointer;"><circle cx="${xA - 12}" cy="${iconY}" r="9" fill="#15803d" /><text x="${xA - 12}" y="${iconY + 4}" font-size="12" fill="#fff" text-anchor="middle" font-weight="900">&#10003;</text></g>`;
+          out += `<g onclick="event.stopPropagation();cancelPendingDrag();renderGraph()" style="cursor:pointer;"><circle cx="${xA + 12}" cy="${iconY}" r="9" fill="#b91c1c" /><text x="${xA + 12}" y="${iconY + 4}" font-size="12" fill="#fff" text-anchor="middle" font-weight="900">&#10005;</text></g>`;
+        }
+      }
+      if (isPrimary && handleMin >= viewStart && handleMin <= viewEnd) {
+        const xH = xForMin(handleMin);
+        // Sits ON the real (current, un-modified) trajectory at its own time —
+        // that's literally what it represents before/unless it becomes the
+        // "reached at" end of the transition.
+        const handleTMs = liveConfig.startTimeMs + handleMin * 60000;
+        const yHandle = yFor(s, s.get(SimEngine.getVitalsRaw(liveConfig, handleTMs)));
+        out += `<circle cx="${xH}" cy="${yHandle}" r="7" fill="#fff" stroke="${s.color}" stroke-width="2" style="touch-action:none;cursor:ew-resize;" onpointerdown="startDurationDrag(event)" onclick="event.stopPropagation()" />`;
+      }
+      return out;
     }
 
-    const yAnchor = yFor(s, pendingDrag.targetValue);
-
-    // The anchor marker (where the target value was set) is always drawn at
-    // its own fixed spot. The handle marker is independently draggable and
-    // can sit either side of it — see onDragPointerMove for what that means.
-    if (anchorMin >= viewStart && anchorMin <= viewEnd) {
-      const xA = xForMin(anchorMin);
-      pendingUI += `<circle cx="${xA}" cy="${yAnchor}" r="6" fill="${s.color}" stroke="#fff" stroke-width="1.5" />`;
-      const decimalKeys = ['temp', 'bgl', 'ketones'];
-      const labelVal = decimalKeys.includes(s.key) ? pendingDrag.targetValue.toFixed(1) : Math.round(pendingDrag.targetValue);
-      const labelStr = `${labelVal}${s.unit}`;
-      const labelW = Math.max(32, labelStr.length * 7 + 12);
-      // Raised well clear above the dot (not just off to the side) so a
-      // fingertip actively dragging the point doesn't sit on top of it.
-      const labelY = Math.max(padT + 16, yAnchor - 34);
-      const labelX = Math.min(Math.max(padL, xA - labelW / 2), W - padR - labelW);
-      pendingUI += `<rect x="${labelX}" y="${labelY - 8}" width="${labelW}" height="16" rx="4" fill="#1e2a36" opacity="0.9" />`;
-      pendingUI += `<text x="${labelX + labelW / 2}" y="${labelY + 4}" font-size="11" fill="#fff" font-weight="700" text-anchor="middle">${labelStr}</text>`;
-      const iconY = Math.max(padT + 10, yAnchor - 18);
-      pendingUI += `<g onclick="event.stopPropagation();confirmPendingDrag()" style="cursor:pointer;"><circle cx="${xA - 12}" cy="${iconY}" r="9" fill="#15803d" /><text x="${xA - 12}" y="${iconY + 4}" font-size="12" fill="#fff" text-anchor="middle" font-weight="900">&#10003;</text></g>`;
-      pendingUI += `<g onclick="event.stopPropagation();cancelPendingDrag();renderGraph()" style="cursor:pointer;"><circle cx="${xA + 12}" cy="${iconY}" r="9" fill="#b91c1c" /><text x="${xA + 12}" y="${iconY + 4}" font-size="12" fill="#fff" text-anchor="middle" font-weight="900">&#10005;</text></g>`;
-    }
-    if (handleMin >= viewStart && handleMin <= viewEnd) {
-      const xH = xForMin(handleMin);
-      // Sits ON the real (current, un-modified) trajectory at its own time —
-      // that's literally what it represents before/unless it becomes the
-      // "reached at" end of the transition.
-      const handleTMs = liveConfig.startTimeMs + handleMin * 60000;
-      const yHandle = yFor(s, s.get(SimEngine.getVitalsRaw(liveConfig, handleTMs)));
-      pendingUI += `<circle cx="${xH}" cy="${yHandle}" r="7" fill="#fff" stroke="${s.color}" stroke-width="2" style="touch-action:none;cursor:ew-resize;" onpointerdown="startDurationDrag(event)" onclick="event.stopPropagation()" />`;
+    pendingUI += buildPendingMarkup(pendingDrag.graphKey, pendingDrag.targetValue, pendingDrag.anchorMs, pendingDrag.handleMs, true);
+    if (pendingDrag.linked) {
+      pendingUI += buildPendingMarkup(pendingDrag.linked.graphKey, pendingDrag.linked.targetValue, pendingDrag.anchorMs, pendingDrag.handleMs, false);
     }
   }
 
@@ -774,6 +799,7 @@ function tickVitals() {
     </div>`;
   }).join('');
   renderGraph();
+  renderOverridesList();
 }
 
 function populateDrugSelect() {
@@ -814,6 +840,84 @@ function renderTreatments() {
       <span>${t.drug} \u2014 ${t.dose}</span>
       <span class="muted">t+${t.givenAtMin.toFixed(1)} min</span>
     </div>`).join('');
+}
+
+const OVERRIDE_KEY_LABELS = {
+  HR: 'HR', BPsys: 'BP Sys', BPdia: 'BP Dia', SpO2: 'SpO\u2082', RR: 'RR', EtCO2: 'EtCO\u2082',
+  temp: 'Temp', bgl: 'BGL', ketones: 'Ketones', pain: 'Pain',
+  gcsE: 'GCS Eye', gcsV: 'GCS Verbal', gcsM: 'GCS Motor'
+};
+
+function flattenOverrides() {
+  const list = [];
+  Object.keys(liveConfig.overrides || {}).forEach(key => {
+    (liveConfig.overrides[key] || []).forEach(ov => list.push({ key, ...ov }));
+  });
+  list.sort((a, b) => a.startMs - b.startMs);
+  return list;
+}
+
+function renderOverridesList() {
+  const el = document.getElementById('overrides-list');
+  if (!el || !liveConfig) return;
+  const nowMs = simNow();
+  const list = flattenOverrides();
+  if (!list.length) {
+    el.innerHTML = '<p class="muted" style="margin-top:8px;">No overrides logged yet.</p>';
+    return;
+  }
+  el.innerHTML = list.map(ov => {
+    const label = OVERRIDE_KEY_LABELS[ov.key] || ov.key;
+    const startMin = (ov.startMs - liveConfig.startTimeMs) / 60000;
+    const endMin = (ov.endMs - liveConfig.startTimeMs) / 60000;
+    // Once an override has started (or already finished) it's baked into
+    // what's already happened on the timeline — removing it would rewrite
+    // history, so it's locked from here on.
+    const locked = ov.startMs <= nowMs;
+    const timeStr = ov.endMs > ov.startMs ? `t+${startMin.toFixed(1)}\u2013${endMin.toFixed(1)}m` : `t+${startMin.toFixed(1)}m`;
+    const btn = locked
+      ? `<button class="btn btn-secondary" style="padding:2px 8px;font-size:10px;opacity:0.4;" disabled title="Already in effect — can't remove without changing what's already happened">Locked</button>`
+      : `<button class="btn btn-secondary" style="padding:2px 8px;font-size:10px;" onclick="deleteOverride('${ov.key}', ${ov.startMs}, ${ov.endMs}, ${ov.targetValue})">Delete</button>`;
+    return `<div class="treat-item">
+      <span>${label} \u2192 ${ov.targetValue}</span>
+      <span style="display:flex;align-items:center;gap:6px;">
+        <span class="muted">${timeStr}</span>
+        ${btn}
+      </span>
+    </div>`;
+  }).join('');
+}
+
+async function deleteOverride(key, startMs, endMs, targetValue) {
+  if (!sessionCode) return;
+  if (startMs <= simNow()) {
+    alert("This override has already started changing the vital and can't be removed without altering what already happened.");
+    return;
+  }
+  if (!confirm('Remove this override?')) return;
+  try {
+    const rows = await sbFetch(`sim_sessions?session_code=eq.${sessionCode}&select=overrides`, { method: 'GET' });
+    const freshOverrides = (rows[0] && rows[0].overrides) || {};
+    const arr = freshOverrides[key] || [];
+    const matchIdx = arr.findIndex(ov => ov.startMs === startMs && ov.endMs === endMs && ov.targetValue === targetValue);
+    if (matchIdx === -1) {
+      alert('Could not find that override — it may have already been changed elsewhere.');
+      liveConfig.overrides = freshOverrides;
+      renderOverridesList();
+      return;
+    }
+    arr.splice(matchIdx, 1);
+    freshOverrides[key] = arr;
+    await sbFetch(`sim_sessions?session_code=eq.${sessionCode}`, {
+      method: 'PATCH', prefer: 'return=minimal',
+      body: JSON.stringify({ overrides: freshOverrides, updated_at: new Date().toISOString() })
+    });
+    liveConfig.overrides = freshOverrides;
+    renderOverridesList();
+    renderGraph();
+  } catch (e) {
+    alert('Could not delete the override — check the connection and try again.');
+  }
 }
 
 // Testing/preview aid only — populates the current session with a spread of
