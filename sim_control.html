@@ -371,8 +371,8 @@ async function updateInstantMode() {
 // special-case step-path branch.
 const GRAPH_SERIES = [
   { key: 'HR',      label: 'HR',     color: '#dc2626', unit: 'bpm',     min: 30, max: 200, get: v => v.HR },
-  { key: 'BPsys',   label: 'BP Sys', color: '#16a34a', unit: 'mmHg',    min: 40, max: 220, get: v => v.BPsys },
-  { key: 'BPdia',   label: 'BP Dia', color: '#4ade80', unit: 'mmHg',    min: 20, max: 140, get: v => v.BPdia },
+  { key: 'BPsys',   label: 'BP Sys', color: '#16a34a', unit: 'mmHg',    min: 20, max: 220, get: v => v.BPsys },
+  { key: 'BPdia',   label: 'BP Dia', color: '#4ade80', unit: 'mmHg',    min: 20, max: 220, get: v => v.BPdia },
   { key: 'SpO2',    label: 'SpO\u2082', color: '#2563eb', unit: '%',    min: 50, max: 100, get: v => v.SpO2 },
   { key: 'RR',      label: 'RR',     color: '#d97706', unit: '/min',    min: 0,  max: 50,  get: v => v.RR },
   { key: 'EtCO2',   label: 'EtCO\u2082', color: '#ea580c', unit: 'mmHg', min: 0, max: 80,  get: v => v.EtCO2 },
@@ -465,6 +465,17 @@ function valForY(s, y) {
   return s.min + frac * (s.max - s.min);
 }
 
+// BP is two separately-dragged series, but systolic must always stay above
+// diastolic by a physiologically sane margin — clamp against the OTHER
+// component's real (unmodified) curve value at the same instant.
+function clampBpValue(graphKey, val, tMs) {
+  if (graphKey !== 'BPsys' && graphKey !== 'BPdia') return val;
+  const counterKey = graphKey === 'BPsys' ? 'BPdia' : 'BPsys';
+  const counterVal = SimEngine.getVitalsRaw(liveConfig, tMs)[counterKey];
+  const margin = 10;
+  return graphKey === 'BPsys' ? Math.max(val, counterVal + margin) : Math.min(val, counterVal - margin);
+}
+
 function startValueDrag(evt, graphKey) {
   if (!liveConfig || !_lastLayout) return;
   evt.preventDefault();
@@ -474,12 +485,14 @@ function startValueDrag(evt, graphKey) {
   const s = GRAPH_SERIES.find(g => g.key === graphKey);
   const elapsedMin = (simNow() - liveConfig.startTimeMs) / 60000;
   const m = Math.max(liveConfig.hasStarted ? elapsedMin : 0, minForX(coords.x));
-  const val = Math.min(s.max, Math.max(s.min, valForY(s, coords.y)));
   const anchorMs = liveConfig.startTimeMs + m * 60000;
-  // anchorMs+targetValue is the fixed point set by this touch. handleMs is the
-  // separately-draggable marker, defaulted 30s later — see onDragPointerMove
-  // for how the two combine into an actual startMs/endMs.
-  pendingDrag = { graphKey, anchorMs, targetValue: val, handleMs: anchorMs + 30000 };
+  const rawVal = Math.min(s.max, Math.max(s.min, valForY(s, coords.y)));
+  const val = clampBpValue(graphKey, rawVal, anchorMs);
+  const floorMs = liveConfig.startTimeMs + (liveConfig.hasStarted ? elapsedMin : 0) * 60000;
+  // Handle defaults onto the EXISTING line ~2 minutes before the anchor
+  // (start-of-change role) — floored so it never lands before "now".
+  const handleMs = Math.max(anchorMs - 120000, floorMs);
+  pendingDrag = { graphKey, anchorMs, targetValue: val, handleMs };
   _dragMode = 'value';
   _dragPointerId = evt.pointerId;
   renderGraph();
@@ -503,9 +516,11 @@ function onDragPointerMove(evt) {
   if (_dragMode === 'value') {
     const m = Math.max(liveConfig.hasStarted ? elapsedMin : 0, minForX(coords.x));
     const offsetMs = pendingDrag.handleMs - pendingDrag.anchorMs; // preserve the current handle gap while moving the anchor
-    pendingDrag.anchorMs = liveConfig.startTimeMs + m * 60000;
-    pendingDrag.handleMs = pendingDrag.anchorMs + offsetMs;
-    pendingDrag.targetValue = Math.min(s.max, Math.max(s.min, valForY(s, coords.y)));
+    const newAnchorMs = liveConfig.startTimeMs + m * 60000;
+    const rawVal = Math.min(s.max, Math.max(s.min, valForY(s, coords.y)));
+    pendingDrag.anchorMs = newAnchorMs;
+    pendingDrag.handleMs = newAnchorMs + offsetMs;
+    pendingDrag.targetValue = clampBpValue(pendingDrag.graphKey, rawVal, newAnchorMs);
   } else if (_dragMode === 'duration') {
     // The handle is free to move either side of the anchor: to the right it
     // pushes out WHEN the target is fully reached; dragged past the anchor
@@ -704,17 +719,24 @@ function renderGraph() {
       const labelVal = decimalKeys.includes(s.key) ? pendingDrag.targetValue.toFixed(1) : Math.round(pendingDrag.targetValue);
       const labelStr = `${labelVal}${s.unit}`;
       const labelW = Math.max(32, labelStr.length * 7 + 12);
-      const labelDir = handleMin >= anchorMin ? -1 : 1; // keep the label clear of the handle side
-      const labelX = Math.min(Math.max(padL, xA + labelDir * (labelDir > 0 ? labelW + 10 : 10)), W - padR - labelW);
-      pendingUI += `<rect x="${labelX}" y="${yAnchor - 10}" width="${labelW}" height="16" rx="4" fill="#1e2a36" opacity="0.85" />`;
-      pendingUI += `<text x="${labelX + 6}" y="${yAnchor + 2}" font-size="11" fill="#fff" font-weight="700">${labelStr}</text>`;
+      // Raised well clear above the dot (not just off to the side) so a
+      // fingertip actively dragging the point doesn't sit on top of it.
+      const labelY = Math.max(padT + 16, yAnchor - 34);
+      const labelX = Math.min(Math.max(padL, xA - labelW / 2), W - padR - labelW);
+      pendingUI += `<rect x="${labelX}" y="${labelY - 8}" width="${labelW}" height="16" rx="4" fill="#1e2a36" opacity="0.9" />`;
+      pendingUI += `<text x="${labelX + labelW / 2}" y="${labelY + 4}" font-size="11" fill="#fff" font-weight="700" text-anchor="middle">${labelStr}</text>`;
       const iconY = Math.max(padT + 10, yAnchor - 18);
       pendingUI += `<g onclick="event.stopPropagation();confirmPendingDrag()" style="cursor:pointer;"><circle cx="${xA - 12}" cy="${iconY}" r="9" fill="#15803d" /><text x="${xA - 12}" y="${iconY + 4}" font-size="12" fill="#fff" text-anchor="middle" font-weight="900">&#10003;</text></g>`;
       pendingUI += `<g onclick="event.stopPropagation();cancelPendingDrag();renderGraph()" style="cursor:pointer;"><circle cx="${xA + 12}" cy="${iconY}" r="9" fill="#b91c1c" /><text x="${xA + 12}" y="${iconY + 4}" font-size="12" fill="#fff" text-anchor="middle" font-weight="900">&#10005;</text></g>`;
     }
     if (handleMin >= viewStart && handleMin <= viewEnd) {
       const xH = xForMin(handleMin);
-      pendingUI += `<circle cx="${xH}" cy="${yAnchor}" r="7" fill="#fff" stroke="${s.color}" stroke-width="2" style="touch-action:none;cursor:ew-resize;" onpointerdown="startDurationDrag(event)" onclick="event.stopPropagation()" />`;
+      // Sits ON the real (current, un-modified) trajectory at its own time —
+      // that's literally what it represents before/unless it becomes the
+      // "reached at" end of the transition.
+      const handleTMs = liveConfig.startTimeMs + handleMin * 60000;
+      const yHandle = yFor(s, s.get(SimEngine.getVitalsRaw(liveConfig, handleTMs)));
+      pendingUI += `<circle cx="${xH}" cy="${yHandle}" r="7" fill="#fff" stroke="${s.color}" stroke-width="2" style="touch-action:none;cursor:ew-resize;" onpointerdown="startDurationDrag(event)" onclick="event.stopPropagation()" />`;
     }
   }
 
@@ -878,6 +900,15 @@ async function applyOverride() {
   const durationMs = mode === 'immediate' ? 0 : mode === 'seconds' ? amount * 1000 : amount * 60000;
   const startMs = simNow();
   const endMs = startMs + durationMs;
+
+  if (def.key === 'BP') {
+    const sysVal = parseFloat(document.getElementById('ov-input-BPsys').value);
+    const diaVal = parseFloat(document.getElementById('ov-input-BPdia').value);
+    if (!isNaN(sysVal) && !isNaN(diaVal) && diaVal >= sysVal) {
+      alert('Diastolic must be lower than systolic — check the two values.');
+      return;
+    }
+  }
 
   try {
     const rows = await sbFetch(`sim_sessions?session_code=eq.${sessionCode}&select=overrides`, { method: 'GET' });
