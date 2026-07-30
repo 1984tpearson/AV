@@ -83,6 +83,8 @@ select, input[type=number], input[type=text] { font-family: 'Courier New', monos
         <button class="btn btn-secondary" style="padding:4px 10px;font-size:11px;" onclick="graphPan(-1)">&larr;</button>
         <button class="btn btn-secondary" style="padding:4px 10px;font-size:11px;" onclick="graphPan(1)">&rarr;</button>
         <button class="btn btn-secondary" style="padding:4px 10px;font-size:11px;" onclick="graphSnapToNow()">Now</button>
+        <label style="margin:0 0 0 6px;font-size:11px;"><input type="checkbox" id="baseline-ghost-toggle" checked onchange="showBaselineGhost = this.checked; renderGraph();"> Original trajectory</label>
+        <label style="margin:0;font-size:11px;"><input type="checkbox" id="previous-ghost-toggle" onchange="showPreviousGhost = this.checked; renderGraph();"> Previous trajectory</label>
       </div>
       <div id="graph-svg-wrap" style="width:100%;overflow:hidden;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;"></div>
     </div>
@@ -97,8 +99,6 @@ select, input[type=number], input[type=text] { font-family: 'Courier New', monos
         <div class="row">
           <button class="btn btn-start" id="run-btn" onclick="toggleRun()">Start Scenario</button>
           <label style="margin:0;"><input type="checkbox" id="instant-toggle" onchange="updateInstantMode()"> Instant Mode</label>
-          <label style="margin:0;"><input type="checkbox" id="baseline-ghost-toggle" checked onchange="showBaselineGhost = this.checked; renderGraph();"> Original trajectory</label>
-          <label style="margin:0;"><input type="checkbox" id="previous-ghost-toggle" onchange="showPreviousGhost = this.checked; renderGraph();"> Previous trajectory</label>
         </div>
         <h2 style="margin-top:12px;">Log Treatment / Management</h2>
         <div class="row">
