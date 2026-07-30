@@ -864,9 +864,10 @@ function confirmResumeFromPrompt() {
 async function pollSession() {
   if (!sessionCode || !liveConfig) return;
   try {
-    const rows = await sbFetch(`sim_sessions?session_code=eq.${sessionCode}&select=treatments,overrides,instant_mode,has_started,is_paused,paused_at_ms,total_paused_ms,patient_connected,patient_actions,action_controls`, { method: 'GET' });
+    const rows = await sbFetch(`sim_sessions?session_code=eq.${sessionCode}&select=treatments,overrides,instant_mode,has_started,is_paused,paused_at_ms,total_paused_ms,patient_connected,patient_actions,action_controls,student_queue,student_queue_ack_id`, { method: 'GET' });
     if (!rows.length) return;
     const row = rows[0];
+    processStudentQueue(row); // fire-and-forget — auto-applies any new voice-queued items from sim_patient.html (see below)
     liveConfig.treatments = row.treatments || [];
     liveConfig.overrides = row.overrides || {};
     liveConfig.instantMode = row.instant_mode;
@@ -1893,7 +1894,7 @@ function renderLog() {
   const list = document.getElementById('log-list');
   if (!list) return;
   const entries = [];
-  treatments.forEach((t, idx) => entries.push({ kind: 'treatment', idx, atMin: t.givenAtMin, text: t.action, assumptions: t.assumptions }));
+  treatments.forEach((t, idx) => entries.push({ kind: 'treatment', idx, atMin: t.givenAtMin, text: (t.source === 'patient_device' ? '\u{1F399}\uFE0F ' : '') + t.action, assumptions: t.assumptions }));
   actionLog.forEach(a => entries.push({ kind: 'action', atMin: a.atMin, text: a.text }));
   entries.sort((a, b) => a.atMin - b.atMin);
   if (!entries.length) {
@@ -2027,11 +2028,17 @@ const NO_EFFECT_ACTIONS = [
 // directly as a graph override, no AI call. vital must be a tracked vital key
 // ('pain' or 'nausea' currently); delta is a [min,max] range (negative =
 // reduction) applied to the CURRENT value at the moment given; onsetMin is a
-// [min,max] range in minutes for how long the transition takes.
+// [min,max] range in minutes for how long the transition takes. wearOffMin
+// (optional) is a [min,max] range in minutes for how long AFTER onset the
+// effect takes to fade back to whatever this vital was already going to do —
+// only needed for short-acting agents whose duration is short enough to
+// matter within a training scenario's timescale (methoxyflurane, not
+// paracetamol/ibuprofen/ondansetron, whose real durations outlast any
+// scenario anyway).
 const CODED_EFFECT_ACTIONS = [
   { id: 'paracetamol', label: 'Paracetamol (PO/IV)', vital: 'pain', delta: [-3, -1], onsetMin: [10, 20] },
   { id: 'ibuprofen', label: 'Ibuprofen (PO)', vital: 'pain', delta: [-4, -2], onsetMin: [15, 30] },
-  { id: 'methoxyflurane', label: 'Methoxyflurane (Penthrox)', vital: 'pain', delta: [-5, -3], onsetMin: [2, 5] },
+  { id: 'methoxyflurane', label: 'Methoxyflurane (Penthrox)', vital: 'pain', delta: [-5, -3], onsetMin: [2, 5], wearOffMin: [15, 25] },
   { id: 'splint', label: 'Splinting a limb fracture', vital: 'pain', delta: [-2, -1], onsetMin: [1, 3] },
   { id: 'sling', label: 'Sling / arm immobilisation', vital: 'pain', delta: [-2, -1], onsetMin: [1, 3] },
   { id: 'ondansetron', label: 'Ondansetron (antiemetic)', vital: 'nausea', delta: [-5, -3], onsetMin: [5, 10] },
@@ -2099,18 +2106,24 @@ Return ONLY valid JSON, no prose: {"items":[{"text":"<verbatim excerpt of this a
 // "now") would keep letting the OLD trajectory win for its entire remaining
 // duration, and this coded effect would silently never show up until the
 // old entry finally ran out.
+//
+// If entry.wearOffMin is set, a second phase is added after onset that fades
+// the effect back OUT — not to a flat pre-drug number, but to whatever this
+// vital was already scheduled to be doing at that point absent the drug
+// (evaluated against the untouched pre-treatment `existing` schedule, which
+// may itself still be rising/falling from the underlying condition).
 async function applyCodedEffect(entry, givenAtMs) {
   const current = SimEngine.getVitalsRaw(liveConfig, givenAtMs)[entry.vital];
   const delta = entry.delta[0] + Math.random() * (entry.delta[1] - entry.delta[0]);
   const target = Math.max(0, Math.min(10, current + delta));
   const onsetMin = entry.onsetMin[0] + Math.random() * (entry.onsetMin[1] - entry.onsetMin[0]);
-  const endMs = givenAtMs + onsetMin * 60000;
+  const onsetEndMs = givenAtMs + onsetMin * 60000;
 
   const rows = await sbFetch(`sim_sessions?session_code=eq.${sessionCode}&select=overrides`, { method: 'GET' });
   const freshOverrides = (rows[0] && rows[0].overrides) || {};
   const previousSnapshot = JSON.parse(JSON.stringify(freshOverrides));
-
   const existing = freshOverrides[entry.vital] || [];
+
   const kept = [];
   existing.forEach(ov => {
     if (ov.endMs <= givenAtMs) {
@@ -2120,7 +2133,22 @@ async function applyCodedEffect(entry, givenAtMs) {
     }
     // else: startMs >= givenAtMs — superseded future plan, drop
   });
-  kept.push({ targetValue: target, startMs: givenAtMs, endMs });
+
+  let wearOffNote = '';
+  if (entry.wearOffMin) {
+    const wearOffMin = entry.wearOffMin[0] + Math.random() * (entry.wearOffMin[1] - entry.wearOffMin[0]);
+    const wearOffEndMs = onsetEndMs + wearOffMin * 60000;
+    // Evaluate the UNTOUCHED existing schedule (not `kept`, which has the
+    // future already dropped) at the wear-off point — that's what this
+    // vital would genuinely be doing by then if this drug had never been given.
+    const naturalConfig = { ...liveConfig, overrides: { ...freshOverrides, [entry.vital]: existing } };
+    const naturalAtWearOff = SimEngine.getVitalsRaw(naturalConfig, wearOffEndMs)[entry.vital];
+    kept.push({ targetValue: target, startMs: givenAtMs, endMs: onsetEndMs });
+    kept.push({ targetValue: naturalAtWearOff, startMs: onsetEndMs, endMs: wearOffEndMs });
+    wearOffNote = `, wearing off over ~${wearOffMin.toFixed(0)} min after that`;
+  } else {
+    kept.push({ targetValue: target, startMs: givenAtMs, endMs: onsetEndMs });
+  }
   freshOverrides[entry.vital] = kept;
 
   await sbFetch(`sim_sessions?session_code=eq.${sessionCode}`, {
@@ -2132,7 +2160,7 @@ async function applyCodedEffect(entry, givenAtMs) {
   autoEnableGraphSeriesFromOverrides({ [entry.vital]: freshOverrides[entry.vital] });
   renderGraph();
   const sign = delta < 0 ? '' : '+';
-  return `${entry.vital} ${sign}${delta.toFixed(1)} over ~${onsetMin.toFixed(0)} min (coded effect, randomised — no AI call).`;
+  return `${entry.vital} ${sign}${delta.toFixed(1)} over ~${onsetMin.toFixed(0)} min (coded effect, randomised — no AI call)${wearOffNote}.`;
 }
 
 // Builds the log-entry note for one matched item — dispatches to either the
@@ -2152,15 +2180,107 @@ async function noteForMatchedItem(item, givenAtMs) {
   return `${item.text}: No modelled effect.`;
 }
 
-async function giveTreatment() {
+// --- Voice relay from sim_patient.html ("Give Treatment" / "Talk to
+// Patient" buttons there) -----------------------------------------------
+// sim_patient.html has no scenario context or Anthropic key, so it just
+// queues recognised speech onto the session row; this page (which already
+// polls every few seconds and holds currentScenario/liveConfig/the key)
+// picks new items up and actions them. student_queue_ack_id is persisted
+// server-side (not just in memory) so a control-page reload doesn't
+// re-process old items. _studentQueueBusy guards against a slow item still
+// being processed when the next poll tick fires.
+let _studentQueueBusy = false;
+async function processStudentQueue(row) {
+  if (_studentQueueBusy) return;
+  const queue = row.student_queue || [];
+  const ackId = row.student_queue_ack_id || 0;
+  const pending = queue.filter(item => item.id > ackId).sort((a, b) => a.id - b.id);
+  if (!pending.length) return;
+  _studentQueueBusy = true;
+  try {
+    for (const item of pending) {
+      if (item.type === 'treatment' && item.text) {
+        await giveTreatment(item.text, { silent: true, source: 'patient_device' });
+      } else if (item.type === 'chat' && item.text) {
+        await answerPatientQuestion(item.text, item.id);
+      }
+      try {
+        await sbFetch(`sim_sessions?session_code=eq.${sessionCode}`, {
+          method: 'PATCH', prefer: 'return=minimal',
+          body: JSON.stringify({ student_queue_ack_id: item.id, updated_at: new Date().toISOString() })
+        });
+      } catch (e) { /* transient — next poll will retry from the old ack point, re-processing this item is preferable to silently dropping it */ }
+    }
+  } finally {
+    _studentQueueBusy = false;
+  }
+}
+
+// Generates the "patient's" spoken reply to a question the crew just asked
+// (via sim_patient.html's Talk to Patient button), in character, from the
+// scenario's own clinical picture — cheap Haiku call, not the clinical
+// trajectory model. Writes the reply back onto the session row for
+// sim_patient.html to display/speak, and drops a line in this page's own
+// Log so the assessor can see the exchange too.
+async function answerPatientQuestion(question, forId) {
+  if (!currentScenario) return;
+  const nowMin = (simNow() - liveConfig.startTimeMs) / 60000;
+  actionLog.push({ text: `\u{1F399}\uFE0F Crew asked: "${question}"`, atMin: nowMin });
+  renderLog();
+  let replyText = "...sorry, I didn't catch that.";
+  try {
+    const apiKey = await getAnthropicKey();
+    const v = SimEngine.getVitals(liveConfig, simNow());
+    const systemPrompt = `You are voicing the PATIENT in a paramedic training scenario, answering a question the crew just asked out loud. Reply only as the patient would speak — first person, in character, brief (1-3 short sentences), plain lay language, no clinical terms the patient wouldn't use.
+
+Only say what this patient could plausibly know or perceive themselves (their own symptoms, feelings, what happened to them, basic personal details) — never reveal the provisional diagnosis, clinical reasoning, vital sign numbers, or anything a real patient wouldn't know or say. If asked something the patient wouldn't know or that's irrelevant to them, answer in character as a confused/unsure patient would.
+
+Let their current condition colour HOW they answer: e.g. short of breath = short, breathless sentences; drowsy/low GCS = slow, vague, minimal words; distressed/in pain = anxious tone. Never break character, never mention this being a simulation.
+
+Return ONLY the spoken reply text — no quotation marks, no stage directions, no prose about the answer.`;
+    const userPrompt = `Scenario: ${currentScenario.title || ''}
+Demographics/presentation: ${currentScenario.demographics || ''}
+Provisional diagnosis (do not reveal): ${currentScenario.provisional || 'unspecified'}
+Key history: ${currentScenario.key_hx || ''}
+Current approximate condition: HR ${v.HR}, RR ${v.RR}, SpO2 ${v.SpO2}%, GCS ${(v.gcsE||0)+(v.gcsV||0)+(v.gcsM||0)}/15, pain ${v.pain != null ? v.pain + '/10' : 'unspecified'}
+Treatments given so far: ${treatments.length ? treatments.map(t => t.action).join('; ') : 'none yet'}
+
+The crew just asked/said: "${question}"
+
+Reply as the patient.`;
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' },
+      body: JSON.stringify({ model: 'claude-haiku-4-5-20251001', max_tokens: 300, system: systemPrompt, messages: [{ role: 'user', content: userPrompt }] })
+    });
+    if (response.ok) {
+      const data = await response.json();
+      addAiCost('claude-haiku-4-5-20251001', data.usage);
+      replyText = (data.content || []).map(b => b.text || '').join('').trim() || replyText;
+    }
+  } catch (e) { /* fall through with the apologetic default reply below */ }
+  actionLog.push({ text: `\u{1F5E3}\uFE0F Patient replied: "${replyText}"`, atMin: nowMin });
+  renderLog();
+  try {
+    await sbFetch(`sim_sessions?session_code=eq.${sessionCode}`, {
+      method: 'PATCH', prefer: 'return=minimal',
+      body: JSON.stringify({ patient_reply: { id: Date.now(), forId, text: replyText }, updated_at: new Date().toISOString() })
+    });
+  } catch (e) { /* patient device just won't see this particular reply — non-fatal */ }
+}
+
+async function giveTreatment(providedText, opts) {
+  opts = opts || {};
   if (!sessionCode) return;
-  const action = document.getElementById('action-input').value.trim();
-  if (!action) { alert('Enter a drug or management action.'); return; }
+  const inputEl = document.getElementById('action-input');
+  const action = (providedText !== undefined ? providedText : inputEl.value).trim();
+  if (!action) { if (!opts.silent) alert('Enter a drug or management action.'); return; }
   maybeHandleActionInitiated(); // giving a treatment is just as much "the scenario is underway" as a patient-side action starting — same auto-start/resume-prompt rule
   const statusEl = document.getElementById('treatment-status');
   const givenAtMs = simNow();
   const givenAtMin = (givenAtMs - liveConfig.startTimeMs) / 60000;
   const newEntry = { action, givenAtMin };
+  if (opts.source) newEntry.source = opts.source;
   treatments = [...treatments, newEntry];
   liveConfig.treatments = treatments;
   try {

@@ -63,6 +63,24 @@ body { display: flex; flex-direction: column; }
 .oo-tap-again { font-size: 8px; color: #4fc3f7; margin-top: 2px; font-style: italic; }
 .oo-pending { font-size: 10px; color: #4fc3f7; margin-top: 2px; }
 .oo-queued { font-size: 9px; color: #6b8299; margin-top: 2px; font-style: italic; }
+
+/* Voice capture — Give Treatment / Talk to Patient ------------------------ */
+#voice-fab-strip { position: fixed; right: 14px; bottom: 14px; z-index: 40; display: flex; flex-direction: column; gap: 10px; }
+.voice-fab { min-width: 84px; min-height: 60px; border-radius: 10px; border: none; background: #0369a1; color: #fff; font-family: 'Courier New', monospace; font-weight: 700; font-size: 12px; line-height: 1.3; letter-spacing: 0.3px; box-shadow: 0 2px 8px rgba(0,0,0,0.3); cursor: pointer; padding: 6px 10px; -webkit-tap-highlight-color: rgba(255,255,255,0.2); }
+.voice-fab:active { background: #075985; }
+#voice-fab-chat { background: #15803d; }
+#voice-fab-chat:active { background: #14532d; }
+#voice-modal { position: fixed; inset: 0; background: rgba(10,16,26,0.88); z-index: 50; display: none; align-items: center; justify-content: center; padding: 16px; }
+.voice-modal-inner { background: #ffffff; border-radius: 10px; padding: 18px; width: 100%; max-width: 420px; max-height: 90vh; overflow-y: auto; }
+#voice-modal-title { font-size: 14px; font-weight: 900; letter-spacing: 1px; text-transform: uppercase; color: #0369a1; margin-bottom: 10px; }
+#voice-modal-status { font-size: 12px; color: #33475a; margin-bottom: 10px; min-height: 16px; }
+#voice-modal-transcript { min-height: 60px; border: 1px solid #d7dee6; border-radius: 6px; padding: 10px; font-size: 15px; color: #1e2a36; margin-bottom: 10px; background: #f7fafc; }
+#patient-reply-display { font-size: 14px; color: #15803d; margin-bottom: 10px; font-style: italic; display: none; }
+#voice-modal-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.voice-btn { flex: 1; min-width: 90px; min-height: 44px; border-radius: 6px; border: none; font-family: 'Courier New', monospace; font-weight: 700; font-size: 13px; cursor: pointer; }
+.voice-btn-primary { background: #0369a1; color: #fff; }
+.voice-btn-primary:disabled { opacity: 0.4; }
+.voice-btn-secondary { background: #e2e8f0; color: #33475a; }
 </style>
 </head>
 <body>
@@ -107,7 +125,29 @@ body { display: flex; flex-direction: column; }
     <div id="oneoff-strip"></div>
   </div>
   <div id="info-col">
-    <div class="panel" id="patient-graphic"><img src="https://1984tpearson.github.io/AV/Body_map.jpg" alt="Patient body map"></div>
+    <div class="panel" id="patient-graphic" style="flex-direction:column;gap:8px;">
+    <img src="https://1984tpearson.github.io/AV/talkingheadtemp.gif" alt="Patient" style="max-height:45%;">
+    <img src="https://1984tpearson.github.io/AV/Body_map.jpg" alt="Patient body map">
+  </div>
+  </div>
+</div>
+
+<div id="voice-fab-strip">
+  <button class="voice-fab" id="voice-fab-treatment" onclick="openVoiceModal('treatment')">Give<br>Treatment</button>
+  <button class="voice-fab" id="voice-fab-chat" onclick="openVoiceModal('chat')">Talk to<br>Patient</button>
+</div>
+
+<div id="voice-modal">
+  <div class="voice-modal-inner">
+    <div id="voice-modal-title">Give Treatment</div>
+    <div id="voice-modal-status">Listening&hellip;</div>
+    <div id="voice-modal-transcript"></div>
+    <div id="patient-reply-display"></div>
+    <div id="voice-modal-actions">
+      <button class="voice-btn voice-btn-secondary" onclick="restartVoiceCapture()">Try Again</button>
+      <button class="voice-btn voice-btn-primary" id="voice-send-btn" onclick="sendVoiceCapture()" disabled>Send</button>
+      <button class="voice-btn voice-btn-secondary" onclick="closeVoiceModal()">Cancel</button>
+    </div>
   </div>
 </div>
 
@@ -191,7 +231,7 @@ const _processedSkipEpoch = {};
 async function pollSession() {
   if (!sessionCode || !testConfig) return;
   try {
-    const rows = await sbGet(`sim_sessions?session_code=eq.${encodeURIComponent(sessionCode)}&select=treatments,overrides,instant_mode,has_started,is_paused,paused_at_ms,total_paused_ms,action_controls`);
+    const rows = await sbGet(`sim_sessions?session_code=eq.${encodeURIComponent(sessionCode)}&select=treatments,overrides,instant_mode,has_started,is_paused,paused_at_ms,total_paused_ms,action_controls,patient_reply`);
     if (!rows.length) return;
     const row = rows[0];
     testConfig.treatments = row.treatments || [];
@@ -203,6 +243,7 @@ async function pollSession() {
     testConfig.totalPausedMs = row.total_paused_ms;
     instantMode = row.instant_mode;
     actionControls = row.action_controls || {};
+    checkForPatientReply(row.patient_reply);
   } catch (e) { /* transient network hiccup — try again next poll */ }
 }
 
@@ -679,6 +720,139 @@ window.addEventListener('resize', () => {
 document.addEventListener('visibilitychange', () => {
   if (!document.hidden) { tick(); pollSession(); }
 });
+
+// --- Voice capture: "Give Treatment" / "Talk to Patient" ------------------
+// Chrome-only (webkitSpeechRecognition — iOS Safari has no speech
+// recognition API at all). This device has no scenario context or
+// Anthropic key, so recognised text is just queued onto the session row;
+// sim_control.html (already polling, already holding that context) picks
+// it up and actions it identically to typing into its own Drug/Action box
+// — see processStudentQueue()/giveTreatment() there. Chat questions get an
+// AI-generated in-character reply written back to patient_reply, which
+// this page picks up via the existing pollSession() poll and speaks aloud.
+let _voiceMode = null;
+let _recognition = null;
+let _voiceFinalText = '';
+let _lastChatSentId = null;
+let _lastShownReplyId = null;
+
+function getSpeechRecognitionCtor() {
+  return window.SpeechRecognition || window.webkitSpeechRecognition || null;
+}
+
+async function queueStudentItem(type, text) {
+  const rows = await sbGet(`sim_sessions?session_code=eq.${encodeURIComponent(sessionCode)}&select=student_queue`);
+  const queue = (rows[0] && rows[0].student_queue) || [];
+  const id = Date.now();
+  queue.push({ id, type, text });
+  await sbPatch(`sim_sessions?session_code=eq.${encodeURIComponent(sessionCode)}`, { student_queue: queue, updated_at: new Date().toISOString() });
+  return id;
+}
+
+function openVoiceModal(mode) {
+  _voiceMode = mode;
+  document.getElementById('voice-modal-title').textContent = mode === 'treatment' ? 'Give Treatment' : 'Talk to Patient';
+  document.getElementById('voice-modal-transcript').textContent = '';
+  document.getElementById('patient-reply-display').style.display = 'none';
+  document.getElementById('patient-reply-display').textContent = '';
+  document.getElementById('voice-send-btn').disabled = true;
+  document.getElementById('voice-modal').style.display = 'flex';
+  startVoiceCapture();
+}
+
+// Auto-starts listening as soon as the modal opens (continuous=false so
+// Chrome auto-stops after a pause in speech — that's the "final" result).
+function startVoiceCapture() {
+  const Ctor = getSpeechRecognitionCtor();
+  const statusEl = document.getElementById('voice-modal-status');
+  const transcriptEl = document.getElementById('voice-modal-transcript');
+  const sendBtn = document.getElementById('voice-send-btn');
+  _voiceFinalText = '';
+  sendBtn.disabled = true;
+  transcriptEl.textContent = '';
+  if (!Ctor) {
+    statusEl.textContent = 'Speech recognition isn\u2019t available in this browser \u2014 use Chrome.';
+    return;
+  }
+  if (_recognition) { try { _recognition.abort(); } catch (e) {} }
+  _recognition = new Ctor();
+  _recognition.lang = 'en-AU';
+  _recognition.continuous = false;
+  _recognition.interimResults = true;
+  _recognition.maxAlternatives = 1;
+  statusEl.textContent = 'Listening\u2026';
+  _recognition.onresult = (ev) => {
+    let interim = '', final = '';
+    for (let i = ev.resultIndex; i < ev.results.length; i++) {
+      const t = ev.results[i][0].transcript;
+      if (ev.results[i].isFinal) final += t; else interim += t;
+    }
+    if (final) _voiceFinalText = (_voiceFinalText + ' ' + final).trim();
+    transcriptEl.textContent = (_voiceFinalText + ' ' + interim).trim();
+    if (_voiceFinalText) sendBtn.disabled = false;
+  };
+  _recognition.onerror = (ev) => {
+    statusEl.textContent = ev.error === 'no-speech' ? 'Didn\u2019t catch anything \u2014 tap Try Again.' : `Speech recognition error: ${ev.error}`;
+  };
+  _recognition.onend = () => {
+    statusEl.textContent = _voiceFinalText ? 'Tap Send to confirm, or Try Again.' : 'Didn\u2019t catch anything \u2014 tap Try Again.';
+  };
+  try { _recognition.start(); } catch (e) { statusEl.textContent = 'Could not start the microphone.'; }
+}
+
+function restartVoiceCapture() {
+  document.getElementById('patient-reply-display').style.display = 'none';
+  startVoiceCapture();
+}
+
+function closeVoiceModal() {
+  if (_recognition) { try { _recognition.abort(); } catch (e) {} _recognition = null; }
+  document.getElementById('voice-modal').style.display = 'none';
+}
+
+async function sendVoiceCapture() {
+  const text = _voiceFinalText.trim();
+  if (!text || !sessionCode) return;
+  if (_recognition) { try { _recognition.abort(); } catch (e) {} }
+  const statusEl = document.getElementById('voice-modal-status');
+  const sendBtn = document.getElementById('voice-send-btn');
+  sendBtn.disabled = true;
+  try {
+    const id = await queueStudentItem(_voiceMode === 'treatment' ? 'treatment' : 'chat', text);
+    if (_voiceMode === 'treatment') {
+      statusEl.textContent = 'Sent.';
+      setTimeout(closeVoiceModal, 900);
+    } else {
+      _lastChatSentId = id;
+      statusEl.textContent = 'Waiting for the patient to reply\u2026';
+    }
+  } catch (e) {
+    statusEl.textContent = 'Could not send \u2014 check the connection and try again.';
+    sendBtn.disabled = false;
+  }
+}
+
+// Called from pollSession() every ~3s — matches the reply against the last
+// chat question THIS device sent (forId), and against the last reply
+// already shown (reply.id) so it doesn't re-speak on every poll.
+function checkForPatientReply(reply) {
+  if (!reply || !_lastChatSentId) return;
+  if (reply.forId !== _lastChatSentId) return;
+  if (reply.id === _lastShownReplyId) return;
+  _lastShownReplyId = reply.id;
+  const replyEl = document.getElementById('patient-reply-display');
+  replyEl.textContent = `\u201C${reply.text}\u201D`;
+  replyEl.style.display = 'block';
+  document.getElementById('voice-modal-status').textContent = 'Patient replied:';
+  if ('speechSynthesis' in window) {
+    try {
+      const utter = new SpeechSynthesisUtterance(reply.text);
+      utter.lang = 'en-AU';
+      window.speechSynthesis.speak(utter);
+    } catch (e) { /* TTS best-effort only — the text is already shown on screen */ }
+  }
+  _lastChatSentId = null;
+}
 </script>
 </body>
 </html>
