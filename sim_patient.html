@@ -166,6 +166,7 @@ async function connectSession(code) {
       totalPausedMs: row.total_paused_ms
     };
     instantMode = row.instant_mode;
+    actionControls = row.action_controls || {};
     sessionCode = code;
     document.getElementById('session-gate').style.display = 'none';
     sbPatch(`sim_sessions?session_code=eq.${encodeURIComponent(code)}`, { patient_connected: true, updated_at: new Date().toISOString() })
@@ -179,10 +180,18 @@ async function connectSession(code) {
 }
 
 let sessionCode = null;
+// Assessor-side pause/skip commands for individual student actions, read
+// here and applied in tick() — see "Action delay/reveal system" below.
+// paused: bool, frozen while true (see tick()). skipEpoch: monotonically
+// increasing counter — a rise means "the assessor clicked skip since I last
+// looked", so no ack/clear round-trip is needed to avoid a write race with
+// this page's own patient_actions writes (see pushActionState()).
+let actionControls = {};
+const _processedSkipEpoch = {};
 async function pollSession() {
   if (!sessionCode || !testConfig) return;
   try {
-    const rows = await sbGet(`sim_sessions?session_code=eq.${encodeURIComponent(sessionCode)}&select=treatments,overrides,instant_mode,has_started,is_paused,paused_at_ms,total_paused_ms`);
+    const rows = await sbGet(`sim_sessions?session_code=eq.${encodeURIComponent(sessionCode)}&select=treatments,overrides,instant_mode,has_started,is_paused,paused_at_ms,total_paused_ms,action_controls`);
     if (!rows.length) return;
     const row = rows[0];
     testConfig.treatments = row.treatments || [];
@@ -193,6 +202,7 @@ async function pollSession() {
     testConfig.pausedAtMs = row.paused_at_ms;
     testConfig.totalPausedMs = row.total_paused_ms;
     instantMode = row.instant_mode;
+    actionControls = row.action_controls || {};
   } catch (e) { /* transient network hiccup — try again next poll */ }
 }
 
@@ -213,6 +223,14 @@ const oneOffDefs = {
   bgl:     { label: 'BGL',     unit: 'mmol/L' },
   ketones: { label: 'Ketones', unit: 'mmol/L' },
   pain:    { label: 'Pain',    unit: '/10' }
+};
+
+// Human-readable labels for every actionState key — used when pushing state
+// to Supabase for sim_control.html's Actions tab (see pushActionState()).
+const ACTION_LABELS = {
+  ecg: 'ECG (Lead II)', ecg12lead: '12-Lead ECG', rr: 'Resp Rate', spo2: 'SpO\u2082',
+  etco2: 'EtCO\u2082', bp: 'Blood Pressure', temp: 'Temperature', gcs: 'GCS',
+  bgl: 'BGL', ketones: 'Ketones', pain: 'Pain Score'
 };
 function formatStaticVital(key, val) {
   if (val == null) return '\u2014';
@@ -287,6 +305,36 @@ function reassess(key) {
   startAction(key);
 }
 
+// Applies assessor pause/skip commands (see actionControls, polled every
+// 3s) before the normal completion check runs. Called once per tick with
+// dtMs = real time elapsed since the previous tick.
+function applyActionControls(now, dtMs) {
+  Object.keys(actionState).forEach(key => {
+    const st = actionState[key];
+    const ctrl = actionControls[key];
+    if (!ctrl) return;
+    if (st.status === 'pending' && ctrl.paused) {
+      // Shift the completion time forward by however much real time just
+      // passed, so the remaining countdown stays exactly where it was —
+      // same trick the overall session pause uses (total_paused_ms), just
+      // applied live instead of via an accumulator.
+      st.completesAt += dtMs;
+      st.startedAt += dtMs;
+    }
+    const epoch = ctrl.skipEpoch || 0;
+    if (epoch > (_processedSkipEpoch[key] || 0)) {
+      _processedSkipEpoch[key] = epoch;
+      if (st.status === 'pending' || st.status === 'queued') {
+        const idx = actionQueue.indexOf(key);
+        if (idx !== -1) actionQueue.splice(idx, 1);
+        st.status = 'done';
+        onActionComplete(key, now);
+        tryStartQueued();
+      }
+    }
+  });
+}
+
 function checkActionTimers(now) {
   Object.keys(actionState).forEach(key => {
     const st = actionState[key];
@@ -302,6 +350,30 @@ function checkActionTimers(now) {
     actionState.bp.status = 'idle';
     startAction('bp');
   }
+}
+
+// Reports actionState to Supabase for sim_control.html's Actions tab. Only
+// PATCHes when something actually changed, since this runs off the 1s tick
+// and most ticks have no action-state change.
+let _lastPushedActionsJSON = null;
+function pushActionState() {
+  if (!sessionCode) return;
+  const summary = {};
+  Object.keys(actionState).forEach(key => {
+    const st = actionState[key];
+    if (st.status === 'idle') return;
+    summary[key] = {
+      label: ACTION_LABELS[key] || key,
+      status: st.status,
+      startedAt: st.startedAt || null,
+      completesAt: st.completesAt || null,
+      paused: !!(actionControls[key] && actionControls[key].paused)
+    };
+  });
+  const json = JSON.stringify(summary);
+  if (json === _lastPushedActionsJSON) return;
+  _lastPushedActionsJSON = json;
+  sbPatch(`sim_sessions?session_code=eq.${encodeURIComponent(sessionCode)}`, { patient_actions: summary, updated_at: new Date().toISOString() }).catch(() => {});
 }
 
 function countdownRemain(st) {
@@ -566,10 +638,14 @@ function renderOneOff() {
   }).join('');
 }
 
+let _lastTickMs = Date.now();
 function tick() {
   if (!testConfig) return;
   const now = Date.now();
+  const dtMs = now - _lastTickMs;
+  _lastTickMs = now;
   const simNow = SimEngine.getSimNow(testConfig, now);
+  applyActionControls(now, dtMs); // assessor pause/skip on individual student actions
   checkActionTimers(now); // local action-delay timers stay real-time — a scenario
                            // pause freezes the patient's physiology, not the
                            // real-world time it takes a crew member to do something
@@ -584,6 +660,7 @@ function tick() {
   indEl.style.display = instantMode ? 'inline' : 'none';
   const pauseEl = document.getElementById('pause-indicator');
   pauseEl.style.display = testConfig.isPaused ? 'inline' : 'none';
+  pushActionState();
 }
 
 window.addEventListener('DOMContentLoaded', () => {
