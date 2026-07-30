@@ -2283,7 +2283,7 @@ async function answerPatientQuestion(question, forId) {
   actionLog.push({ text: `\u{1F399}\uFE0F Crew asked: "${question}"`, atMin: nowMin });
   renderLog();
 
-  const v = SimEngine.getVitals(liveConfig, simNow());
+  const v = SimEngine.getVitalsRaw(liveConfig, simNow());
   const gcsV = Math.round(v.gcsV || 0);
   let replyText, speak;
 
@@ -2332,7 +2332,7 @@ async function answerExamFinding(question, forId) {
   let replyText = "...unable to determine — try again.";
   try {
     const apiKey = await getAnthropicKey();
-    const v = SimEngine.getVitals(liveConfig, simNow());
+    const v = SimEngine.getVitalsRaw(liveConfig, simNow());
     const systemPrompt = `You are narrating an OBJECTIVE physical exam/assessment finding in a paramedic training scenario — the crew has just described an assessment action out loud (e.g. "I check the patient's pupils", "I auscultate the chest", "I palpate the abdomen"). Reply as a brief, third-person clinical finding statement (1-2 short sentences) — what the crew would observe/feel/hear — not as the patient speaking, and not clinical reasoning or diagnosis.
 
 Ground your answer in the scenario data provided below (secondary_survey findings per body system, flags, life threats, current vitals). If the crew's action clearly matches an authored finding, report that finding (in your own words, not verbatim). If it doesn't match anything explicitly authored (e.g. a specific item like pupils that isn't itemised), give a plausible, UNREMARKABLE finding that is consistent with — and never contradicts — the rest of the authored picture (e.g. don't report normal pupils if there's a documented opioid-toxicity/CNS-depression picture; don't report clear lung sounds if there's a documented respiratory life threat).
