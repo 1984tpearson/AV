@@ -1656,6 +1656,7 @@ async function giveTreatment() {
   if (!sessionCode) return;
   const action = document.getElementById('action-input').value.trim();
   if (!action) { alert('Enter a drug or management action.'); return; }
+  maybeHandleActionInitiated(); // giving a treatment is just as much "the scenario is underway" as a patient-side action starting — same auto-start/resume-prompt rule
   const statusEl = document.getElementById('treatment-status');
   const givenAtMs = simNow();
   const givenAtMin = (givenAtMs - liveConfig.startTimeMs) / 60000;
