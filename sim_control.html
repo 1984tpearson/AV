@@ -112,6 +112,7 @@ select, input[type=number], input[type=text] { font-family: 'Courier New', monos
       </div>
       <div id="graph-svg-wrap" style="width:100%;overflow:hidden;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;"></div>
       <div id="vitals-grid" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;flex-shrink:0;"></div>
+      <div id="vitals-hint" class="muted" style="font-size:10px;margin-top:5px;flex-shrink:0;"></div>
     </div>
 
       <div class="panel" id="management-panel">
@@ -1522,6 +1523,9 @@ function tickVitals() {
       <div class="muted">${def.unit}</div>
     </div>`;
   }).join('');
+  document.getElementById('vitals-hint').textContent = vitalsEditMode
+    ? 'Edit mode: tap a vital to arm it for dragging, tap again for manual entry.'
+    : 'Tap a vital to show or hide its line on the graph.';
   if (Object.keys(patientActions).some(k => patientActions[k].status === 'pending')) renderPendingActionsStack(); // live countdown while anything's mid-timer
   renderGraph();
 }
