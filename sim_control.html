@@ -2203,6 +2203,8 @@ async function processStudentQueue(row) {
         await giveTreatment(item.text, { silent: true, source: 'patient_device' });
       } else if (item.type === 'chat' && item.text) {
         await answerPatientQuestion(item.text, item.id);
+      } else if (item.type === 'exam' && item.text) {
+        await answerExamFinding(item.text, item.id);
       }
       try {
         await sbFetch(`sim_sessions?session_code=eq.${sessionCode}`, {
@@ -2308,6 +2310,67 @@ async function answerPatientQuestion(question, forId) {
     await sbFetch(`sim_sessions?session_code=eq.${sessionCode}`, {
       method: 'PATCH', prefer: 'return=minimal',
       body: JSON.stringify({ patient_reply: { id: Date.now(), forId, text: replyText, speak }, updated_at: new Date().toISOString() })
+    });
+  } catch (e) { /* patient device just won't see this particular reply — non-fatal */ }
+}
+
+// Reports an OBJECTIVE physical exam/assessment finding (e.g. "I check the
+// patient's pupils") in response to a crew action described via
+// sim_patient.html's Assessment button. Deliberately NOT gated by GCS —
+// unlike answerPatientQuestion(), a physical exam works whether or not the
+// patient can talk (an unconscious patient's pupils are still checkable).
+// Grounded in the scenario's own authored secondary_survey/flags/
+// life_threats data so findings aren't invented from nothing; anything not
+// explicitly authored defaults to an unremarkable finding consistent with
+// the rest of the picture, never contradicting an authored abnormal flag.
+async function answerExamFinding(question, forId) {
+  if (!currentScenario) return;
+  const nowMin = (simNow() - liveConfig.startTimeMs) / 60000;
+  actionLog.push({ text: `\u{1FA7A} Crew assessed: "${question}"`, atMin: nowMin });
+  renderLog();
+
+  let replyText = "...unable to determine — try again.";
+  try {
+    const apiKey = await getAnthropicKey();
+    const v = SimEngine.getVitals(liveConfig, simNow());
+    const systemPrompt = `You are narrating an OBJECTIVE physical exam/assessment finding in a paramedic training scenario — the crew has just described an assessment action out loud (e.g. "I check the patient's pupils", "I auscultate the chest", "I palpate the abdomen"). Reply as a brief, third-person clinical finding statement (1-2 short sentences) — what the crew would observe/feel/hear — not as the patient speaking, and not clinical reasoning or diagnosis.
+
+Ground your answer in the scenario data provided below (secondary_survey findings per body system, flags, life threats, current vitals). If the crew's action clearly matches an authored finding, report that finding (in your own words, not verbatim). If it doesn't match anything explicitly authored (e.g. a specific item like pupils that isn't itemised), give a plausible, UNREMARKABLE finding that is consistent with — and never contradicts — the rest of the authored picture (e.g. don't report normal pupils if there's a documented opioid-toxicity/CNS-depression picture; don't report clear lung sounds if there's a documented respiratory life threat).
+
+This works regardless of the patient's conscious state — a physical exam finding is observable whether or not the patient can respond verbally.
+
+Return ONLY the finding statement — no quotation marks, no prose about the answer, no clinical reasoning or diagnosis, no mention of this being a simulation.`;
+    const userPrompt = `Scenario: ${currentScenario.title || ''}
+Provisional diagnosis (do not reveal): ${currentScenario.provisional || 'unspecified'}
+Key history: ${currentScenario.key_hx || ''}
+Flags: ${JSON.stringify(currentScenario.flags || {})}
+Life threats: ${JSON.stringify(currentScenario.life_threats || [])}
+Authored secondary survey findings: ${JSON.stringify(currentScenario.secondary_survey || {})}
+Appearance data: ${JSON.stringify({ rsa: currentScenario.rsa || null, ra: currentScenario.ra || null })}
+Current vitals: HR ${v.HR}, RR ${v.RR}, SpO2 ${v.SpO2}%, BP ${v.BPsys}/${v.BPdia}, GCS ${(v.gcsE||0)+(v.gcsV||0)+(v.gcsM||0)}/15
+Treatments given so far: ${treatments.length ? treatments.map(t => t.action).join('; ') : 'none yet'}
+
+The crew just said/did: "${question}"
+
+Report the finding.`;
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' },
+      body: JSON.stringify({ model: 'claude-haiku-4-5-20251001', max_tokens: 300, system: systemPrompt, messages: [{ role: 'user', content: userPrompt }] })
+    });
+    if (response.ok) {
+      const data = await response.json();
+      addAiCost('claude-haiku-4-5-20251001', data.usage);
+      replyText = (data.content || []).map(b => b.text || '').join('').trim() || replyText;
+    }
+  } catch (e) { /* fall through with the apologetic default reply */ }
+
+  actionLog.push({ text: `\u{1FA7A} Finding: ${replyText}`, atMin: nowMin });
+  renderLog();
+  try {
+    await sbFetch(`sim_sessions?session_code=eq.${sessionCode}`, {
+      method: 'PATCH', prefer: 'return=minimal',
+      body: JSON.stringify({ patient_reply: { id: Date.now(), forId, text: replyText, speak: true }, updated_at: new Date().toISOString() })
     });
   } catch (e) { /* patient device just won't see this particular reply — non-fatal */ }
 }

@@ -70,6 +70,8 @@ body { display: flex; flex-direction: column; }
 .voice-fab:active { background: #075985; }
 #voice-fab-chat { background: #15803d; }
 #voice-fab-chat:active { background: #14532d; }
+#voice-fab-exam { background: #7c3aed; }
+#voice-fab-exam:active { background: #5b21b6; }
 #voice-modal { position: fixed; inset: 0; background: rgba(10,16,26,0.88); z-index: 50; display: none; align-items: center; justify-content: center; padding: 16px; }
 .voice-modal-inner { background: #ffffff; border-radius: 10px; padding: 18px; width: 100%; max-width: 420px; max-height: 90vh; overflow-y: auto; }
 #voice-modal-title { font-size: 14px; font-weight: 900; letter-spacing: 1px; text-transform: uppercase; color: #0369a1; margin-bottom: 10px; }
@@ -131,6 +133,7 @@ body { display: flex; flex-direction: column; }
   </div>
   <div id="voice-fab-strip">
     <button class="voice-fab" id="voice-fab-treatment" onclick="openVoiceModal('treatment')">Give<br>Treatment</button>
+    <button class="voice-fab" id="voice-fab-exam" onclick="openVoiceModal('exam')">Assessment</button>
     <button class="voice-fab" id="voice-fab-chat" onclick="openVoiceModal('chat')">Talk to<br>Patient</button>
   </div>
   </div>
@@ -732,6 +735,7 @@ let _voiceMode = null;
 let _recognition = null;
 let _voiceFinalText = '';
 let _lastChatSentId = null;
+let _lastChatSentMode = null;
 let _lastShownReplyId = null;
 let _speechUnlocked = false;
 let _cachedVoices = [];
@@ -781,10 +785,13 @@ async function queueStudentItem(type, text) {
   return id;
 }
 
+const VOICE_MODE_LABELS = { treatment: 'Give Treatment', exam: 'Assessment', chat: 'Talk to Patient' };
+const VOICE_MODE_REPLY_LABELS = { exam: 'Finding:', chat: 'Patient replied:' };
+
 function openVoiceModal(mode) {
   unlockSpeechSynthesis(); // must happen here, inside the tap handler, to count as a user gesture
   _voiceMode = mode;
-  document.getElementById('voice-modal-title').textContent = mode === 'treatment' ? 'Give Treatment' : 'Talk to Patient';
+  document.getElementById('voice-modal-title').textContent = VOICE_MODE_LABELS[mode] || mode;
   document.getElementById('voice-modal-transcript').textContent = '';
   document.getElementById('patient-reply-display').style.display = 'none';
   document.getElementById('patient-reply-display').textContent = '';
@@ -852,13 +859,14 @@ async function sendVoiceCapture() {
   const statusEl = document.getElementById('voice-modal-status');
   statusEl.textContent = 'Sending\u2026';
   try {
-    const id = await queueStudentItem(_voiceMode === 'treatment' ? 'treatment' : 'chat', text);
+    const id = await queueStudentItem(_voiceMode, text);
     if (_voiceMode === 'treatment') {
       statusEl.textContent = 'Sent.';
       setTimeout(closeVoiceModal, 900);
     } else {
       _lastChatSentId = id;
-      statusEl.textContent = 'Waiting for the patient to reply\u2026';
+      _lastChatSentMode = _voiceMode;
+      statusEl.textContent = _voiceMode === 'exam' ? 'Waiting for the finding\u2026' : 'Waiting for the patient to reply\u2026';
     }
   } catch (e) {
     statusEl.textContent = 'Could not send \u2014 check the connection and try again.';
@@ -866,17 +874,18 @@ async function sendVoiceCapture() {
 }
 
 // Called from pollSession() every ~3s — matches the reply against the last
-// chat question THIS device sent (forId), and against the last reply
+// chat/exam question THIS device sent (forId), and against the last reply
 // already shown (reply.id) so it doesn't re-speak on every poll.
 function checkForPatientReply(reply) {
   if (!reply || !_lastChatSentId) return;
   if (reply.forId !== _lastChatSentId) return;
   if (reply.id === _lastShownReplyId) return;
   _lastShownReplyId = reply.id;
+  const isExam = _lastChatSentMode === 'exam';
   const replyEl = document.getElementById('patient-reply-display');
-  replyEl.textContent = `\u201C${reply.text}\u201D`;
+  replyEl.textContent = isExam ? reply.text : `\u201C${reply.text}\u201D`;
   replyEl.style.display = 'block';
-  document.getElementById('voice-modal-status').textContent = 'Patient replied:';
+  document.getElementById('voice-modal-status').textContent = VOICE_MODE_REPLY_LABELS[_lastChatSentMode] || 'Reply:';
   if (reply.speak !== false && 'speechSynthesis' in window) {
     try {
       window.speechSynthesis.cancel(); // clear anything stuck in the queue (e.g. the priming utterance) first
