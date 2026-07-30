@@ -787,6 +787,7 @@ function toRow(s){
     flags:s.flags||[],ddx:s.ddx||[],provisional:s.provisional||'',
     treatment_als:s.treatment_als||[],treatment_mica:s.treatment_mica||[],
     life_threats:s.life_threats||[],kq:s.kq||[],
+    patient_meta:s.patient_meta||{},
     creator_uuid:s.creator_uuid||id.uuid,creator_name:s.creator_name||id.name||'Anonymous',
     creator_avatar_url:s.creator_avatar_url||id.avatarUrl||'',
     creator_role:s.creator_role||id.avRole||'',
@@ -926,19 +927,20 @@ const NAME_POOLS = {
 
 function weightedRandomName(gender) {
   // Build weighted pool
-  const pools = Object.values(NAME_POOLS);
-  const total = pools.reduce((s, p) => s + p.weight, 0);
+  const poolEntries = Object.entries(NAME_POOLS);
+  const total = poolEntries.reduce((s, [, p]) => s + p.weight, 0);
   let r = Math.random() * total;
-  let chosen = pools[0];
-  for (const pool of pools) {
+  let chosenKey = poolEntries[0][0];
+  let chosen = poolEntries[0][1];
+  for (const [key, pool] of poolEntries) {
     r -= pool.weight;
-    if (r <= 0) { chosen = pool; break; }
+    if (r <= 0) { chosenKey = key; chosen = pool; break; }
   }
   const gKey = gender === 'Male' ? 'male' : gender === 'Female' ? 'female' : 'nb';
   const firstArr = chosen[gKey] || chosen.male;
   const first = firstArr[Math.floor(Math.random() * firstArr.length)];
   const last = chosen.last[Math.floor(Math.random() * chosen.last.length)];
-  return { first, last, full: `${first} ${last}` };
+  return { first, last, full: `${first} ${last}`, ethnicity: chosenKey };
 }
 
 function randomAustralianPatient(category) {
@@ -978,7 +980,17 @@ function randomAustralianPatient(category) {
   }
 
   const name = weightedRandomName(gender);
-  return { name: name.full, gender, age };
+  return { name: name.full, gender, age, ethnicity: name.ethnicity };
+}
+
+// Skin tone swatch, generated independently of ethnicity (deliberately NOT
+// weighted by the name pool chosen above — real skin tone varies enormously
+// within any population, and correlating the two risks caricature). Just a
+// simple uniform pick across a broad tone range. Not shown anywhere yet —
+// stored for future avatar/visual use.
+const SKIN_TONE_SWATCHES = ['#F5D5C5', '#EFC3A3', '#E0AC81', '#C68863', '#A96C4A', '#8D5A3B', '#6B4530', '#4A2F20'];
+function pickRandomSkinTone() {
+  return SKIN_TONE_SWATCHES[Math.floor(Math.random() * SKIN_TONE_SWATCHES.length)];
 }
 
 // ── CPG CONTEXT + PROMPT + GENERATION ────────────────────────────────────────
@@ -1151,12 +1163,16 @@ async function classifyCPGFromText(freeText) {
   }
 }
 
-const SCENARIO_JSON_TEMPLATE = `{"title":"","subtitle":"","category":"CAT","subcategory":"SUB","type":"","cpg":"","additional_cpgs":[],"level":"C/D","dispatch":"","vitals":{"GCS":{"E":0,"V":0,"M":0,"total":0,"description":""},"SpO2":"","RR":"","HR":"","BP":"","Temp":"","BGL":"","Rhythm":"","Weight":"","Ketones":"","EtCO2":"","PainScore":0},"caller_hx":"","arrival_hx":"","hx":{"timeline":"","nature":"","prodromal":"","aggreliev":"","assoc":"","similar":""},"medical_conditions":["","",""],"medications":["","",""],"allergies":"","flags":{"red":[],"yellow":[]},"ddx":["","","",""],"provisional":"","ra":{"wob":"","skin":""},"ps_exposure":"","social":"","rsa":{"appearance":"","speech":"","breath_sounds":"","rhythm":"","wob":""},"secondary_survey":{},"life_threats":["",""],"kq":[{"q":"","max":2,"answer":"","cpgCode":""},{"q":"","max":2,"answer":"","cpgCode":""},{"q":"","max":1,"answer":"","cpgCode":""}]}`;
+const SCENARIO_JSON_TEMPLATE = `{"title":"","subtitle":"","category":"CAT","subcategory":"SUB","type":"","cpg":"","additional_cpgs":[],"level":"C/D","dispatch":"","vitals":{"GCS":{"E":0,"V":0,"M":0,"total":0,"description":""},"SpO2":"","RR":"","HR":"","BP":"","Temp":"","BGL":"","Rhythm":"","Weight":"","Ketones":"","EtCO2":"","PainScore":0,"NauseaScore":0},"caller_hx":"","arrival_hx":"","hx":{"timeline":"","nature":"","prodromal":"","aggreliev":"","assoc":"","similar":""},"medical_conditions":["","",""],"medications":["","",""],"allergies":"","flags":{"red":[],"yellow":[]},"ddx":["","","",""],"provisional":"","ra":{"wob":"","skin":""},"ps_exposure":"","social":"","rsa":{"appearance":"","speech":"","breath_sounds":"","rhythm":"","wob":""},"secondary_survey":{},"life_threats":["",""],"baseline_cognitive_status":"","pregnancy_status":"","kq":[{"q":"","max":2,"answer":"","cpgCode":""},{"q":"","max":2,"answer":"","cpgCode":""},{"q":"","max":1,"answer":"","cpgCode":""}]}`;
 // Note: medical_conditions = short list e.g. ["Asthma (previous ICU admission)", "Type 2 Diabetes", "Hypertension"]
 // medications = short list e.g. ["Metoprolol 50mg daily", "Aspirin 100mg", "Candesartan 8mg"]
 // key_hx = legacy field kept for backwards compat with built-in scenarios; new scenarios use caller_hx + arrival_hx
 // kq[].cpgCode = the CPG code (e.g. "A0402") from the "--- CPG: title (code) ---" context blocks below,
 // identifying which specific guideline that question is testing. Must exactly match one shown in context.
+// baseline_cognitive_status and pregnancy_status are folded into scenario.patient_meta after generation —
+// see the post-processing block in generateAIScenario(). patient_name/ethnicity/skin_colour are NOT
+// AI-generated at all — they're set from the code-generated `patient` object so the exact name fed
+// into the prompt is guaranteed to match what's stored, rather than hoping the AI echoes it back.
 
 // Robustly extract the first valid JSON object from an AI response
 function parseFirstJSON(raw) {
@@ -1326,6 +1342,9 @@ For CROUP scenarios specifically: always generate a child aged 6 months to 5 yea
 For vitals.Ketones: always provide a realistic blood ketone value in mmol/L (e.g. "0.2 mmol/L"). Use elevated values (>1.5 mmol/L) for DKA, hyperglycaemia, or diabetic emergencies. Use normal/low values (0.1–0.5 mmol/L) for all other presentations. Never leave blank.
 For vitals.EtCO2: always provide a realistic end-tidal CO₂ value in mmHg (e.g. "38 mmHg"). Use low values for hyperventilation or poor perfusion states; high values for hypoventilation, opioid OD, or severe respiratory failure; normal range (35–45 mmHg) for most presentations. Never leave blank.
 For vitals.PainScore: an integer 0–10 (numeric pain score, not a string). Use 0 if pain is not a relevant feature of this presentation (e.g. unresponsive patient, primarily respiratory/medical complaint with no pain component). If pain is clinically relevant (e.g. chest pain, fractures, burns, abdominal pain, in-labour contractions), give a realistic score consistent with the presentation and severity.
+For vitals.NauseaScore: an integer 0–10 (numeric nausea severity, not a string), independent of PainScore — a patient can have significant nausea with little/no pain (e.g. gastroenteritis, vestibular causes, DKA) or significant pain with little/no nausea (e.g. an isolated limb fracture). Use 0 if nausea is not a relevant feature of this presentation. If relevant, give a realistic score consistent with the presentation (e.g. persistent vomiting presentations should score highly, 7-9).
+For "baseline_cognitive_status": a short phrase describing the patient's NORMAL baseline mental state when well — default "Normal baseline cognition" for the great majority of scenarios. Only deviate from this if medical_conditions includes a condition that would genuinely alter baseline presentation (e.g. dementia, intellectual disability, acquired brain injury) — in that case, describe it briefly (e.g. "Baseline mild dementia — usually oriented to person only, lives with family support"). This exists so an assessor doesn't mistake a patient's normal baseline for acute deterioration.
+For "pregnancy_status": for any female patient of reproductive age (roughly teens to 50s), state pregnancy status even if not clinically relevant to the presenting complaint — either "Not pregnant" or "Pregnant, approximately N weeks gestation" (choose a clinically sensible gestation if pregnant). Use "Not applicable" for male, paediatric, or clearly post-menopausal patients.
 For the "ra" field (Rapid Assessment — what is seen at a glance on approach):
 - ra.wob: brief visual impression of breathing effort — one of: "Adequate" | "Increased effort" | "Decreased effort" | "Agonal" | "Not breathing" | "Laboured" | "Shallow"
 - ra.skin: brief visual impression of skin on approach — concise phrase describing colour, moisture, and temperature (e.g. "Warm, pink, dry" | "Pale, diaphoretic" | "Cyanosed, mottled" | "Flushed, warm" | "Cold, pale, mottled" | "Jaundiced" | "Urticarial rash"). Match to patient's clinical state and ethnicity where relevant.
@@ -1400,7 +1419,24 @@ ${SCENARIO_JSON_TEMPLATE.replace('CAT', category).replace('SUB', subcategory)}`;
       // Validate and normalise PainScore — must be an integer 0–10, default 0
       const rawPain = parseInt(scenario.vitals.PainScore);
       scenario.vitals.PainScore = Number.isFinite(rawPain) ? Math.max(0, Math.min(10, rawPain)) : 0;
+      // Validate and normalise NauseaScore — same pattern as PainScore
+      const rawNausea = parseInt(scenario.vitals.NauseaScore);
+      scenario.vitals.NauseaScore = Number.isFinite(rawNausea) ? Math.max(0, Math.min(10, rawNausea)) : 0;
     }
+    // Patient metadata — name/ethnicity/skin_colour come from the code-
+    // generated `patient` object (never the AI), so the exact name fed into
+    // the prompt is guaranteed to match what's stored. baseline_cognitive_status
+    // and pregnancy_status ARE AI-authored (context-dependent) — pulled off the
+    // top-level response and folded in here, then removed as top-level keys.
+    scenario.patient_meta = {
+      name: patient.name,
+      ethnicity: patient.ethnicity,
+      skin_colour: pickRandomSkinTone(),
+      baseline_cognitive_status: (scenario.baseline_cognitive_status || '').trim() || 'Normal baseline cognition',
+      pregnancy_status: (scenario.pregnancy_status || '').trim() || 'Not applicable'
+    };
+    delete scenario.baseline_cognitive_status;
+    delete scenario.pregnancy_status;
     // Validate and normalise flags object (red/yellow per CPG A0108)
     if (Array.isArray(scenario.flags)) {
       // AI returned legacy flat array despite instructions — treat as unclassified, put in red to stay safe
