@@ -47,10 +47,19 @@ select, input[type=number], input[type=text] { font-family: 'Courier New', monos
 #qr-code { display: flex; justify-content: center; margin: 6px 0; }
 .treat-item { font-size: 12px; padding: 6px 8px; border-bottom: 1px solid #eef2f6; display: flex; justify-content: space-between; }
 .muted { color: #6b8299; font-size: 11px; }
-.vtile { flex: 1; min-width: 80px; background: #f3f6fa; border: 1px solid #d7dee6; border-radius: 6px; padding: 6px 8px; cursor: pointer; text-align: center; }
+.vtile { position: relative; flex: 1; min-width: 80px; background: #f3f6fa; border: 1px solid #d7dee6; border-radius: 6px; padding: 6px 8px; cursor: pointer; text-align: center; }
 .vtile:hover { background: #e6edf5; }
+.vtile-dot { position: absolute; top: 5px; left: 5px; width: 9px; height: 9px; border-radius: 50%; border: 1px solid rgba(0,0,0,0.15); }
 .vtile .vlabel { font-size: 9px; color: #6b8299; text-transform: uppercase; letter-spacing: 1px; }
 .vtile .vval { font-size: 17px; font-weight: 900; color: #0369a1; }
+#edit-mode-btn.active { background: #0369a1; }
+.legend-row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.legend-row + .legend-row { margin-top: 6px; }
+.legend-pill { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 700; padding: 7px 10px; border-radius: 14px; border: 1px solid; cursor: pointer; font-family: 'Courier New', monospace; }
+.legend-pill:active { opacity: 0.8; }
+.legend-pill .lp-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
+.legend-more-btn { font-size: 11px; font-weight: 700; padding: 7px 10px; border-radius: 14px; border: 1px solid #d7dee6; background: #fff; color: #33475a; cursor: pointer; }
+.legend-more-btn:active { background: #f3f6fa; }
 </style>
 </head>
 <body>
@@ -91,8 +100,9 @@ select, input[type=number], input[type=text] { font-family: 'Courier New', monos
     <div id="dash-left">
     <div class="panel" id="graph-panel">
       <h2>Projected Trajectory</h2>
-      <div id="graph-legend" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px;"></div>
+      <div id="graph-legend" style="margin-bottom:6px;"></div>
       <div class="row" style="margin-bottom:6px;">
+        <button class="btn btn-secondary" id="edit-mode-btn" style="padding:4px 10px;font-size:11px;" onclick="toggleVitalsEditMode()">Edit</button>
         <button class="btn btn-secondary" style="padding:4px 10px;font-size:11px;" onclick="graphZoom(2)">Zoom In</button>
         <button class="btn btn-secondary" style="padding:4px 10px;font-size:11px;" onclick="graphZoom(0.5)">Zoom Out</button>
         <button class="btn btn-secondary" style="padding:4px 10px;font-size:11px;" onclick="graphPan(-1)">&larr;</button>
@@ -169,6 +179,17 @@ select, input[type=number], input[type=text] { font-family: 'Courier New', monos
     </div>
   </div>
 </div>
+
+<div id="edit-mode-modal" style="display:none;position:fixed;inset:0;background:rgba(20,30,45,0.6);align-items:center;justify-content:center;z-index:50;">
+  <div class="panel" style="width:300px;">
+    <h2 style="margin-bottom:8px;">Edit Mode</h2>
+    <p class="muted" style="margin-bottom:10px;">Tap a vital tile once to arm it — then drag its future line on the graph to set a new value and duration.</p>
+    <p class="muted" style="margin-bottom:10px;">Tap the same tile again to open manual number entry instead of dragging.</p>
+    <p class="muted" style="margin-bottom:10px;">Turn Edit off to go back to tiles just toggling which lines are shown on the graph.</p>
+    <button class="btn" style="width:100%;" onclick="closeEditModeModal()">Got it</button>
+  </div>
+</div>
+
 
 <script src="https://cdn.jsdelivr.net/npm/qrcode@1.4.4/build/qrcode.min.js"></script>
 <script src="https://1984tpearson.github.io/AV/sim_engine.js"></script>
@@ -459,6 +480,9 @@ async function createSession() {
       patientActions = {};
       actionControls = {};
       expandedActionKey = null;
+      graphSeriesOn = { ...GRAPH_DEFAULT_ON };
+      legendExpanded = false;
+      autoEnableGraphSeriesFromOverrides(timeline.timeline_overrides);
       document.getElementById('create-panel').style.display = 'none';
       document.getElementById('dashboard').style.display = 'flex';
       document.getElementById('code-display').textContent = code;
@@ -624,6 +648,26 @@ const GRAPH_SERIES = [
 ];
 const GRAPH_DEFAULT_ON = { HR: true, BPsys: true, BPdia: true, SpO2: true, RR: true, EtCO2: true, temp: false, bgl: false, ketones: false, gcs: false, pain: false };
 let graphSeriesOn = { ...GRAPH_DEFAULT_ON };
+
+// Auto-shows a "more" series (temp/BGL/ketones/GCS/pain — see
+// CORE_GRAPH_KEYS) the moment the AI actually gives it a real trajectory,
+// whether from the initial no-treatment projection or a post-treatment
+// update. If the AI only ever holds a vital at one flat value it never
+// gets an override entry at all (see the generation prompts' "omit any
+// vital that would reasonably stay flat" rule), so an empty/absent array
+// here genuinely means "nothing relevant happening" — never turned on.
+// Once turned on it stays on for the rest of the session, even if a later
+// update stops touching that vital, since the earlier movement is still
+// worth seeing on the graph.
+function autoEnableGraphSeriesFromOverrides(overridesObj) {
+  if (!overridesObj) return;
+  ['temp', 'bgl', 'ketones', 'pain'].forEach(k => {
+    if (Array.isArray(overridesObj[k]) && overridesObj[k].length) graphSeriesOn[k] = true;
+  });
+  if (['gcsE', 'gcsV', 'gcsM'].some(k => Array.isArray(overridesObj[k]) && overridesObj[k].length)) {
+    graphSeriesOn.gcs = true;
+  }
+}
 let graphViewStartMin = 0;
 let graphViewWindowMin = 30;
 let graphUserPanned = false;
@@ -664,12 +708,54 @@ function graphSnapToNow() {
 // tapping empty graph background or the checkmark; cancel via the X or by
 // tapping the armed tile again. Nothing is written to Supabase until confirmed.
 
+// Vitals tiles are dual-mode: normally tapping one just toggles whether its
+// line(s) show on the graph (see toggleVitalVisibility); Edit mode switches
+// them to the drag/manual-entry behaviour below (see toggleVitalsEditMode).
+let vitalsEditMode = false;
+
+// GCS is a combined graph line (E+V+M summed) but three separate override
+// keys — shared by both tap modes, so this stays a single source of truth.
+function vtileGraphKeys(def) {
+  return def.key === 'GCS' ? ['gcs'] : def.overrideKeys.filter(k => GRAPH_SERIES.some(s => s.key === k));
+}
+
+// Default-mode tap target: shows/hides this tile's line(s) on the graph.
+// BP toggles both BPsys and BPdia together since they're one tile.
+function toggleVitalVisibility(defKey) {
+  const def = VITAL_DEFS.find(d => d.key === defKey);
+  const graphKeys = vtileGraphKeys(def);
+  if (!graphKeys.length) return;
+  const turningOn = !graphSeriesOn[graphKeys[0]];
+  graphKeys.forEach(k => { graphSeriesOn[k] = turningOn; });
+  tickVitals();
+}
+
+function toggleVitalsEditMode() {
+  vitalsEditMode = !vitalsEditMode;
+  document.getElementById('edit-mode-btn').classList.toggle('active', vitalsEditMode);
+  if (vitalsEditMode) {
+    if (!localStorage.getItem('simControlEditModeSeen')) {
+      document.getElementById('edit-mode-modal').style.display = 'flex';
+    }
+  } else {
+    // Leaving edit mode — drop any in-progress arm/drag/selection so it
+    // doesn't linger once tiles go back to being simple visibility toggles.
+    armedTileKey = null;
+    armedGraphKeys = [];
+    cancelPendingDrag();
+    selectedOverride = null;
+  }
+  tickVitals();
+}
+
+function closeEditModeModal() {
+  document.getElementById('edit-mode-modal').style.display = 'none';
+  try { localStorage.setItem('simControlEditModeSeen', '1'); } catch (e) { /* private browsing etc — just re-show next time */ }
+}
+
 function handleVtileClick(defKey) {
   const def = VITAL_DEFS.find(d => d.key === defKey);
-  // GCS is a combined graph line (E+V+M summed) but three separate override
-  // keys — dragging it distributes the change across the three components
-  // (see expandGcsOverride) rather than mapping 1:1 like every other vital.
-  const graphKeys = def.key === 'GCS' ? ['gcs'] : def.overrideKeys.filter(k => GRAPH_SERIES.some(s => s.key === k));
+  const graphKeys = vtileGraphKeys(def);
   if (!graphKeys.length) { openOverrideModal(defKey); return; }
 
   if (armedTileKey === defKey) {
@@ -985,18 +1071,35 @@ function niceStep(raw) {
   return steps.find(s => s >= raw) || 60;
 }
 
+// Which series get their own always-visible pill; the rest (temp/BGL/
+// ketones/GCS/pain) collapse behind "More" — most scenarios never touch
+// them, so showing all 11 by default just ate graph height for nothing.
+const CORE_GRAPH_KEYS = ['HR', 'BPsys', 'BPdia', 'SpO2', 'RR', 'EtCO2'];
+let legendExpanded = false;
+const DECIMAL_READOUT_KEYS = ['temp', 'bgl', 'ketones'];
+
+function legendPillHtml(s, v) {
+  const curValRaw = s.get(v);
+  const curVal = DECIMAL_READOUT_KEYS.includes(s.key) ? curValRaw.toFixed(1) : Math.round(curValRaw);
+  const on = graphSeriesOn[s.key];
+  const bg = on ? s.color : '#f3f6fa';
+  const fg = on ? '#fff' : '#33475a';
+  const dotColor = on ? '#fff' : s.color;
+  return `<button type="button" class="legend-pill" style="background:${bg};color:${fg};border-color:${on ? s.color : '#d7dee6'};" onclick="toggleGraphSeries('${s.key}', ${!on})">
+    <span class="lp-dot" style="background:${dotColor};"></span>${s.label}: ${curVal}${s.unit}
+  </button>`;
+}
+
 function renderGraphLegend() {
   const el = document.getElementById('graph-legend');
   const v = SimEngine.getVitalsRaw(liveConfig, simNow());
-  el.innerHTML = GRAPH_SERIES.map(s => {
-    const curVal = Math.round(s.get(v));
-    const checked = graphSeriesOn[s.key] ? 'checked' : '';
-    return `<label style="display:flex;align-items:center;gap:4px;font-size:10px;background:#f3f6fa;border:1px solid #d7dee6;border-radius:4px;padding:3px 6px;cursor:pointer;">
-      <input type="checkbox" ${checked} onchange="toggleGraphSeries('${s.key}', this.checked)">
-      <span style="width:8px;height:8px;border-radius:50%;background:${s.color};display:inline-block;"></span>
-      ${s.label}: ${curVal}${s.unit}
-    </label>`;
-  }).join('');
+  const core = GRAPH_SERIES.filter(s => CORE_GRAPH_KEYS.includes(s.key));
+  const extra = GRAPH_SERIES.filter(s => !CORE_GRAPH_KEYS.includes(s.key));
+  let html = `<div class="legend-row">${core.map(s => legendPillHtml(s, v)).join('')}<button type="button" class="legend-more-btn" onclick="legendExpanded = !legendExpanded; renderGraphLegend();">${legendExpanded ? '\u25b2' : '\u25bc'} More (${extra.length})</button></div>`;
+  if (legendExpanded) {
+    html += `<div class="legend-row">${extra.map(s => legendPillHtml(s, v)).join('')}</div>`;
+  }
+  el.innerHTML = html;
 }
 
 function renderGraph() {
@@ -1351,8 +1454,13 @@ function tickVitals() {
     else if (def.isGCS) val = Math.round(v.gcsE + v.gcsV + v.gcsM);
     else if (['Temp', 'BGL', 'Ketones'].includes(def.key)) val = v[def.overrideKeys[0]].toFixed(1);
     else val = Math.round(v[def.overrideKeys[0]]);
-    const armedStyle = armedTileKey === def.key ? 'border-color:#0369a1;box-shadow:0 0 0 2px #bae0fd inset;' : '';
-    return `<div class="vtile" style="${armedStyle}" onclick="handleVtileClick('${def.key}')">
+    const armedStyle = (vitalsEditMode && armedTileKey === def.key) ? 'border-color:#0369a1;box-shadow:0 0 0 2px #bae0fd inset;' : '';
+    const graphKeys = vtileGraphKeys(def);
+    const isOn = graphKeys.length && graphSeriesOn[graphKeys[0]];
+    const dotColor = graphKeys.length ? GRAPH_SERIES.find(s => s.key === graphKeys[0]).color : '#cbd5e1';
+    const clickFn = vitalsEditMode ? `handleVtileClick('${def.key}')` : `toggleVitalVisibility('${def.key}')`;
+    return `<div class="vtile" style="${armedStyle}" onclick="${clickFn}">
+      <span class="vtile-dot" style="background:${isOn ? dotColor : '#cbd5e1'};"></span>
       <div class="vlabel">${def.label}</div>
       <div class="vval">${val}</div>
       <div class="muted">${def.unit}</div>
@@ -1588,6 +1696,7 @@ Project how this patient's vitals change from here, given this specific action.`
   //    already-correct, already-scheduled deterioration whenever an action
   //    genuinely had no effect.
   const affectedKeys = new Set(Object.keys(parsed.overrides || {}).filter(k => Array.isArray(parsed.overrides[k]) && parsed.overrides[k].length));
+  autoEnableGraphSeriesFromOverrides(parsed.overrides);
   Object.keys(freshOverrides).forEach(key => {
     if (!affectedKeys.has(key)) return; // AI didn't touch this vital — leave its existing schedule, including its future, completely alone
     const arr = freshOverrides[key] || [];
