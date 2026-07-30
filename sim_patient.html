@@ -212,6 +212,18 @@ async function connectSession(code) {
     document.getElementById('session-gate').style.display = 'none';
     sbPatch(`sim_sessions?session_code=eq.${encodeURIComponent(code)}`, { patient_connected: true, updated_at: new Date().toISOString() })
       .catch(() => {}); // best-effort — control just falls back to showing the join panel if this fails
+    // Best-effort only — used purely to bias TTS voice selection towards a
+    // matching gender. If this fails, pickVoice() just falls back to the
+    // first available voice, same as before.
+    if (row.scenario_id) {
+      sbGet(`scenarios?id=eq.${encodeURIComponent(row.scenario_id)}&select=title`)
+        .then(rows2 => {
+          const title = (rows2[0] && rows2[0].title) || '';
+          if (/\bfemale\b/i.test(title)) patientGender = 'female';
+          else if (/\bmale\b/i.test(title)) patientGender = 'male';
+        })
+        .catch(() => {});
+    }
     tick();
     setInterval(tick, 1000);
     setInterval(pollSession, 3000);
@@ -739,6 +751,7 @@ let _lastChatSentMode = null;
 let _lastShownReplyId = null;
 let _speechUnlocked = false;
 let _cachedVoices = [];
+let patientGender = null; // 'male' | 'female' | null — set from the scenario title once known, see connectSession()
 
 function getSpeechRecognitionCtor() {
   return window.SpeechRecognition || window.webkitSpeechRecognition || null;
@@ -769,11 +782,28 @@ function unlockSpeechSynthesis() {
   } catch (e) { /* best-effort unlock only */ }
 }
 
+// Voice name substrings the Web Speech API doesn't expose a real "gender"
+// attribute for, so this is a heuristic over voice.name (which varies by
+// OS/browser — e.g. "Google UK English Male", "Microsoft David", "Samantha").
+// Explicit "male"/"female" in the name wins; falls back to known common
+// voice names; falls back further to just any en-AU/en-* voice, same as
+// before this existed.
+const MALE_VOICE_HINTS = ['male', 'david', 'daniel', 'alex', 'fred', 'guy', 'ryan', 'mark', 'thomas', 'james', 'george', 'oliver', 'aaron'];
+const FEMALE_VOICE_HINTS = ['female', 'samantha', 'victoria', 'karen', 'susan', 'zira', 'emma', 'amy', 'joanna', 'salli', 'kate', 'moira', 'tessa'];
+
 function pickVoice() {
   if (!_cachedVoices.length) refreshVoiceCache();
-  return _cachedVoices.find(v => v.lang === 'en-AU')
-    || _cachedVoices.find(v => v.lang && v.lang.startsWith('en'))
-    || null;
+  const enVoices = _cachedVoices.filter(v => v.lang && v.lang.toLowerCase().startsWith('en'));
+  const pool = enVoices.length ? enVoices : _cachedVoices;
+  if (patientGender === 'male' || patientGender === 'female') {
+    const wantFemale = patientGender === 'female';
+    const explicit = pool.find(v => wantFemale ? /female/i.test(v.name) : (/\bmale\b/i.test(v.name) && !/female/i.test(v.name)));
+    if (explicit) return explicit;
+    const hints = wantFemale ? FEMALE_VOICE_HINTS : MALE_VOICE_HINTS;
+    const hinted = pool.find(v => hints.some(h => v.name.toLowerCase().includes(h)));
+    if (hinted) return hinted;
+  }
+  return pool.find(v => v.lang === 'en-AU') || pool[0] || null;
 }
 
 async function queueStudentItem(type, text) {
