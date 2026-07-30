@@ -23,6 +23,14 @@ body { display: flex; flex-direction: column; }
 .info-block:last-child { margin-bottom: 0; }
 .info-label { font-size: 10px; color: #6b8299; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 3px; font-weight: 700; }
 .info-value { font-size: 12px; color: #1e2a36; line-height: 1.4; white-space: pre-wrap; }
+.info-tabs { display: flex; gap: 4px; margin-bottom: 8px; border-bottom: 1px solid #d7dee6; flex-wrap: wrap; }
+.info-tab-btn { font-family: 'Courier New', monospace; font-size: 11px; font-weight: 700; color: #6b8299; background: #f3f6fa; border: 1px solid #d7dee6; border-bottom: none; border-radius: 6px 6px 0 0; padding: 10px 10px; cursor: pointer; min-height: 40px; }
+.info-tab-btn.active { color: #0369a1; background: #fff; border-color: #0369a1; }
+.info-tab-btn:active { background: #e6edf5; }
+.info-tab-content { display: none; }
+.info-tab-content.active { display: block; }
+.info-subheading { font-size: 10px; color: #0369a1; text-transform: uppercase; letter-spacing: 1px; font-weight: 900; margin: 12px 0 4px; border-top: 1px solid #eef2f6; padding-top: 8px; }
+.info-subheading:first-child { margin-top: 0; border-top: none; padding-top: 0; }
 #feed-panel { flex: 0 0 20%; min-width: 190px; max-width: 260px; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
 #log-list-wrap { flex: 1; min-height: 0; overflow-y: auto; }
 #pending-actions-stack { flex-shrink: 0; display: flex; flex-direction: column; gap: 6px; margin-top: 6px; }
@@ -144,18 +152,31 @@ select, input[type=number], input[type=text] { font-family: 'Courier New', monos
         </div>
         <div class="panel" id="scenario-info-panel">
           <h2>Scenario Info</h2>
-          <div class="info-block">
-            <div class="info-label">Dispatch</div>
-            <div class="info-value" id="info-dispatch">—</div>
+          <div class="info-tabs" id="info-tabs">
+            <button class="info-tab-btn active" onclick="switchInfoTab('dispatch')">Dispatch</button>
+            <button class="info-tab-btn" onclick="switchInfoTab('history')">History</button>
+            <button class="info-tab-btn" onclick="switchInfoTab('appearance')">Appearance</button>
+            <button class="info-tab-btn" onclick="switchInfoTab('survey')">Survey</button>
+            <button class="info-tab-btn" onclick="switchInfoTab('clinical')">Clinical</button>
           </div>
-          <div class="info-block">
-            <div class="info-label">Caller Report</div>
-            <div class="info-value" id="info-caller">—</div>
+          <div class="info-tab-content active" id="info-tab-dispatch">
+            <div class="info-block">
+              <div class="info-label">Dispatch</div>
+              <div class="info-value" id="info-dispatch">—</div>
+            </div>
+            <div class="info-block">
+              <div class="info-label">Caller Report</div>
+              <div class="info-value" id="info-caller">—</div>
+            </div>
+            <div class="info-block">
+              <div class="info-label">On Arrival</div>
+              <div class="info-value" id="info-arrival">—</div>
+            </div>
           </div>
-          <div class="info-block">
-            <div class="info-label">On Arrival</div>
-            <div class="info-value" id="info-arrival">—</div>
-          </div>
+          <div class="info-tab-content" id="info-tab-history"></div>
+          <div class="info-tab-content" id="info-tab-appearance"></div>
+          <div class="info-tab-content" id="info-tab-survey"></div>
+          <div class="info-tab-content" id="info-tab-clinical"></div>
         </div>
       </div>
     </div>
@@ -343,11 +364,96 @@ function escapeHtml(s) {
   return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
 }
 
+let activeInfoTab = 'dispatch';
+const INFO_TAB_ORDER = ['dispatch', 'history', 'appearance', 'survey', 'clinical'];
+
+function switchInfoTab(tab) {
+  activeInfoTab = tab;
+  document.querySelectorAll('#info-tabs .info-tab-btn').forEach((btn, i) => {
+    btn.classList.toggle('active', INFO_TAB_ORDER[i] === tab);
+  });
+  document.querySelectorAll('#scenario-info-panel .info-tab-content').forEach(el => el.classList.remove('active'));
+  const target = document.getElementById(`info-tab-${tab}`);
+  if (target) target.classList.add('active');
+}
+
+// Small render helpers for the Scenario Info tabs — every value is scenario
+// data (never user input), but still escaped for consistency/safety.
+function infoBlock(label, value) {
+  const v = (value === null || value === undefined || value === '') ? '—' : escapeHtml(value);
+  return `<div class="info-block"><div class="info-label">${escapeHtml(label)}</div><div class="info-value">${v}</div></div>`;
+}
+function infoListBlock(label, arr) {
+  const items = (arr || []).filter(Boolean);
+  const v = items.length ? items.map(escapeHtml).join('<br>') : '—';
+  return `<div class="info-block"><div class="info-label">${escapeHtml(label)}</div><div class="info-value">${v}</div></div>`;
+}
+function infoSubheading(text) {
+  return `<div class="info-subheading">${escapeHtml(text)}</div>`;
+}
+
+const SS_LABELS = {
+  head: 'Head', neck: 'Neck', chest: 'Chest', abdomen: 'Abdomen', back: 'Back', pelvis: 'Pelvis', limbs: 'Limbs',
+  neuro: 'Neuro', cardio: 'Cardio', resp: 'Resp', gi: 'GI', gu: 'GU', msk: 'MSK', skin: 'Skin', other: 'Other'
+};
+
+// Populates all five Scenario Info tabs from currentScenario — everything
+// here is data NOT already visible on the trajectory graph (which only
+// covers the numeric vitals). Called once on session creation; scenario
+// data itself never changes mid-session, so this doesn't need re-running
+// on poll.
 function renderScenarioInfoPanel() {
   const s = currentScenario || {};
   document.getElementById('info-dispatch').textContent = s.dispatch || '—';
   document.getElementById('info-caller').textContent = s.caller_hx || '—';
   document.getElementById('info-arrival').textContent = s.arrival_hx || '—';
+
+  const hx = s.hx || {};
+  document.getElementById('info-tab-history').innerHTML =
+    infoSubheading('Presenting Complaint') +
+    infoBlock('Onset / Timeline', hx.timeline) +
+    infoBlock('Nature', hx.nature) +
+    infoBlock('Aggravating / Relieving', hx.aggreliev) +
+    infoBlock('Associated Symptoms', hx.assoc) +
+    infoBlock('Similar Episodes', hx.similar) +
+    infoSubheading('Medical History') +
+    infoListBlock('Medical Conditions', s.medical_conditions) +
+    infoListBlock('Medications', s.medications) +
+    infoBlock('Allergies', s.allergies) +
+    infoSubheading('Social / Environment') +
+    infoBlock('Exposure', s.ps_exposure) +
+    infoBlock('Social', s.social);
+
+  const ra = s.ra || {};
+  const rsa = s.rsa || {};
+  document.getElementById('info-tab-appearance').innerHTML =
+    infoSubheading('At a Glance') +
+    infoBlock('Appearance', rsa.appearance) +
+    infoBlock('Skin', ra.skin) +
+    infoBlock('Work of Breathing', ra.wob) +
+    infoSubheading('Respiratory Assessment') +
+    infoBlock('Speech', rsa.speech) +
+    infoBlock('Breath Sounds', rsa.breath_sounds) +
+    infoBlock('Rhythm', rsa.rhythm) +
+    infoBlock('Work of Breathing (Assessed)', rsa.wob);
+
+  const ss = s.secondary_survey || {};
+  const ssKeys = Object.keys(ss).filter(k => ss[k]);
+  document.getElementById('info-tab-survey').innerHTML = ssKeys.length
+    ? ssKeys.map(k => infoBlock(SS_LABELS[k] || k, ss[k])).join('')
+    : '<p class="muted">No secondary survey findings recorded.</p>';
+
+  const flags = s.flags || {};
+  const redFlags = Array.isArray(flags) ? flags : (flags.red || []);
+  const yellowFlags = Array.isArray(flags) ? [] : (flags.yellow || []);
+  document.getElementById('info-tab-clinical').innerHTML =
+    infoBlock('Provisional Diagnosis', s.provisional) +
+    infoListBlock('Differential Diagnoses', s.ddx) +
+    infoListBlock('Life Threats', s.life_threats) +
+    infoListBlock('Red Flags', redFlags) +
+    infoListBlock('Yellow Flags', yellowFlags) +
+    infoListBlock('Expected ALS Treatment', s.treatment_als) +
+    infoListBlock('Expected MICA Treatment', s.treatment_mica);
 }
 
 async function loadRecentScenarios() {
@@ -547,6 +653,7 @@ async function createSession() {
       });
       sessionCode = code;
       currentScenario = scenario;
+      switchInfoTab('dispatch');
       renderScenarioInfoPanel();
       liveConfig = {
         baseline: timeline.starting_vitals,
