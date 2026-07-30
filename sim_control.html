@@ -155,6 +155,7 @@ select, input[type=number], input[type=text] { font-family: 'Courier New', monos
           <div class="info-tabs" id="info-tabs">
             <button class="info-tab-btn active" onclick="switchInfoTab('dispatch')">Dispatch</button>
             <button class="info-tab-btn" onclick="switchInfoTab('history')">History</button>
+            <button class="info-tab-btn" onclick="switchInfoTab('medhx')">Medical Hx</button>
             <button class="info-tab-btn" onclick="switchInfoTab('appearance')">Appearance</button>
             <button class="info-tab-btn" onclick="switchInfoTab('survey')">Survey</button>
             <button class="info-tab-btn" onclick="switchInfoTab('clinical')">Clinical</button>
@@ -174,6 +175,7 @@ select, input[type=number], input[type=text] { font-family: 'Courier New', monos
             </div>
           </div>
           <div class="info-tab-content" id="info-tab-history"></div>
+          <div class="info-tab-content" id="info-tab-medhx"></div>
           <div class="info-tab-content" id="info-tab-appearance"></div>
           <div class="info-tab-content" id="info-tab-survey"></div>
           <div class="info-tab-content" id="info-tab-clinical"></div>
@@ -365,7 +367,7 @@ function escapeHtml(s) {
 }
 
 let activeInfoTab = 'dispatch';
-const INFO_TAB_ORDER = ['dispatch', 'history', 'appearance', 'survey', 'clinical'];
+const INFO_TAB_ORDER = ['dispatch', 'history', 'medhx', 'appearance', 'survey', 'clinical'];
 
 function switchInfoTab(tab) {
   activeInfoTab = tab;
@@ -392,10 +394,23 @@ function infoSubheading(text) {
   return `<div class="info-subheading">${escapeHtml(text)}</div>`;
 }
 
+// Matches scenario.html's SS_FIELD_LABELS so the same finding reads the same
+// way in both places.
 const SS_LABELS = {
-  head: 'Head', neck: 'Neck', chest: 'Chest', abdomen: 'Abdomen', back: 'Back', pelvis: 'Pelvis', limbs: 'Limbs',
-  neuro: 'Neuro', cardio: 'Cardio', resp: 'Resp', gi: 'GI', gu: 'GU', msk: 'MSK', skin: 'Skin', other: 'Other'
+  head: 'Head and face', neck: 'Neck', chest: 'Chest', abdomen: 'Abdomen', back: 'Back', pelvis: 'Pelvis', limbs: 'Limbs',
+  neuro: 'Neurological', cardio: 'Cardiovascular', resp: 'Respiratory', gi: 'Gastrointestinal', gu: 'Genitourinary',
+  msk: 'Musculoskeletal', skin: 'Integumentary/Skin', other: 'Other/consideration'
 };
+
+// A secondary_survey entry can be a plain string (older/manual scenarios) or
+// {finding, abnormal} (current generator output) — same shape scenario.html
+// already handles in its ssRow() renderer.
+function ssFindingText(entry) {
+  return entry && typeof entry === 'object' ? (entry.finding || '') : (entry || '');
+}
+function ssIsAbnormal(entry) {
+  return !!(entry && typeof entry === 'object' && entry.abnormal);
+}
 
 // Populates all five Scenario Info tabs from currentScenario — everything
 // here is data NOT already visible on the trajectory graph (which only
@@ -416,13 +431,17 @@ function renderScenarioInfoPanel() {
     infoBlock('Aggravating / Relieving', hx.aggreliev) +
     infoBlock('Associated Symptoms', hx.assoc) +
     infoBlock('Similar Episodes', hx.similar) +
-    infoSubheading('Medical History') +
-    infoListBlock('Medical Conditions', s.medical_conditions) +
-    infoListBlock('Medications', s.medications) +
-    infoBlock('Allergies', s.allergies) +
     infoSubheading('Social / Environment') +
     infoBlock('Exposure', s.ps_exposure) +
     infoBlock('Social', s.social);
+
+  document.getElementById('info-tab-medhx').innerHTML =
+    infoSubheading('Past Medical History') +
+    infoListBlock('Medical Conditions', s.medical_conditions) +
+    infoSubheading('Medications') +
+    infoListBlock('Medications', s.medications) +
+    infoSubheading('Allergies') +
+    infoBlock('Allergies', s.allergies);
 
   const ra = s.ra || {};
   const rsa = s.rsa || {};
@@ -438,21 +457,30 @@ function renderScenarioInfoPanel() {
     infoBlock('Work of Breathing (Assessed)', rsa.wob);
 
   const ss = s.secondary_survey || {};
-  const ssKeys = Object.keys(ss).filter(k => ss[k]);
+  const ssKeys = Object.keys(ss).filter(k => ssFindingText(ss[k]));
   document.getElementById('info-tab-survey').innerHTML = ssKeys.length
-    ? ssKeys.map(k => infoBlock(SS_LABELS[k] || k, ss[k])).join('')
+    ? ssKeys.map(k => {
+        const label = (SS_LABELS[k] || k) + (ssIsAbnormal(ss[k]) ? ' \u26A0' : '');
+        return infoBlock(label, ssFindingText(ss[k]));
+      }).join('')
     : '<p class="muted">No secondary survey findings recorded.</p>';
 
   const flags = s.flags || {};
   const redFlags = Array.isArray(flags) ? flags : (flags.red || []);
   const yellowFlags = Array.isArray(flags) ? [] : (flags.yellow || []);
+  // Older scenarios stored expected treatment under a single legacy
+  // "treatment" column before treatment_als/treatment_mica were split out —
+  // same fallback fromRow() applies in scenario.html. currentScenario here
+  // is a raw Supabase row (never passed through fromRow), so this file needs
+  // its own copy of that fallback.
+  const alsTx = s.treatment_als || s.treatment || [];
   document.getElementById('info-tab-clinical').innerHTML =
     infoBlock('Provisional Diagnosis', s.provisional) +
     infoListBlock('Differential Diagnoses', s.ddx) +
     infoListBlock('Life Threats', s.life_threats) +
     infoListBlock('Red Flags', redFlags) +
     infoListBlock('Yellow Flags', yellowFlags) +
-    infoListBlock('Expected ALS Treatment', s.treatment_als) +
+    infoListBlock('Expected ALS Treatment', alsTx) +
     infoListBlock('Expected MICA Treatment', s.treatment_mica);
 }
 
