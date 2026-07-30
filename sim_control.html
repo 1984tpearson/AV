@@ -1382,12 +1382,18 @@ function renderActions() {
   keys.sort((a, b) => (order[patientActions[a].status] ?? 3) - (order[patientActions[b].status] ?? 3));
   list.innerHTML = keys.map(key => {
     const a = patientActions[key];
+    // Pause/Resume label & handler are driven by OUR OWN command
+    // (actionControls), not the patient's echo of it — that echo only
+    // arrives after a poll round-trip on both sides (up to ~6s), which
+    // made clicking Resume look like nothing happened. The countdown
+    // number itself still comes from the patient (it owns the real timer).
+    const commandedPaused = !!(actionControls[key] && actionControls[key].paused);
     let statusHtml, controlsHtml = '';
     if (a.status === 'pending') {
       const remain = Math.max(0, Math.ceil((a.completesAt - Date.now()) / 1000));
-      statusHtml = `<span class="atimer">${a.paused ? '\u23f8 ' : ''}${remain}s</span>`;
+      statusHtml = `<span class="atimer">${commandedPaused ? '\u23f8 ' : ''}${remain}s</span>`;
       controlsHtml = `<div class="actbtns">
-        <button onclick="${a.paused ? `resumeAction('${key}')` : `pauseAction('${key}')`}">${a.paused ? 'Resume' : 'Pause'}</button>
+        <button onclick="${commandedPaused ? `resumeAction('${key}')` : `pauseAction('${key}')`}">${commandedPaused ? 'Resume' : 'Pause'}</button>
         <button onclick="skipAction('${key}')">Skip</button>
       </div>`;
     } else if (a.status === 'queued') {
@@ -1404,6 +1410,7 @@ function renderActions() {
 // pages (see the comment above actionControls in sim_patient.html).
 async function patchActionControls(next) {
   actionControls = next;
+  renderActions(); // instant feedback — don't wait for the patient's echo to come back
   try {
     await sbFetch(`sim_sessions?session_code=eq.${sessionCode}`, {
       method: 'PATCH', prefer: 'return=minimal',
