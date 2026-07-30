@@ -512,6 +512,9 @@ function parseScenarioVitals(scenario) {
     // older ones predate that field, so leave it null and let the AI
     // estimate a starting value from the presentation instead (see below).
     pain: typeof v.PainScore === 'number' ? v.PainScore : null,
+    // Same pattern for NauseaScore — a newer field, so most existing
+    // scenarios predate it and fall to the AI estimate below.
+    nausea: typeof v.NauseaScore === 'number' ? v.NauseaScore : null,
     gcsE: typeof gcs.E === 'number' ? gcs.E : 4,
     gcsV: typeof gcs.V === 'number' ? gcs.V : 5,
     gcsM: typeof gcs.M === 'number' ? gcs.M : 6
@@ -536,7 +539,7 @@ Ground everything in the scenario's actual provisional diagnosis and clinical pi
 Project all the way to the condition's genuine untreated endpoint if that would realistically occur — including cardiac/respiratory arrest (vitals reaching true arrest values: HR 0, BP 0/0, RR 0, EtCO2 near 0, GCS 3) where the diagnosis and timeframe make that the honest outcome. Do not stop short at a "critical but stable" plateau if arrest would actually follow. Cap the total timeline at 60 minutes — if the natural course would take longer than that to reach arrest, project only as far as 60 minutes and leave the patient critically deteriorated rather than extending further.
 
 Return ONLY valid JSON, no prose, in exactly this shape:
-{"startingPain": 0, "overrides": {"HR": [{"targetValue":0,"startMin":0,"endMin":0}], "RR": [], "SpO2": [], "EtCO2": [], "BPsys": [], "BPdia": [], "temp": [], "bgl": [], "ketones": [], "pain": [], "gcsE": [], "gcsV": [], "gcsM": []}}
+{"startingPain": 0, "startingNausea": 0, "overrides": {"HR": [{"targetValue":0,"startMin":0,"endMin":0}], "RR": [], "SpO2": [], "EtCO2": [], "BPsys": [], "BPdia": [], "temp": [], "bgl": [], "ketones": [], "pain": [], "nausea": [], "gcsE": [], "gcsV": [], "gcsM": []}}
 
 Rules:
 - Times are minutes elapsed since the crew arrived on scene (arrival = minute 0). Use as much of the 0-60 minute window as the condition genuinely needs — a rapidly fatal presentation may reach arrest in under 10 minutes; a slower one may need the full 60.
@@ -545,6 +548,7 @@ Rules:
 - Omit a vital's key entirely if it should stay flat.
 - Base direction/rate of change on the specific provisional diagnosis, key history, and flags given.
 - startingPain: a 0-10 estimate of the patient's pain at arrival, consistent with the presentation (0 if not a pain-related complaint).
+- startingNausea: a 0-10 estimate of the patient's nausea at arrival, independent of pain (0 if not a relevant feature — a fracture can hurt without nausea, gastro can nauseate without much pain).
 - This is a training placeholder pending clinical review, not a validated clinical model — use sound general physiological reasoning for the given diagnosis.`;
 
   const userPrompt = `Scenario: ${scenario.title || ''}
@@ -576,6 +580,9 @@ Project the deterioration/progression from these starting vitals assuming no tre
 
   if (startingVitals.pain === null) {
     startingVitals.pain = typeof parsed.startingPain === 'number' ? Math.min(10, Math.max(0, parsed.startingPain)) : 0;
+  }
+  if (startingVitals.nausea === null) {
+    startingVitals.nausea = typeof parsed.startingNausea === 'number' ? Math.min(10, Math.max(0, parsed.startingNausea)) : 0;
   }
 
   // Store as OFFSETS from arrival (T0=0), not absolute times — the real
@@ -915,9 +922,10 @@ const GRAPH_SERIES = [
   { key: 'bgl',     label: 'BGL',     color: '#54bec4', unit: 'mmol/L', min: 0,  max: 25, get: v => v.bgl },
   { key: 'ketones', label: 'Ketones', color: '#a96aab', unit: 'mmol/L', min: 0,  max: 6,  get: v => v.ketones },
   { key: 'gcs',     label: 'GCS',     color: '#d02e8b', unit: '/15',    min: 3,  max: 15, get: v => v.gcsE + v.gcsV + v.gcsM },
-  { key: 'pain',    label: 'Pain',    color: '#dd9806', unit: '/10',    min: 0,  max: 10, get: v => v.pain }
+  { key: 'pain',    label: 'Pain',    color: '#dd9806', unit: '/10',    min: 0,  max: 10, get: v => v.pain },
+  { key: 'nausea',  label: 'Nausea',  color: '#14b8a6', unit: '/10',    min: 0,  max: 10, get: v => v.nausea }
 ];
-const GRAPH_DEFAULT_ON = { HR: true, BPsys: true, BPdia: true, SpO2: true, RR: true, EtCO2: true, temp: false, bgl: false, ketones: false, gcs: false, pain: false };
+const GRAPH_DEFAULT_ON = { HR: true, BPsys: true, BPdia: true, SpO2: true, RR: true, EtCO2: true, temp: false, bgl: false, ketones: false, gcs: false, pain: false, nausea: false };
 let graphSeriesOn = { ...GRAPH_DEFAULT_ON };
 
 // Auto-shows a "more" series (temp/BGL/ketones/GCS/pain — the ones off by
@@ -932,7 +940,7 @@ let graphSeriesOn = { ...GRAPH_DEFAULT_ON };
 // worth seeing on the graph.
 function autoEnableGraphSeriesFromOverrides(overridesObj) {
   if (!overridesObj) return;
-  ['temp', 'bgl', 'ketones', 'pain'].forEach(k => {
+  ['temp', 'bgl', 'ketones', 'pain', 'nausea'].forEach(k => {
     if (Array.isArray(overridesObj[k]) && overridesObj[k].length) graphSeriesOn[k] = true;
   });
   if (['gcsE', 'gcsV', 'gcsM'].some(k => Array.isArray(overridesObj[k]) && overridesObj[k].length)) {
@@ -1711,6 +1719,7 @@ const VITAL_DEFS = [
   { key: 'BGL',     label: 'BGL',     unit: 'mmol/L',  overrideKeys: ['bgl'] },
   { key: 'Ketones', label: 'Ketones', unit: 'mmol/L',  overrideKeys: ['ketones'] },
   { key: 'Pain',    label: 'Pain',    unit: '/10',     overrideKeys: ['pain'] },
+  { key: 'Nausea',  label: 'Nausea',  unit: '/10',     overrideKeys: ['nausea'] },
   { key: 'GCS',     label: 'GCS',     unit: '/15',     overrideKeys: ['gcsE', 'gcsV', 'gcsM'], isGCS: true }
 ];
 
@@ -1991,45 +2000,69 @@ function skipAction(key) {
   patchActionControls(next);
 }
 
-// --- Local "website can do this itself" catalogue --------------------------
-// A small, curated list of actions Tim has reviewed and confirmed have a
-// genuinely fixed/no-modelled-effect outcome in this simulator. Grows over
-// time as more are added and trusted. This is NOT matched with regex —
-// classifyTreatmentWithHaiku() below does the actual fuzzy matching, so
-// typos, dose/route phrasing variation, and multi-action entries all work.
+// --- Local "website can do this itself" catalogues -------------------------
+// Two small, curated lists Tim has reviewed and confirmed have a genuinely
+// fixed outcome in this simulator. Grow over time as more are added and
+// trusted. NOT matched with regex — classifyTreatmentWithHaiku() below does
+// the actual fuzzy matching, so typos, dose/route phrasing variation, and
+// multi-action entries all work. This is a starting reference list, not
+// scoped to any particular service's formulary — any real-world drug is a
+// valid entry here if its outcome is genuinely fixed.
 const NO_EFFECT_ACTIONS = [
-  { id: 'aspirin', label: 'Aspirin (PO)', note: 'Analgesic/antiplatelet — no modelled effect on tracked vitals.' },
-  { id: 'paracetamol', label: 'Paracetamol (PO/IV)', note: 'Analgesic — no modelled effect on tracked vitals.' },
-  { id: 'ibuprofen', label: 'Ibuprofen (PO)', note: 'NSAID analgesic — no modelled effect on tracked vitals.' },
-  { id: 'dexamethasone', label: 'Dexamethasone', note: 'Steroid — no immediate modelled effect on tracked vitals.' },
-  { id: 'ondansetron', label: 'Ondansetron (antiemetic)', note: 'Treats nausea, which is not a tracked vital in this simulator — no modelled effect.' },
-  { id: 'metoclopramide', label: 'Metoclopramide (antiemetic)', note: 'Treats nausea, which is not a tracked vital in this simulator — no modelled effect.' },
+  { id: 'aspirin', label: 'Aspirin (PO)', note: 'Antiplatelet effect is days-scale — no modelled effect on tracked vitals.' },
+  { id: 'dexamethasone', label: 'Dexamethasone', note: 'Steroid — onset of any real effect is hours, not minutes — no modelled effect.' },
+  { id: 'hydrocortisone', label: 'Hydrocortisone', note: 'Steroid — same reasoning as dexamethasone — no modelled effect.' },
+  { id: 'ceftriaxone', label: 'Ceftriaxone', note: 'Antibiotic — no acute vitals effect.' },
+  { id: 'heparin', label: 'Heparin', note: 'Anticoagulant — no acute vitals effect (like aspirin, effect is not on this timescale).' },
+  { id: 'tranexamic_acid', label: 'Tranexamic Acid (TXA)', note: 'Reduces mortality over hours, does not rapidly reverse hypovolaemia — deliberately zero acute effect here, this is the correct teaching point, not a simplification.' },
+  { id: 'water_for_injection', label: 'Water for Injection', note: 'Diluent, not a drug — no effect.' },
   { id: 'cervical_collar', label: 'Cervical collar / spinal immobilisation', note: 'Mechanical precaution — no modelled effect on tracked vitals.' },
-  { id: 'splint', label: 'Splinting a limb fracture', note: 'Mechanical — no modelled effect on tracked vitals.' },
-  { id: 'sling', label: 'Sling / arm immobilisation', note: 'Mechanical — no modelled effect on tracked vitals.' },
   { id: 'dressing', label: 'Simple wound dressing (non-haemorrhage-control)', note: 'Mechanical — no modelled effect on tracked vitals.' },
   { id: 'ecg_monitor', label: 'ECG / cardiac monitoring application', note: 'Assessment/monitoring, not a treatment — no modelled effect.' },
   { id: 'iv_access', label: 'IV cannulation (access only, nothing given through it)', note: 'Access alone — no modelled effect until something is administered.' },
   { id: 'consent', label: 'Obtaining verbal consent / handover', note: 'Documentation/communication action — no modelled effect.' },
 ];
 
+// Predictable DIRECTION of effect, randomised MAGNITUDE and onset — applied
+// directly as a graph override, no AI call. vital must be a tracked vital key
+// ('pain' or 'nausea' currently); delta is a [min,max] range (negative =
+// reduction) applied to the CURRENT value at the moment given; onsetMin is a
+// [min,max] range in minutes for how long the transition takes.
+const CODED_EFFECT_ACTIONS = [
+  { id: 'paracetamol', label: 'Paracetamol (PO/IV)', vital: 'pain', delta: [-3, -1], onsetMin: [10, 20] },
+  { id: 'ibuprofen', label: 'Ibuprofen (PO)', vital: 'pain', delta: [-4, -2], onsetMin: [15, 30] },
+  { id: 'methoxyflurane', label: 'Methoxyflurane (Penthrox)', vital: 'pain', delta: [-5, -3], onsetMin: [2, 5] },
+  { id: 'splint', label: 'Splinting a limb fracture', vital: 'pain', delta: [-2, -1], onsetMin: [1, 3] },
+  { id: 'sling', label: 'Sling / arm immobilisation', vital: 'pain', delta: [-2, -1], onsetMin: [1, 3] },
+  { id: 'ondansetron', label: 'Ondansetron (antiemetic)', vital: 'nausea', delta: [-5, -3], onsetMin: [5, 10] },
+  { id: 'prochlorperazine', label: 'Prochlorperazine (antiemetic)', vital: 'nausea', delta: [-5, -3], onsetMin: [10, 20] },
+  { id: 'metoclopramide', label: 'Metoclopramide (antiemetic)', vital: 'nausea', delta: [-5, -3], onsetMin: [10, 20] },
+];
+
+function findCatalogueEntry(id) {
+  return NO_EFFECT_ACTIONS.find(a => a.id === id) || CODED_EFFECT_ACTIONS.find(a => a.id === id) || null;
+}
+
 // Haiku-powered router: splits the (possibly multi-part) action text and
-// matches each distinct action against NO_EFFECT_ACTIONS. This is
+// matches each distinct action against both catalogues. This is
 // deliberately a MATCHING task, not a clinical-reasoning task — Haiku is
 // only asked "does this fuzzy-match something already on the reviewed
-// list", never "does this have an effect" from first principles. Full
+// lists", never "does this have an effect" from first principles. Full
 // physiological reasoning always goes to Sonnet (regenerateTimelineAfterTreatment) —
 // that split was already tested and Sonnet is what's needed for quality there.
 async function classifyTreatmentWithHaiku(actionText) {
   const apiKey = await getAnthropicKey();
-  const catalogue = NO_EFFECT_ACTIONS.map(a => `${a.id} | ${a.label}`).join('\n');
+  const catalogue = [
+    ...NO_EFFECT_ACTIONS.map(a => `${a.id} | ${a.label} | no effect`),
+    ...CODED_EFFECT_ACTIONS.map(a => `${a.id} | ${a.label} | coded effect on ${a.vital}`)
+  ].join('\n');
   const allergies = (currentScenario && currentScenario.allergies) || 'none stated';
-  const systemPrompt = `You are a fast router for a paramedic training simulator. You are given one or more management actions given together in a single entry, and a fixed catalogue of actions the simulator can already handle with zero AI reasoning (each has a known, reviewed, no-effect-on-tracked-vitals outcome).
+  const systemPrompt = `You are a fast router for a paramedic training simulator. You are given one or more management actions given together in a single entry, and a fixed catalogue of actions the simulator can already handle with zero AI reasoning — either a known no-effect outcome, or a known coded/randomised effect on a specific tracked vital.
 
-CATALOGUE (id | label):
+CATALOGUE (id | label | outcome):
 ${catalogue}
 
-TRACKED VITALS in this simulator: HR, RR, SpO2, EtCO2, BP (systolic/diastolic), Temp, BGL, Ketones, Pain score, GCS. Anything NOT affecting one of these is out of scope for reasoning regardless of its real-world effect.
+TRACKED VITALS in this simulator: HR, RR, SpO2, EtCO2, BP (systolic/diastolic), Temp, BGL, Ketones, Pain score, Nausea score, GCS. Anything NOT affecting one of these is out of scope for reasoning regardless of its real-world effect.
 
 Patient's stated allergies: ${allergies}
 
@@ -2050,13 +2083,53 @@ Return ONLY valid JSON, no prose: {"items":[{"text":"<verbatim excerpt of this a
   const items = Array.isArray(parsed.items) ? parsed.items : [];
   return items.map(it => ({
     text: typeof it.text === 'string' ? it.text : '',
-    matchId: (typeof it.matchId === 'string' && NO_EFFECT_ACTIONS.some(a => a.id === it.matchId)) ? it.matchId : null
+    matchId: (typeof it.matchId === 'string' && findCatalogueEntry(it.matchId)) ? it.matchId : null
   }));
 }
 
-function noEffectNoteFor(item) {
-  const entry = NO_EFFECT_ACTIONS.find(a => a.id === item.matchId);
-  return `${item.text}: ${entry ? entry.note : 'No modelled effect.'}`;
+// Applies a locally-coded effect (predictable direction, randomised
+// magnitude and onset) directly as a graph override — no AI call. Reads
+// fresh overrides from the DB first (same read-modify-write pattern as
+// confirmPendingDrag) to avoid clobbering a concurrent change.
+async function applyCodedEffect(entry, givenAtMs) {
+  const current = SimEngine.getVitalsRaw(liveConfig, givenAtMs)[entry.vital];
+  const delta = entry.delta[0] + Math.random() * (entry.delta[1] - entry.delta[0]);
+  const target = Math.max(0, Math.min(10, current + delta));
+  const onsetMin = entry.onsetMin[0] + Math.random() * (entry.onsetMin[1] - entry.onsetMin[0]);
+  const endMs = givenAtMs + onsetMin * 60000;
+
+  const rows = await sbFetch(`sim_sessions?session_code=eq.${sessionCode}&select=overrides`, { method: 'GET' });
+  const freshOverrides = (rows[0] && rows[0].overrides) || {};
+  const previousSnapshot = JSON.parse(JSON.stringify(freshOverrides));
+  if (!freshOverrides[entry.vital]) freshOverrides[entry.vital] = [];
+  freshOverrides[entry.vital].push({ targetValue: target, startMs: givenAtMs, endMs });
+  await sbFetch(`sim_sessions?session_code=eq.${sessionCode}`, {
+    method: 'PATCH', prefer: 'return=minimal',
+    body: JSON.stringify({ overrides: freshOverrides, previous_overrides: previousSnapshot, updated_at: new Date().toISOString() })
+  });
+  liveConfig.overrides = freshOverrides;
+  liveConfig.previousOverrides = previousSnapshot;
+  autoEnableGraphSeriesFromOverrides({ [entry.vital]: freshOverrides[entry.vital] });
+  renderGraph();
+  const sign = delta < 0 ? '' : '+';
+  return `${entry.vital} ${sign}${delta.toFixed(1)} over ~${onsetMin.toFixed(0)} min (coded effect, randomised — no AI call).`;
+}
+
+// Builds the log-entry note for one matched item — dispatches to either the
+// zero-effect note or the coded-effect application, whichever catalogue it's in.
+async function noteForMatchedItem(item, givenAtMs) {
+  const noEffect = NO_EFFECT_ACTIONS.find(a => a.id === item.matchId);
+  if (noEffect) return `${item.text}: ${noEffect.note}`;
+  const coded = CODED_EFFECT_ACTIONS.find(a => a.id === item.matchId);
+  if (coded) {
+    try {
+      const msg = await applyCodedEffect(coded, givenAtMs);
+      return `${item.text}: ${msg}`;
+    } catch (e) {
+      return `${item.text}: Could not apply coded effect (${e.message}) — no change made.`;
+    }
+  }
+  return `${item.text}: No modelled effect.`;
 }
 
 async function giveTreatment() {
@@ -2085,9 +2158,9 @@ async function giveTreatment() {
   }
 
   // Route through Haiku first — splits multi-part entries and matches each
-  // piece against the reviewed no-effect catalogue. If the router itself
-  // fails, fall back to the full original text going to Sonnet (safest
-  // default — same as if nothing had matched).
+  // piece against the reviewed catalogues. If the router itself fails, fall
+  // back to the full original text going to Sonnet (safest default — same
+  // as if nothing had matched).
   if (statusEl) statusEl.textContent = 'Checking action…';
   let routed = [];
   try {
@@ -2099,8 +2172,12 @@ async function giveTreatment() {
   const allMatched = routed.length > 0 && unmatched.length === 0;
 
   if (allMatched) {
-    // Every distinct action matched the reviewed catalogue — skip Sonnet entirely.
-    newEntry.assumptions = matched.map(noEffectNoteFor);
+    // Every distinct action matched a reviewed catalogue — skip Sonnet
+    // entirely. Coded-effect items get applied here (sequentially, not in
+    // parallel, since each does its own read-modify-write on overrides).
+    const notes = [];
+    for (const item of matched) notes.push(await noteForMatchedItem(item, givenAtMs));
+    newEntry.assumptions = notes;
     try {
       await sbFetch(`sim_sessions?session_code=eq.${sessionCode}`, {
         method: 'PATCH', prefer: 'return=minimal',
@@ -2115,16 +2192,20 @@ async function giveTreatment() {
   // Partial or no match — full AI reasoning runs on the unmatched portion
   // only, with the matched portion (if any) passed along as context so
   // Sonnet knows what else was given concurrently (interactions, etc).
+  // Matched items are still applied/logged (sequentially) alongside Sonnet's
+  // own reasoning about the rest.
+  const matchedNotes = [];
+  for (const item of matched) matchedNotes.push(await noteForMatchedItem(item, givenAtMs));
   const reasoningText = unmatched.length ? unmatched.map(it => it.text).join(', ') : action;
   const contextNote = matched.length
-    ? ` (Also given at the same time, already confirmed no modelled effect: ${matched.map(it => it.text).join(', ')}.)`
+    ? ` (Also given at the same time, already handled locally: ${matched.map(it => it.text).join(', ')}.)`
     : '';
   if (statusEl) statusEl.textContent = 'Recalculating trajectory…';
   try {
     await regenerateTimelineAfterTreatment(reasoningText + contextNote, givenAtMs);
-    if (matched.length) {
+    if (matchedNotes.length) {
       const idx = treatments.length - 1;
-      treatments[idx].assumptions = [...matched.map(noEffectNoteFor), ...(treatments[idx].assumptions || [])];
+      treatments[idx].assumptions = [...matchedNotes, ...(treatments[idx].assumptions || [])];
       liveConfig.treatments = treatments;
       await sbFetch(`sim_sessions?session_code=eq.${sessionCode}`, {
         method: 'PATCH', prefer: 'return=minimal',
@@ -2169,7 +2250,7 @@ async function regenerateTimelineAfterTreatment(action, givenAtMs) {
 
 Reason from the scenario's actual provisional diagnosis and the specific action taken — how would THIS action affect THIS patient's THIS condition. No generic effect table; you are the clinical model.
 
-Return ONLY valid JSON, no prose. Include ONLY the vital keys this specific action actually changes — omit every other key entirely, including as an empty array (an empty array and an absent key are treated identically downstream, so writing "key": [] for every unaffected vital just wastes output tokens for no benefit). Valid vital keys: HR, RR, SpO2, EtCO2, BPsys, BPdia, temp, bgl, ketones, pain, gcsE, gcsV, gcsM.
+Return ONLY valid JSON, no prose. Include ONLY the vital keys this specific action actually changes — omit every other key entirely, including as an empty array (an empty array and an absent key are treated identically downstream, so writing "key": [] for every unaffected vital just wastes output tokens for no benefit). Valid vital keys: HR, RR, SpO2, EtCO2, BPsys, BPdia, temp, bgl, ketones, pain, nausea, gcsE, gcsV, gcsM.
 Shape (showing one example key only — yours will have however many keys are actually affected, not necessarily HR):
 {"overrides": {"HR": [{"targetValue":0,"startMin":0,"endMin":0}]}, "assumptions": []}
 
