@@ -2209,7 +2209,7 @@ async function processStudentQueue(row) {
           method: 'PATCH', prefer: 'return=minimal',
           body: JSON.stringify({ student_queue_ack_id: item.id, updated_at: new Date().toISOString() })
         });
-      } catch (e) { /* transient — next poll will retry from the old ack point, re-processing this item is preferable to silently dropping it */ }
+      } catch (e) { console.error('student_queue ack failed — this item will be reprocessed next poll:', e); }
     }
   } finally {
     _studentQueueBusy = false;
