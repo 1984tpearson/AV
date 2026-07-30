@@ -752,6 +752,7 @@ let _lastShownReplyId = null;
 let _speechUnlocked = false;
 let _cachedVoices = [];
 let patientGender = null; // 'male' | 'female' | null — set from the scenario title once known, see connectSession()
+let _voiceModalOpen = false; // tracks whether the modal is open, so the auto-relisten loop (chat mode) knows to stop once the student closes it
 
 function getSpeechRecognitionCtor() {
   return window.SpeechRecognition || window.webkitSpeechRecognition || null;
@@ -826,6 +827,7 @@ function openVoiceModal(mode) {
   document.getElementById('patient-reply-display').style.display = 'none';
   document.getElementById('patient-reply-display').textContent = '';
   document.getElementById('voice-modal').style.display = 'flex';
+  _voiceModalOpen = true;
   startVoiceCapture();
 }
 
@@ -838,6 +840,7 @@ function startVoiceCapture() {
   const Ctor = getSpeechRecognitionCtor();
   const statusEl = document.getElementById('voice-modal-status');
   const transcriptEl = document.getElementById('voice-modal-transcript');
+  document.getElementById('patient-reply-display').style.display = 'none';
   _voiceFinalText = '';
   transcriptEl.textContent = '';
   if (!Ctor) {
@@ -879,7 +882,9 @@ function restartVoiceCapture() {
 }
 
 function closeVoiceModal() {
+  _voiceModalOpen = false;
   if (_recognition) { try { _recognition.abort(); } catch (e) {} _recognition = null; }
+  if ('speechSynthesis' in window) { try { window.speechSynthesis.cancel(); } catch (e) {} }
   document.getElementById('voice-modal').style.display = 'none';
 }
 
@@ -911,11 +916,25 @@ function checkForPatientReply(reply) {
   if (reply.forId !== _lastChatSentId) return;
   if (reply.id === _lastShownReplyId) return;
   _lastShownReplyId = reply.id;
-  const isExam = _lastChatSentMode === 'exam';
+  const mode = _lastChatSentMode;
+  const isExam = mode === 'exam';
+  const isConversation = mode === 'chat'; // only "Talk to Patient" auto-relistens once the reply finishes
   const replyEl = document.getElementById('patient-reply-display');
   replyEl.textContent = isExam ? reply.text : `\u201C${reply.text}\u201D`;
   replyEl.style.display = 'block';
-  document.getElementById('voice-modal-status').textContent = VOICE_MODE_REPLY_LABELS[_lastChatSentMode] || 'Reply:';
+  document.getElementById('voice-modal-status').textContent = VOICE_MODE_REPLY_LABELS[mode] || 'Reply:';
+  _lastChatSentId = null;
+
+  // Resumes listening once the reply is done — the continuous-conversation
+  // loop for "Talk to Patient". Guarded by _voiceModalOpen so a reply that
+  // arrives after the student has already closed the modal doesn't restart
+  // the mic in the background; the student stops the loop simply by tapping
+  // Cancel (closeVoiceModal sets that flag false and also stops any
+  // in-progress speech).
+  const resumeIfConversing = () => {
+    if (isConversation && _voiceModalOpen) startVoiceCapture();
+  };
+
   if (reply.speak !== false && 'speechSynthesis' in window) {
     try {
       window.speechSynthesis.cancel(); // clear anything stuck in the queue (e.g. the priming utterance) first
@@ -923,10 +942,19 @@ function checkForPatientReply(reply) {
       const voice = pickVoice();
       if (voice) utter.voice = voice;
       utter.lang = 'en-AU';
+      utter.onend = resumeIfConversing;
+      utter.onerror = resumeIfConversing;
       window.speechSynthesis.speak(utter);
-    } catch (e) { /* TTS best-effort only — the text is already shown on screen */ }
+    } catch (e) {
+      // TTS best-effort only — the text is already shown on screen. Still
+      // resume the loop after a short pause so a conversation doesn't stall.
+      if (isConversation) setTimeout(resumeIfConversing, 1200);
+    }
+  } else if (isConversation) {
+    // No speech at all (e.g. GCS-gated "no verbal response") — pause briefly
+    // so the text is readable, then resume listening for the next question.
+    setTimeout(resumeIfConversing, 1500);
   }
-  _lastChatSentId = null;
 }
 </script>
 </body>
