@@ -17,7 +17,12 @@ body { display: flex; flex-direction: column; }
 #dash-left { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; gap: 8px; }
 #graph-panel { flex: 2; min-height: 0; display: flex; flex-direction: column; }
 #graph-svg-wrap { display: block; }
-#management-panel { flex: 1; min-height: 0; overflow-y: auto; }
+#management-row { flex: 1; min-height: 0; display: flex; flex-direction: row; gap: 8px; }
+#management-panel, #scenario-info-panel { flex: 1; min-width: 0; min-height: 0; overflow-y: auto; }
+.info-block { margin-bottom: 10px; }
+.info-block:last-child { margin-bottom: 0; }
+.info-label { font-size: 10px; color: #6b8299; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 3px; font-weight: 700; }
+.info-value { font-size: 12px; color: #1e2a36; line-height: 1.4; white-space: pre-wrap; }
 #feed-panel { flex: 0 0 20%; min-width: 190px; max-width: 260px; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
 #log-list-wrap { flex: 1; min-height: 0; overflow-y: auto; }
 #pending-actions-stack { flex-shrink: 0; display: flex; flex-direction: column; gap: 6px; margin-top: 6px; }
@@ -116,21 +121,38 @@ select, input[type=number], input[type=text] { font-family: 'Courier New', monos
       <div id="vitals-grid" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;flex-shrink:0;"></div>
     </div>
 
-      <div class="panel" id="management-panel">
-        <h2>Management / Controls</h2>
-        <div class="row">
-          <button class="btn btn-start" id="run-btn" onclick="toggleRun()">Start Scenario</button>
-          <label style="margin:0;"><input type="checkbox" id="instant-toggle" onchange="updateInstantMode()"> Instant Mode</label>
-        </div>
-        <h2 style="margin-top:12px;">Log Treatment / Management</h2>
-        <div class="row">
-          <div style="flex:1;min-width:220px;">
-            <label for="action-input">Drug / Action</label>
-            <input type="text" id="action-input" placeholder="e.g. Adrenaline 0.5mg IM, Apply tourniquet left thigh" style="width:100%;" onkeydown="if(event.key==='Enter'){event.preventDefault();giveTreatment();}">
+      <div id="management-row">
+        <div class="panel" id="management-panel">
+          <h2>Management / Controls</h2>
+          <div class="row">
+            <button class="btn btn-start" id="run-btn" onclick="toggleRun()">Start Scenario</button>
+            <label style="margin:0;"><input type="checkbox" id="instant-toggle" onchange="updateInstantMode()"> Instant Mode</label>
           </div>
-          <button class="btn" onclick="giveTreatment()">Give</button>
+          <h2 style="margin-top:12px;">Log Treatment / Management</h2>
+          <div class="row">
+            <div style="flex:1;min-width:220px;">
+              <label for="action-input">Drug / Action</label>
+              <input type="text" id="action-input" placeholder="e.g. Adrenaline 0.5mg IM, Apply tourniquet left thigh" style="width:100%;" onkeydown="if(event.key==='Enter'){event.preventDefault();giveTreatment();}">
+            </div>
+            <button class="btn" onclick="giveTreatment()">Give</button>
+          </div>
+          <div id="treatment-status" class="muted"></div>
         </div>
-        <div id="treatment-status" class="muted"></div>
+        <div class="panel" id="scenario-info-panel">
+          <h2>Scenario Info</h2>
+          <div class="info-block">
+            <div class="info-label">Dispatch</div>
+            <div class="info-value" id="info-dispatch">—</div>
+          </div>
+          <div class="info-block">
+            <div class="info-label">Caller Report</div>
+            <div class="info-value" id="info-caller">—</div>
+          </div>
+          <div class="info-block">
+            <div class="info-label">On Arrival</div>
+            <div class="info-value" id="info-arrival">—</div>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -280,6 +302,13 @@ function simNow() {
 // --- Scenario picker (10 most recent) --------------------------------------
 function escapeHtml(s) {
   return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+}
+
+function renderScenarioInfoPanel() {
+  const s = currentScenario || {};
+  document.getElementById('info-dispatch').textContent = s.dispatch || '—';
+  document.getElementById('info-caller').textContent = s.caller_hx || '—';
+  document.getElementById('info-arrival').textContent = s.arrival_hx || '—';
 }
 
 async function loadRecentScenarios() {
@@ -478,6 +507,7 @@ async function createSession() {
       });
       sessionCode = code;
       currentScenario = scenario;
+      renderScenarioInfoPanel();
       liveConfig = {
         baseline: timeline.starting_vitals,
         startTimeMs: startMs,
