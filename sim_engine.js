@@ -57,7 +57,7 @@
   function rawTrendDeltasAt(cfg, tMs) {
     return {
       HR: 0, RR: 0, SpO2: 0, EtCO2: 0, BPsys: 0, BPdia: 0,
-      temp: 0, bgl: 0, ketones: 0, pain: 0, gcsE: 0, gcsV: 0, gcsM: 0
+      temp: 0, bgl: 0, ketones: 0, pain: 0, nausea: 0, gcsE: 0, gcsV: 0, gcsM: 0
     };
   }
   function rawTrendAt(cfg, key, tMs) {
@@ -106,7 +106,7 @@
 
   // ---- Main entry point ---------------------------------------------------
   // scenarioConfig = {
-  //   baseline: { HR, RR, SpO2, EtCO2, BPsys, BPdia, temp, bgl, ketones, pain, gcsE, gcsV, gcsM },
+  //   baseline: { HR, RR, SpO2, EtCO2, BPsys, BPdia, temp, bgl, ketones, pain, nausea, gcsE, gcsV, gcsM },
   //   startTimeMs: <scenario start epoch ms>,
   //   treatments: [{ action, detail, givenAtMin }, ...] — logged for the record only, doesn't drive vitals here
   //   overrides: { HR: [{targetValue,startMs,endMs}], BPsys: [...], ... },
@@ -128,6 +128,7 @@
       bgl: Math.max(0, applyOverrides(cfg, 'bgl', nowMs)),
       ketones: Math.max(0, applyOverrides(cfg, 'ketones', nowMs)),
       pain: clamp(applyOverrides(cfg, 'pain', nowMs), 0, 10),
+      nausea: clamp(applyOverrides(cfg, 'nausea', nowMs), 0, 10),
       gcsE: clamp(applyOverrides(cfg, 'gcsE', nowMs), 1, 4),
       gcsV: clamp(applyOverrides(cfg, 'gcsV', nowMs), 1, 5),
       gcsM: clamp(applyOverrides(cfg, 'gcsM', nowMs), 1, 6)

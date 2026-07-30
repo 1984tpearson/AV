@@ -2091,6 +2091,14 @@ Return ONLY valid JSON, no prose: {"items":[{"text":"<verbatim excerpt of this a
 // magnitude and onset) directly as a graph override — no AI call. Reads
 // fresh overrides from the DB first (same read-modify-write pattern as
 // confirmPendingDrag) to avoid clobbering a concurrent change.
+//
+// Same truncation rule as regenerateTimelineAfterTreatment, applied to just
+// this one vital: any override already in progress or scheduled for the
+// future on this vital gets truncated/dropped first — otherwise the engine
+// (which always uses whichever override, in start-time order, contains
+// "now") would keep letting the OLD trajectory win for its entire remaining
+// duration, and this coded effect would silently never show up until the
+// old entry finally ran out.
 async function applyCodedEffect(entry, givenAtMs) {
   const current = SimEngine.getVitalsRaw(liveConfig, givenAtMs)[entry.vital];
   const delta = entry.delta[0] + Math.random() * (entry.delta[1] - entry.delta[0]);
@@ -2101,8 +2109,20 @@ async function applyCodedEffect(entry, givenAtMs) {
   const rows = await sbFetch(`sim_sessions?session_code=eq.${sessionCode}&select=overrides`, { method: 'GET' });
   const freshOverrides = (rows[0] && rows[0].overrides) || {};
   const previousSnapshot = JSON.parse(JSON.stringify(freshOverrides));
-  if (!freshOverrides[entry.vital]) freshOverrides[entry.vital] = [];
-  freshOverrides[entry.vital].push({ targetValue: target, startMs: givenAtMs, endMs });
+
+  const existing = freshOverrides[entry.vital] || [];
+  const kept = [];
+  existing.forEach(ov => {
+    if (ov.endMs <= givenAtMs) {
+      kept.push(ov); // already fully in the past — accurate history, leave alone
+    } else if (ov.startMs < givenAtMs) {
+      kept.push({ startMs: ov.startMs, endMs: givenAtMs, targetValue: current }); // truncate to now, freeze at the real current value
+    }
+    // else: startMs >= givenAtMs — superseded future plan, drop
+  });
+  kept.push({ targetValue: target, startMs: givenAtMs, endMs });
+  freshOverrides[entry.vital] = kept;
+
   await sbFetch(`sim_sessions?session_code=eq.${sessionCode}`, {
     method: 'PATCH', prefer: 'return=minimal',
     body: JSON.stringify({ overrides: freshOverrides, previous_overrides: previousSnapshot, updated_at: new Date().toISOString() })
