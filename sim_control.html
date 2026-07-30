@@ -97,6 +97,8 @@ select, input[type=number], input[type=text] { font-family: 'Courier New', monos
         <div class="row">
           <button class="btn btn-start" id="run-btn" onclick="toggleRun()">Start Scenario</button>
           <label style="margin:0;"><input type="checkbox" id="instant-toggle" onchange="updateInstantMode()"> Instant Mode</label>
+          <label style="margin:0;"><input type="checkbox" id="baseline-ghost-toggle" checked onchange="showBaselineGhost = this.checked; renderGraph();"> Original trajectory</label>
+          <label style="margin:0;"><input type="checkbox" id="previous-ghost-toggle" onchange="showPreviousGhost = this.checked; renderGraph();"> Previous trajectory</label>
         </div>
         <h2 style="margin-top:12px;">Log Treatment / Management</h2>
         <div class="row">
@@ -198,6 +200,8 @@ function extractJsonObject(text) {
 let sessionCode = null;
 let currentScenario = null; // set on session creation — provides context for treatment-effect regeneration
 let aiModel = 'claude-sonnet-4-6'; // switchable via the AI Model picker in the topbar
+let showBaselineGhost = true;  // grey line: the original arrival plan, fixed forever
+let showPreviousGhost = false; // dashed same-colour line: state right before the most recent change
 let liveConfig = null; // mirrors the patient page's testConfig shape, plus pause fields
 let instantMode = false;
 let treatments = [];
@@ -402,6 +406,7 @@ async function createSession() {
           treatments: [],
           overrides,
           baseline_overrides: overrides,
+          previous_overrides: overrides,
           instant_mode: false,
           has_started: false,
           is_paused: true,
@@ -417,6 +422,7 @@ async function createSession() {
         treatments: [],
         overrides,
         baselineOverrides: JSON.parse(JSON.stringify(overrides)), // frozen copy — never mutated after this, used to draw the grey "what would have happened" ghost lines
+        previousOverrides: JSON.parse(JSON.stringify(overrides)), // rolling copy — updated on every change, used to draw the dashed "just before the last change" ghost lines
         instantMode: false,
         hasStarted: false,
         isPaused: true,
@@ -866,6 +872,7 @@ async function confirmPendingDrag() {
   try {
     const rows = await sbFetch(`sim_sessions?session_code=eq.${sessionCode}&select=overrides`, { method: 'GET' });
     const freshOverrides = (rows[0] && rows[0].overrides) || {};
+    const previousSnapshot = JSON.parse(JSON.stringify(freshOverrides));
     if (graphKey === 'gcs') {
       const expanded = expandGcsOverride(anchorMs, targetValue, startMs, finalEndMs);
       ['gcsE', 'gcsV', 'gcsM'].forEach(k => {
@@ -882,9 +889,10 @@ async function confirmPendingDrag() {
     }
     await sbFetch(`sim_sessions?session_code=eq.${sessionCode}`, {
       method: 'PATCH', prefer: 'return=minimal',
-      body: JSON.stringify({ overrides: freshOverrides, updated_at: new Date().toISOString() })
+      body: JSON.stringify({ overrides: freshOverrides, previous_overrides: previousSnapshot, updated_at: new Date().toISOString() })
     });
     liveConfig.overrides = freshOverrides;
+    liveConfig.previousOverrides = previousSnapshot;
     pendingDrag = null;
     renderGraph();
   } catch (e) {
@@ -1007,7 +1015,7 @@ function renderGraph() {
     // once at creation, never mutated afterward) — so any later drag,
     // treatment, etc. visibly diverges from it instead of erasing it.
     // Older sessions created before this existed simply won't have one.
-    if (liveConfig.baselineOverrides) {
+    if (showBaselineGhost && liveConfig.baselineOverrides) {
       const baselineCfg = Object.assign({}, liveConfig, { overrides: liveConfig.baselineOverrides });
       const gpts = [];
       for (let i = 0; i <= SAMPLES; i++) {
@@ -1018,6 +1026,22 @@ function renderGraph() {
       }
       const ghostOpacity = fadeOthers ? 0.15 : 1;
       ghostPaths += `<path d="${pointsToSmoothPath(gpts)}" fill="none" stroke="#dcdcdc" stroke-width="1.5" opacity="${ghostOpacity}" stroke-linecap="round" />`;
+    }
+
+    // Dashed same-colour "ghost" of the trajectory as it stood right before
+    // the MOST RECENT change (drag, treatment, delete, manual override) —
+    // a rolling snapshot, distinct from the fixed grey baseline above.
+    if (showPreviousGhost && liveConfig.previousOverrides) {
+      const previousCfg = Object.assign({}, liveConfig, { overrides: liveConfig.previousOverrides });
+      const ppts = [];
+      for (let i = 0; i <= SAMPLES; i++) {
+        const m = viewStart + (viewEnd - viewStart) * (i / SAMPLES);
+        const tMs = liveConfig.startTimeMs + m * 60000;
+        const val = s.get(SimEngine.getVitalsRaw(previousCfg, tMs));
+        ppts.push([xForMin(m), yFor(s, val)]);
+      }
+      const prevOpacity = fadeOthers ? 0.08 : 0.55;
+      ghostPaths += `<path d="${pointsToSmoothPath(ppts)}" fill="none" stroke="${s.color}" stroke-width="1.5" opacity="${prevOpacity}" stroke-dasharray="5,4" stroke-linecap="round" />`;
     }
 
     const d = pointsToSmoothPath(pts);
@@ -1357,6 +1381,7 @@ async function regenerateTimelineAfterTreatment(action, givenAtMs) {
   // to splice the new plan in.
   const rows = await sbFetch(`sim_sessions?session_code=eq.${sessionCode}&select=overrides`, { method: 'GET' });
   const freshOverrides = (rows[0] && rows[0].overrides) || {};
+  const previousSnapshot = JSON.parse(JSON.stringify(freshOverrides)); // exact pre-treatment state, for the "previous trajectory" ghost line
   const scheduledSummary = {};
   Object.entries(freshOverrides).forEach(([key, arr]) => {
     const future = (arr || [])
@@ -1370,7 +1395,7 @@ async function regenerateTimelineAfterTreatment(action, givenAtMs) {
 Ground your reasoning in the scenario's actual provisional diagnosis and the specific action just taken — reason about how THIS action would realistically affect THIS patient's THIS condition. There is no generic effect table; you are the clinical model.
 
 Return ONLY valid JSON, no prose, in exactly this shape:
-{"overrides": {"HR": [{"targetValue":0,"startMin":0,"endMin":0}], "RR": [], "SpO2": [], "EtCO2": [], "BPsys": [], "BPdia": [], "temp": [], "bgl": [], "ketones": [], "pain": [], "gcsE": [], "gcsV": [], "gcsM": []}}
+{"overrides": {"HR": [{"targetValue":0,"startMin":0,"endMin":0}], "RR": [], "SpO2": [], "EtCO2": [], "BPsys": [], "BPdia": [], "temp": [], "bgl": [], "ketones": [], "pain": [], "gcsE": [], "gcsV": [], "gcsM": []}, "assumptions": []}
 
 Rules:
 - Times are minutes from THIS MOMENT (the action being given = minute 0), not from scenario start.
@@ -1380,12 +1405,14 @@ Rules:
 - A large or supratherapeutic dose does not slow onset down — if anything it acts faster and/or more intensely, potentially into toxicity, not more cautiously.
 - If no dose is stated, assume a single standard/typical initial dose for that drug — never assume "whatever amount would be needed to fully fix the problem." If a standard dose would be inadequate for the situation (e.g. reversing a large overdose, treating a severe presentation), reflect that honestly: a partial or temporary effect, with the underlying problem persisting or returning, rather than a full correction from one unstated-dose administration. Also consider the reversal agent's own duration relative to what it's reversing (e.g. naloxone's effect is shorter-lived than most opioids it reverses, so re-sedation as it wears off is often the realistic course).
 - You will be given the full treatment history for this encounter, not just the action just given — reason about the CUMULATIVE clinical picture. If this action reverses or corrects the effect of an EARLIER action (e.g. an antidote reversing an overdose), it should only undo that specific iatrogenic effect. The patient's original underlying condition (the provisional diagnosis) does NOT resolve just because a different, unrelated problem was corrected — it continues on its own course, independently, unless something has also specifically treated it.
+- If the scenario involves multiple concurrent conditions or problems (e.g. a medical event that led to a trauma, or two unrelated injuries), track each one's status independently. Correcting one condition (e.g. reversing a hypoglycaemic episode) should only resolve the effects specifically attributable to THAT condition — any other concurrent condition (e.g. an ongoing haemorrhage, a fracture) continues its own independent course, untouched, unless something has also specifically addressed it.
 - Only give the action an effect if it has a real, medically-recognised physiological mechanism that plausibly acts on THIS patient's actual condition. If the action is nonsensical, fictional, unrelated to medicine, or you genuinely cannot identify a real mechanism by which it would affect this patient, it must have NO effect at all — the patient's course continues essentially as it would with no intervention, not a milder or partial version of improvement. Something having been "done" is not itself a reason for the patient to get better. Non-pharmacological comfort/psychological actions (reassurance, holding a hand, and similar) are one ordinary example of this principle: at most they ease anxiety-driven tachycardia/hyperventilation slightly, and never reverse an organic process such as hypoxia, haemorrhage, airway obstruction, toxicity, or arrhythmia.
 - If the action only partially or temporarily addresses the underlying condition, model it wearing off and the condition resuming its natural course afterward — worse than before if the intervention was just masking ongoing pathology, stable/improving if it substantively corrected the problem. Reason about which applies here.
 - If the action is clinically inappropriate, ineffective, or an insufficient/excessive dose for this condition, reflect that honestly — including continued deterioration, or a supratherapeutic/toxic effect, if that is the truthful outcome. Do not reward an incorrect action with improvement it wouldn't realistically produce.
 - Only include a vital's key if this specific action would plausibly change it; omit anything unaffected.
 - gcsE range 1-4, gcsV range 1-5, gcsM range 1-6 — never exceed these.
 - Project up to ${Math.round(remainingMin)} minutes forward from now, or less if the outcome resolves sooner. Never project past 60 minutes of total scenario time.
+- assumptions: a short list of plain-English strings for anything you had to infer because it wasn't stated in the action (e.g. "Assumed IV route (not stated) — standard for anaphylaxis", "Assumed a single standard 5mg dose (not stated)"). Empty array if the action was fully specified.
 - This is a training placeholder pending clinical review, not a validated clinical model.`;
 
   const userPrompt = `Scenario: ${currentScenario.title || ''}
@@ -1453,11 +1480,23 @@ Project how this patient's vitals change from here, given this specific action.`
     freshOverrides[key] = freshOverrides[key].concat(cleanArr);
   });
 
+  // Record any assumptions the AI had to make on the treatment log entry
+  // itself (this action was just pushed as the last element of `treatments`
+  // by giveTreatment()) — feeds both the on-screen log and, later, the
+  // end-of-scenario report.
+  const assumptions = Array.isArray(parsed.assumptions) ? parsed.assumptions.filter(a => typeof a === 'string') : [];
+  if (treatments.length) {
+    treatments[treatments.length - 1].assumptions = assumptions;
+    liveConfig.treatments = treatments;
+  }
+
   await sbFetch(`sim_sessions?session_code=eq.${sessionCode}`, {
     method: 'PATCH', prefer: 'return=minimal',
-    body: JSON.stringify({ overrides: freshOverrides, updated_at: new Date().toISOString() })
+    body: JSON.stringify({ overrides: freshOverrides, previous_overrides: previousSnapshot, treatments, updated_at: new Date().toISOString() })
   });
   liveConfig.overrides = freshOverrides;
+  liveConfig.previousOverrides = previousSnapshot;
+  renderTreatments();
   renderGraph();
 }
 
@@ -1471,7 +1510,8 @@ function renderTreatments() {
     <div class="treat-item">
       <span>${escapeHtml(t.action)}</span>
       <span class="muted">t+${t.givenAtMin.toFixed(1)} min</span>
-    </div>`).join('');
+    </div>
+    ${(t.assumptions && t.assumptions.length) ? `<div class="muted" style="font-size:10px;margin:-4px 0 6px 2px;">${t.assumptions.map(a => '\u26A0 ' + escapeHtml(a)).join('<br>')}</div>` : ''}`).join('');
 }
 
 const OVERRIDE_KEY_LABELS = {
@@ -1490,6 +1530,7 @@ async function deleteOverride(key, startMs, endMs, targetValue) {
   try {
     const rows = await sbFetch(`sim_sessions?session_code=eq.${sessionCode}&select=overrides`, { method: 'GET' });
     const freshOverrides = (rows[0] && rows[0].overrides) || {};
+    const previousSnapshot = JSON.parse(JSON.stringify(freshOverrides));
     if (key === 'gcs') {
       // One marker = three component entries sharing this startMs/endMs.
       let foundAny = false;
@@ -1521,9 +1562,10 @@ async function deleteOverride(key, startMs, endMs, targetValue) {
     }
     await sbFetch(`sim_sessions?session_code=eq.${sessionCode}`, {
       method: 'PATCH', prefer: 'return=minimal',
-      body: JSON.stringify({ overrides: freshOverrides, updated_at: new Date().toISOString() })
+      body: JSON.stringify({ overrides: freshOverrides, previous_overrides: previousSnapshot, updated_at: new Date().toISOString() })
     });
     liveConfig.overrides = freshOverrides;
+    liveConfig.previousOverrides = previousSnapshot;
     selectedOverride = null;
     renderGraph();
   } catch (e) {
@@ -1593,6 +1635,7 @@ async function applyOverride() {
   try {
     const rows = await sbFetch(`sim_sessions?session_code=eq.${sessionCode}&select=overrides`, { method: 'GET' });
     const freshOverrides = (rows[0] && rows[0].overrides) || {};
+    const previousSnapshot = JSON.parse(JSON.stringify(freshOverrides));
     def.overrideKeys.forEach(k => {
       const target = parseFloat(document.getElementById(`ov-input-${k}`).value);
       if (isNaN(target)) return;
@@ -1601,9 +1644,10 @@ async function applyOverride() {
     });
     await sbFetch(`sim_sessions?session_code=eq.${sessionCode}`, {
       method: 'PATCH', prefer: 'return=minimal',
-      body: JSON.stringify({ overrides: freshOverrides, updated_at: new Date().toISOString() })
+      body: JSON.stringify({ overrides: freshOverrides, previous_overrides: previousSnapshot, updated_at: new Date().toISOString() })
     });
     liveConfig.overrides = freshOverrides;
+    liveConfig.previousOverrides = previousSnapshot;
     closeOverrideModal();
   } catch (e) {
     alert('Could not apply the override — check the connection and try again.');
