@@ -1444,17 +1444,28 @@ Project how this patient's vitals change from here, given this specific action.`
     throw new Error('AI returned an unparseable trajectory update' + (text ? ': ' + text.slice(0, 150).replace(/\s+/g, ' ') : ''));
   }
 
-  // Splice the new plan in. THE ACTUAL BUG THIS FIXES: an override that was
-  // still mid-transition at the moment of treatment can't just be left
-  // alone — the engine always uses whichever override (in start-time order)
-  // contains "now", so an untouched wide-window entry would keep winning
-  // over anything queued after it for its ENTIRE remaining original
-  // duration, silently masking the new plan. So any in-progress entry gets
-  // truncated to end exactly now, at its real current value (from
-  // vitalsNow, which the engine already computed correctly) — fully
-  // completed entries are left alone as accurate history, anything not yet
-  // started is dropped as superseded.
+  // Splice the new plan in. TWO BUGS THIS FIXES:
+  // 1. An override still mid-transition at the moment of treatment can't
+  //    just be left alone — the engine always uses whichever override (in
+  //    start-time order) contains "now", so an untouched wide-window entry
+  //    would keep winning over anything queued after it for its ENTIRE
+  //    remaining original duration, silently masking the new plan. So any
+  //    in-progress entry gets truncated to end exactly now, at its real
+  //    current value (from vitalsNow, already correctly computed by the
+  //    engine) — fully completed entries are left alone as accurate
+  //    history.
+  // 2. Only vitals the AI actually returned NEW content for get their future
+  //    touched at all. If the AI correctly determines an action has no
+  //    effect on a given vital (e.g. naloxone has no mechanism against
+  //    adrenaline toxicity) it simply omits that vital — and that must mean
+  //    "leave whatever was already scheduled exactly as it is", not "erase
+  //    it with nothing to replace it". Wiping every vital's future
+  //    unconditionally on every treatment call was silently deleting
+  //    already-correct, already-scheduled deterioration whenever an action
+  //    genuinely had no effect.
+  const affectedKeys = new Set(Object.keys(parsed.overrides || {}).filter(k => Array.isArray(parsed.overrides[k]) && parsed.overrides[k].length));
   Object.keys(freshOverrides).forEach(key => {
+    if (!affectedKeys.has(key)) return; // AI didn't touch this vital — leave its existing schedule, including its future, completely alone
     const arr = freshOverrides[key] || [];
     const kept = [];
     arr.forEach(ov => {
@@ -1463,12 +1474,12 @@ Project how this patient's vitals change from here, given this specific action.`
       } else if (ov.startMs < givenAtMs) {
         kept.push({ startMs: ov.startMs, endMs: givenAtMs, targetValue: vitalsNow[key] });
       }
-      // else: startMs >= givenAtMs — superseded future plan, drop
+      // else: startMs >= givenAtMs — superseded future plan, drop (this vital IS being replaced below)
     });
     freshOverrides[key] = kept;
   });
   Object.entries(parsed.overrides || {}).forEach(([key, arr]) => {
-    if (!Array.isArray(arr)) return;
+    if (!Array.isArray(arr) || !arr.length) return;
     const cleanArr = arr
       .filter(ov => typeof ov.targetValue === 'number' && typeof ov.startMin === 'number' && typeof ov.endMin === 'number')
       .map(ov => ({
