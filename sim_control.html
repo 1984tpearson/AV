@@ -72,6 +72,9 @@ select, input[type=number], input[type=text] { font-family: 'Courier New', monos
   <div class="title">Live Scenario — Control</div>
   <div style="display:flex;align-items:center;gap:10px;">
     <div id="ai-cost-indicator" style="font-size:11px;color:#33475a;" title="Running Anthropic API cost this session">$0.0000</div>
+    <label style="font-size:10px;margin:0;display:flex;align-items:center;gap:4px;" title="Caches the treatment-effect system prompt so repeat calls within a session cost ~1/10th on input tokens. Costs a small premium instead on a single one-off call with no follow-up — turn off while doing isolated test runs.">
+      <input type="checkbox" id="cache-toggle" checked onchange="promptCachingEnabled = this.checked"> Cache
+    </label>
     <div style="display:flex;align-items:center;gap:5px;">
       <label for="ai-model-select" style="font-size:10px;margin:0;">AI Model</label>
       <select id="ai-model-select" onchange="aiModel = this.value" style="font-size:11px;padding:3px 5px;">
@@ -268,6 +271,7 @@ function extractJsonObject(text) {
 let sessionCode = null;
 let currentScenario = null; // set on session creation — provides context for treatment-effect regeneration
 let aiModel = 'claude-sonnet-4-6'; // switchable via the AI Model picker in the topbar
+let promptCachingEnabled = true; // switchable via the Cache toggle in the topbar — see regenerateTimelineAfterTreatment
 
 // Running Anthropic API cost for this page session (resets on reload — not
 // persisted). Mirrors nav.js's MODEL_PRICING rates; keep in sync if pricing
@@ -1780,30 +1784,38 @@ async function regenerateTimelineAfterTreatment(action, givenAtMs) {
     if (future.length) scheduledSummary[key] = future;
   });
 
-  let systemPrompt = `You are updating a paramedic training patient's projected vital-signs trajectory because the treating crew just gave a treatment/management action. This feeds a training simulator's trajectory graph.
+  let systemPrompt = `You are updating a paramedic training patient's projected vital-signs trajectory after the crew just gave a treatment/management action. This feeds a training simulator's trajectory graph.
 
-Ground your reasoning in the scenario's actual provisional diagnosis and the specific action just taken — reason about how THIS action would realistically affect THIS patient's THIS condition. There is no generic effect table; you are the clinical model.
+Reason from the scenario's actual provisional diagnosis and the specific action taken — how would THIS action affect THIS patient's THIS condition. No generic effect table; you are the clinical model.
 
 Return ONLY valid JSON, no prose, in exactly this shape:
 {"overrides": {"HR": [{"targetValue":0,"startMin":0,"endMin":0}], "RR": [], "SpO2": [], "EtCO2": [], "BPsys": [], "BPdia": [], "temp": [], "bgl": [], "ketones": [], "pain": [], "gcsE": [], "gcsV": [], "gcsM": []}, "assumptions": []}
 
 Rules:
-- Times are minutes from THIS MOMENT (the action being given = minute 0), not from scenario start.
-- You will be given the plan currently scheduled for this patient (which may reflect the prior no-treatment course, or earlier manual/automatic adjustments). Treat it as informative context, not binding — keep any part of it that's still realistic given this new action, and override whatever isn't.
-- The action text may or may not state a route (IV, IM, neb, PO, etc). If a route IS stated, use it. If NOT stated, infer the single most standard/likely route for that specific drug in this clinical context (e.g. adrenaline in anaphylaxis is IM; adrenaline in cardiac arrest is IV/IO).
-- Base the onset delay on your actual pharmacological knowledge of THIS SPECIFIC drug/action — not a generic "route implies a fixed timing" shortcut. Real onset varies a lot even within the same route (e.g. IV adrenaline in anaphylaxis/arrest acts within seconds to about a minute; IV amiodarone's rhythm effect takes several minutes to build; IM glucagon takes 10-15 minutes; thrombolytics act over 30-90+ minutes; some oral drugs take hours) — get the actual figure right for the actual drug, don't default to a conservative guess just because the route is the same as some other drug.
-- A large or supratherapeutic dose does not slow onset down — if anything it acts faster and/or more intensely, potentially into toxicity, not more cautiously.
-- If no dose is stated, assume a single standard/typical initial dose for that drug — never assume "whatever amount would be needed to fully fix the problem." If a standard dose would be inadequate for the situation (e.g. reversing a large overdose, treating a severe presentation), reflect that honestly: a partial or temporary effect, with the underlying problem persisting or returning, rather than a full correction from one unstated-dose administration. Also consider the reversal agent's own duration relative to what it's reversing (e.g. naloxone's effect is shorter-lived than most opioids it reverses, so re-sedation as it wears off is often the realistic course).
-- You will be given the full treatment history for this encounter, not just the action just given — reason about the CUMULATIVE clinical picture. If this action reverses or corrects the effect of an EARLIER action (e.g. an antidote reversing an overdose), it should only undo that specific iatrogenic effect. The patient's original underlying condition (the provisional diagnosis) does NOT resolve just because a different, unrelated problem was corrected — it continues on its own course, independently, unless something has also specifically treated it.
-- If the scenario involves multiple concurrent conditions or problems (e.g. a medical event that led to a trauma, or two unrelated injuries), track each one's status independently. Correcting one condition (e.g. reversing a hypoglycaemic episode) should only resolve the effects specifically attributable to THAT condition — any other concurrent condition (e.g. an ongoing haemorrhage, a fracture) continues its own independent course, untouched, unless something has also specifically addressed it.
-- Only give the action an effect if it has a real, medically-recognised physiological mechanism that plausibly acts on THIS patient's actual condition. If the action is nonsensical, fictional, unrelated to medicine, or you genuinely cannot identify a real mechanism by which it would affect this patient, it must have NO effect at all — the patient's course continues essentially as it would with no intervention, not a milder or partial version of improvement. Something having been "done" is not itself a reason for the patient to get better. Non-pharmacological comfort/psychological actions (reassurance, holding a hand, and similar) are one ordinary example of this principle: at most they ease anxiety-driven tachycardia/hyperventilation slightly, and never reverse an organic process such as hypoxia, haemorrhage, airway obstruction, toxicity, or arrhythmia.
-- If the action only partially or temporarily addresses the underlying condition, model it wearing off and the condition resuming its natural course afterward — worse than before if the intervention was just masking ongoing pathology, stable/improving if it substantively corrected the problem. Reason about which applies here.
-- If the action is clinically inappropriate, ineffective, or an insufficient/excessive dose for this condition, reflect that honestly — including continued deterioration, or a supratherapeutic/toxic effect, if that is the truthful outcome. Do not reward an incorrect action with improvement it wouldn't realistically produce.
-- Only include a vital's key if this specific action would plausibly change it; omit anything unaffected.
+- Times are minutes from THIS MOMENT (action = minute 0), not scenario start.
+- You'll be given the plan currently scheduled (prior no-treatment course or earlier adjustments) as context, not binding — keep what's still realistic given this action, override the rest.
+- Use the stated route if given; if not, infer the standard route for that drug in this context (e.g. adrenaline is IM for anaphylaxis, IV/IO for arrest).
+- Base onset on real pharmacology for THIS drug, not a route-based default — it varies a lot even within one route (e.g. IV adrenaline in anaphylaxis/arrest: seconds to ~1 min; IV amiodarone's rhythm effect: several minutes to build; IM glucagon: 10-15 min; thrombolytics: 30-90+ min; some oral drugs: hours).
+- A large/supratherapeutic dose acts faster and/or more intensely — potentially into toxicity — never more slowly or cautiously.
+- If no dose is stated, assume one standard initial dose — never "whatever fixes it." If that standard dose would be inadequate for the situation (large overdose, severe presentation), reflect a partial/temporary effect with the problem persisting or returning, not a full correction. Weigh the agent's own duration against what it's reversing (e.g. naloxone is shorter-acting than most opioids it reverses, so re-sedation as it wears off is often realistic).
+- Reason over the full treatment history, not just this action — the cumulative picture. If this action reverses/corrects an earlier one (e.g. an antidote), it undoes only that specific iatrogenic effect; the underlying provisional diagnosis doesn't resolve unless something has specifically treated it.
+- For concurrent/unrelated conditions, track each independently — correcting one only resolves that one's effects; others continue their own course untouched unless separately addressed.
+- Only give an effect if there's a real, medically-recognised mechanism acting on THIS patient's actual condition. If the action is nonsensical, fictional, unrelated, or has no identifiable mechanism, it has NO effect — the patient continues essentially as with no intervention, not a milder improvement. "Doing something" isn't itself a reason to get better. Comfort/reassurance-type actions are an ordinary example: at most they slightly ease anxiety-driven tachycardia/hyperventilation, never reverse hypoxia, haemorrhage, airway obstruction, toxicity, or arrhythmia.
+- If the action only partially/temporarily addresses the problem, model it wearing off and the condition resuming — worse than before if it was just masking ongoing pathology, stable/improving if it substantively corrected it.
+- If the action is clinically inappropriate, ineffective, or wrongly dosed, reflect that honestly — continued deterioration or a toxic effect if that's the truth. Don't reward a wrong action with unrealistic improvement.
+- Only include a vital's key if this action would plausibly change it.
 - gcsE range 1-4, gcsV range 1-5, gcsM range 1-6 — never exceed these.
-- Project up to ${Math.round(remainingMin)} minutes forward from now, or less if the outcome resolves sooner. Never project past 60 minutes of total scenario time.
-- assumptions: a short list of plain-English strings for anything you had to infer because it wasn't stated in the action (e.g. "Assumed IV route (not stated) — standard for anaphylaxis", "Assumed a single standard 5mg dose (not stated)"). Empty array if the action was fully specified.
-- This is a training placeholder pending clinical review, not a validated clinical model.`;
+- Project forward until the outcome resolves, or until the remaining scenario time given in the user message runs out, whichever is sooner. Never exceed 60 minutes of total scenario time.
+- assumptions: short plain-English strings for anything inferred because it wasn't stated (e.g. "Assumed IV route (not stated) — standard for anaphylaxis"). Empty array if fully specified.
+
+Examples clarifying how chained entries work (illustrative shapes only, not clinical guidance):
+- A vital that rises then partially settles: [{"targetValue":150,"startMin":0,"endMin":3},{"targetValue":150,"startMin":3,"endMin":6},{"targetValue":95,"startMin":6,"endMin":25}]. The middle entry does not change the value, but it still gets its own entry so the chain reaches minute 6 before the decline begins.
+- A vital that changes once because a problem was genuinely, fully corrected: [{"targetValue":80,"startMin":0,"endMin":4}] is sufficient on its own — the value holds at 80 for the rest of the scenario, which is correct here because nothing further is expected to happen to it.
+- A vital that is genuinely unaffected by the action: omit its key entirely from overrides rather than giving it a flat entry — a flat entry implies you deliberately fixed its value there, whereas omitting it lets it continue on whatever course was already scheduled.
+- A vital undergoing several distinct phases (e.g. a brief worsening, then a partial recovery, then a late relapse) needs one chained entry per phase, in order, each starting exactly where the previous one ended — gaps or overlaps between entries are not meaningful to the renderer and should be avoided.
+- Whatever endMin your LAST entry for a vital uses is where that vital's value locks in place for the rest of the scenario — it will not drift, improve, or deteriorate further on its own after that point unless you add another entry saying so. There is no implicit resumption of any other course (not the pre-treatment plan, not the underlying condition's natural progression) once your entries run out.
+
+- Training placeholder pending clinical review, not a validated clinical model.`;
 
   // Haiku-only supplement. Sonnet already carries multi-phase courses (e.g.
   // "toxic surge, then the underlying condition resumes its own course")
@@ -1818,7 +1830,21 @@ Rules:
 IMPORTANT — how this projection actually gets drawn:
 - For each vital, only the override entries you provide are drawn. Once a vital's LAST entry ends, its value HOLDS FLAT at that entry's targetValue for the rest of the scenario — it does NOT automatically resume any other course (not the pre-treatment plan, not the underlying condition's natural progression) unless you write further entries saying so.
 - If you judge that a vital goes through more than one phase — e.g. a drug's direct effect, then that effect wearing off, then an underlying condition resuming its own independent course — each phase needs its OWN chained override entry (typically 2-5 entries total per affected vital for a multi-phase course), running end-to-end so the entries together cover the full span you're projecting. A single short entry is only correct when the vital genuinely changes once and then plateaus for good clinical reason (e.g. a corrected problem that stays corrected).
-- Follow the trajectory all the way to its genuine physiological endpoint if that is the honest outcome — including arrest, if the reasoning points there — rather than stopping the entries early at a "critical but stable" plateau. Describing a risk in your assumptions is not enough on its own; the override entries must actually carry the numbers there.`;
+- Follow the trajectory all the way to its genuine physiological endpoint if that is the honest outcome — including arrest, if the reasoning points there — rather than stopping the entries early at a "critical but stable" plateau. Describing a risk in your assumptions is not enough on its own; the override entries must actually carry the numbers there.
+
+Worked examples (illustrative only — reason independently for the real case each time):
+
+Example A — a conscious inferior-STEMI patient is given a grossly supratherapeutic IV adrenaline dose. Correct reasoning: a massive sympathetic surge causes an immediate hypertensive/tachycardic crisis (onset in 30-60s), which precipitates a fatal arrhythmia within a few minutes given the ischaemic myocardium, leading to cardiac arrest with no reversal agent available — so the arrest persists for the rest of the projection (no return of spontaneous circulation modelled without further intervention). A correctly chained HR entry set: [{"targetValue":170,"startMin":0,"endMin":1},{"targetValue":170,"startMin":1,"endMin":4},{"targetValue":0,"startMin":4,"endMin":5},{"targetValue":0,"startMin":5,"endMin":30}] — four chained entries: the onset spike, a brief hold at peak, the transition into arrest, and a final entry holding the arrest value all the way to the edge of the projection window. Without that last entry, the graph would silently hold at the peak tachycardia value instead of showing the arrest for the remaining time.
+
+Example B — an opioid-overdosed patient (resp rate 4, GCS 6) is given a single standard dose of naloxone. Correct reasoning: naloxone reverses the respiratory depression within 2-3 minutes, but its effect is shorter-lived than most opioids — the improvement is genuine but temporary, and without a repeat dose the patient re-sedates as the naloxone wears off while the opioid is still on board. A correctly chained RR entry set: [{"targetValue":4,"startMin":0,"endMin":2},{"targetValue":16,"startMin":2,"endMin":3},{"targetValue":16,"startMin":3,"endMin":25},{"targetValue":6,"startMin":25,"endMin":35}] — the reversal, a hold while naloxone is still active, then a chained entry back down as it wears off and the opioid effect resumes. Missing that last entry would have left the patient looking permanently recovered instead of showing the realistic relapse.
+
+Example C — a patient with both a hypoglycaemic episode (BGL 2.1) and an unrelated, ongoing concealed haemorrhage from a fall is given IV glucose. Correct reasoning: the glucose corrects the BGL and the confusion/GCS effects specifically attributable to the hypoglycaemia within a few minutes and that correction holds, since the cause has genuinely been fixed. But the haemorrhage is untouched by this action, so HR and BP continue their own independent deteriorating course exactly as they were already scheduled to — the two problems are tracked as separate override chains on the relevant vitals, not merged into one improving picture.
+
+Example D — a patient is given an action with no real, medically-recognised mechanism for their actual condition (e.g. a comfort measure for an active haemorrhage, or a nonsensical action). Correct reasoning: this action has NO physiological effect on the underlying problem, so no override entries are written for the vitals it would have targeted — the patient continues exactly on whatever course was already scheduled before this action, not a milder or improved version of it. Do not invent even a small, symbolic improvement just because an action was taken.
+
+Example E — a second, related pattern: the same STEMI-plus-adrenaline-toxicity case, but reasoned slightly differently — the crew reasons the acute toxic surge itself is short-lived (0-6 min) and does not directly cause arrest, but it does worsen myocardial oxygen demand on an already-ischaemic heart, so the underlying STEMI resumes its own independent deterioration afterwards, now on a faster track toward arrest than it would have been untreated. The WRONG way to express this is to write only the 0-6 minute toxic-surge entries and stop — that silently flatlines the vital at its minute-6 value for the rest of the scenario, contradicting the very reasoning just given. The RIGHT way is to keep chaining: after the toxic-surge entries, add further entries carrying the vital through the STEMI's resumed, now-accelerated deterioration, all the way to its genuine endpoint (arrest, if that is really where it leads) or to the edge of the projection window. If your own reasoning describes what happens after your last entry, that description belongs in the JSON as more entries, not left as unwritten prose.
+
+Apply this same chaining principle to every vital your own reasoning says would keep changing, for however many phases the real clinical picture actually has.`;
   }
 
   const userPrompt = `Scenario: ${currentScenario.title || ''}
@@ -1832,13 +1858,23 @@ Prior treatments already given in this encounter, in order (factor in their cumu
 Action just given by the crew (at minute ${elapsedMin.toFixed(1)} of the scenario): ${action}
 Patient's vitals at the moment this was given: ${JSON.stringify(vitalsNow)}
 Currently scheduled future changes (minutes from now; not binding — see rules): ${Object.keys(scheduledSummary).length ? JSON.stringify(scheduledSummary) : 'none'}
+Remaining scenario time available to project (minutes; project less if the outcome resolves sooner): ${Math.round(remainingMin)}
 
 Project how this patient's vitals change from here, given this specific action.`;
+
+  // System prompt is now fully static per model (the one dynamic value,
+  // remaining scenario time, moved to the user prompt above) so it can be
+  // cached — repeat calls within the same session reuse it at ~1/10th the
+  // input cost. Caching writes to cache at a small premium on first use, so
+  // it's opt-out via the toggle for one-off/testing calls with no follow-up.
+  const systemParam = promptCachingEnabled
+    ? [{ type: 'text', text: systemPrompt, cache_control: { type: 'ephemeral' } }]
+    : systemPrompt;
 
   const response = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' },
-    body: JSON.stringify({ model: aiModel, max_tokens: 4096, system: systemPrompt, messages: [{ role: 'user', content: userPrompt }] })
+    body: JSON.stringify({ model: aiModel, max_tokens: 4096, system: systemParam, messages: [{ role: 'user', content: userPrompt }] })
   });
   if (!response.ok) { const e = await response.json().catch(() => ({})); throw new Error(e.error?.message || `Anthropic API error ${response.status}`); }
   const data = await response.json();
