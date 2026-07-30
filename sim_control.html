@@ -17,7 +17,6 @@ body { display: flex; flex-direction: column; }
 #dash-left { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; gap: 8px; }
 #graph-panel { flex: 2; min-height: 0; display: flex; flex-direction: column; }
 #graph-svg-wrap { flex: 1; min-height: 0; }
-#vitals-panel { flex-shrink: 0; }
 #management-panel { flex: 1; min-height: 0; overflow-y: auto; }
 #feed-panel { flex: 0 0 20%; min-width: 190px; max-width: 260px; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
 #log-list-wrap { flex: 1; min-height: 0; overflow-y: auto; }
@@ -37,8 +36,8 @@ body { display: flex; flex-direction: column; }
 .pending-card .actbtns { display: flex; gap: 6px; margin-top: 8px; }
 .pending-card .actbtns button { flex: 1; font-size: 12px; font-weight: 700; padding: 10px 6px; border-radius: 5px; border: 1px solid #d7dee6; background: #fff; cursor: pointer; }
 .pending-card .actbtns button:active { background: #f3f6fa; }
-.toolbtn { padding: 9px 14px; font-size: 13px; }
-.toolbtn.iconbtn { padding: 9px 12px; display: inline-flex; align-items: center; justify-content: center; }
+.toolbtn { height: 38px; padding: 0 14px; font-size: 13px; display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; }
+.toolbtn.iconbtn { padding: 0 12px; }
 .toolbtn.toggletile { opacity: 0.65; }
 .toolbtn.toggletile.active { opacity: 1; background: #0369a1; }
 .panel { background: #ffffff; border: 1px solid #d7dee6; border-radius: 8px; padding: 12px; }
@@ -108,14 +107,11 @@ select, input[type=number], input[type=text] { font-family: 'Courier New', monos
         <button class="btn btn-secondary toolbtn" onclick="graphPan(-1)">&larr;</button>
         <button class="btn btn-secondary toolbtn" onclick="graphSnapToNow()">Now</button>
         <button class="btn btn-secondary toolbtn" onclick="graphPan(1)">&rarr;</button>
-        <button class="btn btn-secondary toolbtn toggletile" id="baseline-ghost-btn" onclick="toggleBaselineGhost()">Original</button>
-        <button class="btn btn-secondary toolbtn toggletile" id="previous-ghost-btn" onclick="togglePreviousGhost()">Previous</button>
+        <button class="btn btn-secondary toolbtn toggletile" id="baseline-ghost-btn" onclick="toggleBaselineGhost()">No Tx</button>
+        <button class="btn btn-secondary toolbtn toggletile" id="previous-ghost-btn" onclick="togglePreviousGhost()">Last Plan</button>
       </div>
       <div id="graph-svg-wrap" style="width:100%;overflow:hidden;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;"></div>
-    </div>
-
-    <div class="panel" id="vitals-panel">
-      <div id="vitals-grid" style="display:flex;flex-wrap:wrap;gap:8px;"></div>
+      <div id="vitals-grid" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;flex-shrink:0;"></div>
     </div>
 
       <div class="panel" id="management-panel">
@@ -182,6 +178,17 @@ select, input[type=number], input[type=text] { font-family: 'Courier New', monos
     <p class="muted" style="margin-bottom:10px;">Tap the same tile again to open manual number entry instead of dragging.</p>
     <p class="muted" style="margin-bottom:10px;">Turn Edit off to go back to tiles just toggling which lines are shown on the graph.</p>
     <button class="btn" style="width:100%;" onclick="closeEditModeModal()">Got it</button>
+  </div>
+</div>
+
+<div id="resume-prompt-modal" style="display:none;position:fixed;inset:0;background:rgba(20,30,45,0.6);align-items:center;justify-content:center;z-index:50;">
+  <div class="panel" style="width:300px;">
+    <h2 style="margin-bottom:8px;">Resume Scenario?</h2>
+    <p class="muted" style="margin-bottom:12px;">The patient device just started something while the scenario is paused.</p>
+    <div class="row" style="margin-top:0;">
+      <button class="btn btn-secondary" style="flex:1;" onclick="dismissResumePrompt()">Not Now</button>
+      <button class="btn btn-start" style="flex:1;" onclick="confirmResumeFromPrompt()">Resume</button>
+    </div>
   </div>
 </div>
 
@@ -493,8 +500,8 @@ async function createSession() {
       _prevPatientActionsStatus = {};
       _actionLogPrimed = false;
       _recentlySkippedKeys = new Set();
+      document.getElementById('resume-prompt-modal').style.display = 'none';
       graphSeriesOn = { ...GRAPH_DEFAULT_ON };
-      legendExpanded = false;
       autoEnableGraphSeriesFromOverrides(timeline.timeline_overrides);
       document.getElementById('create-panel').style.display = 'none';
       document.getElementById('dashboard').style.display = 'flex';
@@ -607,9 +614,13 @@ function detectActionLogTransitions(newPatientActions) {
     return;
   }
   const nowMin = (simNow() - liveConfig.startTimeMs) / 60000;
+  let anyNewlyInitiated = false;
   Object.keys(newPatientActions).forEach(key => {
     const cur = newPatientActions[key].status;
     const prev = _prevPatientActionsStatus[key];
+    const wasActive = prev === 'pending' || prev === 'queued';
+    const isActiveNow = cur === 'pending' || cur === 'queued';
+    if (isActiveNow && !wasActive) anyNewlyInitiated = true;
     if (cur === 'done' && prev !== 'done') {
       const label = newPatientActions[key].label || key;
       const wasSkipped = _recentlySkippedKeys.has(key);
@@ -618,6 +629,31 @@ function detectActionLogTransitions(newPatientActions) {
     }
     _prevPatientActionsStatus[key] = cur;
   });
+  if (anyNewlyInitiated) maybeHandleActionInitiated();
+}
+
+// A student starting/queuing an action (BP, RR, GCS, etc) is treated as
+// "the scenario is actually underway" — auto-starts it if it hasn't begun
+// yet. If it HAS begun but is currently paused, we don't auto-resume
+// silently (the assessor may have paused deliberately, e.g. mid-debrief) —
+// instead a popup asks. Running-and-unpaused: nothing to do.
+function maybeHandleActionInitiated() {
+  if (!liveConfig) return;
+  if (!liveConfig.hasStarted) {
+    toggleRun();
+    return;
+  }
+  if (liveConfig.isPaused) {
+    const modal = document.getElementById('resume-prompt-modal');
+    if (modal.style.display !== 'flex') modal.style.display = 'flex';
+  }
+}
+function dismissResumePrompt() {
+  document.getElementById('resume-prompt-modal').style.display = 'none';
+}
+function confirmResumeFromPrompt() {
+  dismissResumePrompt();
+  toggleRun();
 }
 
 async function pollSession() {
@@ -735,6 +771,19 @@ function graphPan(dir) {
 }
 function graphSnapToNow() {
   graphUserPanned = false;
+  // Explicitly recenter here rather than just clearing graphUserPanned and
+  // relying on renderGraph()'s own auto-follow check — that check only
+  // recenters when "now" is already near/past the view's right edge (it's
+  // built for auto-scrolling as time passes, not for jumping from an
+  // arbitrary panned position), so it silently did nothing if you'd panned
+  // somewhere "now" wasn't close to that edge — e.g. panned into the future
+  // preview past "now", or only slightly left. This makes Now unconditional.
+  if (liveConfig && liveConfig.hasStarted) {
+    const elapsedMin = (simNow() - liveConfig.startTimeMs) / 60000;
+    graphViewStartMin = Math.max(0, elapsedMin - graphViewWindowMin * 0.75);
+  } else {
+    graphViewStartMin = 0;
+  }
   renderGraph();
 }
 
