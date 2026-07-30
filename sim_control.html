@@ -24,11 +24,15 @@ body { display: flex; flex-direction: column; }
 #feed-tabs .tab-btn { flex: 1; font-size: 11px; font-weight: 700; color: #33475a; background: #f3f6fa; border: 1px solid #d7dee6; border-radius: 5px; padding: 6px 4px; cursor: pointer; }
 #feed-tabs .tab-btn.active { background: #0369a1; color: #fff; border-color: #0369a1; }
 #feed-body { flex: 1; min-height: 0; overflow-y: auto; }
-.action-item { font-size: 11px; padding: 6px 8px; border-bottom: 1px solid #eef2f6; }
+.action-item { font-size: 11px; padding: 8px; border-bottom: 1px solid #eef2f6; }
+.action-item.tappable { cursor: pointer; }
+.action-item.tappable:active { background: #f3f6fa; }
 .action-item .arow { display: flex; justify-content: space-between; align-items: center; gap: 6px; }
 .action-item .atimer { font-weight: 700; color: #0369a1; }
-.action-item .actbtns { display: flex; gap: 4px; margin-top: 4px; }
-.action-item .actbtns button { font-size: 9px; padding: 2px 6px; border-radius: 4px; border: 1px solid #d7dee6; background: #fff; cursor: pointer; }
+.action-item .achevron { color: #9db1c2; font-size: 9px; margin-left: 4px; }
+.action-item .actbtns { display: flex; gap: 6px; margin-top: 8px; }
+.action-item .actbtns button { flex: 1; font-size: 12px; font-weight: 700; padding: 10px 6px; border-radius: 5px; border: 1px solid #d7dee6; background: #fff; cursor: pointer; }
+.action-item .actbtns button:active { background: #f3f6fa; }
 .panel { background: #ffffff; border: 1px solid #d7dee6; border-radius: 8px; padding: 12px; }
 .panel h2 { font-size: 12px; color: #0369a1; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
 label { font-size: 11px; color: #33475a; display: block; margin-bottom: 3px; }
@@ -223,6 +227,7 @@ let instantMode = false;
 let treatments = [];
 let patientActions = {}; // synced from sim_patient.html — see pollSession() / renderActions()
 let actionControls = {}; // this page's own pause/skip commands, echoed back by patient page
+let expandedActionKey = null; // which Actions-tab item currently has its Pause/Skip controls open
 let activeFeedTab = 'treatments';
 let _joinInfoManuallyShown = false;
 
@@ -453,6 +458,7 @@ async function createSession() {
       treatments = [];
       patientActions = {};
       actionControls = {};
+      expandedActionKey = null;
       document.getElementById('create-panel').style.display = 'none';
       document.getElementById('dashboard').style.display = 'flex';
       document.getElementById('code-display').textContent = code;
@@ -1380,29 +1386,43 @@ function renderActions() {
   // Pending first (most actionable), then queued, then done.
   const order = { pending: 0, queued: 1, done: 2 };
   keys.sort((a, b) => (order[patientActions[a].status] ?? 3) - (order[patientActions[b].status] ?? 3));
+  if (expandedActionKey && (!patientActions[expandedActionKey] || patientActions[expandedActionKey].status !== 'pending')) {
+    expandedActionKey = null; // item finished/vanished while its controls were open — collapse
+  }
   list.innerHTML = keys.map(key => {
     const a = patientActions[key];
-    // Pause/Resume label & handler are driven by OUR OWN command
-    // (actionControls), not the patient's echo of it — that echo only
-    // arrives after a poll round-trip on both sides (up to ~6s), which
-    // made clicking Resume look like nothing happened. The countdown
-    // number itself still comes from the patient (it owns the real timer).
+    // Pause/Resume label is driven by OUR OWN command (actionControls), not
+    // the patient's echo of it — that echo only arrives after a poll
+    // round-trip on both sides (up to ~6s), which made clicking Resume look
+    // like nothing happened. The countdown number itself still comes from
+    // the patient (it owns the real timer).
     const commandedPaused = !!(actionControls[key] && actionControls[key].paused);
-    let statusHtml, controlsHtml = '';
-    if (a.status === 'pending') {
+    const isPending = a.status === 'pending';
+    const isExpanded = isPending && expandedActionKey === key;
+    let statusHtml;
+    if (isPending) {
       const remain = Math.max(0, Math.ceil((a.completesAt - Date.now()) / 1000));
-      statusHtml = `<span class="atimer">${commandedPaused ? '\u23f8 ' : ''}${remain}s</span>`;
-      controlsHtml = `<div class="actbtns">
-        <button onclick="${commandedPaused ? `resumeAction('${key}')` : `pauseAction('${key}')`}">${commandedPaused ? 'Resume' : 'Pause'}</button>
-        <button onclick="skipAction('${key}')">Skip</button>
-      </div>`;
+      statusHtml = `<span class="atimer">${commandedPaused ? '\u23f8 ' : ''}${remain}s</span><span class="achevron">${isExpanded ? '\u25b2' : '\u25bc'}</span>`;
     } else if (a.status === 'queued') {
       statusHtml = `<span class="muted">Queued\u2026</span>`;
     } else {
       statusHtml = `<span class="muted">\u2713 Done</span>`;
     }
-    return `<div class="action-item"><div class="arow"><span>${escapeHtml(a.label || key)}</span>${statusHtml}</div>${controlsHtml}</div>`;
+    const controlsHtml = isExpanded ? `<div class="actbtns">
+        <button onclick="event.stopPropagation();${commandedPaused ? `resumeAction('${key}')` : `pauseAction('${key}')`}">${commandedPaused ? 'Resume' : 'Pause'}</button>
+        <button onclick="event.stopPropagation();skipAction('${key}')">Skip</button>
+      </div>` : '';
+    const rowAttrs = isPending ? `class="action-item tappable" onclick="toggleActionExpanded('${key}')"` : `class="action-item"`;
+    return `<div ${rowAttrs}><div class="arow"><span>${escapeHtml(a.label || key)}</span>${statusHtml}</div>${controlsHtml}</div>`;
   }).join('');
+}
+
+// Expands/collapses a pending action's Pause/Resume + Skip controls in
+// place — tapping the action row toggles them, rather than showing small
+// always-on buttons (fiddly to hit reliably on an iPad).
+function toggleActionExpanded(key) {
+  expandedActionKey = expandedActionKey === key ? null : key;
+  renderActions();
 }
 
 // Pause/resume/skip write only to action_controls — sim_patient.html owns
