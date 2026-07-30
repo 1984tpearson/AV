@@ -20,19 +20,23 @@ body { display: flex; flex-direction: column; }
 #vitals-panel { flex-shrink: 0; }
 #management-panel { flex: 1; min-height: 0; overflow-y: auto; }
 #feed-panel { flex: 0 0 20%; min-width: 190px; max-width: 260px; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
-#feed-tabs { flex-shrink: 0; display: flex; gap: 4px; margin-bottom: 8px; }
-#feed-tabs .tab-btn { flex: 1; font-size: 11px; font-weight: 700; color: #33475a; background: #f3f6fa; border: 1px solid #d7dee6; border-radius: 5px; padding: 6px 4px; cursor: pointer; }
-#feed-tabs .tab-btn.active { background: #0369a1; color: #fff; border-color: #0369a1; }
-#feed-body { flex: 1; min-height: 0; overflow-y: auto; }
-.action-item { font-size: 11px; padding: 8px; border-bottom: 1px solid #eef2f6; }
-.action-item.tappable { cursor: pointer; }
-.action-item.tappable:active { background: #f3f6fa; }
-.action-item .arow { display: flex; justify-content: space-between; align-items: center; gap: 6px; }
-.action-item .atimer { font-weight: 700; color: #0369a1; }
-.action-item .achevron { color: #9db1c2; font-size: 9px; margin-left: 4px; }
-.action-item .actbtns { display: flex; gap: 6px; margin-top: 8px; }
-.action-item .actbtns button { flex: 1; font-size: 12px; font-weight: 700; padding: 10px 6px; border-radius: 5px; border: 1px solid #d7dee6; background: #fff; cursor: pointer; }
-.action-item .actbtns button:active { background: #f3f6fa; }
+#log-list-wrap { flex: 1; min-height: 0; overflow-y: auto; }
+#pending-actions-stack { flex-shrink: 0; display: flex; flex-direction: column; gap: 6px; margin-top: 6px; }
+.log-item { font-size: 12px; padding: 7px 4px; border-bottom: 1px solid #eef2f6; }
+.log-item.log-treatment { cursor: pointer; }
+.log-item.log-treatment:active { background: #f3f6fa; }
+.log-item .log-head { display: flex; justify-content: space-between; align-items: center; gap: 6px; }
+.log-item .log-chevron { color: #9db1c2; font-size: 9px; margin-left: 4px; }
+.log-item .log-assumptions { font-size: 10px; color: #6b8299; margin-top: 5px; }
+.pending-card { background: #eef6ff; border: 1px solid #bae0fd; border-radius: 8px; padding: 8px; font-size: 11px; box-shadow: 0 -2px 6px rgba(3,105,161,0.08); }
+.pending-card.tappable { cursor: pointer; }
+.pending-card.tappable:active { background: #dcebfb; }
+.pending-card .arow { display: flex; justify-content: space-between; align-items: center; gap: 6px; }
+.pending-card .atimer { font-weight: 700; color: #0369a1; }
+.pending-card .achevron { color: #5b8bb0; font-size: 9px; margin-left: 4px; }
+.pending-card .actbtns { display: flex; gap: 6px; margin-top: 8px; }
+.pending-card .actbtns button { flex: 1; font-size: 12px; font-weight: 700; padding: 10px 6px; border-radius: 5px; border: 1px solid #d7dee6; background: #fff; cursor: pointer; }
+.pending-card .actbtns button:active { background: #f3f6fa; }
 .panel { background: #ffffff; border: 1px solid #d7dee6; border-radius: 8px; padding: 12px; }
 .panel h2 { font-size: 12px; color: #0369a1; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
 label { font-size: 11px; color: #33475a; display: block; margin-bottom: 3px; }
@@ -137,14 +141,9 @@ select, input[type=number], input[type=text] { font-family: 'Courier New', monos
     </div>
 
       <div class="panel" id="feed-panel">
-        <div id="feed-tabs">
-          <button class="tab-btn active" id="tab-btn-treatments" onclick="switchFeedTab('treatments')">Treatments</button>
-          <button class="tab-btn" id="tab-btn-actions" onclick="switchFeedTab('actions')">Actions</button>
-        </div>
-        <div id="feed-body">
-          <div id="treatment-list-wrap"><div id="treatment-list"></div></div>
-          <div id="actions-list-wrap" style="display:none;"><div id="actions-list"></div></div>
-        </div>
+        <h2>Log</h2>
+        <div id="log-list-wrap"><div id="log-list"></div></div>
+        <div id="pending-actions-stack"></div>
       </div>
   </div>
 
@@ -246,10 +245,14 @@ let showPreviousGhost = false; // dashed same-colour line: state right before th
 let liveConfig = null; // mirrors the patient page's testConfig shape, plus pause fields
 let instantMode = false;
 let treatments = [];
-let patientActions = {}; // synced from sim_patient.html — see pollSession() / renderActions()
+let patientActions = {}; // synced from sim_patient.html — see pollSession() / renderPendingActionsStack()
 let actionControls = {}; // this page's own pause/skip commands, echoed back by patient page
-let expandedActionKey = null; // which Actions-tab item currently has its Pause/Skip controls open
-let activeFeedTab = 'treatments';
+let expandedActionKey = null; // which pending-action card currently has its Pause/Skip controls open
+let actionLog = []; // {text, atMin} — completed/skipped student actions, merged into the Log with `treatments`
+let expandedTreatmentIdx = null; // which treatment log entry (index into `treatments`) has its AI assumptions expanded
+let _prevPatientActionsStatus = {}; // key -> last-seen status, used to detect done/skipped transitions for actionLog
+let _actionLogPrimed = false; // false until the first poll after session creation, so we don't log actions that were already 'done' before this page connected
+let _recentlySkippedKeys = new Set(); // keys the assessor just skipped, so the resulting 'done' transition logs as "skipped" not "completed"
 let _joinInfoManuallyShown = false;
 
 function genCode() {
@@ -480,6 +483,11 @@ async function createSession() {
       patientActions = {};
       actionControls = {};
       expandedActionKey = null;
+      actionLog = [];
+      expandedTreatmentIdx = null;
+      _prevPatientActionsStatus = {};
+      _actionLogPrimed = false;
+      _recentlySkippedKeys = new Set();
       graphSeriesOn = { ...GRAPH_DEFAULT_ON };
       legendExpanded = false;
       autoEnableGraphSeriesFromOverrides(timeline.timeline_overrides);
@@ -492,8 +500,8 @@ async function createSession() {
       renderJoinQR();
       updatePatientStatus();
       renderRunControls();
-      renderTreatments();
-      renderActions();
+      renderLog();
+      renderPendingActionsStack();
       tickVitals();
       setInterval(tickVitals, 1000);
       setInterval(pollSession, 3000);
@@ -585,6 +593,28 @@ function closeJoinModal() {
   document.getElementById('join-modal').style.display = 'none';
 }
 
+function detectActionLogTransitions(newPatientActions) {
+  if (!_actionLogPrimed) {
+    // First poll after (re)connecting — just record current state silently,
+    // don't retroactively log actions that finished before we were watching.
+    Object.keys(newPatientActions).forEach(k => { _prevPatientActionsStatus[k] = newPatientActions[k].status; });
+    _actionLogPrimed = true;
+    return;
+  }
+  const nowMin = (simNow() - liveConfig.startTimeMs) / 60000;
+  Object.keys(newPatientActions).forEach(key => {
+    const cur = newPatientActions[key].status;
+    const prev = _prevPatientActionsStatus[key];
+    if (cur === 'done' && prev !== 'done') {
+      const label = newPatientActions[key].label || key;
+      const wasSkipped = _recentlySkippedKeys.has(key);
+      _recentlySkippedKeys.delete(key);
+      actionLog.push({ text: wasSkipped ? `${label} \u2014 skipped by assessor` : (ACTION_LOG_VERB[key] || `${label} completed`), atMin: nowMin });
+    }
+    _prevPatientActionsStatus[key] = cur;
+  });
+}
+
 async function pollSession() {
   if (!sessionCode || !liveConfig) return;
   try {
@@ -605,13 +635,15 @@ async function pollSession() {
     }
     instantMode = row.instant_mode;
     treatments = liveConfig.treatments;
-    patientActions = row.patient_actions || {};
+    const newPatientActions = row.patient_actions || {};
+    detectActionLogTransitions(newPatientActions);
+    patientActions = newPatientActions;
     actionControls = row.action_controls || {};
     document.getElementById('instant-toggle').checked = instantMode;
     renderRunControls();
     updatePatientStatus();
-    renderTreatments();
-    renderActions();
+    renderLog();
+    renderPendingActionsStack();
   } catch (e) { /* transient network hiccup — try again next poll */ }
 }
 
@@ -1466,38 +1498,71 @@ function tickVitals() {
       <div class="muted">${def.unit}</div>
     </div>`;
   }).join('');
-  if (Object.keys(patientActions).some(k => patientActions[k].status === 'pending')) renderActions(); // live countdown while anything's mid-timer
+  if (Object.keys(patientActions).some(k => patientActions[k].status === 'pending')) renderPendingActionsStack(); // live countdown while anything's mid-timer
   renderGraph();
 }
 
-function switchFeedTab(tab) {
-  activeFeedTab = tab;
-  document.getElementById('tab-btn-treatments').classList.toggle('active', tab === 'treatments');
-  document.getElementById('tab-btn-actions').classList.toggle('active', tab === 'actions');
-  document.getElementById('treatment-list-wrap').style.display = tab === 'treatments' ? 'block' : 'none';
-  document.getElementById('actions-list-wrap').style.display = tab === 'actions' ? 'block' : 'none';
-}
+// Friendlier wording for the Log's completed-action lines than the raw
+// tile label — falls back to "<label> completed" for anything unmapped.
+const ACTION_LOG_VERB = {
+  ecg: 'ECG (Lead II) applied', ecg12lead: '12-Lead ECG applied', rr: 'Resp Rate assessed', spo2: 'SpO\u2082 assessed',
+  etco2: 'EtCO\u2082 assessed', bp: 'BP taken', temp: 'Temperature assessed', gcs: 'GCS assessed',
+  bgl: 'BGL taken', ketones: 'Ketones taken', pain: 'Pain score assessed'
+};
 
-// Renders the student-initiated action queue (BP, RR, SpO2, GCS, etc — see
-// sim_patient.html's actionState) with pause/skip controls for pending ones.
-// Countdown is computed live from completesAt on every call rather than
-// stored — the patient page only pushes on state CHANGES (see its
-// pushActionState()), so this needs to tick locally between those pushes.
-function renderActions() {
-  const list = document.getElementById('actions-list');
+// Single running log: treatments (from `treatments`, server-persisted) and
+// completed/skipped student actions (from `actionLog`, this page's own
+// running tally — see detectActionLogTransitions) merged and sorted by
+// scenario time. Treatment entries expand to show AI assumptions on tap;
+// action-log entries are plain text, since they're just a record.
+function renderLog() {
+  const list = document.getElementById('log-list');
   if (!list) return;
-  const keys = Object.keys(patientActions);
-  if (!keys.length) {
-    list.innerHTML = '<p class="muted" style="margin-top:8px;">No actions initiated yet.</p>';
+  const entries = [];
+  treatments.forEach((t, idx) => entries.push({ kind: 'treatment', idx, atMin: t.givenAtMin, text: t.action, assumptions: t.assumptions }));
+  actionLog.forEach(a => entries.push({ kind: 'action', atMin: a.atMin, text: a.text }));
+  entries.sort((a, b) => a.atMin - b.atMin);
+  if (!entries.length) {
+    list.innerHTML = '<p class="muted" style="margin-top:8px;">Nothing logged yet.</p>';
     return;
   }
-  // Pending first (most actionable), then queued, then done.
-  const order = { pending: 0, queued: 1, done: 2 };
-  keys.sort((a, b) => (order[patientActions[a].status] ?? 3) - (order[patientActions[b].status] ?? 3));
+  list.innerHTML = entries.map(e => {
+    const timeStr = `t+${e.atMin.toFixed(1)} min`;
+    if (e.kind === 'action') {
+      return `<div class="log-item"><div class="log-head"><span>${escapeHtml(e.text)}</span><span class="muted">${timeStr}</span></div></div>`;
+    }
+    const hasAssumptions = e.assumptions && e.assumptions.length;
+    const isExpanded = expandedTreatmentIdx === e.idx;
+    const chevron = hasAssumptions ? `<span class="log-chevron">${isExpanded ? '\u25b2' : '\u25bc'}</span>` : '';
+    const rowAttrs = hasAssumptions ? `class="log-item log-treatment" onclick="toggleTreatmentExpanded(${e.idx})"` : `class="log-item"`;
+    const body = (hasAssumptions && isExpanded) ? `<div class="log-assumptions">${e.assumptions.map(a => '\u26A0 ' + escapeHtml(a)).join('<br>')}</div>` : '';
+    return `<div ${rowAttrs}><div class="log-head"><span>${escapeHtml(e.text)}</span><span class="muted">${timeStr}${chevron}</span></div>${body}</div>`;
+  }).join('');
+}
+
+function toggleTreatmentExpanded(idx) {
+  expandedTreatmentIdx = expandedTreatmentIdx === idx ? null : idx;
+  renderLog();
+}
+
+// Renders the currently pending/queued student actions (BP, RR, SpO2, GCS,
+// etc — see sim_patient.html's actionState) as small cards stacked at the
+// bottom of the Log panel, oldest first so a newly-started action lands at
+// the very bottom and pushes earlier ones up — once an action finishes or
+// is skipped its card disappears (detectActionLogTransitions turns it into
+// a permanent text line in the Log above instead). Countdown is computed
+// live from completesAt on every call rather than stored — the patient page
+// only pushes on state CHANGES (see its pushActionState()), so this needs
+// to tick locally between those pushes.
+function renderPendingActionsStack() {
+  const stack = document.getElementById('pending-actions-stack');
+  if (!stack) return;
+  const keys = Object.keys(patientActions).filter(k => patientActions[k].status === 'pending' || patientActions[k].status === 'queued');
+  keys.sort((a, b) => (patientActions[a].startedAt || 0) - (patientActions[b].startedAt || 0));
   if (expandedActionKey && (!patientActions[expandedActionKey] || patientActions[expandedActionKey].status !== 'pending')) {
     expandedActionKey = null; // item finished/vanished while its controls were open — collapse
   }
-  list.innerHTML = keys.map(key => {
+  stack.innerHTML = keys.map(key => {
     const a = patientActions[key];
     // Pause/Resume label is driven by OUR OWN command (actionControls), not
     // the patient's echo of it — that echo only arrives after a poll
@@ -1511,26 +1576,24 @@ function renderActions() {
     if (isPending) {
       const remain = Math.max(0, Math.ceil((a.completesAt - Date.now()) / 1000));
       statusHtml = `<span class="atimer">${commandedPaused ? '\u23f8 ' : ''}${remain}s</span><span class="achevron">${isExpanded ? '\u25b2' : '\u25bc'}</span>`;
-    } else if (a.status === 'queued') {
-      statusHtml = `<span class="muted">Queued\u2026</span>`;
     } else {
-      statusHtml = `<span class="muted">\u2713 Done</span>`;
+      statusHtml = `<span class="muted">Queued\u2026</span>`;
     }
     const controlsHtml = isExpanded ? `<div class="actbtns">
         <button onclick="event.stopPropagation();${commandedPaused ? `resumeAction('${key}')` : `pauseAction('${key}')`}">${commandedPaused ? 'Resume' : 'Pause'}</button>
         <button onclick="event.stopPropagation();skipAction('${key}')">Skip</button>
       </div>` : '';
-    const rowAttrs = isPending ? `class="action-item tappable" onclick="toggleActionExpanded('${key}')"` : `class="action-item"`;
+    const rowAttrs = isPending ? `class="pending-card tappable" onclick="toggleActionExpanded('${key}')"` : `class="pending-card"`;
     return `<div ${rowAttrs}><div class="arow"><span>${escapeHtml(a.label || key)}</span>${statusHtml}</div>${controlsHtml}</div>`;
   }).join('');
 }
 
 // Expands/collapses a pending action's Pause/Resume + Skip controls in
-// place — tapping the action row toggles them, rather than showing small
+// place — tapping the card toggles them, rather than showing small
 // always-on buttons (fiddly to hit reliably on an iPad).
 function toggleActionExpanded(key) {
   expandedActionKey = expandedActionKey === key ? null : key;
-  renderActions();
+  renderPendingActionsStack();
 }
 
 // Pause/resume/skip write only to action_controls — sim_patient.html owns
@@ -1538,7 +1601,7 @@ function toggleActionExpanded(key) {
 // pages (see the comment above actionControls in sim_patient.html).
 async function patchActionControls(next) {
   actionControls = next;
-  renderActions(); // instant feedback — don't wait for the patient's echo to come back
+  renderPendingActionsStack(); // instant feedback — don't wait for the patient's echo to come back
   try {
     await sbFetch(`sim_sessions?session_code=eq.${sessionCode}`, {
       method: 'PATCH', prefer: 'return=minimal',
@@ -1557,6 +1620,7 @@ function resumeAction(key) {
   patchActionControls(next);
 }
 function skipAction(key) {
+  _recentlySkippedKeys.add(key);
   const cur = actionControls[key] || {};
   const next = { ...actionControls, [key]: { ...cur, skipEpoch: (cur.skipEpoch || 0) + 1 } };
   patchActionControls(next);
@@ -1576,7 +1640,7 @@ async function giveTreatment() {
       method: 'PATCH', prefer: 'return=minimal',
       body: JSON.stringify({ treatments, updated_at: new Date().toISOString() })
     });
-    renderTreatments();
+    renderLog();
     document.getElementById('action-input').value = '';
   } catch (e) {
     treatments.pop();
@@ -1740,22 +1804,8 @@ Project how this patient's vitals change from here, given this specific action.`
   });
   liveConfig.overrides = freshOverrides;
   liveConfig.previousOverrides = previousSnapshot;
-  renderTreatments();
+  renderLog();
   renderGraph();
-}
-
-function renderTreatments() {
-  const list = document.getElementById('treatment-list');
-  if (!treatments.length) {
-    list.innerHTML = '<p class="muted" style="margin-top:8px;">No treatments given yet.</p>';
-    return;
-  }
-  list.innerHTML = treatments.map(t => `
-    <div class="treat-item">
-      <span>${escapeHtml(t.action)}</span>
-      <span class="muted">t+${t.givenAtMin.toFixed(1)} min</span>
-    </div>
-    ${(t.assumptions && t.assumptions.length) ? `<div class="muted" style="font-size:10px;margin:-4px 0 6px 2px;">${t.assumptions.map(a => '\u26A0 ' + escapeHtml(a)).join('<br>')}</div>` : ''}`).join('');
 }
 
 const OVERRIDE_KEY_LABELS = {
