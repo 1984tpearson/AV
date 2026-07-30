@@ -1803,8 +1803,9 @@ async function regenerateTimelineAfterTreatment(action, givenAtMs) {
 
 Reason from the scenario's actual provisional diagnosis and the specific action taken — how would THIS action affect THIS patient's THIS condition. No generic effect table; you are the clinical model.
 
-Return ONLY valid JSON, no prose, in exactly this shape:
-{"overrides": {"HR": [{"targetValue":0,"startMin":0,"endMin":0}], "RR": [], "SpO2": [], "EtCO2": [], "BPsys": [], "BPdia": [], "temp": [], "bgl": [], "ketones": [], "pain": [], "gcsE": [], "gcsV": [], "gcsM": []}, "assumptions": []}
+Return ONLY valid JSON, no prose. Include ONLY the vital keys this specific action actually changes — omit every other key entirely, including as an empty array (an empty array and an absent key are treated identically downstream, so writing "key": [] for every unaffected vital just wastes output tokens for no benefit). Valid vital keys: HR, RR, SpO2, EtCO2, BPsys, BPdia, temp, bgl, ketones, pain, gcsE, gcsV, gcsM.
+Shape (showing one example key only — yours will have however many keys are actually affected, not necessarily HR):
+{"overrides": {"HR": [{"targetValue":0,"startMin":0,"endMin":0}]}, "assumptions": []}
 
 Rules:
 - Times are minutes from THIS MOMENT (action = minute 0), not scenario start.
