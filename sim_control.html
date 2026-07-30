@@ -468,20 +468,12 @@ function renderScenarioInfoPanel() {
   const flags = s.flags || {};
   const redFlags = Array.isArray(flags) ? flags : (flags.red || []);
   const yellowFlags = Array.isArray(flags) ? [] : (flags.yellow || []);
-  // Older scenarios stored expected treatment under a single legacy
-  // "treatment" column before treatment_als/treatment_mica were split out —
-  // same fallback fromRow() applies in scenario.html. currentScenario here
-  // is a raw Supabase row (never passed through fromRow), so this file needs
-  // its own copy of that fallback.
-  const alsTx = s.treatment_als || s.treatment || [];
   document.getElementById('info-tab-clinical').innerHTML =
     infoBlock('Provisional Diagnosis', s.provisional) +
     infoListBlock('Differential Diagnoses', s.ddx) +
     infoListBlock('Life Threats', s.life_threats) +
     infoListBlock('Red Flags', redFlags) +
-    infoListBlock('Yellow Flags', yellowFlags) +
-    infoListBlock('Expected ALS Treatment', alsTx) +
-    infoListBlock('Expected MICA Treatment', s.treatment_mica);
+    infoListBlock('Yellow Flags', yellowFlags);
 }
 
 async function loadRecentScenarios() {
