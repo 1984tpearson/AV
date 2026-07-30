@@ -2216,33 +2216,40 @@ async function processStudentQueue(row) {
   }
 }
 
-// Generates the "patient's" spoken reply to a question the crew just asked
-// (via sim_patient.html's Talk to Patient button), in character, from the
-// scenario's own clinical picture — cheap Haiku call, not the clinical
-// trajectory model. Writes the reply back onto the session row for
-// sim_patient.html to display/speak, and drops a line in this page's own
-// Log so the assessor can see the exchange too.
-async function answerPatientQuestion(question, forId) {
-  if (!currentScenario) return;
-  const nowMin = (simNow() - liveConfig.startTimeMs) / 60000;
-  actionLog.push({ text: `\u{1F399}\uFE0F Crew asked: "${question}"`, atMin: nowMin });
-  renderLog();
+// Fixed, non-AI lines for the two lowest GCS-Verbal tiers — deliberately
+// NOT left to the AI to decide, since "should this patient be able to
+// speak coherently" is a clinical-accuracy question, not a roleplay
+// nuance, and an LLM asked to "act confused" can still drift into an
+// accidentally-coherent answer. Gating on the actual gcsV number guarantees
+// a GCS 3 patient never holds a lucid conversation.
+const GCS_V2_SOUNDS = ['Nnnghhh...', 'Uhhh... hnnn...', 'Mmm... hhh... mmm...', '...ngh... uhh...'];
+const GCS_V3_WORDS = ['...dog... the blue one...', "...where's... my keys...", '...no... stop the light...', '...mum? ...mum...', '...cold... the cold one...'];
+
+// AI reasoning path — only reached for gcsV 4 (confused conversation) or 5
+// (oriented). Told explicitly which tier applies so a V4 patient is
+// instructed to be disoriented/rambling rather than left to infer it from
+// a bare GCS number, which is an easy thing for the model to underweight.
+async function callPatientAI(question, v, gcsV) {
   let replyText = "...sorry, I didn't catch that.";
+  const patientName = (currentScenario.patient_meta && currentScenario.patient_meta.name) || 'the patient';
   try {
     const apiKey = await getAnthropicKey();
-    const v = SimEngine.getVitals(liveConfig, simNow());
+    const confused = gcsV === 4;
     const systemPrompt = `You are voicing the PATIENT in a paramedic training scenario, answering a question the crew just asked out loud. Reply only as the patient would speak — first person, in character, brief (1-3 short sentences), plain lay language, no clinical terms the patient wouldn't use.
 
 Only say what this patient could plausibly know or perceive themselves (their own symptoms, feelings, what happened to them, basic personal details) — never reveal the provisional diagnosis, clinical reasoning, vital sign numbers, or anything a real patient wouldn't know or say. If asked something the patient wouldn't know or that's irrelevant to them, answer in character as a confused/unsure patient would.
 
-Let their current condition colour HOW they answer: e.g. short of breath = short, breathless sentences; drowsy/low GCS = slow, vague, minimal words; distressed/in pain = anxious tone. Never break character, never mention this being a simulation.
+Let their current condition colour HOW they answer: e.g. short of breath = short, breathless sentences; distressed/in pain = anxious tone. Never break character, never mention this being a simulation.
+
+Your name is ${patientName}. If asked your name, or anything requiring you to refer to yourself, you MUST use this exact name — never invent or substitute a different one.
+${confused ? '\nThis patient\u2019s GCS Verbal score is 4 (confused conversation) — they are disoriented. Every reply must be rambling, tangential, and only loosely connected to what was actually asked (may drift to an unrelated memory, misidentify the crew, or answer a different question than the one asked) — never a clear, accurate, on-topic answer, no matter what is asked.' : ''}
 
 Return ONLY the spoken reply text — no quotation marks, no stage directions, no prose about the answer.`;
     const userPrompt = `Scenario: ${currentScenario.title || ''}
-Demographics/presentation: ${currentScenario.demographics || ''}
+Patient name: ${patientName}
 Provisional diagnosis (do not reveal): ${currentScenario.provisional || 'unspecified'}
 Key history: ${currentScenario.key_hx || ''}
-Current approximate condition: HR ${v.HR}, RR ${v.RR}, SpO2 ${v.SpO2}%, GCS ${(v.gcsE||0)+(v.gcsV||0)+(v.gcsM||0)}/15, pain ${v.pain != null ? v.pain + '/10' : 'unspecified'}
+Current approximate condition: HR ${v.HR}, RR ${v.RR}, SpO2 ${v.SpO2}%, GCS ${(v.gcsE||0)+(v.gcsV||0)+(v.gcsM||0)}/15 (Verbal component: ${gcsV}/5), pain ${v.pain != null ? v.pain + '/10' : 'unspecified'}
 Treatments given so far: ${treatments.length ? treatments.map(t => t.action).join('; ') : 'none yet'}
 
 The crew just asked/said: "${question}"
@@ -2258,13 +2265,49 @@ Reply as the patient.`;
       addAiCost('claude-haiku-4-5-20251001', data.usage);
       replyText = (data.content || []).map(b => b.text || '').join('').trim() || replyText;
     }
-  } catch (e) { /* fall through with the apologetic default reply below */ }
-  actionLog.push({ text: `\u{1F5E3}\uFE0F Patient replied: "${replyText}"`, atMin: nowMin });
+  } catch (e) { /* fall through with the apologetic default reply */ }
+  return replyText;
+}
+
+// Generates the "patient's" spoken reply to a question the crew just asked
+// (via sim_patient.html's Talk to Patient button), in character, from the
+// scenario's own clinical picture — cheap Haiku call, not the clinical
+// trajectory model. Writes the reply back onto the session row for
+// sim_patient.html to display/speak, and drops a line in this page's own
+// Log so the assessor can see the exchange too.
+async function answerPatientQuestion(question, forId) {
+  if (!currentScenario) return;
+  const nowMin = (simNow() - liveConfig.startTimeMs) / 60000;
+  actionLog.push({ text: `\u{1F399}\uFE0F Crew asked: "${question}"`, atMin: nowMin });
+  renderLog();
+
+  const v = SimEngine.getVitals(liveConfig, simNow());
+  const gcsV = Math.round(v.gcsV || 0);
+  let replyText, speak;
+
+  if (gcsV <= 1) {
+    // No verbal response at all — GCS V1. Nothing to send to TTS.
+    replyText = '(No verbal response)';
+    speak = false;
+  } else if (gcsV === 2) {
+    replyText = GCS_V2_SOUNDS[Math.floor(Math.random() * GCS_V2_SOUNDS.length)];
+    speak = true;
+  } else if (gcsV === 3) {
+    replyText = GCS_V3_WORDS[Math.floor(Math.random() * GCS_V3_WORDS.length)];
+    speak = true;
+  } else {
+    // gcsV 4 (confused) or 5 (oriented) — genuine AI reasoning, told which
+    // tier applies so it can't accidentally answer too lucidly at V4.
+    replyText = await callPatientAI(question, v, gcsV);
+    speak = true;
+  }
+
+  actionLog.push({ text: `\u{1F5E3}\uFE0F Patient: ${speak ? `"${replyText}"` : replyText}`, atMin: nowMin });
   renderLog();
   try {
     await sbFetch(`sim_sessions?session_code=eq.${sessionCode}`, {
       method: 'PATCH', prefer: 'return=minimal',
-      body: JSON.stringify({ patient_reply: { id: Date.now(), forId, text: replyText }, updated_at: new Date().toISOString() })
+      body: JSON.stringify({ patient_reply: { id: Date.now(), forId, text: replyText, speak }, updated_at: new Date().toISOString() })
     });
   } catch (e) { /* patient device just won't see this particular reply — non-fatal */ }
 }

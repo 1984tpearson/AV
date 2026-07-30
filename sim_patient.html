@@ -877,7 +877,7 @@ function checkForPatientReply(reply) {
   replyEl.textContent = `\u201C${reply.text}\u201D`;
   replyEl.style.display = 'block';
   document.getElementById('voice-modal-status').textContent = 'Patient replied:';
-  if ('speechSynthesis' in window) {
+  if (reply.speak !== false && 'speechSynthesis' in window) {
     try {
       window.speechSynthesis.cancel(); // clear anything stuck in the queue (e.g. the priming utterance) first
       const utter = new SpeechSynthesisUtterance(reply.text);
