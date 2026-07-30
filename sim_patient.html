@@ -65,8 +65,8 @@ body { display: flex; flex-direction: column; }
 .oo-queued { font-size: 9px; color: #6b8299; margin-top: 2px; font-style: italic; }
 
 /* Voice capture — Give Treatment / Talk to Patient ------------------------ */
-#voice-fab-strip { position: fixed; right: 14px; bottom: 14px; z-index: 40; display: flex; flex-direction: column; gap: 10px; }
-.voice-fab { min-width: 84px; min-height: 60px; border-radius: 10px; border: none; background: #0369a1; color: #fff; font-family: 'Courier New', monospace; font-weight: 700; font-size: 12px; line-height: 1.3; letter-spacing: 0.3px; box-shadow: 0 2px 8px rgba(0,0,0,0.3); cursor: pointer; padding: 6px 10px; -webkit-tap-highlight-color: rgba(255,255,255,0.2); }
+#voice-fab-strip { display: flex; flex-direction: row; gap: 8px; flex-shrink: 0; }
+.voice-fab { flex: 1; min-height: 52px; border-radius: 10px; border: none; background: #0369a1; color: #fff; font-family: 'Courier New', monospace; font-weight: 700; font-size: 12px; line-height: 1.3; letter-spacing: 0.3px; cursor: pointer; padding: 6px 10px; -webkit-tap-highlight-color: rgba(255,255,255,0.2); }
 .voice-fab:active { background: #075985; }
 #voice-fab-chat { background: #15803d; }
 #voice-fab-chat:active { background: #14532d; }
@@ -129,12 +129,11 @@ body { display: flex; flex-direction: column; }
     <img src="https://1984tpearson.github.io/AV/talkingheadtemp.gif" alt="Patient" style="max-height:45%;">
     <img src="https://1984tpearson.github.io/AV/Body_map.jpg" alt="Patient body map">
   </div>
+  <div id="voice-fab-strip">
+    <button class="voice-fab" id="voice-fab-treatment" onclick="openVoiceModal('treatment')">Give<br>Treatment</button>
+    <button class="voice-fab" id="voice-fab-chat" onclick="openVoiceModal('chat')">Talk to<br>Patient</button>
   </div>
-</div>
-
-<div id="voice-fab-strip">
-  <button class="voice-fab" id="voice-fab-treatment" onclick="openVoiceModal('treatment')">Give<br>Treatment</button>
-  <button class="voice-fab" id="voice-fab-chat" onclick="openVoiceModal('chat')">Talk to<br>Patient</button>
+  </div>
 </div>
 
 <div id="voice-modal">
@@ -145,7 +144,6 @@ body { display: flex; flex-direction: column; }
     <div id="patient-reply-display"></div>
     <div id="voice-modal-actions">
       <button class="voice-btn voice-btn-secondary" onclick="restartVoiceCapture()">Try Again</button>
-      <button class="voice-btn voice-btn-primary" id="voice-send-btn" onclick="sendVoiceCapture()" disabled>Send</button>
       <button class="voice-btn voice-btn-secondary" onclick="closeVoiceModal()">Cancel</button>
     </div>
   </div>
@@ -735,9 +733,43 @@ let _recognition = null;
 let _voiceFinalText = '';
 let _lastChatSentId = null;
 let _lastShownReplyId = null;
+let _speechUnlocked = false;
+let _cachedVoices = [];
 
 function getSpeechRecognitionCtor() {
   return window.SpeechRecognition || window.webkitSpeechRecognition || null;
+}
+
+// Chrome's speech-synthesis voice list loads asynchronously (empty on first
+// call), and on some Chrome builds speak() silently produces no audio the
+// very first time it's called without a direct user-gesture in the call
+// stack — exactly our case, since the real reply is spoken later from a
+// poll callback, not a click handler. Fix: prime both (load voices, and
+// fire one near-silent utterance) synchronously inside the button tap
+// itself (openVoiceModal is a genuine user gesture), once per page load.
+function refreshVoiceCache() {
+  if ('speechSynthesis' in window) _cachedVoices = window.speechSynthesis.getVoices();
+}
+if ('speechSynthesis' in window) {
+  refreshVoiceCache();
+  window.speechSynthesis.onvoiceschanged = refreshVoiceCache;
+}
+function unlockSpeechSynthesis() {
+  if (_speechUnlocked || !('speechSynthesis' in window)) return;
+  _speechUnlocked = true;
+  try {
+    window.speechSynthesis.cancel();
+    const primer = new SpeechSynthesisUtterance(' ');
+    primer.volume = 0;
+    window.speechSynthesis.speak(primer);
+  } catch (e) { /* best-effort unlock only */ }
+}
+
+function pickVoice() {
+  if (!_cachedVoices.length) refreshVoiceCache();
+  return _cachedVoices.find(v => v.lang === 'en-AU')
+    || _cachedVoices.find(v => v.lang && v.lang.startsWith('en'))
+    || null;
 }
 
 async function queueStudentItem(type, text) {
@@ -750,25 +782,26 @@ async function queueStudentItem(type, text) {
 }
 
 function openVoiceModal(mode) {
+  unlockSpeechSynthesis(); // must happen here, inside the tap handler, to count as a user gesture
   _voiceMode = mode;
   document.getElementById('voice-modal-title').textContent = mode === 'treatment' ? 'Give Treatment' : 'Talk to Patient';
   document.getElementById('voice-modal-transcript').textContent = '';
   document.getElementById('patient-reply-display').style.display = 'none';
   document.getElementById('patient-reply-display').textContent = '';
-  document.getElementById('voice-send-btn').disabled = true;
   document.getElementById('voice-modal').style.display = 'flex';
   startVoiceCapture();
 }
 
-// Auto-starts listening as soon as the modal opens (continuous=false so
-// Chrome auto-stops after a pause in speech — that's the "final" result).
+// Auto-starts listening as soon as the modal opens, and auto-sends as soon
+// as recognition stops (Chrome's continuous=false auto-stops after a pause
+// in speech) — no manual Send tap needed. onend always fires after either
+// a natural pause or an explicit stop/abort, so it's the single place that
+// triggers the send.
 function startVoiceCapture() {
   const Ctor = getSpeechRecognitionCtor();
   const statusEl = document.getElementById('voice-modal-status');
   const transcriptEl = document.getElementById('voice-modal-transcript');
-  const sendBtn = document.getElementById('voice-send-btn');
   _voiceFinalText = '';
-  sendBtn.disabled = true;
   transcriptEl.textContent = '';
   if (!Ctor) {
     statusEl.textContent = 'Speech recognition isn\u2019t available in this browser \u2014 use Chrome.';
@@ -789,13 +822,16 @@ function startVoiceCapture() {
     }
     if (final) _voiceFinalText = (_voiceFinalText + ' ' + final).trim();
     transcriptEl.textContent = (_voiceFinalText + ' ' + interim).trim();
-    if (_voiceFinalText) sendBtn.disabled = false;
   };
   _recognition.onerror = (ev) => {
     statusEl.textContent = ev.error === 'no-speech' ? 'Didn\u2019t catch anything \u2014 tap Try Again.' : `Speech recognition error: ${ev.error}`;
   };
   _recognition.onend = () => {
-    statusEl.textContent = _voiceFinalText ? 'Tap Send to confirm, or Try Again.' : 'Didn\u2019t catch anything \u2014 tap Try Again.';
+    if (_voiceFinalText) {
+      sendVoiceCapture();
+    } else {
+      statusEl.textContent = 'Didn\u2019t catch anything \u2014 tap Try Again.';
+    }
   };
   try { _recognition.start(); } catch (e) { statusEl.textContent = 'Could not start the microphone.'; }
 }
@@ -813,10 +849,8 @@ function closeVoiceModal() {
 async function sendVoiceCapture() {
   const text = _voiceFinalText.trim();
   if (!text || !sessionCode) return;
-  if (_recognition) { try { _recognition.abort(); } catch (e) {} }
   const statusEl = document.getElementById('voice-modal-status');
-  const sendBtn = document.getElementById('voice-send-btn');
-  sendBtn.disabled = true;
+  statusEl.textContent = 'Sending\u2026';
   try {
     const id = await queueStudentItem(_voiceMode === 'treatment' ? 'treatment' : 'chat', text);
     if (_voiceMode === 'treatment') {
@@ -828,7 +862,6 @@ async function sendVoiceCapture() {
     }
   } catch (e) {
     statusEl.textContent = 'Could not send \u2014 check the connection and try again.';
-    sendBtn.disabled = false;
   }
 }
 
@@ -846,7 +879,10 @@ function checkForPatientReply(reply) {
   document.getElementById('voice-modal-status').textContent = 'Patient replied:';
   if ('speechSynthesis' in window) {
     try {
+      window.speechSynthesis.cancel(); // clear anything stuck in the queue (e.g. the priming utterance) first
       const utter = new SpeechSynthesisUtterance(reply.text);
+      const voice = pickVoice();
+      if (voice) utter.voice = voice;
       utter.lang = 'en-AU';
       window.speechSynthesis.speak(utter);
     } catch (e) { /* TTS best-effort only — the text is already shown on screen */ }
@@ -856,3 +892,4 @@ function checkForPatientReply(reply) {
 </script>
 </body>
 </html>
+
