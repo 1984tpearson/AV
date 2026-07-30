@@ -37,6 +37,10 @@ body { display: flex; flex-direction: column; }
 .pending-card .actbtns { display: flex; gap: 6px; margin-top: 8px; }
 .pending-card .actbtns button { flex: 1; font-size: 12px; font-weight: 700; padding: 10px 6px; border-radius: 5px; border: 1px solid #d7dee6; background: #fff; cursor: pointer; }
 .pending-card .actbtns button:active { background: #f3f6fa; }
+.toolbtn { padding: 9px 14px; font-size: 13px; }
+.toolbtn.iconbtn { padding: 9px 12px; display: inline-flex; align-items: center; justify-content: center; }
+.toolbtn.toggletile { opacity: 0.65; }
+.toolbtn.toggletile.active { opacity: 1; background: #0369a1; }
 .panel { background: #ffffff; border: 1px solid #d7dee6; border-radius: 8px; padding: 12px; }
 .panel h2 { font-size: 12px; color: #0369a1; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
 label { font-size: 11px; color: #33475a; display: block; margin-bottom: 3px; }
@@ -57,13 +61,6 @@ select, input[type=number], input[type=text] { font-family: 'Courier New', monos
 .vtile .vlabel { font-size: 9px; color: #6b8299; text-transform: uppercase; letter-spacing: 1px; }
 .vtile .vval { font-size: 17px; font-weight: 900; color: #0369a1; }
 #edit-mode-btn.active { background: #0369a1; }
-.legend-row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
-.legend-row + .legend-row { margin-top: 6px; }
-.legend-pill { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 700; padding: 7px 10px; border-radius: 14px; border: 1px solid; cursor: pointer; font-family: 'Courier New', monospace; }
-.legend-pill:active { opacity: 0.8; }
-.legend-pill .lp-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
-.legend-more-btn { font-size: 11px; font-weight: 700; padding: 7px 10px; border-radius: 14px; border: 1px solid #d7dee6; background: #fff; color: #33475a; cursor: pointer; }
-.legend-more-btn:active { background: #f3f6fa; }
 </style>
 </head>
 <body>
@@ -104,16 +101,15 @@ select, input[type=number], input[type=text] { font-family: 'Courier New', monos
     <div id="dash-left">
     <div class="panel" id="graph-panel">
       <h2>Projected Trajectory</h2>
-      <div id="graph-legend" style="margin-bottom:6px;"></div>
       <div class="row" style="margin-bottom:6px;">
-        <button class="btn btn-secondary" id="edit-mode-btn" style="padding:4px 10px;font-size:11px;" onclick="toggleVitalsEditMode()">Edit</button>
-        <button class="btn btn-secondary" style="padding:4px 10px;font-size:11px;" onclick="graphZoom(2)">Zoom In</button>
-        <button class="btn btn-secondary" style="padding:4px 10px;font-size:11px;" onclick="graphZoom(0.5)">Zoom Out</button>
-        <button class="btn btn-secondary" style="padding:4px 10px;font-size:11px;" onclick="graphPan(-1)">&larr;</button>
-        <button class="btn btn-secondary" style="padding:4px 10px;font-size:11px;" onclick="graphPan(1)">&rarr;</button>
-        <button class="btn btn-secondary" style="padding:4px 10px;font-size:11px;" onclick="graphSnapToNow()">Now</button>
-        <label style="margin:0 0 0 6px;font-size:11px;"><input type="checkbox" id="baseline-ghost-toggle" checked onchange="showBaselineGhost = this.checked; renderGraph();"> Original trajectory</label>
-        <label style="margin:0;font-size:11px;"><input type="checkbox" id="previous-ghost-toggle" onchange="showPreviousGhost = this.checked; renderGraph();"> Previous trajectory</label>
+        <button class="btn btn-secondary toolbtn" id="edit-mode-btn" onclick="toggleVitalsEditMode()">Edit</button>
+        <button class="btn btn-secondary toolbtn iconbtn" onclick="graphZoom(2)" aria-label="Zoom In"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="8" y1="11" x2="14" y2="11"/><line x1="11" y1="8" x2="11" y2="14"/></svg></button>
+        <button class="btn btn-secondary toolbtn iconbtn" onclick="graphZoom(0.5)" aria-label="Zoom Out"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="8" y1="11" x2="14" y2="11"/></svg></button>
+        <button class="btn btn-secondary toolbtn" onclick="graphPan(-1)">&larr;</button>
+        <button class="btn btn-secondary toolbtn" onclick="graphSnapToNow()">Now</button>
+        <button class="btn btn-secondary toolbtn" onclick="graphPan(1)">&rarr;</button>
+        <button class="btn btn-secondary toolbtn toggletile" id="baseline-ghost-btn" onclick="toggleBaselineGhost()">Original</button>
+        <button class="btn btn-secondary toolbtn toggletile" id="previous-ghost-btn" onclick="togglePreviousGhost()">Previous</button>
       </div>
       <div id="graph-svg-wrap" style="width:100%;overflow:hidden;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;"></div>
     </div>
@@ -257,6 +253,15 @@ let _joinInfoManuallyShown = false;
 
 function genCode() {
   return String(Math.floor(100000 + Math.random() * 900000));
+}
+
+function toggleBaselineGhost() {
+  showBaselineGhost = !showBaselineGhost;
+  renderGraph();
+}
+function togglePreviousGhost() {
+  showPreviousGhost = !showPreviousGhost;
+  renderGraph();
 }
 
 function simNow() {
@@ -681,10 +686,10 @@ const GRAPH_SERIES = [
 const GRAPH_DEFAULT_ON = { HR: true, BPsys: true, BPdia: true, SpO2: true, RR: true, EtCO2: true, temp: false, bgl: false, ketones: false, gcs: false, pain: false };
 let graphSeriesOn = { ...GRAPH_DEFAULT_ON };
 
-// Auto-shows a "more" series (temp/BGL/ketones/GCS/pain — see
-// CORE_GRAPH_KEYS) the moment the AI actually gives it a real trajectory,
-// whether from the initial no-treatment projection or a post-treatment
-// update. If the AI only ever holds a vital at one flat value it never
+// Auto-shows a "more" series (temp/BGL/ketones/GCS/pain — the ones off by
+// default in GRAPH_DEFAULT_ON) the moment the AI actually gives it a real
+// trajectory, whether from the initial no-treatment projection or a
+// post-treatment update. If the AI only ever holds a vital at one flat value it never
 // gets an override entry at all (see the generation prompts' "omit any
 // vital that would reasonably stay flat" rule), so an empty/absent array
 // here genuinely means "nothing relevant happening" — never turned on.
@@ -1103,40 +1108,10 @@ function niceStep(raw) {
   return steps.find(s => s >= raw) || 60;
 }
 
-// Which series get their own always-visible pill; the rest (temp/BGL/
-// ketones/GCS/pain) collapse behind "More" — most scenarios never touch
-// them, so showing all 11 by default just ate graph height for nothing.
-const CORE_GRAPH_KEYS = ['HR', 'BPsys', 'BPdia', 'SpO2', 'RR', 'EtCO2'];
-let legendExpanded = false;
-const DECIMAL_READOUT_KEYS = ['temp', 'bgl', 'ketones'];
-
-function legendPillHtml(s, v) {
-  const curValRaw = s.get(v);
-  const curVal = DECIMAL_READOUT_KEYS.includes(s.key) ? curValRaw.toFixed(1) : Math.round(curValRaw);
-  const on = graphSeriesOn[s.key];
-  const bg = on ? s.color : '#f3f6fa';
-  const fg = on ? '#fff' : '#33475a';
-  const dotColor = on ? '#fff' : s.color;
-  return `<button type="button" class="legend-pill" style="background:${bg};color:${fg};border-color:${on ? s.color : '#d7dee6'};" onclick="toggleGraphSeries('${s.key}', ${!on})">
-    <span class="lp-dot" style="background:${dotColor};"></span>${s.label}: ${curVal}${s.unit}
-  </button>`;
-}
-
-function renderGraphLegend() {
-  const el = document.getElementById('graph-legend');
-  const v = SimEngine.getVitalsRaw(liveConfig, simNow());
-  const core = GRAPH_SERIES.filter(s => CORE_GRAPH_KEYS.includes(s.key));
-  const extra = GRAPH_SERIES.filter(s => !CORE_GRAPH_KEYS.includes(s.key));
-  let html = `<div class="legend-row">${core.map(s => legendPillHtml(s, v)).join('')}<button type="button" class="legend-more-btn" onclick="legendExpanded = !legendExpanded; renderGraphLegend();">${legendExpanded ? '\u25b2' : '\u25bc'} More (${extra.length})</button></div>`;
-  if (legendExpanded) {
-    html += `<div class="legend-row">${extra.map(s => legendPillHtml(s, v)).join('')}</div>`;
-  }
-  el.innerHTML = html;
-}
-
 function renderGraph() {
   if (!liveConfig) return;
-  renderGraphLegend();
+  document.getElementById('baseline-ghost-btn').classList.toggle('active', showBaselineGhost);
+  document.getElementById('previous-ghost-btn').classList.toggle('active', showPreviousGhost);
   const wrap = document.getElementById('graph-svg-wrap');
   const W = 800, H = 240, padL = 6, padR = 34, padT = 10, padB = 24;
   const plotW = W - padL - padR, plotH = H - padT - padB;
