@@ -419,6 +419,7 @@ function ssIsAbnormal(entry) {
 // on poll.
 function renderScenarioInfoPanel() {
   const s = currentScenario || {};
+  _spo2AdaptedBaseline = detectChronicRespiratoryBaseline(s.medical_conditions);
   document.getElementById('info-dispatch').textContent = s.dispatch || '—';
   document.getElementById('info-caller').textContent = s.caller_hx || '—';
   document.getElementById('info-arrival').textContent = s.arrival_hx || '—';
@@ -443,18 +444,16 @@ function renderScenarioInfoPanel() {
     infoSubheading('Allergies') +
     infoBlock('Allergies', s.allergies);
 
-  const ra = s.ra || {};
   const rsa = s.rsa || {};
   document.getElementById('info-tab-appearance').innerHTML =
     infoSubheading('At a Glance') +
-    infoBlock('Appearance', rsa.appearance) +
-    infoBlock('Skin', ra.skin) +
-    infoBlock('Work of Breathing', ra.wob) +
+    '<div class="info-block"><div class="info-label">Appearance</div><div class="info-value" id="info-dyn-appearance">—</div></div>' +
+    '<div class="info-block"><div class="info-label">Skin</div><div class="info-value" id="info-dyn-skin">—</div></div>' +
+    '<div class="info-block"><div class="info-label">Work of Breathing</div><div class="info-value" id="info-dyn-wob">—</div></div>' +
     infoSubheading('Respiratory Assessment') +
-    infoBlock('Speech', rsa.speech) +
+    '<div class="info-block"><div class="info-label">Speech</div><div class="info-value" id="info-dyn-speech">—</div></div>' +
     infoBlock('Breath Sounds', rsa.breath_sounds) +
-    infoBlock('Rhythm', rsa.rhythm) +
-    infoBlock('Work of Breathing (Assessed)', rsa.wob);
+    infoBlock('Rhythm', rsa.rhythm);
 
   const ss = s.secondary_survey || {};
   const ssKeys = Object.keys(ss).filter(k => ssFindingText(ss[k]));
@@ -1715,9 +1714,136 @@ const VITAL_DEFS = [
   { key: 'GCS',     label: 'GCS',     unit: '/15',     overrideKeys: ['gcsE', 'gcsV', 'gcsM'], isGCS: true }
 ];
 
+// --- Dynamic Appearance tab (derived live from vitals — no AI involved) -----
+// Fixed adult reference bands, deliberately simple (not adjusted per-patient
+// baseline) — except SpO2, which does get a chronic-respiratory-disease
+// adjustment below, since that specific case is common enough to matter.
+// Chronic respiratory disease (COPD etc) shifts what's "normal" for this
+// patient — someone resting at SpO2 85% with COPD isn't in distress, that's
+// their adapted baseline. Detected once per scenario from medical_conditions
+// text and applied as a flat shift to the SpO2 bands, rather than trying to
+// derive an exact per-patient baseline.
+let _spo2AdaptedBaseline = false;
+const CHRONIC_RESP_KEYWORDS = [
+  'copd', 'chronic obstructive', 'emphysema', 'chronic bronchitis', 'bronchiectasis',
+  'pulmonary fibrosis', 'interstitial lung', 'chronic respiratory failure', 'chronic lung disease', 'home oxygen'
+];
+function detectChronicRespiratoryBaseline(medicalConditions) {
+  const text = (medicalConditions || []).join(' ').toLowerCase();
+  return CHRONIC_RESP_KEYWORDS.some(k => text.includes(k));
+}
+
+function hrSeverity(hr) {
+  if (hr <= 0) return 4;
+  if (hr < 40 || hr > 140) return 3;
+  if (hr < 50 || hr > 120) return 2;
+  if (hr < 60 || hr > 100) return 1;
+  return 0;
+}
+function rrSeverity(rr) {
+  if (rr <= 0) return 4;
+  if (rr <= 6 || rr > 30) return 3;
+  if (rr <= 9 || rr > 24) return 2;
+  if (rr < 12 || rr > 20) return 1;
+  return 0;
+}
+function spo2Severity(spo2) {
+  const shift = _spo2AdaptedBaseline ? 10 : 0;
+  if (spo2 < 80 - shift) return 4;
+  if (spo2 < 85 - shift) return 3;
+  if (spo2 < 90 - shift) return 2;
+  if (spo2 < 95 - shift) return 1;
+  return 0;
+}
+function painSeverity(pain) {
+  if (pain >= 7) return 3;
+  if (pain >= 4) return 2;
+  if (pain >= 1) return 1;
+  return 0;
+}
+function bpSysSeverity(sys) {
+  if (sys <= 0) return 4;
+  if (sys < 70) return 3;
+  if (sys < 90) return 2;
+  if (sys < 100) return 1;
+  return 0;
+}
+
+// Consciousness gate — ONLY used for Appearance/Speech (things that require
+// a working brain to express). Skin and Work of Breathing are physical
+// findings that continue regardless of consciousness — an unconscious
+// patient can still be pale, cyanosed, diaphoretic, or breathing agonally,
+// so they are deliberately NOT gated by this.
+function isUnresponsive(v) {
+  return (v.gcsE || 0) + (v.gcsV || 0) + (v.gcsM || 0) <= 8;
+}
+
+function distressLevel(v) {
+  return Math.max(hrSeverity(v.HR), rrSeverity(v.RR), spo2Severity(v.SpO2), painSeverity(v.pain));
+}
+
+function computeAppearanceText(v) {
+  if (isUnresponsive(v)) return 'Unresponsive';
+  const lvl = distressLevel(v);
+  if (lvl >= 3) return 'Distressed, anxious, fighting to breathe, exhausted';
+  if (lvl === 2) return 'Distressed, anxious';
+  if (lvl === 1) return 'Calm or mildly anxious';
+  return 'Calm, quiet';
+}
+
+function computeSpeechText(v) {
+  if (isUnresponsive(v)) return 'Unable to speak';
+  const lvl = Math.max(rrSeverity(v.RR), spo2Severity(v.SpO2));
+  if (lvl >= 3) return 'Single words';
+  if (lvl === 2) return 'Phrases';
+  if (lvl === 1) return 'Sentences';
+  return 'Clear and steady';
+}
+
+// Skin — three independent axes (colour / temp / moisture), NOT gated by
+// consciousness. "Normal colour" used as the baseline term rather than
+// assuming pink — not every patient's baseline skin tone is pink.
+function computeSkinText(v) {
+  const hypoxia = spo2Severity(v.SpO2);
+  const perfusion = Math.max(hrSeverity(v.HR), bpSysSeverity(v.BPsys));
+  let colour;
+  if (hypoxia >= 3) colour = 'Cyanotic';
+  else if (perfusion >= 3) colour = 'Mottled';
+  else if (perfusion >= 1 || hypoxia >= 1) colour = 'Pale';
+  else colour = 'Normal colour';
+  const temp = perfusion >= 3 ? 'cold' : perfusion >= 1 ? 'cool' : 'warm';
+  const moistureLvl = Math.max(perfusion, painSeverity(v.pain));
+  const moisture = moistureLvl >= 2 ? 'diaphoretic' : moistureLvl >= 1 ? 'clammy' : 'dry';
+  return `${colour}, ${temp}, ${moisture}`;
+}
+
+// Work of breathing — NOT gated by consciousness; laboured/agonal breathing
+// is a physical exam finding, not something that requires a working brain.
+function computeWobText(v) {
+  if (v.RR <= 0) return 'Not breathing';
+  if (v.RR <= 4) return 'Agonal breathing';
+  const lvl = Math.max(rrSeverity(v.RR), spo2Severity(v.SpO2));
+  if (lvl >= 3) return 'Severe/maximal effort — accessory muscle use, intercostal retraction, tracheal tugging';
+  if (lvl === 2) return 'Moderate increase in effort, accessory muscle use';
+  if (lvl === 1) return 'Mild increase in effort';
+  return 'Normal, no increased effort';
+}
+
+// Updates the four dynamic Appearance-tab fields in place — called every
+// tick from tickVitals(). No-ops before the panel is built (e.g. pre-session).
+function updateDynamicAppearance(v) {
+  const appEl = document.getElementById('info-dyn-appearance');
+  if (!appEl) return;
+  appEl.textContent = computeAppearanceText(v);
+  document.getElementById('info-dyn-skin').textContent = computeSkinText(v);
+  document.getElementById('info-dyn-wob').textContent = computeWobText(v);
+  document.getElementById('info-dyn-speech').textContent = computeSpeechText(v);
+}
+
 function tickVitals() {
   if (!liveConfig) return;
   const v = SimEngine.getVitalsRaw(liveConfig, simNow());
+  updateDynamicAppearance(v);
   const grid = document.getElementById('vitals-grid');
   grid.innerHTML = VITAL_DEFS.map(def => {
     let val;
@@ -1865,6 +1991,60 @@ function skipAction(key) {
   patchActionControls(next);
 }
 
+// --- Local (no-AI) treatment classification --------------------------------
+// A small, deliberately conservative whitelist of actions with a genuinely
+// fixed outcome in this simulator — no modelled vital effect at all. Anything
+// that doesn't cleanly match falls through to the existing AI call: missing a
+// whitelist match just costs an API call, but a wrong match would silently
+// hide a real effect from the student — so entries here must be things Tim
+// is confident have zero effect, not "usually no effect".
+//
+// match is tested against the WHOLE trimmed action text, anchored at the
+// start — a compound entry like "Aspirin 300mg PO, GTN SL" will NOT match,
+// since there's content after the aspirin segment the regex doesn't cover.
+// This deliberately keeps multi-part/ambiguous treatments out of this path.
+//
+// Mechanical actions with a real (but simple, codeable) effect — e.g. a
+// tourniquet halting further haemorrhage-driven deterioration — are
+// deliberately NOT in this list yet; flagged as a second-pass follow-up.
+const NO_EFFECT_ACTIONS = [
+  { name: 'Aspirin', match: /^aspirin\b/i, allergyKeywords: ['aspirin', 'nsaid', 'salicylate'] },
+  { name: 'Paracetamol', match: /^paracetamol\b/i, allergyKeywords: ['paracetamol', 'acetaminophen'] },
+  { name: 'Ibuprofen', match: /^ibuprofen\b/i, allergyKeywords: ['ibuprofen', 'nsaid'] },
+  { name: 'Dexamethasone', match: /^dexamethasone\b/i, allergyKeywords: ['dexamethasone', 'steroid'] },
+  { name: 'Ondansetron', match: /^ondansetron\b/i, allergyKeywords: ['ondansetron'] },
+  { name: 'Metoclopramide', match: /^metoclopramide\b/i, allergyKeywords: ['metoclopramide'] },
+  { name: 'Cervical collar', match: /^(apply(ied)? )?(a )?(rigid |semi-rigid )?cervical collar\b/i, allergyKeywords: [] },
+  { name: 'Spinal precautions / immobilisation', match: /^(spinal (board|precautions)|scoop stretcher|vacuum mattress)\b/i, allergyKeywords: [] },
+  { name: 'Splint', match: /^(apply(ied)? )?(a )?splint\b/i, allergyKeywords: [] },
+  { name: 'Sling', match: /^(apply(ied)? )?(a )?(broad arm )?sling\b/i, allergyKeywords: [] },
+  { name: 'Wound dressing (simple, non-haemorrhage-control)', match: /^(apply(ied)? )?(a )?(simple |basic )?(wound )?dressing\b/i, allergyKeywords: [] },
+  { name: 'ECG / cardiac monitoring', match: /^(apply(ied)? )?(a )?(12-?lead )?(ecg|cardiac monitor(ing)?)\b/i, allergyKeywords: [] },
+  { name: 'IV cannulation (access only, no fluid given)', match: /^(gain(ed)? |obtain(ed)? |insert(ed)? )?(an? )?iv (cannula|access)( only)?\.?$/i, allergyKeywords: [] },
+  { name: 'Verbal consent / handover', match: /^(obtain(ed)? |gain(ed)? )?(verbal )?consent\b/i, allergyKeywords: [] },
+];
+
+// A drug on the whitelist is NOT "no effect" if the patient is allergic to
+// it — that's the opposite of no effect, so this forces those cases to AI.
+function patientAllergicTo(keywords) {
+  if (!keywords.length) return false;
+  const allergyText = ((currentScenario && currentScenario.allergies) || '').toLowerCase();
+  if (!allergyText) return false;
+  return keywords.some(k => allergyText.includes(k));
+}
+
+// Returns the matched whitelist entry if this action has a confidently
+// fixed, zero-effect outcome — or null if it should go to the AI as normal
+// (the safe default for anything ambiguous, partial, compound, or allergic).
+function classifyTreatmentLocally(actionText) {
+  const text = (actionText || '').trim();
+  if (!text) return null;
+  for (const entry of NO_EFFECT_ACTIONS) {
+    if (entry.match.test(text) && !patientAllergicTo(entry.allergyKeywords)) return entry;
+  }
+  return null;
+}
+
 async function giveTreatment() {
   if (!sessionCode) return;
   const action = document.getElementById('action-input').value.trim();
@@ -1873,7 +2053,10 @@ async function giveTreatment() {
   const statusEl = document.getElementById('treatment-status');
   const givenAtMs = simNow();
   const givenAtMin = (givenAtMs - liveConfig.startTimeMs) / 60000;
-  treatments = [...treatments, { action, givenAtMin }];
+  const localMatch = classifyTreatmentLocally(action);
+  const newEntry = { action, givenAtMin };
+  if (localMatch) newEntry.assumptions = [`No modelled physiological effect for this action (matched local rule: ${localMatch.name}).`];
+  treatments = [...treatments, newEntry];
   liveConfig.treatments = treatments;
   try {
     await sbFetch(`sim_sessions?session_code=eq.${sessionCode}`, {
@@ -1886,6 +2069,12 @@ async function giveTreatment() {
     treatments.pop();
     liveConfig.treatments = treatments;
     alert('Could not log the treatment — check the connection and try again.');
+    return;
+  }
+  // Locally-classified actions skip the AI call entirely — no trajectory
+  // change to make, so nothing further to do.
+  if (localMatch) {
+    if (statusEl) statusEl.textContent = '';
     return;
   }
   // Log entry above is already saved regardless of what happens next —
