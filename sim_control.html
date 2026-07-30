@@ -281,14 +281,29 @@ const MODEL_PRICING = {
   'claude-haiku-4-5-20251001': { input: 1, output: 5 }
 };
 let sessionAiCostUsd = 0;
+// Rate multipliers relative to a model's base input price, per Anthropic's
+// prompt-caching pricing: writing to cache costs a premium (paid once, on
+// the call that first sees new content), reading from cache costs a
+// fraction (paid on every subsequent call that reuses it within the TTL).
+const CACHE_WRITE_MULTIPLIER = 1.25;
+const CACHE_READ_MULTIPLIER = 0.1;
 function addAiCost(model, usage) {
   if (!usage) return;
   const pricing = MODEL_PRICING[model] || { input: 0, output: 0 };
-  const inTok = usage.input_tokens || 0;
+  const freshIn = usage.input_tokens || 0;
+  const cacheWriteIn = usage.cache_creation_input_tokens || 0;
+  const cacheReadIn = usage.cache_read_input_tokens || 0;
   const outTok = usage.output_tokens || 0;
-  sessionAiCostUsd += (inTok / 1e6 * pricing.input) + (outTok / 1e6 * pricing.output);
+  const cost = (freshIn / 1e6 * pricing.input)
+    + (cacheWriteIn / 1e6 * pricing.input * CACHE_WRITE_MULTIPLIER)
+    + (cacheReadIn / 1e6 * pricing.input * CACHE_READ_MULTIPLIER)
+    + (outTok / 1e6 * pricing.output);
+  sessionAiCostUsd += cost;
   const el = document.getElementById('ai-cost-indicator');
-  if (el) el.textContent = '$' + sessionAiCostUsd.toFixed(4);
+  if (el) {
+    el.textContent = '$' + sessionAiCostUsd.toFixed(4);
+    el.title = `Running Anthropic API cost this session.\nLast call ($${cost.toFixed(4)}): fresh in ${freshIn}, cache read ${cacheReadIn}, cache write ${cacheWriteIn}, out ${outTok}`;
+  }
 }
 
 let showBaselineGhost = true;  // grey line: the original arrival plan, fixed forever
