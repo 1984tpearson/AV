@@ -183,6 +183,27 @@
     return result;
   }
 
-  global.SimEngine = { ACTION_DURATIONS, getActionDurationSec, getVitals, getVitalsRaw, getSimNow, getStaticVitalAt };
+  // ---- ECG rhythm (AI/assessor-scripted, step function) -------------------
+  // HR is just a number and can't tell the ECG display whether the patient
+  // is in sinus rhythm, VF, asystole, complete heart block, etc — those are
+  // distinct rhythm TYPES, several of which can share the same HR (or lack
+  // of one). cfg.overrides.rhythm holds discrete step-change events —
+  // { label, startMs } — authored by the AI alongside the numeric vitals
+  // whenever an event actually changes the rhythm. "Current rhythm at time
+  // T" is whichever entry's startMs is the most recent one at-or-before T;
+  // null means nothing's been explicitly scripted yet, so callers should
+  // fall back to deriving a plain sinus rate from HR themselves.
+  function getRhythmAt(cfg, nowMs) {
+    const events = (cfg.overrides && cfg.overrides.rhythm) || [];
+    if (!events.length) return null;
+    const sorted = events.slice().sort((a, b) => a.startMs - b.startMs);
+    let current = null;
+    for (const ev of sorted) {
+      if (ev.startMs <= nowMs) current = ev.label; else break;
+    }
+    return current;
+  }
+
+  global.SimEngine = { ACTION_DURATIONS, getActionDurationSec, getVitals, getVitalsRaw, getSimNow, getStaticVitalAt, getRhythmAt };
 })(typeof window !== 'undefined' ? window : this);
 

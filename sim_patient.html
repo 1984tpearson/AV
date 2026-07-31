@@ -499,7 +499,8 @@ function computeCuffPressure(st, now) {
   return Math.max(0, Math.round(val));
 }
 
-// --- ECG: dynamic rhythm derived from current HR (no name ever shown) ---
+// --- ECG: rhythm from an AI/assessor-scripted event when there is one,
+// otherwise derived from current HR (no name ever shown in either case) ---
 let _ecgInst = null;
 let _show12Lead = false;
 let _currentRhythmKey = null;
@@ -512,7 +513,13 @@ function deriveRhythmFromHR(hr) {
 }
 
 function ensureECG(hr) {
-  const rhythmStr = deriveRhythmFromHR(hr);
+  // HR alone can't distinguish arrest rhythms (asystole/VF/PEA all show "no
+  // pulse" but look completely different) or any other scripted arrhythmia
+  // — SimEngine.getRhythmAt returns whatever the assessor/AI explicitly put
+  // on the monitor, if anything. Only fall back to the plain HR-derived
+  // sinus bucket once nothing's been scripted yet.
+  const explicitRhythm = SimEngine.getRhythmAt(testConfig, SimEngine.getSimNow(testConfig, Date.now()));
+  const rhythmStr = explicitRhythm || deriveRhythmFromHR(hr);
   const mapped = ECGEngine.mapRhythm(rhythmStr, hr);
   if (!_ecgInst) {
     const container = document.getElementById('ecg-12lead-container');
