@@ -234,8 +234,9 @@ select, input[type=number], input[type=text] { font-family: 'Courier New', monos
 <div id="edit-mode-modal" style="display:none;position:fixed;inset:0;background:rgba(20,30,45,0.6);align-items:center;justify-content:center;z-index:50;">
   <div class="panel" style="width:300px;">
     <h2 style="margin-bottom:8px;">Edit Mode</h2>
-    <p class="muted" style="margin-bottom:10px;">Tap a vital tile once to arm it — then drag its future line on the graph to set a new value and duration.</p>
-    <p class="muted" style="margin-bottom:10px;">Tap the same tile again to open manual number entry instead of dragging.</p>
+    <p class="muted" style="margin-bottom:10px;">Tap a vital tile once to arm it — then tap or drag anywhere ahead of "now" on the graph to drop the next point, like placing anchor points in a vector drawing tool. It's applied the instant you release, and the tool stays ready for the next point right away.</p>
+    <p class="muted" style="margin-bottom:10px;">The most recent point stays draggable so you can fine-tune it — drag its marker to move it. Tap an earlier point to select it, then use the &#10005; to delete it.</p>
+    <p class="muted" style="margin-bottom:10px;">Tap the same tile again (with nothing selected or in progress) to open manual number entry instead.</p>
     <p class="muted" style="margin-bottom:10px;">Turn Edit off to go back to tiles just toggling which lines are shown on the graph.</p>
     <button class="btn" style="width:100%;" onclick="closeEditModeModal()">Got it</button>
   </div>
@@ -995,8 +996,7 @@ let graphViewWindowMin = 30;
 let graphUserPanned = false;
 let armedTileKey = null;
 let armedGraphKeys = [];
-let pendingDrag = null; // { graphKey, startMs, targetValue, endMs } — nothing written until confirmed
-let _dragMode = null;   // 'value' | 'duration' | null
+let pendingDrag = null; // { graphKey, chainStartMs, targetMs, targetValue, linked, movingExisting } — committed on release, see commitPendingPoint
 let _dragPointerId = null;
 let _lastLayout = null; // cached from the last renderGraph() call, used to invert screen coords -> (min, value)
 let selectedOverride = null; // { key, startMs, endMs, targetValue } — a tapped existing override marker, pending delete confirmation
@@ -1125,7 +1125,7 @@ function handleVtileClick(defKey) {
 }
 
 function handleGraphBackgroundClick() {
-  if (pendingDrag) { confirmPendingDrag(); return; }
+  if (pendingDrag) { commitPendingPoint(); return; }
   if (selectedOverride) { selectedOverride = null; renderGraph(); return; }
   if (armedTileKey) { armedTileKey = null; armedGraphKeys = []; renderGraph(); }
 }
@@ -1210,6 +1210,13 @@ function valForY(s, y) {
   const frac = 1 - (y - L.padT) / L.plotH;
   return s.min + frac * (s.max - s.min);
 }
+// Inverse of valForY (value -> y) — renderGraph() has its own local yFor
+// closure for drawing, but this standalone version is what code outside
+// the render pass (e.g. resolveArmedSeriesAtClick) needs.
+function yForVal(s, val) {
+  const L = _lastLayout;
+  return L.padT + (1 - Math.min(1, Math.max(0, (val - s.min) / (s.max - s.min)))) * L.plotH;
+}
 
 // BP is two separately-dragged series, but systolic must always stay above
 // diastolic by a physiologically sane margin. Rather than a hard stop, once
@@ -1245,33 +1252,78 @@ function startInspect(evt) {
   renderGraph();
 }
 
-function startValueDrag(evt, graphKey) {
-  if (!liveConfig || !_lastLayout) return;
+// Where the NEXT new point on this series should chain from: the end of
+// whatever's already scheduled in the future (so entries run end-to-end
+// with no gaps, like continuing a path), or "now" if nothing's scheduled
+// yet. GCS overrides live under gcsE/gcsV/gcsM, not a 'gcs' key.
+function chainStartFor(graphKey) {
+  const floorMs = liveConfig.hasStarted ? simNow() : liveConfig.startTimeMs;
+  const arr = graphKey === 'gcs' ? getGcsOverrideGroups() : ((liveConfig.overrides && liveConfig.overrides[graphKey]) || []);
+  const future = arr.filter(ov => ov.endMs > floorMs);
+  if (!future.length) return floorMs;
+  return Math.max(floorMs, ...future.map(ov => ov.endMs));
+}
+
+// When more than one series is armed at once (BP: sys+dia), a click needs
+// to resolve to ONE of them — whichever series' current value is visually
+// closer (in pixel Y, not raw units, so it works regardless of each
+// series' own scale) to where you actually clicked.
+function resolveArmedSeriesAtClick(coords) {
+  if (armedGraphKeys.length <= 1) return armedGraphKeys[0];
+  const tMs = liveConfig.startTimeMs + minForX(coords.x) * 60000;
+  const vNow = SimEngine.getVitalsRaw(liveConfig, tMs);
+  let best = armedGraphKeys[0], bestDist = Infinity;
+  armedGraphKeys.forEach(key => {
+    const s = GRAPH_SERIES.find(g => g.key === key);
+    const y = yForVal(s, vNow[key]);
+    const dist = Math.abs(y - coords.y);
+    if (dist < bestDist) { bestDist = dist; best = key; }
+  });
+  return best;
+}
+
+// Places a brand-new point, chained from wherever this series currently
+// ends — the core "click to add the next anchor" gesture. Committed
+// automatically on release (see onDragPointerUp), immediately leaving the
+// tool ready to place the next point in the chain.
+function startPointPlacement(evt) {
+  if (!liveConfig || !_lastLayout || !armedGraphKeys.length) return;
   evt.preventDefault();
   cancelPendingDrag();
+  selectedOverride = null;
   const coords = svgCoordFromEvent(evt);
   if (!coords) return;
+  const graphKey = resolveArmedSeriesAtClick(coords);
   const s = GRAPH_SERIES.find(g => g.key === graphKey);
+  const chainStartMs = chainStartFor(graphKey);
   const elapsedMin = (simNow() - liveConfig.startTimeMs) / 60000;
-  const m = Math.max(liveConfig.hasStarted ? elapsedMin : 0, minForX(coords.x));
-  const anchorMs = liveConfig.startTimeMs + m * 60000;
+  const floorMin = liveConfig.hasStarted ? elapsedMin : 0;
+  const chainStartMin = (chainStartMs - liveConfig.startTimeMs) / 60000;
+  const minGapMin = 1 / 12; // 5s — a point can never land at or before its own chain start
+  const m = Math.max(floorMin, chainStartMin + minGapMin, minForX(coords.x));
+  const targetMs = liveConfig.startTimeMs + m * 60000;
   const rawVal = Math.min(s.max, Math.max(s.min, valForY(s, coords.y)));
-  const clamped = clampBpValue(graphKey, rawVal, anchorMs);
-  const floorMs = liveConfig.startTimeMs + (liveConfig.hasStarted ? elapsedMin : 0) * 60000;
-  // Handle defaults onto the EXISTING line ~2 minutes before the anchor
-  // (start-of-change role) — floored so it never lands before "now".
-  const handleMs = Math.max(anchorMs - 120000, floorMs);
-  pendingDrag = { graphKey, anchorMs, targetValue: clamped.value, handleMs, linked: clamped.linked };
-  _dragMode = 'value';
+  const clamped = clampBpValue(graphKey, rawVal, targetMs);
+  pendingDrag = { graphKey, chainStartMs, targetMs, targetValue: clamped.value, linked: clamped.linked, movingExisting: null };
   _dragPointerId = evt.pointerId;
   renderGraph();
 }
 
-function startDurationDrag(evt) {
-  if (!pendingDrag) return;
+// Repositions the LAST (most recently scheduled) point on a series — the
+// tip of the path currently being drawn — instead of adding a new one.
+// Its chain start (where its transition begins from) stays fixed at the
+// entry's own existing startMs; only the target time/value move.
+function startMovePoint(evt, graphKey, startMs, endMs, targetValue) {
+  if (!liveConfig || !_lastLayout) return;
   evt.preventDefault();
-  _dragMode = 'duration';
+  cancelPendingDrag();
+  selectedOverride = null;
+  pendingDrag = {
+    graphKey, chainStartMs: startMs, targetMs: endMs, targetValue,
+    linked: null, movingExisting: { startMs, endMs }
+  };
   _dragPointerId = evt.pointerId;
+  renderGraph();
 }
 
 function onDragPointerMove(evt) {
@@ -1284,37 +1336,22 @@ function onDragPointerMove(evt) {
     }
     return;
   }
-  if (!_dragMode || !pendingDrag || evt.pointerId !== _dragPointerId || !_lastLayout) return;
+  if (!pendingDrag || evt.pointerId !== _dragPointerId || !_lastLayout) return;
   evt.preventDefault();
   const coords = svgCoordFromEvent(evt);
   if (!coords) return;
   const s = GRAPH_SERIES.find(g => g.key === pendingDrag.graphKey);
   const elapsedMin = (simNow() - liveConfig.startTimeMs) / 60000;
-  const floorMs = liveConfig.startTimeMs + (liveConfig.hasStarted ? elapsedMin : 0) * 60000;
-  if (_dragMode === 'value') {
-    const m = Math.max(liveConfig.hasStarted ? elapsedMin : 0, minForX(coords.x));
-    const offsetMs = pendingDrag.handleMs - pendingDrag.anchorMs; // preserve the current handle gap while moving the anchor
-    const newAnchorMs = liveConfig.startTimeMs + m * 60000;
-    const rawVal = Math.min(s.max, Math.max(s.min, valForY(s, coords.y)));
-    pendingDrag.anchorMs = newAnchorMs;
-    pendingDrag.handleMs = newAnchorMs + offsetMs;
-    const clamped = clampBpValue(pendingDrag.graphKey, rawVal, newAnchorMs);
-    pendingDrag.targetValue = clamped.value;
-    pendingDrag.linked = clamped.linked;
-  } else if (_dragMode === 'duration') {
-    // The handle is free to move either side of the anchor: to the right it
-    // pushes out WHEN the target is fully reached; dragged past the anchor
-    // to the left, the anchor becomes the "reached at" point instead and the
-    // handle becomes the "starts changing at" point — i.e. whichever marker
-    // is earlier is the transition start, whichever is later is the target
-    // time. Only floor is live "now" — never edit what's already happened.
-    let newHandleMs = liveConfig.startTimeMs + minForX(coords.x) * 60000;
-    const minGapMs = 5000;
-    if (Math.abs(newHandleMs - pendingDrag.anchorMs) < minGapMs) {
-      newHandleMs = newHandleMs < pendingDrag.anchorMs ? pendingDrag.anchorMs - minGapMs : pendingDrag.anchorMs + minGapMs;
-    }
-    pendingDrag.handleMs = Math.max(newHandleMs, floorMs);
-  }
+  const floorMin = liveConfig.hasStarted ? elapsedMin : 0;
+  const chainStartMin = (pendingDrag.chainStartMs - liveConfig.startTimeMs) / 60000;
+  const minGapMin = 1 / 12;
+  const m = Math.max(floorMin, chainStartMin + minGapMin, minForX(coords.x));
+  const newTargetMs = liveConfig.startTimeMs + m * 60000;
+  const rawVal = Math.min(s.max, Math.max(s.min, valForY(s, coords.y)));
+  const clamped = clampBpValue(pendingDrag.graphKey, rawVal, newTargetMs);
+  pendingDrag.targetMs = newTargetMs;
+  pendingDrag.targetValue = clamped.value;
+  pendingDrag.linked = pendingDrag.movingExisting ? null : clamped.linked; // moving an existing point never drags a BP counterpart along
   renderGraph();
 }
 
@@ -1325,52 +1362,65 @@ function onDragPointerUp(evt) {
     renderGraph();
     return;
   }
-  if (!_dragMode || evt.pointerId !== _dragPointerId) return;
+  if (!pendingDrag || evt.pointerId !== _dragPointerId) return;
   evt.preventDefault();
-  _dragMode = null;
-  _dragPointerId = null;
+  commitPendingPoint();
 }
 
-async function confirmPendingDrag() {
+// Writes the pending point (new or moved) straight to the session — no
+// separate confirm step, matching how a vector tool commits an anchor the
+// instant you release it. Read-modify-write against fresh overrides, same
+// pattern as every other override mutation in this file.
+async function commitPendingPoint() {
   if (!pendingDrag || !sessionCode) return;
-  const { graphKey, targetValue, anchorMs, handleMs, linked } = pendingDrag;
-  const startMs = Math.min(anchorMs, handleMs);
-  const endMs = Math.max(anchorMs, handleMs);
-  const finalEndMs = Math.max(endMs, startMs + 1000);
+  const drag = pendingDrag;
+  pendingDrag = null;
+  _dragPointerId = null;
+  const { graphKey, chainStartMs, targetValue, linked, movingExisting } = drag;
+  const startMs = chainStartMs;
+  const endMs = Math.max(drag.targetMs, startMs + 1000);
   try {
     const rows = await sbFetch(`sim_sessions?session_code=eq.${sessionCode}&select=overrides`, { method: 'GET' });
     const freshOverrides = (rows[0] && rows[0].overrides) || {};
     const previousSnapshot = JSON.parse(JSON.stringify(freshOverrides));
+
+    function upsert(key, entry) {
+      if (!freshOverrides[key]) freshOverrides[key] = [];
+      if (movingExisting) {
+        const idx = freshOverrides[key].findIndex(ov => ov.startMs === movingExisting.startMs && ov.endMs === movingExisting.endMs);
+        if (idx !== -1) { freshOverrides[key][idx] = entry; return; }
+      }
+      freshOverrides[key].push(entry);
+    }
+
     if (graphKey === 'gcs') {
-      const expanded = expandGcsOverride(anchorMs, targetValue, startMs, finalEndMs);
-      ['gcsE', 'gcsV', 'gcsM'].forEach(k => {
-        if (!freshOverrides[k]) freshOverrides[k] = [];
-        freshOverrides[k].push(expanded[k]);
-      });
+      const expanded = expandGcsOverride(endMs, targetValue, startMs, endMs);
+      ['gcsE', 'gcsV', 'gcsM'].forEach(k => upsert(k, expanded[k]));
     } else {
-      if (!freshOverrides[graphKey]) freshOverrides[graphKey] = [];
-      freshOverrides[graphKey].push({ targetValue, startMs, endMs: finalEndMs });
+      upsert(graphKey, { targetValue, startMs, endMs });
+      if (linked) upsert(linked.graphKey, { targetValue: linked.targetValue, startMs, endMs });
     }
-    if (linked) {
-      if (!freshOverrides[linked.graphKey]) freshOverrides[linked.graphKey] = [];
-      freshOverrides[linked.graphKey].push({ targetValue: linked.targetValue, startMs, endMs: Math.max(endMs, startMs + 1000) });
-    }
+
     await sbFetch(`sim_sessions?session_code=eq.${sessionCode}`, {
       method: 'PATCH', prefer: 'return=minimal',
       body: JSON.stringify({ overrides: freshOverrides, previous_overrides: previousSnapshot, updated_at: new Date().toISOString() })
     });
     liveConfig.overrides = freshOverrides;
     liveConfig.previousOverrides = previousSnapshot;
-    pendingDrag = null;
+    // Moving the tip leaves it selected (so its delete "x" is right there);
+    // placing a brand-new point leaves nothing selected — the tool's just
+    // ready for the next click.
+    if (movingExisting) selectedOverride = { key: graphKey, startMs, endMs };
     renderGraph();
   } catch (e) {
-    alert('Could not apply the drag change — check the connection and try again.');
+    pendingDrag = drag; // restore so the in-progress point isn't silently lost
+    alert('Could not apply the change — check the connection and try again.');
+    renderGraph();
   }
 }
 
 function cancelPendingDrag() {
   pendingDrag = null;
-  _dragMode = null;
   _dragPointerId = null;
 }
 
@@ -1521,32 +1571,30 @@ function renderGraph() {
     edgeReadoutEntries.push({ y: edgeY, str: edgeStr, color: s.color, opacity });
 
     if (isArmed && !pendingDrag) {
-      // Wide invisible hit-stroke over the FUTURE portion only (right of the
-      // playhead) — a 2px visible line is a poor touch target on iPad, so
-      // this is what actually catches the pointerdown that starts a drag.
-      const futureStartMin = liveConfig.hasStarted ? Math.max(viewStart, elapsedMin) : viewStart;
-      const hpts = pts.filter((p, i) => (viewStart + (viewEnd - viewStart) * (i / SAMPLES)) >= futureStartMin);
-      if (hpts.length) {
-        hitPaths += `<path d="${pointsToSmoothPath(hpts)}" fill="none" stroke="transparent" stroke-width="26" style="touch-action:none;cursor:ns-resize;" onpointerdown="startValueDrag(event,'${s.key}')" onclick="event.stopPropagation()" />`;
-      }
-
       // Existing (confirmed) overrides on this series get a tappable marker
       // so they can be selected and deleted — only FUTURE ones though, since
       // anything already in effect is locked (removing it would rewrite
-      // what's already happened).
+      // what's already happened). The LAST one (the tip of the path currently
+      // being drawn) is also directly draggable to reposition it, like
+      // adjusting the most recent anchor in a vector path tool before you
+      // move on — earlier points are select-then-delete only, same as before.
       const nowMsForMarkers = simNow();
       // GCS overrides live under gcsE/gcsV/gcsM, not a 'gcs' key — reconstruct
       // one combined marker per matching (startMs,endMs) triple across all
       // three, since expandGcsOverride always writes them together.
       const markerSource = s.key === 'gcs' ? getGcsOverrideGroups() : ((liveConfig.overrides && liveConfig.overrides[s.key]) || []);
-      markerSource.forEach(ov => {
-        if (ov.startMs <= nowMsForMarkers) return;
+      const futureMarkers = markerSource.filter(ov => ov.startMs > nowMsForMarkers).sort((a, b) => a.startMs - b.startMs);
+      const lastIdx = futureMarkers.length - 1;
+      futureMarkers.forEach((ov, idx) => {
         const ovEndMin = (ov.endMs - liveConfig.startTimeMs) / 60000;
         if (ovEndMin < viewStart || ovEndMin > viewEnd) return;
         const mx = xForMin(ovEndMin), my = yFor(s, ov.targetValue);
-        const isSelected = selectedOverride && selectedOverride.key === s.key && selectedOverride.startMs === ov.startMs
-          && selectedOverride.endMs === ov.endMs && selectedOverride.targetValue === ov.targetValue;
-        overrideMarkers += `<circle cx="${mx}" cy="${my}" r="6" fill="${isSelected ? '#fff' : s.color}" stroke="${s.color}" stroke-width="2" style="touch-action:none;cursor:pointer;" onclick="event.stopPropagation();selectOverrideMarker('${s.key}', ${ov.startMs}, ${ov.endMs}, ${ov.targetValue})" />`;
+        const isLast = idx === lastIdx;
+        const isSelected = selectedOverride && selectedOverride.key === s.key && selectedOverride.startMs === ov.startMs && selectedOverride.endMs === ov.endMs;
+        const handlerAttr = isLast
+          ? `onpointerdown="event.stopPropagation();startMovePoint(event,'${s.key}',${ov.startMs},${ov.endMs},${ov.targetValue})"`
+          : `onclick="event.stopPropagation();selectOverrideMarker('${s.key}', ${ov.startMs}, ${ov.endMs}, ${ov.targetValue})"`;
+        overrideMarkers += `<circle cx="${mx}" cy="${my}" r="${isLast ? 7 : 6}" fill="${isSelected ? '#fff' : s.color}" stroke="${s.color}" stroke-width="2" style="touch-action:none;cursor:${isLast ? 'move' : 'pointer'};" ${handlerAttr} />`;
         if (isSelected) {
           const decimalKeys = ['temp', 'bgl', 'ketones'];
           const labelVal = decimalKeys.includes(s.key) ? ov.targetValue.toFixed(1) : Math.round(ov.targetValue);
@@ -1562,6 +1610,20 @@ function renderGraph() {
       });
     }
   });
+
+  // Single combined click-catcher over the whole future zone for however many
+  // series are currently armed (one for most tiles, two for BP) — replaces
+  // the old "grab the thin existing line, then drag" hit-stroke. Any tap or
+  // drag anywhere in this zone places a new point (see startPointPlacement);
+  // when more than one series is armed (BP), the click resolves to whichever
+  // series' current value is visually closer to where you clicked.
+  if (armedTileKey && armedGraphKeys.length && !pendingDrag) {
+    const futureStartMin = liveConfig.hasStarted ? Math.max(viewStart, elapsedMin) : viewStart;
+    const futureStartX = xForMin(futureStartMin);
+    if (futureStartX < padL + plotW) {
+      hitPaths += `<rect x="${futureStartX}" y="${padT}" width="${padL + plotW - futureStartX}" height="${plotH}" fill="transparent" style="touch-action:none;cursor:crosshair;" onpointerdown="startPointPlacement(event)" onclick="event.stopPropagation()" />`;
+    }
+  }
 
   // BP fill: a single band between the systolic and diastolic curves rather
   // than each filling to the chart baseline — makes the pulse-pressure gap
@@ -1633,32 +1695,32 @@ function renderGraph() {
 
   let pendingUI = '';
   if (pendingDrag) {
-    // Draws the ghost curve + marker(s) for one series' pending change.
-    // isPrimary=true gets the full treatment (duration handle, confirm/cancel
-    // icons); the linked BP counterpart (if any) gets a lighter echo of the
-    // same preview so the coupled movement is visible but not interactive.
-    function buildPendingMarkup(graphKey, targetValue, anchorMs, handleMs, isPrimary) {
+    // Live ghost preview while a point is being placed/dragged — a single
+    // anchor at the cursor, chained from wherever this series currently
+    // ends (pendingDrag.chainStartMs), like the tip of a path being drawn
+    // in a vector tool. No separate duration handle or confirm/cancel icons
+    // any more — releasing the pointer commits it directly (see
+    // onDragPointerUp/commitPendingPoint). isPrimary gets the full-strength
+    // preview; the linked BP counterpart (if any) gets a lighter echo.
+    function buildPendingPointMarkup(graphKey, targetValue, chainStartMs, targetMs, isPrimary) {
       const s = GRAPH_SERIES.find(g => g.key === graphKey);
-      const anchorMin = (anchorMs - liveConfig.startTimeMs) / 60000;
-      const handleMin = (handleMs - liveConfig.startTimeMs) / 60000;
-      const startMin = Math.min(anchorMin, handleMin);
-      const endMin = Math.max(anchorMin, handleMin);
-      const startMs = liveConfig.startTimeMs + startMin * 60000;
-      const endMs = liveConfig.startTimeMs + endMin * 60000;
+      const chainMin = (chainStartMs - liveConfig.startTimeMs) / 60000;
+      const targetMin = (targetMs - liveConfig.startTimeMs) / 60000;
+      const endMs = Math.max(targetMs, chainStartMs + 1000);
       let out = '';
 
       const previewOverrides = Object.assign({}, liveConfig.overrides);
       if (graphKey === 'gcs') {
-        const expanded = expandGcsOverride(anchorMs, targetValue, startMs, Math.max(endMs, startMs + 1000));
+        const expanded = expandGcsOverride(targetMs, targetValue, chainStartMs, endMs);
         ['gcsE', 'gcsV', 'gcsM'].forEach(k => {
           previewOverrides[k] = ((liveConfig.overrides && liveConfig.overrides[k]) || []).concat([expanded[k]]);
         });
       } else {
         previewOverrides[graphKey] = ((liveConfig.overrides && liveConfig.overrides[graphKey]) || [])
-          .concat([{ targetValue, startMs, endMs: Math.max(endMs, startMs + 1000) }]);
+          .concat([{ targetValue, startMs: chainStartMs, endMs }]);
       }
       const previewConfig = Object.assign({}, liveConfig, { overrides: previewOverrides });
-      const ghostFromMin = Math.max(viewStart, startMin);
+      const ghostFromMin = Math.max(viewStart, chainMin);
       if (ghostFromMin < viewEnd) {
         const gpts = [];
         for (let i = 0; i <= SAMPLES; i++) {
@@ -1670,41 +1732,24 @@ function renderGraph() {
         out += `<path d="${pointsToSmoothPath(gpts)}" fill="none" stroke="${s.color}" stroke-width="${isPrimary ? 2.5 : 2}" stroke-dasharray="6,4" opacity="${isPrimary ? 0.9 : 0.55}" />`;
       }
 
-      const yAnchor = yFor(s, targetValue);
-      if (anchorMin >= viewStart && anchorMin <= viewEnd) {
-        const xA = xForMin(anchorMin);
-        out += `<circle cx="${xA}" cy="${yAnchor}" r="${isPrimary ? 6 : 5}" fill="${s.color}" stroke="#fff" stroke-width="1.5" opacity="${isPrimary ? 1 : 0.85}" />`;
+      if (targetMin >= viewStart && targetMin <= viewEnd) {
+        const x = xForMin(targetMin), y = yFor(s, targetValue);
+        out += `<circle cx="${x}" cy="${y}" r="${isPrimary ? 7 : 5}" fill="${s.color}" stroke="#fff" stroke-width="1.5" opacity="${isPrimary ? 1 : 0.85}" />`;
         const decimalKeys = ['temp', 'bgl', 'ketones'];
         const labelVal = decimalKeys.includes(s.key) ? targetValue.toFixed(1) : Math.round(targetValue);
         const labelStr = `${labelVal}${s.unit}`;
         const labelW = Math.max(32, labelStr.length * 7 + 12);
-        // Primary label sits well above the dot (clear of the dragging
-        // finger); the linked echo sits below so the two never collide.
-        const labelY = isPrimary ? Math.max(padT + 16, yAnchor - 34) : Math.min(H - padB - 16, yAnchor + 26);
-        const labelX = Math.min(Math.max(padL, xA - labelW / 2), W - padR - labelW);
+        const labelY = isPrimary ? Math.max(padT + 16, y - 22) : Math.min(H - padB - 16, y + 22);
+        const labelX = Math.min(Math.max(padL, x - labelW / 2), W - padR - labelW);
         out += `<rect x="${labelX}" y="${labelY - 8}" width="${labelW}" height="16" rx="4" fill="#1e2a36" opacity="${isPrimary ? 0.9 : 0.75}" />`;
         out += `<text x="${labelX + labelW / 2}" y="${labelY + 4}" font-size="11" fill="#fff" font-weight="700" text-anchor="middle">${labelStr}</text>`;
-        if (isPrimary) {
-          const iconY = Math.max(padT + 10, yAnchor - 18);
-          out += `<g onclick="event.stopPropagation();confirmPendingDrag()" style="cursor:pointer;"><circle cx="${xA - 12}" cy="${iconY}" r="9" fill="#15803d" /><text x="${xA - 12}" y="${iconY + 4}" font-size="12" fill="#fff" text-anchor="middle" font-weight="900">&#10003;</text></g>`;
-          out += `<g onclick="event.stopPropagation();cancelPendingDrag();renderGraph()" style="cursor:pointer;"><circle cx="${xA + 12}" cy="${iconY}" r="9" fill="#b91c1c" /><text x="${xA + 12}" y="${iconY + 4}" font-size="12" fill="#fff" text-anchor="middle" font-weight="900">&#10005;</text></g>`;
-        }
-      }
-      if (isPrimary && handleMin >= viewStart && handleMin <= viewEnd) {
-        const xH = xForMin(handleMin);
-        // Sits ON the real (current, un-modified) trajectory at its own time —
-        // that's literally what it represents before/unless it becomes the
-        // "reached at" end of the transition.
-        const handleTMs = liveConfig.startTimeMs + handleMin * 60000;
-        const yHandle = yFor(s, s.get(SimEngine.getVitalsRaw(liveConfig, handleTMs)));
-        out += `<circle cx="${xH}" cy="${yHandle}" r="7" fill="#fff" stroke="${s.color}" stroke-width="2" style="touch-action:none;cursor:ew-resize;" onpointerdown="startDurationDrag(event)" onclick="event.stopPropagation()" />`;
       }
       return out;
     }
 
-    pendingUI += buildPendingMarkup(pendingDrag.graphKey, pendingDrag.targetValue, pendingDrag.anchorMs, pendingDrag.handleMs, true);
+    pendingUI += buildPendingPointMarkup(pendingDrag.graphKey, pendingDrag.targetValue, pendingDrag.chainStartMs, pendingDrag.targetMs, true);
     if (pendingDrag.linked) {
-      pendingUI += buildPendingMarkup(pendingDrag.linked.graphKey, pendingDrag.linked.targetValue, pendingDrag.anchorMs, pendingDrag.handleMs, false);
+      pendingUI += buildPendingPointMarkup(pendingDrag.linked.graphKey, pendingDrag.linked.targetValue, pendingDrag.chainStartMs, pendingDrag.targetMs, false);
     }
   }
 
@@ -2168,7 +2213,7 @@ Return ONLY valid JSON, no prose: {"items":[{"text":"<verbatim excerpt of this a
 // Applies a locally-coded effect (predictable direction, randomised
 // magnitude and onset) directly as a graph override — no AI call. Reads
 // fresh overrides from the DB first (same read-modify-write pattern as
-// confirmPendingDrag) to avoid clobbering a concurrent change.
+// commitPendingPoint) to avoid clobbering a concurrent change.
 //
 // Same truncation rule as regenerateTimelineAfterTreatment, applied to just
 // this one vital: any override already in progress or scheduled for the
