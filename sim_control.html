@@ -87,7 +87,6 @@ select, input[type=number], input[type=text] { font-family: 'Courier New', monos
       <label for="ai-model-select" style="font-size:10px;margin:0;">AI Model</label>
       <select id="ai-model-select" onchange="aiModel = this.value" style="font-size:11px;padding:3px 5px;">
         <option value="claude-sonnet-4-6" selected>Sonnet</option>
-        <option value="claude-haiku-4-5-20251001">Haiku</option>
       </select>
     </div>
     <div id="run-status"></div>
@@ -2512,7 +2511,7 @@ Rules:
 - Only give an effect if there's a real, medically-recognised mechanism acting on THIS patient's actual condition. If the action is nonsensical, fictional, unrelated, or has no identifiable mechanism, it has NO effect — the patient continues essentially as with no intervention, not a milder improvement. "Doing something" isn't itself a reason to get better. Comfort/reassurance-type actions are an ordinary example: at most they slightly ease anxiety-driven tachycardia/hyperventilation, never reverse hypoxia, haemorrhage, airway obstruction, toxicity, or arrhythmia.
 - If the action only partially/temporarily addresses the problem, model it wearing off and the condition resuming — worse than before if it was just masking ongoing pathology, stable/improving if it substantively corrected it.
 - If the action is clinically inappropriate, ineffective, or wrongly dosed, reflect that honestly — continued deterioration or a toxic effect if that's the truth. Don't reward a wrong action with unrealistic improvement.
-- Only include a vital's key if this action would plausibly change it.
+- Only include a vital's key if this action would plausibly change it — but "plausibly change" includes indirect/downstream consequences, not just the vital most obviously targeted. If this action pushes the patient into a fundamentally different physiological state — cardiac arrest, severe shock, respiratory failure/apnoea, LOC change — include EVERY vital that state mechanically implies, not only the one or two most directly affected. Cardiac arrest, for example, is not just HR: with no cardiac output there is no BP, no perfusion to drive SpO2/EtCO2 readings as normal, breathing typically stops or becomes agonal (RR), and consciousness is lost (GCS 1/1/1). Leaving an uninvolved-looking vital on its old pre-event schedule while another vital shows arrest/collapse produces a contradictory graph — the two are the same patient at the same moment and must agree.
 - gcsE range 1-4, gcsV range 1-5, gcsM range 1-6 — never exceed these.
 - Project forward until the outcome resolves, or until the remaining scenario time given in the user message runs out, whichever is sooner. Never exceed 60 minutes of total scenario time.
 - assumptions: short plain-English strings for anything inferred because it wasn't stated (e.g. "Assumed IV route (not stated) — standard for anaphylaxis"). Empty array if fully specified.
@@ -2526,24 +2525,14 @@ Examples clarifying how chained entries work (illustrative shapes only, not clin
 
 - Training placeholder pending clinical review, not a validated clinical model.`;
 
-  // Haiku-only supplement. Sonnet already carries multi-phase courses (e.g.
-  // "toxic surge, then the underlying condition resumes its own course")
-  // through to a genuine endpoint on its own; Haiku's reasoning identifies
-  // the same clinical picture but tends to stop writing overrides after the
-  // first phase, which silently flatlines the graph rather than continuing
-  // the trajectory it just described. This spells out the mechanics Sonnet
-  // infers implicitly, without changing Sonnet's own prompt/behavior at all.
-  if (aiModel && aiModel.startsWith('claude-haiku')) {
-    systemPrompt += `
-
-IMPORTANT — how this projection actually gets drawn:
-- For each vital, only the override entries you provide are drawn. Once a vital's LAST entry ends, its value HOLDS FLAT at that entry's targetValue for the rest of the scenario — it does NOT automatically resume any other course (not the pre-treatment plan, not the underlying condition's natural progression) unless you write further entries saying so.
-- If you judge that a vital goes through more than one phase — e.g. a drug's direct effect, then that effect wearing off, then an underlying condition resuming its own independent course — each phase needs its OWN chained override entry (typically 2-5 entries total per affected vital for a multi-phase course), running end-to-end so the entries together cover the full span you're projecting. A single short entry is only correct when the vital genuinely changes once and then plateaus for good clinical reason (e.g. a corrected problem that stays corrected).
-- Follow the trajectory all the way to its genuine physiological endpoint if that is the honest outcome — including arrest, if the reasoning points there — rather than stopping the entries early at a "critical but stable" plateau. Describing a risk in your assumptions is not enough on its own; the override entries must actually carry the numbers there.
+  // Worked examples, applied unconditionally now that this call is Sonnet-only
+  // (the router in classifyTreatmentWithHaiku is Haiku's whole job — see the
+  // comment there — full physiological reasoning always lands here on Sonnet).
+  systemPrompt += `
 
 Worked examples (illustrative only — reason independently for the real case each time):
 
-Example A — a conscious inferior-STEMI patient is given a grossly supratherapeutic IV adrenaline dose. Correct reasoning: a massive sympathetic surge causes an immediate hypertensive/tachycardic crisis (onset in 30-60s), which precipitates a fatal arrhythmia within a few minutes given the ischaemic myocardium, leading to cardiac arrest with no reversal agent available — so the arrest persists for the rest of the projection (no return of spontaneous circulation modelled without further intervention). A correctly chained HR entry set: [{"targetValue":170,"startMin":0,"endMin":1},{"targetValue":170,"startMin":1,"endMin":4},{"targetValue":0,"startMin":4,"endMin":5},{"targetValue":0,"startMin":5,"endMin":30}] — four chained entries: the onset spike, a brief hold at peak, the transition into arrest, and a final entry holding the arrest value all the way to the edge of the projection window. Without that last entry, the graph would silently hold at the peak tachycardia value instead of showing the arrest for the remaining time.
+Example A — a conscious inferior-STEMI patient is given a grossly supratherapeutic IV adrenaline dose. Correct reasoning: a massive sympathetic surge causes an immediate hypertensive/tachycardic crisis (onset in 30-60s), which precipitates a fatal arrhythmia within a few minutes given the ischaemic myocardium, leading to cardiac arrest with no reversal agent available — so the arrest persists for the rest of the projection (no return of spontaneous circulation modelled without further intervention). A correctly chained HR entry set: [{"targetValue":170,"startMin":0,"endMin":1},{"targetValue":170,"startMin":1,"endMin":4},{"targetValue":0,"startMin":4,"endMin":5},{"targetValue":0,"startMin":5,"endMin":30}] — four chained entries: the onset spike, a brief hold at peak, the transition into arrest, and a final entry holding the arrest value all the way to the edge of the projection window. Without that last entry, the graph would silently hold at the peak tachycardia value instead of showing the arrest for the remaining time. Crucially, arrest at minute 4-5 is not an HR-only event: BPsys/BPdia must collapse toward 0 on the same timeline (no cardiac output, no pressure), SpO2 and EtCO2 must fall to reflect no perfusion/no effective ventilation, RR must drop to agonal/0, and gcsE/gcsV/gcsM must fall to 1/1/1 for loss of consciousness — each as its own chained entry set following the same onset-to-arrest timing as HR. Submitting only the HR chain while leaving BP/RR/SpO2/EtCO2/GCS on their pre-treatment course is wrong even though HR alone "looks done."
 
 Example B — an opioid-overdosed patient (resp rate 4, GCS 6) is given a single standard dose of naloxone. Correct reasoning: naloxone reverses the respiratory depression within 2-3 minutes, but its effect is shorter-lived than most opioids — the improvement is genuine but temporary, and without a repeat dose the patient re-sedates as the naloxone wears off while the opioid is still on board. A correctly chained RR entry set: [{"targetValue":4,"startMin":0,"endMin":2},{"targetValue":16,"startMin":2,"endMin":3},{"targetValue":16,"startMin":3,"endMin":25},{"targetValue":6,"startMin":25,"endMin":35}] — the reversal, a hold while naloxone is still active, then a chained entry back down as it wears off and the opioid effect resumes. Missing that last entry would have left the patient looking permanently recovered instead of showing the realistic relapse.
 
@@ -2554,7 +2543,6 @@ Example D — a patient is given an action with no real, medically-recognised me
 Example E — a second, related pattern: the same STEMI-plus-adrenaline-toxicity case, but reasoned slightly differently — the crew reasons the acute toxic surge itself is short-lived (0-6 min) and does not directly cause arrest, but it does worsen myocardial oxygen demand on an already-ischaemic heart, so the underlying STEMI resumes its own independent deterioration afterwards, now on a faster track toward arrest than it would have been untreated. The WRONG way to express this is to write only the 0-6 minute toxic-surge entries and stop — that silently flatlines the vital at its minute-6 value for the rest of the scenario, contradicting the very reasoning just given. The RIGHT way is to keep chaining: after the toxic-surge entries, add further entries carrying the vital through the STEMI's resumed, now-accelerated deterioration, all the way to its genuine endpoint (arrest, if that is really where it leads) or to the edge of the projection window. If your own reasoning describes what happens after your last entry, that description belongs in the JSON as more entries, not left as unwritten prose.
 
 Apply this same chaining principle to every vital your own reasoning says would keep changing, for however many phases the real clinical picture actually has.`;
-  }
 
   const userPrompt = `Scenario: ${currentScenario.title || ''}
 Provisional diagnosis: ${currentScenario.provisional || 'unspecified'}
