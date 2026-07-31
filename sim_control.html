@@ -530,6 +530,16 @@ function parseScenarioVitals(scenario) {
   };
 }
 
+// The scenario's authored presenting rhythm (generator.html's "Rhythm"
+// field, e.g. "SVT", "Sinus tachycardia") — plenty of scenarios start with
+// an abnormal rhythm already showing, not just one reached later via a
+// treatment/scripted event. '—' is the generator's own placeholder for
+// "not set", not a real value.
+function parseScenarioStartingRhythm(scenario) {
+  const r = String((scenario.vitals && scenario.vitals.Rhythm) || '').trim();
+  return (r && r !== '—') ? r : null;
+}
+
 // --- AI timeline generation -------------------------------------------------
 // Projects vitals forward from arrival (minute 0) assuming NO treatment is
 // given, grounded in the scenario's own provisional dx/history/flags. All
@@ -539,6 +549,7 @@ function parseScenarioVitals(scenario) {
 // that predate that field.
 async function generateSimTimeline(scenario) {
   const startingVitals = parseScenarioVitals(scenario);
+  const startingRhythm = parseScenarioStartingRhythm(scenario);
   const apiKey = await getAnthropicKey();
 
   const systemPrompt = `You are projecting how a paramedic training patient's vital signs would change over time, assuming the treating crew gives NO treatment at all. This feeds a training simulator's trajectory graph.
@@ -548,7 +559,7 @@ Ground everything in the scenario's actual provisional diagnosis and clinical pi
 Project all the way to the condition's genuine untreated endpoint if that would realistically occur — including cardiac/respiratory arrest (vitals reaching true arrest values: HR 0, BP 0/0, RR 0, EtCO2 near 0, GCS 3) where the diagnosis and timeframe make that the honest outcome. Do not stop short at a "critical but stable" plateau if arrest would actually follow. Cap the total timeline at 60 minutes — if the natural course would take longer than that to reach arrest, project only as far as 60 minutes and leave the patient critically deteriorated rather than extending further.
 
 Return ONLY valid JSON, no prose, in exactly this shape:
-{"startingPain": 0, "startingNausea": 0, "overrides": {"HR": [{"targetValue":0,"startMin":0,"endMin":0}], "RR": [], "SpO2": [], "EtCO2": [], "BPsys": [], "BPdia": [], "temp": [], "bgl": [], "ketones": [], "pain": [], "nausea": [], "gcsE": [], "gcsV": [], "gcsM": []}}
+{"startingPain": 0, "startingNausea": 0, "overrides": {"HR": [{"targetValue":0,"startMin":0,"endMin":0}], "RR": [], "SpO2": [], "EtCO2": [], "BPsys": [], "BPdia": [], "temp": [], "bgl": [], "ketones": [], "pain": [], "nausea": [], "gcsE": [], "gcsV": [], "gcsM": []}, "rhythm": [{"label":"ventricular fibrillation","startMin":22}]}
 
 Rules:
 - Times are minutes elapsed since the crew arrived on scene (arrival = minute 0). Use as much of the 0-60 minute window as the condition genuinely needs — a rapidly fatal presentation may reach arrest in under 10 minutes; a slower one may need the full 60.
@@ -558,6 +569,7 @@ Rules:
 - Base direction/rate of change on the specific provisional diagnosis, key history, and flags given.
 - startingPain: a 0-10 estimate of the patient's pain at arrival, consistent with the presentation (0 if not a pain-related complaint).
 - startingNausea: a 0-10 estimate of the patient's nausea at arrival, independent of pain (0 if not a relevant feature — a fracture can hurt without nausea, gastro can nauseate without much pain).
+- 'rhythm' is optional and is about what happens AFTER arrival — the patient's presenting rhythm at minute 0 is supplied to you separately and already handled, don't repeat it here. Only include a 'rhythm' entry if the untreated natural course would genuinely change it later (e.g. an unstable rhythm deteriorating into arrest, or a documented arrhythmia spontaneously resolving) — cardiac/respiratory arrest in your vitals ALWAYS needs a matching rhythm entry at the same minute (never leave it ambiguous between asystole/VF/PEA). Same shape and terminology as the vitals overrides: {"label": "<standard clinical rhythm name>", "startMin": <minutes from arrival>}, holding until the next entry (yours or a later one from a treatment/event).
 - This is a training placeholder pending clinical review, not a validated clinical model — use sound general physiological reasoning for the given diagnosis.`;
 
   const userPrompt = `Scenario: ${scenario.title || ''}
@@ -568,6 +580,7 @@ Key history: ${scenario.key_hx || ''}
 Flags: ${JSON.stringify(scenario.flags || [])}
 Life threats: ${JSON.stringify(scenario.life_threats || [])}
 Starting vitals at arrival (minute 0): ${JSON.stringify(startingVitals)}
+Presenting cardiac rhythm at arrival (minute 0, already handled — react to it, don't restate it): ${startingRhythm || 'not specified — assume an ordinary sinus rhythm at this HR unless the diagnosis implies otherwise'}
 
 Project the deterioration/progression from these starting vitals assuming no treatment is given.`;
 
@@ -609,6 +622,15 @@ Project the deterioration/progression from these starting vitals assuming no tre
         endOffsetMs: Math.min(60, Math.max(0, ov.endMin)) * 60000
       }));
   });
+  // Rhythm is a different shape (label/startOffsetMs, no target/end) and a
+  // different question from the vitals above — this is only the untreated
+  // course's LATER changes; the scenario's authored starting rhythm (if
+  // any) is seeded separately in createSession() from scenario.vitals.Rhythm.
+  if (Array.isArray(parsed.rhythm) && parsed.rhythm.length) {
+    overridesOffset.rhythm = parsed.rhythm
+      .filter(ev => typeof ev.label === 'string' && ev.label.trim() && typeof ev.startMin === 'number')
+      .map(ev => ({ label: ev.label.trim(), startOffsetMs: Math.min(60, Math.max(0, ev.startMin)) * 60000 }));
+  }
 
   return { starting_vitals: startingVitals, timeline_overrides: overridesOffset };
 }
@@ -661,12 +683,23 @@ async function createSession() {
     const startMs = Date.now();
     const overrides = {};
     Object.entries(timeline.timeline_overrides || {}).forEach(([key, arr]) => {
+      if (key === 'rhythm') return; // different shape — combined with the scenario's authored starting rhythm below
       overrides[key] = (arr || []).map(ov => ({
         targetValue: ov.targetValue,
         startMs: startMs + ov.startOffsetMs,
         endMs: startMs + ov.endOffsetMs
       }));
     });
+    // Seed the rhythm timeline with whatever the scenario was actually
+    // authored to present with (e.g. "SVT") so the ECG/graph indicator is
+    // populated from minute 0 — plenty of scenarios don't start in plain
+    // sinus rhythm, and that shouldn't depend on a treatment or scripted
+    // event happening first. Any later untreated-course rhythm change the
+    // AI projected (e.g. deteriorating to arrest) follows after it.
+    const startingRhythm = parseScenarioStartingRhythm(scenario);
+    const futureRhythm = ((timeline.timeline_overrides && timeline.timeline_overrides.rhythm) || [])
+      .map(ev => ({ label: ev.label, startMs: startMs + ev.startOffsetMs }));
+    overrides.rhythm = (startingRhythm ? [{ label: startingRhythm, startMs }] : []).concat(futureRhythm);
     try {
       await sbFetch('sim_sessions', {
         method: 'POST',
@@ -1727,6 +1760,7 @@ function renderGraph() {
   let rhythmUI = '';
   const rhythmEvents = (liveConfig.overrides && liveConfig.overrides.rhythm) || [];
   rhythmEvents.forEach(ev => {
+    if (ev.startMs <= liveConfig.startTimeMs) return; // the scenario's starting rhythm, not an in-scenario change — covered by the "current rhythm" badge instead, no line needed for it
     const evMin = (ev.startMs - liveConfig.startTimeMs) / 60000;
     if (evMin < viewStart || evMin > viewEnd) return;
     const x = xForMin(evMin);
