@@ -128,6 +128,11 @@ select, input[type=number], input[type=text] { font-family: 'Courier New', monos
           <button class="btn btn-secondary toolbtn toggletile" id="baseline-ghost-btn" onclick="toggleBaselineGhost()">No Tx</button>
           <button class="btn btn-secondary toolbtn toggletile" id="previous-ghost-btn" onclick="togglePreviousGhost()">Last Plan</button>
         </div>
+        <div class="row" id="edit-tool-selector" style="position:absolute;bottom:8px;left:8px;margin:0;z-index:2;display:none;">
+          <button class="btn btn-secondary toolbtn iconbtn toggletile active" id="edit-tool-add" onclick="setEditTool('add')" aria-label="Add point" title="Add point"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
+          <button class="btn btn-secondary toolbtn iconbtn toggletile" id="edit-tool-move" onclick="setEditTool('move')" aria-label="Move point" title="Move point"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="5 9 2 12 5 15"/><polyline points="9 5 12 2 15 5"/><polyline points="15 19 12 22 9 19"/><polyline points="19 9 22 12 19 15"/><line x1="2" y1="12" x2="22" y2="12"/><line x1="12" y1="2" x2="12" y2="22"/></svg></button>
+          <button class="btn btn-secondary toolbtn iconbtn toggletile" id="edit-tool-remove" onclick="setEditTool('remove')" aria-label="Remove point" title="Remove point"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg></button>
+        </div>
       </div>
       <div id="vitals-grid" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;flex-shrink:0;"></div>
     </div>
@@ -234,10 +239,10 @@ select, input[type=number], input[type=text] { font-family: 'Courier New', monos
 <div id="edit-mode-modal" style="display:none;position:fixed;inset:0;background:rgba(20,30,45,0.6);align-items:center;justify-content:center;z-index:50;">
   <div class="panel" style="width:300px;">
     <h2 style="margin-bottom:8px;">Edit Mode</h2>
-    <p class="muted" style="margin-bottom:10px;">Tap a vital tile once to arm it — then tap or drag anywhere ahead of "now" on the graph to drop the next point, like placing anchor points in a vector drawing tool. It's applied the instant you release, and the tool stays ready for the next point right away.</p>
-    <p class="muted" style="margin-bottom:10px;">The most recent point stays draggable so you can fine-tune it — drag its marker to move it. Tap an earlier point to select it, then use the &#10005; to delete it.</p>
-    <p class="muted" style="margin-bottom:10px;">Tap the same tile again (with nothing selected or in progress) to open manual number entry instead.</p>
-    <p class="muted" style="margin-bottom:10px;">Turn Edit off to go back to tiles just toggling which lines are shown on the graph.</p>
+    <p class="muted" style="margin-bottom:10px;">Tap a vital tile once to arm it. Three tools sit bottom-left of the graph: <strong>+ Add</strong> drops the next point wherever you tap/drag ahead of "now" — applied the instant you release, ready for the next point right away.</p>
+    <p class="muted" style="margin-bottom:10px;"><strong>Move</strong> lets you drag ANY existing point — including ones from the scenario's original build, not just ones you've added — to a new value or time, even past another point to reorder them. <strong>Remove</strong> deletes whichever point you tap (with a confirm).</p>
+    <p class="muted" style="margin-bottom:10px;">Nothing before "now" is ever touched — only the future can change.</p>
+    <p class="muted" style="margin-bottom:10px;">With no tool action in progress, tap the same tile again to open manual number entry instead. Turn Edit off to go back to tiles just toggling which lines are shown on the graph.</p>
     <button class="btn" style="width:100%;" onclick="closeEditModeModal()">Got it</button>
   </div>
 </div>
@@ -996,10 +1001,10 @@ let graphViewWindowMin = 30;
 let graphUserPanned = false;
 let armedTileKey = null;
 let armedGraphKeys = [];
-let pendingDrag = null; // { graphKey, chainStartMs, targetMs, targetValue, linked, movingExisting } — committed on release, see commitPendingPoint
+let editTool = 'add'; // 'add' | 'move' | 'remove' — which action a tap/drag in the future zone performs
+let pendingDrag = null; // { graphKey, movingAtMs, targetMs, targetValue, linked } — committed on release, see commitPendingPoint
 let _dragPointerId = null;
 let _lastLayout = null; // cached from the last renderGraph() call, used to invert screen coords -> (min, value)
-let selectedOverride = null; // { key, startMs, endMs, targetValue } — a tapped existing override marker, pending delete confirmation
 let inspectMin = null; // default-mode scrub position (minutes), null when not actively inspecting
 let _inspectPointerId = null;
 
@@ -1084,17 +1089,19 @@ function toggleVitalVisibility(defKey) {
 function toggleVitalsEditMode() {
   vitalsEditMode = !vitalsEditMode;
   document.getElementById('edit-mode-btn').classList.toggle('active', vitalsEditMode);
+  document.getElementById('edit-tool-selector').style.display = vitalsEditMode ? 'flex' : 'none';
   if (vitalsEditMode) {
+    editTool = 'add'; // fresh start each time edit mode is turned on
+    ['add', 'move', 'remove'].forEach(t => document.getElementById('edit-tool-' + t).classList.toggle('active', t === 'add'));
     if (!localStorage.getItem('simControlEditModeSeen')) {
       document.getElementById('edit-mode-modal').style.display = 'flex';
     }
   } else {
-    // Leaving edit mode — drop any in-progress arm/drag/selection so it
-    // doesn't linger once tiles go back to being simple visibility toggles.
+    // Leaving edit mode — drop any in-progress arm/drag so it doesn't linger
+    // once tiles go back to being simple visibility toggles.
     armedTileKey = null;
     armedGraphKeys = [];
     cancelPendingDrag();
-    selectedOverride = null;
   }
   tickVitals();
 }
@@ -1104,20 +1111,24 @@ function closeEditModeModal() {
   try { localStorage.setItem('simControlEditModeSeen', '1'); } catch (e) { /* private browsing etc — just re-show next time */ }
 }
 
+function setEditTool(tool) {
+  editTool = tool;
+  cancelPendingDrag();
+  ['add', 'move', 'remove'].forEach(t => document.getElementById('edit-tool-' + t).classList.toggle('active', t === tool));
+  renderGraph();
+}
+
 function handleVtileClick(defKey) {
   const def = VITAL_DEFS.find(d => d.key === defKey);
   const graphKeys = vtileGraphKeys(def);
   if (!graphKeys.length) { openOverrideModal(defKey); return; }
 
   if (armedTileKey === defKey) {
-    if (pendingDrag) cancelPendingDrag();
-    else if (selectedOverride) selectedOverride = null;
-    else { openOverrideModal(defKey); return; }
-    renderGraph();
+    if (pendingDrag) { cancelPendingDrag(); renderGraph(); return; }
+    openOverrideModal(defKey);
     return;
   }
   cancelPendingDrag();
-  selectedOverride = null;
   armedTileKey = defKey;
   armedGraphKeys = graphKeys;
   graphKeys.forEach(k => { graphSeriesOn[k] = true; });
@@ -1126,15 +1137,7 @@ function handleVtileClick(defKey) {
 
 function handleGraphBackgroundClick() {
   if (pendingDrag) { commitPendingPoint(); return; }
-  if (selectedOverride) { selectedOverride = null; renderGraph(); return; }
   if (armedTileKey) { armedTileKey = null; armedGraphKeys = []; renderGraph(); }
-}
-
-function selectOverrideMarker(key, startMs, endMs, targetValue) {
-  const same = selectedOverride && selectedOverride.key === key && selectedOverride.startMs === startMs
-    && selectedOverride.endMs === endMs && selectedOverride.targetValue === targetValue;
-  selectedOverride = same ? null : { key, startMs, endMs, targetValue };
-  renderGraph();
 }
 
 function svgCoordFromEvent(evt) {
@@ -1175,8 +1178,12 @@ function distributeGcsDelta(eVal, vVal, mVal, delta) {
   }
   return { gcsE: comps[0].val, gcsV: comps[1].val, gcsM: comps[2].val };
 }
-function expandGcsOverride(anchorMs, targetTotal, startMs, endMs) {
-  const cur = SimEngine.getVitalsRaw(liveConfig, anchorMs);
+// cfg defaults to liveConfig (used for live ghost previews); the commit path
+// passes a temp config wrapping a freshly-fetched overrides object instead,
+// so the E/V/M split is worked out against the same authoritative state
+// that's about to be written, not a possibly-stale local copy.
+function expandGcsOverride(anchorMs, targetTotal, startMs, endMs, cfg) {
+  const cur = SimEngine.getVitalsRaw(cfg || liveConfig, anchorMs);
   const e = Math.round(cur.gcsE), v = Math.round(cur.gcsV), m = Math.round(cur.gcsM);
   const dist = distributeGcsDelta(e, v, m, Math.round(targetTotal) - (e + v + m));
   return {
@@ -1186,12 +1193,16 @@ function expandGcsOverride(anchorMs, targetTotal, startMs, endMs) {
   };
 }
 // Reconstructs one combined "GCS override" per matching (startMs,endMs) set
-// across gcsE/gcsV/gcsM, so the graph can show/delete a single marker for
-// what was really one drag action, instead of three separate component ones.
-function getGcsOverrideGroups() {
-  const eArr = (liveConfig.overrides && liveConfig.overrides.gcsE) || [];
-  const vArr = (liveConfig.overrides && liveConfig.overrides.gcsV) || [];
-  const mArr = (liveConfig.overrides && liveConfig.overrides.gcsM) || [];
+// across gcsE/gcsV/gcsM, so the graph can show/delete/move a single point
+// for what's really one series, instead of three separate components.
+// overridesObj defaults to liveConfig.overrides; the commit path passes a
+// freshly-fetched one instead (same read-modify-write discipline as
+// everywhere else that mutates overrides).
+function getGcsOverrideGroups(overridesObj) {
+  const src = overridesObj || (liveConfig && liveConfig.overrides) || {};
+  const eArr = src.gcsE || [];
+  const vArr = src.gcsV || [];
+  const mArr = src.gcsM || [];
   const groups = [];
   eArr.forEach(eo => {
     const vo = vArr.find(x => x.startMs === eo.startMs && x.endMs === eo.endMs);
@@ -1216,6 +1227,68 @@ function valForY(s, y) {
 function yForVal(s, val) {
   const L = _lastLayout;
   return L.padT + (1 - Math.min(1, Math.max(0, (val - s.min) / (s.max - s.min)))) * L.plotH;
+}
+// Inverse of minForX (minute -> x) — renderGraph() has its own local
+// xForMin closure; this standalone version is for code outside the render
+// pass (e.g. locating a marker's on-screen position for hit-testing).
+function xForMinVal(m) {
+  const L = _lastLayout;
+  return L.padL + ((m - L.viewStart) / (L.viewEnd - L.viewStart)) * L.plotW;
+}
+
+function floorMsNow() {
+  return liveConfig.hasStarted ? simNow() : liveConfig.startTimeMs;
+}
+
+// The single source of truth for "what does this series' future look like":
+// a flat, unordered list of {value, atMs} targets is all any add/move/
+// remove needs to produce — rebuildSeriesArray below turns that into the
+// actual chained {targetValue,startMs,endMs} entries, in WHATEVER time
+// order the targets end up in. This is what makes moving a point past a
+// sibling, or deleting one out of the middle, "just work": nothing holds a
+// point's neighbours by reference, everything re-chains from a flat list
+// every time. overridesObj defaults to liveConfig.overrides; the commit
+// path passes a freshly-fetched one instead.
+function futureTargetsFor(graphKey, floorMs, overridesObj) {
+  const src = overridesObj || (liveConfig && liveConfig.overrides) || {};
+  const arr = graphKey === 'gcs' ? getGcsOverrideGroups(src) : (src[graphKey] || []);
+  return arr.filter(ov => ov.endMs > floorMs).map(ov => ({ value: ov.targetValue, atMs: ov.endMs }));
+}
+
+// Rebuilds one series' full overrides array: history (anything already
+// fully in the past) kept exactly as-is, then the given future targets
+// sorted by time and chained end-to-end with no gaps, however they ended
+// up ordered — each one's startMs is simply wherever the previous one
+// landed (or floorMs for the first), so the actual VALUE a segment ramps
+// from is always whatever the engine computes there, not a stored number.
+function rebuildSeriesArray(existingArr, floorMs, futureTargets) {
+  const history = (existingArr || []).filter(ov => ov.endMs <= floorMs);
+  const sorted = futureTargets.slice().sort((a, b) => a.atMs - b.atMs);
+  const future = sorted.map((t, i) => ({
+    targetValue: t.value,
+    startMs: i === 0 ? floorMs : sorted[i - 1].atMs,
+    endMs: t.atMs
+  }));
+  return history.concat(future);
+}
+
+// Same idea as rebuildSeriesArray but for GCS's three parallel component
+// arrays, splitting each rebuilt total via expandGcsOverride. cfg is the
+// temp config (wrapping whichever overridesObj is authoritative right now)
+// that expandGcsOverride samples the CURRENT E/V/M split from.
+function rebuildGcsArrays(floorMs, futureTargets, cfg) {
+  const sorted = futureTargets.slice().sort((a, b) => a.atMs - b.atMs);
+  const src = (cfg && cfg.overrides) || (liveConfig && liveConfig.overrides) || {};
+  const historyE = (src.gcsE || []).filter(ov => ov.endMs <= floorMs);
+  const historyV = (src.gcsV || []).filter(ov => ov.endMs <= floorMs);
+  const historyM = (src.gcsM || []).filter(ov => ov.endMs <= floorMs);
+  const futE = [], futV = [], futM = [];
+  sorted.forEach((t, i) => {
+    const startMs = i === 0 ? floorMs : sorted[i - 1].atMs;
+    const expanded = expandGcsOverride(t.atMs, t.value, startMs, t.atMs, cfg);
+    futE.push(expanded.gcsE); futV.push(expanded.gcsV); futM.push(expanded.gcsM);
+  });
+  return { gcsE: historyE.concat(futE), gcsV: historyV.concat(futV), gcsM: historyM.concat(futM) };
 }
 
 // BP is two separately-dragged series, but systolic must always stay above
@@ -1256,14 +1329,6 @@ function startInspect(evt) {
 // whatever's already scheduled in the future (so entries run end-to-end
 // with no gaps, like continuing a path), or "now" if nothing's scheduled
 // yet. GCS overrides live under gcsE/gcsV/gcsM, not a 'gcs' key.
-function chainStartFor(graphKey) {
-  const floorMs = liveConfig.hasStarted ? simNow() : liveConfig.startTimeMs;
-  const arr = graphKey === 'gcs' ? getGcsOverrideGroups() : ((liveConfig.overrides && liveConfig.overrides[graphKey]) || []);
-  const future = arr.filter(ov => ov.endMs > floorMs);
-  if (!future.length) return floorMs;
-  return Math.max(floorMs, ...future.map(ov => ov.endMs));
-}
-
 // When more than one series is armed at once (BP: sys+dia), a click needs
 // to resolve to ONE of them — whichever series' current value is visually
 // closer (in pixel Y, not raw units, so it works regardless of each
@@ -1282,47 +1347,70 @@ function resolveArmedSeriesAtClick(coords) {
   return best;
 }
 
-// Places a brand-new point, chained from wherever this series currently
-// ends — the core "click to add the next anchor" gesture. Committed
-// automatically on release (see onDragPointerUp), immediately leaving the
-// tool ready to place the next point in the chain.
-function startPointPlacement(evt) {
+// Move/Remove need to grab an EXISTING point — rather than relying on the
+// browser hit-testing a tiny SVG circle (unforgiving on a touchscreen,
+// and part of why taps were missing on iPad), this computes the nearest
+// future point among the armed series within a generous pixel radius and
+// just no-ops if nothing's close enough, like clicking empty space with a
+// selection tool.
+const HIT_RADIUS = 40;
+function findNearestFuturePoint(coords) {
+  const floorMs = floorMsNow();
+  let best = null, bestDist = Infinity;
+  armedGraphKeys.forEach(key => {
+    const s = GRAPH_SERIES.find(g => g.key === key);
+    futureTargetsFor(key, floorMs).forEach(t => {
+      const min = (t.atMs - liveConfig.startTimeMs) / 60000;
+      const x = xForMinVal(min), y = yForVal(s, t.value);
+      const dist = Math.hypot(x - coords.x, y - coords.y);
+      if (dist < bestDist && dist <= HIT_RADIUS) { bestDist = dist; best = { graphKey: key, atMs: t.atMs, value: t.value }; }
+    });
+  });
+  return best;
+}
+
+// Single entry point for every tap/drag in the future zone — what it does
+// depends entirely on the active tool (see the Add/Move/Remove selector).
+function handleGraphZonePointerDown(evt) {
   if (!liveConfig || !_lastLayout || !armedGraphKeys.length) return;
-  evt.preventDefault();
-  cancelPendingDrag();
-  selectedOverride = null;
   const coords = svgCoordFromEvent(evt);
   if (!coords) return;
+  if (editTool === 'add') {
+    evt.preventDefault();
+    startAddAt(coords, evt.pointerId);
+  } else if (editTool === 'move') {
+    const hit = findNearestFuturePoint(coords);
+    if (!hit) return;
+    evt.preventDefault();
+    cancelPendingDrag();
+    pendingDrag = { graphKey: hit.graphKey, movingAtMs: hit.atMs, targetMs: hit.atMs, targetValue: hit.value, linked: null };
+    _dragPointerId = evt.pointerId;
+    renderGraph();
+  } else if (editTool === 'remove') {
+    const hit = findNearestFuturePoint(coords);
+    if (!hit) return;
+    evt.preventDefault();
+    removeFuturePoint(hit.graphKey, hit.atMs);
+  }
+}
+
+// Places a brand-new point anywhere after "now" — the only constraint is
+// that floor, not proximity to any existing point, so a new point can land
+// before, between, or after whatever's already scheduled; the rebuild
+// (see rebuildSeriesArray) re-chains everything by time regardless.
+function startAddAt(coords, pointerId) {
+  cancelPendingDrag();
   const graphKey = resolveArmedSeriesAtClick(coords);
   const s = GRAPH_SERIES.find(g => g.key === graphKey);
-  const chainStartMs = chainStartFor(graphKey);
-  const elapsedMin = (simNow() - liveConfig.startTimeMs) / 60000;
-  const floorMin = liveConfig.hasStarted ? elapsedMin : 0;
-  const chainStartMin = (chainStartMs - liveConfig.startTimeMs) / 60000;
-  const minGapMin = 1 / 12; // 5s — a point can never land at or before its own chain start
-  const m = Math.max(floorMin, chainStartMin + minGapMin, minForX(coords.x));
+  const floorMs = floorMsNow();
+  const floorMin = (floorMs - liveConfig.startTimeMs) / 60000;
+  const minGapMin = 1 / 12; // 5s — never literally on top of "now"
+  const m = Math.max(floorMin + minGapMin, minForX(coords.x));
   const targetMs = liveConfig.startTimeMs + m * 60000;
   const rawVal = Math.min(s.max, Math.max(s.min, valForY(s, coords.y)));
   const clamped = clampBpValue(graphKey, rawVal, targetMs);
-  pendingDrag = { graphKey, chainStartMs, targetMs, targetValue: clamped.value, linked: clamped.linked, movingExisting: null };
-  _dragPointerId = evt.pointerId;
-  renderGraph();
-}
-
-// Repositions the LAST (most recently scheduled) point on a series — the
-// tip of the path currently being drawn — instead of adding a new one.
-// Its chain start (where its transition begins from) stays fixed at the
-// entry's own existing startMs; only the target time/value move.
-function startMovePoint(evt, graphKey, startMs, endMs, targetValue) {
-  if (!liveConfig || !_lastLayout) return;
-  evt.preventDefault();
-  cancelPendingDrag();
-  selectedOverride = null;
-  pendingDrag = {
-    graphKey, chainStartMs: startMs, targetMs: endMs, targetValue,
-    linked: null, movingExisting: { startMs, endMs }
-  };
-  _dragPointerId = evt.pointerId;
+  pendingDrag = { graphKey, movingAtMs: null, targetMs, targetValue: clamped.value, linked: clamped.linked };
+  _dragPointerId = pointerId;
   renderGraph();
 }
 
@@ -1332,7 +1420,7 @@ function onDragPointerMove(evt) {
     const coords = svgCoordFromEvent(evt);
     if (coords && _lastLayout) {
       inspectMin = Math.min(_lastLayout.viewEnd, Math.max(_lastLayout.viewStart, minForX(coords.x)));
-      renderGraph();
+      scheduleGraphRender();
     }
     return;
   }
@@ -1341,18 +1429,19 @@ function onDragPointerMove(evt) {
   const coords = svgCoordFromEvent(evt);
   if (!coords) return;
   const s = GRAPH_SERIES.find(g => g.key === pendingDrag.graphKey);
-  const elapsedMin = (simNow() - liveConfig.startTimeMs) / 60000;
-  const floorMin = liveConfig.hasStarted ? elapsedMin : 0;
-  const chainStartMin = (pendingDrag.chainStartMs - liveConfig.startTimeMs) / 60000;
+  const floorMs = floorMsNow();
+  const floorMin = (floorMs - liveConfig.startTimeMs) / 60000;
   const minGapMin = 1 / 12;
-  const m = Math.max(floorMin, chainStartMin + minGapMin, minForX(coords.x));
+  // The ONLY constraint while dragging is "not before now" — free to cross
+  // past any other point in time, which is what lets you reorder the path.
+  const m = Math.max(floorMin + minGapMin, minForX(coords.x));
   const newTargetMs = liveConfig.startTimeMs + m * 60000;
   const rawVal = Math.min(s.max, Math.max(s.min, valForY(s, coords.y)));
   const clamped = clampBpValue(pendingDrag.graphKey, rawVal, newTargetMs);
   pendingDrag.targetMs = newTargetMs;
   pendingDrag.targetValue = clamped.value;
-  pendingDrag.linked = pendingDrag.movingExisting ? null : clamped.linked; // moving an existing point never drags a BP counterpart along
-  renderGraph();
+  pendingDrag.linked = pendingDrag.movingAtMs != null ? null : clamped.linked; // moving an existing point never drags a BP counterpart along
+  scheduleGraphRender();
 }
 
 function onDragPointerUp(evt) {
@@ -1370,36 +1459,35 @@ function onDragPointerUp(evt) {
 // Writes the pending point (new or moved) straight to the session — no
 // separate confirm step, matching how a vector tool commits an anchor the
 // instant you release it. Read-modify-write against fresh overrides, same
-// pattern as every other override mutation in this file.
+// pattern as every other override mutation in this file. Rebuilds the
+// WHOLE future chain from a flat target list rather than touching one
+// entry in place, so a point dragged past a sibling reorders correctly.
 async function commitPendingPoint() {
   if (!pendingDrag || !sessionCode) return;
   const drag = pendingDrag;
   pendingDrag = null;
   _dragPointerId = null;
-  const { graphKey, chainStartMs, targetValue, linked, movingExisting } = drag;
-  const startMs = chainStartMs;
-  const endMs = Math.max(drag.targetMs, startMs + 1000);
   try {
     const rows = await sbFetch(`sim_sessions?session_code=eq.${sessionCode}&select=overrides`, { method: 'GET' });
     const freshOverrides = (rows[0] && rows[0].overrides) || {};
     const previousSnapshot = JSON.parse(JSON.stringify(freshOverrides));
+    const floorMs = floorMsNow();
+    const freshConfig = Object.assign({}, liveConfig, { overrides: freshOverrides });
 
-    function upsert(key, entry) {
-      if (!freshOverrides[key]) freshOverrides[key] = [];
-      if (movingExisting) {
-        const idx = freshOverrides[key].findIndex(ov => ov.startMs === movingExisting.startMs && ov.endMs === movingExisting.endMs);
-        if (idx !== -1) { freshOverrides[key][idx] = entry; return; }
+    function applyKey(graphKey, value, atMs) {
+      const target = { value, atMs: Math.max(atMs, floorMs + 1000) };
+      const others = futureTargetsFor(graphKey, floorMs, freshOverrides).filter(t => drag.movingAtMs == null || t.atMs !== drag.movingAtMs);
+      const all = others.concat([target]);
+      if (graphKey === 'gcs') {
+        const built = rebuildGcsArrays(floorMs, all, freshConfig);
+        freshOverrides.gcsE = built.gcsE; freshOverrides.gcsV = built.gcsV; freshOverrides.gcsM = built.gcsM;
+      } else {
+        freshOverrides[graphKey] = rebuildSeriesArray(freshOverrides[graphKey], floorMs, all);
       }
-      freshOverrides[key].push(entry);
     }
 
-    if (graphKey === 'gcs') {
-      const expanded = expandGcsOverride(endMs, targetValue, startMs, endMs);
-      ['gcsE', 'gcsV', 'gcsM'].forEach(k => upsert(k, expanded[k]));
-    } else {
-      upsert(graphKey, { targetValue, startMs, endMs });
-      if (linked) upsert(linked.graphKey, { targetValue: linked.targetValue, startMs, endMs });
-    }
+    applyKey(drag.graphKey, drag.targetValue, drag.targetMs);
+    if (drag.linked) applyKey(drag.linked.graphKey, drag.linked.targetValue, drag.targetMs);
 
     await sbFetch(`sim_sessions?session_code=eq.${sessionCode}`, {
       method: 'PATCH', prefer: 'return=minimal',
@@ -1407,10 +1495,6 @@ async function commitPendingPoint() {
     });
     liveConfig.overrides = freshOverrides;
     liveConfig.previousOverrides = previousSnapshot;
-    // Moving the tip leaves it selected (so its delete "x" is right there);
-    // placing a brand-new point leaves nothing selected — the tool's just
-    // ready for the next click.
-    if (movingExisting) selectedOverride = { key: graphKey, startMs, endMs };
     renderGraph();
   } catch (e) {
     pendingDrag = drag; // restore so the in-progress point isn't silently lost
@@ -1419,9 +1503,50 @@ async function commitPendingPoint() {
   }
 }
 
+// Remove tool: confirm, then drop this point from the future list and
+// re-chain whatever's left so no gap opens up where it used to be.
+async function removeFuturePoint(graphKey, atMs) {
+  if (!sessionCode) return;
+  if (!confirm('Remove this point?')) return;
+  try {
+    const rows = await sbFetch(`sim_sessions?session_code=eq.${sessionCode}&select=overrides`, { method: 'GET' });
+    const freshOverrides = (rows[0] && rows[0].overrides) || {};
+    const previousSnapshot = JSON.parse(JSON.stringify(freshOverrides));
+    const floorMs = floorMsNow();
+    const remaining = futureTargetsFor(graphKey, floorMs, freshOverrides).filter(t => t.atMs !== atMs);
+    if (graphKey === 'gcs') {
+      const built = rebuildGcsArrays(floorMs, remaining, Object.assign({}, liveConfig, { overrides: freshOverrides }));
+      freshOverrides.gcsE = built.gcsE; freshOverrides.gcsV = built.gcsV; freshOverrides.gcsM = built.gcsM;
+    } else {
+      freshOverrides[graphKey] = rebuildSeriesArray(freshOverrides[graphKey], floorMs, remaining);
+    }
+    await sbFetch(`sim_sessions?session_code=eq.${sessionCode}`, {
+      method: 'PATCH', prefer: 'return=minimal',
+      body: JSON.stringify({ overrides: freshOverrides, previous_overrides: previousSnapshot, updated_at: new Date().toISOString() })
+    });
+    liveConfig.overrides = freshOverrides;
+    liveConfig.previousOverrides = previousSnapshot;
+    renderGraph();
+  } catch (e) {
+    alert('Could not remove the point — check the connection and try again.');
+  }
+}
+
 function cancelPendingDrag() {
   pendingDrag = null;
   _dragPointerId = null;
+}
+
+// Coalesces rapid pointermove events (touch can fire these far faster than
+// the graph needs to redraw) into at most one full render per animation
+// frame — without this, every single touchmove rebuilding the entire SVG
+// synchronously was the main cause of dragging feeling laggy/unresponsive
+// on iPad, occasionally dropping the gesture entirely.
+let _rafPending = false;
+function scheduleGraphRender() {
+  if (_rafPending) return;
+  _rafPending = true;
+  requestAnimationFrame(() => { _rafPending = false; renderGraph(); });
 }
 
 document.addEventListener('pointermove', onDragPointerMove);
@@ -1494,7 +1619,11 @@ function renderGraph() {
   const yFor = (s, val) => padT + (1 - Math.min(1, Math.max(0, (val - s.min) / (s.max - s.min)))) * plotH;
   _lastLayout = { padL, padT, plotW, plotH, viewStart, viewEnd };
 
-  const SAMPLES = 80;
+  // Fewer samples while a point is actively being dragged — this whole
+  // function can re-run on every animation frame during a drag (see
+  // scheduleGraphRender), so keeping each frame's work cheap matters far
+  // more than curve smoothness for a few hundred ms of dashed ghost line.
+  const SAMPLES = pendingDrag ? 24 : 80;
   let paths = '';
   let ghostPaths = '';
   let hitPaths = '';
@@ -1571,57 +1700,35 @@ function renderGraph() {
     edgeReadoutEntries.push({ y: edgeY, str: edgeStr, color: s.color, opacity });
 
     if (isArmed && !pendingDrag) {
-      // Existing (confirmed) overrides on this series get a tappable marker
-      // so they can be selected and deleted — only FUTURE ones though, since
-      // anything already in effect is locked (removing it would rewrite
-      // what's already happened). The LAST one (the tip of the path currently
-      // being drawn) is also directly draggable to reposition it, like
-      // adjusting the most recent anchor in a vector path tool before you
-      // move on — earlier points are select-then-delete only, same as before.
-      const nowMsForMarkers = simNow();
-      // GCS overrides live under gcsE/gcsV/gcsM, not a 'gcs' key — reconstruct
-      // one combined marker per matching (startMs,endMs) triple across all
-      // three, since expandGcsOverride always writes them together.
-      const markerSource = s.key === 'gcs' ? getGcsOverrideGroups() : ((liveConfig.overrides && liveConfig.overrides[s.key]) || []);
-      const futureMarkers = markerSource.filter(ov => ov.startMs > nowMsForMarkers).sort((a, b) => a.startMs - b.startMs);
-      const lastIdx = futureMarkers.length - 1;
-      futureMarkers.forEach((ov, idx) => {
-        const ovEndMin = (ov.endMs - liveConfig.startTimeMs) / 60000;
-        if (ovEndMin < viewStart || ovEndMin > viewEnd) return;
-        const mx = xForMin(ovEndMin), my = yFor(s, ov.targetValue);
-        const isLast = idx === lastIdx;
-        const isSelected = selectedOverride && selectedOverride.key === s.key && selectedOverride.startMs === ov.startMs && selectedOverride.endMs === ov.endMs;
-        const handlerAttr = isLast
-          ? `onpointerdown="event.stopPropagation();startMovePoint(event,'${s.key}',${ov.startMs},${ov.endMs},${ov.targetValue})"`
-          : `onclick="event.stopPropagation();selectOverrideMarker('${s.key}', ${ov.startMs}, ${ov.endMs}, ${ov.targetValue})"`;
-        overrideMarkers += `<circle cx="${mx}" cy="${my}" r="${isLast ? 7 : 6}" fill="${isSelected ? '#fff' : s.color}" stroke="${s.color}" stroke-width="2" style="touch-action:none;cursor:${isLast ? 'move' : 'pointer'};" ${handlerAttr} />`;
-        if (isSelected) {
-          const decimalKeys = ['temp', 'bgl', 'ketones'];
-          const labelVal = decimalKeys.includes(s.key) ? ov.targetValue.toFixed(1) : Math.round(ov.targetValue);
-          const labelStr = `${labelVal}${s.unit}`;
-          const labelW = Math.max(32, labelStr.length * 7 + 12);
-          const labelY = Math.min(H - padB - 16, my + 24);
-          const labelX = Math.min(Math.max(padL, mx - labelW / 2), W - padR - labelW);
-          overrideMarkers += `<rect x="${labelX}" y="${labelY - 8}" width="${labelW}" height="16" rx="4" fill="#1e2a36" opacity="0.9" />`;
-          overrideMarkers += `<text x="${labelX + labelW / 2}" y="${labelY + 4}" font-size="11" fill="#fff" font-weight="700" text-anchor="middle">${labelStr}</text>`;
-          const delY = Math.max(padT + 10, my - 18);
-          overrideMarkers += `<g onclick="event.stopPropagation();deleteOverride('${s.key}', ${ov.startMs}, ${ov.endMs}, ${ov.targetValue})" style="cursor:pointer;"><circle cx="${mx}" cy="${delY}" r="9" fill="#b91c1c" /><text x="${mx}" y="${delY + 4}" font-size="12" fill="#fff" text-anchor="middle" font-weight="900">&#10005;</text></g>`;
-        }
+      // Every FUTURE point on this series gets a marker — including ones
+      // from the scenario's original AI-generated timeline, not just
+      // manually-added ones, since they all live in the same overrides
+      // array. Purely visual now (no per-marker handlers): what a tap/drag
+      // here DOES depends on the active tool (see handleGraphZonePointerDown
+      // and findNearestFuturePoint, which does its own proximity hit-test
+      // rather than relying on the browser to hit a tiny circle — much more
+      // forgiving on a touchscreen). Anything already in effect (starts
+      // at-or-before now) isn't shown — locked, since editing it would
+      // rewrite what's already happened.
+      const floorMsForMarkers = floorMsNow();
+      futureTargetsFor(s.key, floorMsForMarkers).forEach(t => {
+        const min = (t.atMs - liveConfig.startTimeMs) / 60000;
+        if (min < viewStart || min > viewEnd) return;
+        const mx = xForMin(min), my = yFor(s, t.value);
+        overrideMarkers += `<circle cx="${mx}" cy="${my}" r="6" fill="${s.color}" stroke="#fff" stroke-width="1.5" opacity="0.9" style="pointer-events:none;" />`;
       });
     }
   });
 
   // Single combined click-catcher over the whole future zone for however many
-  // series are currently armed (one for most tiles, two for BP) — replaces
-  // the old "grab the thin existing line, then drag" hit-stroke. Any tap or
-  // drag anywhere in this zone places a new point (see startPointPlacement);
-  // when more than one series is armed (BP), the click resolves to whichever
-  // series' current value is visually closer to where you clicked.
+  // series are currently armed (one for most tiles, two for BP). What a
+  // tap/drag anywhere in here does depends on the active tool (Add/Move/
+  // Remove) — see handleGraphZonePointerDown.
   if (armedTileKey && armedGraphKeys.length && !pendingDrag) {
     const futureStartMin = liveConfig.hasStarted ? Math.max(viewStart, elapsedMin) : viewStart;
     const futureStartX = xForMin(futureStartMin);
     if (futureStartX < padL + plotW) {
-      hitPaths += `<rect x="${futureStartX}" y="${padT}" width="${padL + plotW - futureStartX}" height="${plotH}" fill="transparent" style="touch-action:none;cursor:crosshair;" onpointerdown="startPointPlacement(event)" onclick="event.stopPropagation()" />`;
+      hitPaths += `<rect x="${futureStartX}" y="${padT}" width="${padL + plotW - futureStartX}" height="${plotH}" fill="transparent" style="touch-action:none;cursor:crosshair;" onpointerdown="handleGraphZonePointerDown(event)" onclick="event.stopPropagation()" />`;
     }
   }
 
@@ -1689,42 +1796,44 @@ function renderGraph() {
       const tMs = liveConfig.startTimeMs + elapsedMin * 60000;
       const val = s.get(SimEngine.getVitalsRaw(liveConfig, tMs));
       const y = yFor(s, val);
-      playhead += `<circle cx="${x}" cy="${y}" r="4.5" fill="${s.color}" />`;
+      playhead += `<circle cx="${x}" cy="${y}" r="4.5" fill="${s.color}" style="pointer-events:none;" />`;
     });
   }
 
   let pendingUI = '';
   if (pendingDrag) {
-    // Live ghost preview while a point is being placed/dragged — a single
-    // anchor at the cursor, chained from wherever this series currently
-    // ends (pendingDrag.chainStartMs), like the tip of a path being drawn
-    // in a vector tool. No separate duration handle or confirm/cancel icons
-    // any more — releasing the pointer commits it directly (see
+    // Live ghost preview while a point is being placed/dragged. Shows the
+    // FULL rebuilt future chain, not just one segment — dragging a point
+    // past a sibling visibly reorders the whole path live, not only on
+    // release, since the preview uses the exact same rebuild the commit
+    // will use. No separate duration handle or confirm/cancel icons —
+    // releasing the pointer commits it directly (see
     // onDragPointerUp/commitPendingPoint). isPrimary gets the full-strength
     // preview; the linked BP counterpart (if any) gets a lighter echo.
-    function buildPendingPointMarkup(graphKey, targetValue, chainStartMs, targetMs, isPrimary) {
+    // SAMPLES is already cut down above while pendingDrag is set; the ghost
+    // itself needs even less since it's a plain dashed line, not a filled area.
+    const dragSamples = 20;
+    function buildPendingPointMarkup(graphKey, targetValue, targetMs, isPrimary, excludeAtMs) {
       const s = GRAPH_SERIES.find(g => g.key === graphKey);
-      const chainMin = (chainStartMs - liveConfig.startTimeMs) / 60000;
+      const floorMs = floorMsNow();
       const targetMin = (targetMs - liveConfig.startTimeMs) / 60000;
-      const endMs = Math.max(targetMs, chainStartMs + 1000);
+      const others = futureTargetsFor(graphKey, floorMs).filter(t => excludeAtMs == null || t.atMs !== excludeAtMs);
+      const all = others.concat([{ value: targetValue, atMs: Math.max(targetMs, floorMs + 1000) }]);
       let out = '';
 
       const previewOverrides = Object.assign({}, liveConfig.overrides);
       if (graphKey === 'gcs') {
-        const expanded = expandGcsOverride(targetMs, targetValue, chainStartMs, endMs);
-        ['gcsE', 'gcsV', 'gcsM'].forEach(k => {
-          previewOverrides[k] = ((liveConfig.overrides && liveConfig.overrides[k]) || []).concat([expanded[k]]);
-        });
+        const built = rebuildGcsArrays(floorMs, all, liveConfig);
+        previewOverrides.gcsE = built.gcsE; previewOverrides.gcsV = built.gcsV; previewOverrides.gcsM = built.gcsM;
       } else {
-        previewOverrides[graphKey] = ((liveConfig.overrides && liveConfig.overrides[graphKey]) || [])
-          .concat([{ targetValue, startMs: chainStartMs, endMs }]);
+        previewOverrides[graphKey] = rebuildSeriesArray(liveConfig.overrides[graphKey], floorMs, all);
       }
       const previewConfig = Object.assign({}, liveConfig, { overrides: previewOverrides });
-      const ghostFromMin = Math.max(viewStart, chainMin);
+      const ghostFromMin = Math.max(viewStart, (floorMs - liveConfig.startTimeMs) / 60000);
       if (ghostFromMin < viewEnd) {
         const gpts = [];
-        for (let i = 0; i <= SAMPLES; i++) {
-          const m = ghostFromMin + (viewEnd - ghostFromMin) * (i / SAMPLES);
+        for (let i = 0; i <= dragSamples; i++) {
+          const m = ghostFromMin + (viewEnd - ghostFromMin) * (i / dragSamples);
           const tMs = liveConfig.startTimeMs + m * 60000;
           const val = s.get(SimEngine.getVitalsRaw(previewConfig, tMs));
           gpts.push([xForMin(m), yFor(s, val)]);
@@ -1747,9 +1856,9 @@ function renderGraph() {
       return out;
     }
 
-    pendingUI += buildPendingPointMarkup(pendingDrag.graphKey, pendingDrag.targetValue, pendingDrag.chainStartMs, pendingDrag.targetMs, true);
+    pendingUI += buildPendingPointMarkup(pendingDrag.graphKey, pendingDrag.targetValue, pendingDrag.targetMs, true, pendingDrag.movingAtMs);
     if (pendingDrag.linked) {
-      pendingUI += buildPendingPointMarkup(pendingDrag.linked.graphKey, pendingDrag.linked.targetValue, pendingDrag.chainStartMs, pendingDrag.targetMs, false);
+      pendingUI += buildPendingPointMarkup(pendingDrag.linked.graphKey, pendingDrag.linked.targetValue, pendingDrag.targetMs, false, null);
     }
   }
 
@@ -2979,59 +3088,6 @@ const OVERRIDE_KEY_LABELS = {
   temp: 'Temp', bgl: 'BGL', ketones: 'Ketones', pain: 'Pain',
   gcsE: 'GCS Eye', gcsV: 'GCS Verbal', gcsM: 'GCS Motor'
 };
-
-async function deleteOverride(key, startMs, endMs, targetValue) {
-  if (!sessionCode) return;
-  if (startMs <= simNow()) {
-    alert("This override has already started changing the vital and can't be removed without altering what already happened.");
-    return;
-  }
-  if (!confirm('Remove this override?')) return;
-  try {
-    const rows = await sbFetch(`sim_sessions?session_code=eq.${sessionCode}&select=overrides`, { method: 'GET' });
-    const freshOverrides = (rows[0] && rows[0].overrides) || {};
-    const previousSnapshot = JSON.parse(JSON.stringify(freshOverrides));
-    if (key === 'gcs') {
-      // One marker = three component entries sharing this startMs/endMs.
-      let foundAny = false;
-      ['gcsE', 'gcsV', 'gcsM'].forEach(k => {
-        const arr = freshOverrides[k] || [];
-        const idx = arr.findIndex(ov => ov.startMs === startMs && ov.endMs === endMs);
-        if (idx !== -1) { arr.splice(idx, 1); foundAny = true; }
-        freshOverrides[k] = arr;
-      });
-      if (!foundAny) {
-        alert('Could not find that override — it may have already been changed elsewhere.');
-        liveConfig.overrides = freshOverrides;
-        selectedOverride = null;
-        renderGraph();
-        return;
-      }
-    } else {
-      const arr = freshOverrides[key] || [];
-      const matchIdx = arr.findIndex(ov => ov.startMs === startMs && ov.endMs === endMs && ov.targetValue === targetValue);
-      if (matchIdx === -1) {
-        alert('Could not find that override — it may have already been changed elsewhere.');
-        liveConfig.overrides = freshOverrides;
-        selectedOverride = null;
-        renderGraph();
-        return;
-      }
-      arr.splice(matchIdx, 1);
-      freshOverrides[key] = arr;
-    }
-    await sbFetch(`sim_sessions?session_code=eq.${sessionCode}`, {
-      method: 'PATCH', prefer: 'return=minimal',
-      body: JSON.stringify({ overrides: freshOverrides, previous_overrides: previousSnapshot, updated_at: new Date().toISOString() })
-    });
-    liveConfig.overrides = freshOverrides;
-    liveConfig.previousOverrides = previousSnapshot;
-    selectedOverride = null;
-    renderGraph();
-  } catch (e) {
-    alert('Could not delete the override — check the connection and try again.');
-  }
-}
 
 let _ovDefKey = null;
 

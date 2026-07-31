@@ -72,11 +72,29 @@
   // from that point on (so the vital keeps drifting per the underlying trend/
   // treatments, just shifted to pass through the target at the moment the
   // override finished) — i.e. "resume drifting", not "hold and freeze".
+  //
+  // The graph re-evaluates this many times per render (once per sample point,
+  // per visible vital) and callers frequently re-render dozens of times a
+  // second while dragging — re-sorting the same small array on every single
+  // call was showing up as real, visible lag (particularly on iPad). Cached
+  // per array reference, since a given overrides array is only ever appended
+  // to, spliced, or replaced wholesale — never sorted in place — so a stale
+  // cache entry is impossible: any mutation either changes the reference
+  // (cache miss, correctly re-sorts) or wouldn't be reflected without one.
+  const _sortedOverridesCache = new WeakMap();
+  function sortedOverrides(events) {
+    let sorted = _sortedOverridesCache.get(events);
+    if (!sorted) {
+      sorted = events.slice().sort((a, b) => a.startMs - b.startMs);
+      _sortedOverridesCache.set(events, sorted);
+    }
+    return sorted;
+  }
   function applyOverrides(cfg, key, nowMs) {
     const events = (cfg.overrides && cfg.overrides[key]) || [];
     const raw = (t) => rawTrendAt(cfg, key, t);
     let offset = 0;
-    const sorted = events.slice().sort((a, b) => a.startMs - b.startMs);
+    const sorted = events.length ? sortedOverrides(events) : events;
     for (let i = 0; i < sorted.length; i++) {
       const ov = sorted[i];
       if (nowMs < ov.startMs) break; // not started yet — ignore
