@@ -130,39 +130,57 @@ change." If extending it, follow the existing layering order (grid →
 rhythm markers → ghosts → main paths → hit-paths → override markers →
 playhead → ...) — later layers draw on top.
 
-### Manual editing — vector-pen-tool interaction, not click-and-fill-a-form
+### Manual editing — Add/Move/Remove tools, rebuild-from-flat-list model
 
 Edit Mode lets the assessor hand-author overrides directly on the graph.
-Arm a tile (`handleVtileClick`), then tap/drag anywhere in the future zone
-to drop the next point — it **chains automatically** from wherever that
-series currently ends (`chainStartFor()`; "now" if nothing's scheduled
-yet), so there's no separate duration control: spacing between points
-*is* the transition length. Releasing the pointer commits it immediately
-(`commitPendingPoint()`, no confirm step) and leaves the tool armed for
-the next point — placing a multi-phase chain is just repeated clicks,
-like drawing a path in a vector app.
+Arm a tile (`handleVtileClick`), then use one of three tools (icon buttons,
+bottom-left of the graph, `setEditTool()`):
 
-The **last** (most recently scheduled) point on a series stays directly
-draggable afterward — `startMovePoint()` updates that entry in place
-(matched by `startMs`+`endMs`, not `targetValue`, since dragging changes
-the value) rather than pushing a new one; its own `chainStartMs` (where
-its transition begins) never moves, only where/when it lands does.
-Earlier points are select-then-delete only (`selectOverrideMarker` /
-`deleteOverride`, unchanged) — deliberately not draggable, since a gap
-would open in the chain after it. A brand-new point's `startMs` is
-essentially "now" the instant it's placed, so — consistent with the
-existing "can't edit what's already in effect" rule — it stops being
-draggable/deletable within about a second of creation; this is expected,
-not a bug, and only affects the very first point of a fresh chain.
+- **Add** — tap/drag anywhere after "now" drops a point there.
+- **Move** — drags ANY existing future point (including ones from the
+  scenario's original AI-generated timeline, not just manually-added
+  ones) to a new value/time, and it's free to cross past a neighbouring
+  point in time to reorder them — "now" is the only floor, there's no
+  constraint against crossing siblings.
+- **Remove** — tap a point (confirm) to delete it.
 
-BP arms two series at once (sys+dia sharing one tile); a click resolves
-to whichever one is visually closer in Y at that moment
-(`resolveArmedSeriesAtClick`), rather than needing to precisely hit one
-thin line.
+All three funnel through `handleGraphZonePointerDown()`, which branches on
+`editTool`. Move/Remove locate the target point via `findNearestFuturePoint()`
+— a generous-radius distance check in pixel space, not native SVG hit-testing
+against a tiny circle (which was unreliable on touch — see Gotchas). Marker
+circles are purely decorative (`pointer-events:none`) for exactly that
+reason: without it, an inert circle silently swallows taps meant for the
+invisible catcher underneath.
+
+The underlying model: rather than upserting one entry in place, a
+series' entire future is rebuilt every time from a flat, unordered
+`{value, atMs}` target list (`futureTargetsFor()` reads the current one,
+`rebuildSeriesArray()`/`rebuildGcsArrays()` sort it by time and re-chain
+end-to-end with no gaps). This is what makes reordering — and deleting
+out of the middle without leaving a gap — both just work: nothing holds
+a point by reference to its neighbours, everything is recomputed from
+scratch each time a point is added, moved, or removed. Releasing commits
+immediately (`commitPendingPoint()`, no confirm step for Add/Move) and
+leaves the tool armed for the next action.
+
+BP arms two series at once (sys+dia sharing one tile); Add resolves a
+click to whichever series is visually closer in Y at that moment
+(`resolveArmedSeriesAtClick`).
 
 This only changes the *editing interaction* — the underlying interpolation
 is still the same straight-line ramp `sim_engine.js` always computed, so
 what the patient's monitor displays is unaffected.
+
+**Performance**: this whole area re-renders the entire SVG on every
+pointermove while dragging, which was genuinely laggy/unresponsive on
+iPad. Two mitigations: `scheduleGraphRender()` throttles renders to one
+per animation frame instead of one per pointer event, and `SAMPLES` (the
+per-series sample count in `renderGraph()`) drops while `pendingDrag` is
+set. Separately, `sim_engine.js`'s `applyOverrides()` now caches the
+sorted overrides array per array reference (WeakMap) instead of
+re-sorting on every single sample — it was re-sorting the same small
+array dozens of times per render, across both pages, not just while
+editing.
 
 ## Gotchas
 
@@ -176,6 +194,21 @@ what the patient's monitor displays is unaffected.
   UI changes, a local `http.server` + Playwright screenshot (remote
   `1984tpearson.github.io` script/asset URLs need request interception to
   serve local copies when testing offline).
+- **A decorative SVG element without `pointer-events:none` silently
+  swallows clicks meant for whatever's underneath it** — it doesn't need
+  an `onclick`/`onpointerdown` to intercept the event, just to exist on
+  top in z-order. Bit the graph's marker circles once already (drawn
+  after the invisible catcher rect, with no handlers, no `pointer-events`
+  override — any tap landing on one did nothing instead of reaching the
+  catcher). Anything added to `renderGraph()`'s output purely for display
+  needs `pointer-events:none` if it can overlap an interactive layer
+  drawn earlier.
+- `renderGraph()`-local closures (`xForMin`, `yFor`) are NOT the same
+  functions as the standalone `minForX`/`valForY`/`xForMinVal`/`yForVal`
+  outside it, despite near-identical names/math — code called from
+  outside a render pass (hit-testing, tool logic) must use the standalone
+  versions (which read `_lastLayout`), not assume the local ones are in
+  scope. Mixing them up is a silent `ReferenceError` at the call site.
 - Git flow observed so far: work on a `claude/*` branch, fast-forward merge
   to `main` directly (no PR process used yet) — GitHub Pages redeploys
   automatically on every push to `main`.
