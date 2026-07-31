@@ -80,13 +80,14 @@ body { display: flex; flex-direction: column; }
    be taken mid-conversation. #patient-info-voice is display:none by
    default; openVoiceModal()/closeVoiceModal() toggle which of the two
    sits visible inside the #patient-info panel. */
-#patient-info-voice { display: none; }
+#patient-info-voice { display: none; gap: 10px; align-items: flex-start; }
+#patient-info-voice-text { flex: 1; min-width: 0; }
 #voice-modal-title { font-size: 11px; font-weight: 900; letter-spacing: 1px; text-transform: uppercase; color: #0369a1; margin-bottom: 4px; }
 #voice-modal-status { font-size: 11px; color: #33475a; margin-bottom: 4px; min-height: 14px; }
 #voice-modal-transcript { min-height: 20px; border: 1px solid #d7dee6; border-radius: 6px; padding: 6px 8px; font-size: 13px; color: #1e2a36; margin-bottom: 4px; background: #f7fafc; }
-#patient-reply-display { font-size: 13px; color: #15803d; margin-bottom: 4px; font-style: italic; display: none; }
-#voice-modal-actions { display: flex; gap: 6px; flex-wrap: wrap; }
-.voice-btn { flex: 1; min-width: 90px; min-height: 44px; border-radius: 6px; border: none; font-family: 'Courier New', monospace; font-weight: 700; font-size: 13px; cursor: pointer; }
+#patient-reply-display { font-size: 13px; color: #15803d; margin-bottom: 0; font-style: italic; display: none; }
+#voice-modal-actions { display: flex; flex-direction: column; gap: 6px; width: 92px; flex-shrink: 0; }
+.voice-btn { min-height: 40px; border-radius: 6px; border: none; font-family: 'Courier New', monospace; font-weight: 700; font-size: 12px; cursor: pointer; }
 .voice-btn-primary { background: #0369a1; color: #fff; }
 .voice-btn-primary:disabled { opacity: 0.4; }
 .voice-btn-secondary { background: #e2e8f0; color: #33475a; }
@@ -117,10 +118,12 @@ body { display: flex; flex-direction: column; }
     <div class="row" id="pi-complaint">C/O: Central chest pain radiating to left arm, diaphoretic</div>
   </div>
   <div id="patient-info-voice">
-    <div id="voice-modal-title">Give Treatment</div>
-    <div id="voice-modal-status">Listening&hellip;</div>
-    <div id="voice-modal-transcript"></div>
-    <div id="patient-reply-display"></div>
+    <div id="patient-info-voice-text">
+      <div id="voice-modal-title">Give Treatment</div>
+      <div id="voice-modal-status">Listening&hellip;</div>
+      <div id="voice-modal-transcript"></div>
+      <div id="patient-reply-display"></div>
+    </div>
     <div id="voice-modal-actions">
       <button class="voice-btn voice-btn-secondary" onclick="restartVoiceCapture()">Try Again</button>
       <button class="voice-btn voice-btn-secondary" onclick="closeVoiceModal()">Cancel</button>
@@ -833,7 +836,7 @@ function openVoiceModal(mode) {
   document.getElementById('patient-reply-display').style.display = 'none';
   document.getElementById('patient-reply-display').textContent = '';
   document.getElementById('patient-info-normal').style.display = 'none';
-  document.getElementById('patient-info-voice').style.display = 'block';
+  document.getElementById('patient-info-voice').style.display = 'flex';
   _voiceModalOpen = true;
   startVoiceCapture();
 }
