@@ -130,6 +130,40 @@ change." If extending it, follow the existing layering order (grid →
 rhythm markers → ghosts → main paths → hit-paths → override markers →
 playhead → ...) — later layers draw on top.
 
+### Manual editing — vector-pen-tool interaction, not click-and-fill-a-form
+
+Edit Mode lets the assessor hand-author overrides directly on the graph.
+Arm a tile (`handleVtileClick`), then tap/drag anywhere in the future zone
+to drop the next point — it **chains automatically** from wherever that
+series currently ends (`chainStartFor()`; "now" if nothing's scheduled
+yet), so there's no separate duration control: spacing between points
+*is* the transition length. Releasing the pointer commits it immediately
+(`commitPendingPoint()`, no confirm step) and leaves the tool armed for
+the next point — placing a multi-phase chain is just repeated clicks,
+like drawing a path in a vector app.
+
+The **last** (most recently scheduled) point on a series stays directly
+draggable afterward — `startMovePoint()` updates that entry in place
+(matched by `startMs`+`endMs`, not `targetValue`, since dragging changes
+the value) rather than pushing a new one; its own `chainStartMs` (where
+its transition begins) never moves, only where/when it lands does.
+Earlier points are select-then-delete only (`selectOverrideMarker` /
+`deleteOverride`, unchanged) — deliberately not draggable, since a gap
+would open in the chain after it. A brand-new point's `startMs` is
+essentially "now" the instant it's placed, so — consistent with the
+existing "can't edit what's already in effect" rule — it stops being
+draggable/deletable within about a second of creation; this is expected,
+not a bug, and only affects the very first point of a fresh chain.
+
+BP arms two series at once (sys+dia sharing one tile); a click resolves
+to whichever one is visually closer in Y at that moment
+(`resolveArmedSeriesAtClick`), rather than needing to precisely hit one
+thin line.
+
+This only changes the *editing interaction* — the underlying interpolation
+is still the same straight-line ramp `sim_engine.js` always computed, so
+what the patient's monitor displays is unaffected.
+
 ## Gotchas
 
 - **Backticks inside a prompt string break the JS parse.** The AI system
