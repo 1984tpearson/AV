@@ -82,7 +82,11 @@ body { display: flex; flex-direction: column; }
    sits visible inside the #patient-info panel. */
 #patient-info-voice { display: none; gap: 10px; align-items: flex-start; }
 #patient-info-voice-text { flex: 1; min-width: 0; }
-#voice-modal-title { font-size: 11px; font-weight: 900; letter-spacing: 1px; text-transform: uppercase; color: #0369a1; margin-bottom: 4px; }
+#voice-modal-title-row { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
+#voice-modal-title { font-size: 11px; font-weight: 900; letter-spacing: 1px; text-transform: uppercase; color: #0369a1; }
+#voice-mic-indicator { display: none; font-size: 14px; line-height: 1; }
+#voice-mic-indicator.listening { display: inline-block; animation: micPulse 1s ease-in-out infinite; }
+@keyframes micPulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.35; transform: scale(1.25); } }
 #voice-modal-status { font-size: 11px; color: #33475a; margin-bottom: 4px; min-height: 14px; }
 #voice-modal-transcript { min-height: 20px; border: 1px solid #d7dee6; border-radius: 6px; padding: 6px 8px; font-size: 13px; color: #1e2a36; margin-bottom: 4px; background: #f7fafc; }
 #patient-reply-display { font-size: 13px; color: #15803d; margin-bottom: 0; font-style: italic; display: none; }
@@ -119,7 +123,10 @@ body { display: flex; flex-direction: column; }
   </div>
   <div id="patient-info-voice">
     <div id="patient-info-voice-text">
-      <div id="voice-modal-title">Give Treatment</div>
+      <div id="voice-modal-title-row">
+        <span id="voice-mic-indicator">&#127908;</span>
+        <span id="voice-modal-title">Give Treatment</span>
+      </div>
       <div id="voice-modal-status">Listening&hellip;</div>
       <div id="voice-modal-transcript"></div>
       <div id="patient-reply-display"></div>
@@ -850,6 +857,7 @@ function startVoiceCapture() {
   const Ctor = getSpeechRecognitionCtor();
   const statusEl = document.getElementById('voice-modal-status');
   const transcriptEl = document.getElementById('voice-modal-transcript');
+  const micEl = document.getElementById('voice-mic-indicator');
   document.getElementById('patient-reply-display').style.display = 'none';
   _voiceFinalText = '';
   transcriptEl.textContent = '';
@@ -864,6 +872,7 @@ function startVoiceCapture() {
   _recognition.interimResults = true;
   _recognition.maxAlternatives = 1;
   statusEl.textContent = 'Listening\u2026';
+  micEl.classList.add('listening');
   _recognition.onresult = (ev) => {
     let interim = '', final = '';
     for (let i = ev.resultIndex; i < ev.results.length; i++) {
@@ -874,16 +883,18 @@ function startVoiceCapture() {
     transcriptEl.textContent = (_voiceFinalText + ' ' + interim).trim();
   };
   _recognition.onerror = (ev) => {
+    micEl.classList.remove('listening');
     statusEl.textContent = ev.error === 'no-speech' ? 'Didn\u2019t catch anything \u2014 tap Try Again.' : `Speech recognition error: ${ev.error}`;
   };
   _recognition.onend = () => {
+    micEl.classList.remove('listening');
     if (_voiceFinalText) {
       sendVoiceCapture();
     } else {
       statusEl.textContent = 'Didn\u2019t catch anything \u2014 tap Try Again.';
     }
   };
-  try { _recognition.start(); } catch (e) { statusEl.textContent = 'Could not start the microphone.'; }
+  try { _recognition.start(); } catch (e) { micEl.classList.remove('listening'); statusEl.textContent = 'Could not start the microphone.'; }
 }
 
 function restartVoiceCapture() {
@@ -893,6 +904,7 @@ function restartVoiceCapture() {
 
 function closeVoiceModal() {
   _voiceModalOpen = false;
+  document.getElementById('voice-mic-indicator').classList.remove('listening');
   if (_recognition) { try { _recognition.abort(); } catch (e) {} _recognition = null; }
   if ('speechSynthesis' in window) { try { window.speechSynthesis.cancel(); } catch (e) {} }
   document.getElementById('patient-info-voice').style.display = 'none';
