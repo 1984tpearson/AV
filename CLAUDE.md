@@ -168,20 +168,23 @@ dynamic. Two layers on top of that shared data:
   doesn't need one). Rendered as a flat-colour fill only, no separate
   neckline/collar graphic: a duplicate of `headBodyPaths` re-filled
   (`#av-clothes-static-path`, plus `#av-chest-path` reused from the
-  breathing layer below) and clipped at `CLOTHES_FLAT_CLIP_Y` (175) —
-  chosen there and not higher because the body path is still near full
-  head-width as late as y110 (an ear bump) and doesn't taper to actual neck
-  width until the jaw curve resolves around y150-180; clipping any higher
-  reads as fabric wrapping the cheeks. Went through a version with DiceBear's
-  own hand-drawn neckline graphics (crew neck, v-neck, hoodie, etc, layered
-  on top for visual variety) first — dropped it: those graphics are
-  positioned for stock Avataaars' own eye/eyebrow placement, which sits
-  higher than ours (`#av-eyes` is at y90-112 here), so every one of them —
-  and especially their decorative details, like the hoodie's drawstrings
-  around y63-110 — ended up crossing the eyes/eyebrows instead of sitting on
-  the shoulders. A flat fill can't be positioned wrong relative to the face
-  since it's just the body's own silhouette re-filled, so that's what
-  shipped instead.
+  breathing layer below), both sharing `#av-chest-clip` (y=199, the same
+  boundary the breathing layer uses) rather than a separate, higher
+  boundary of their own. Went through two prior versions: DiceBear's own
+  hand-drawn neckline graphics (crew neck, v-neck, hoodie, etc, layered on
+  top for visual variety) first — dropped, since those are positioned for
+  stock Avataaars' eye/eyebrow placement, which sits higher than ours
+  (`#av-eyes` is at y90-112 here), so every one of them (and especially
+  decorative details like the hoodie's drawstrings around y63-110) crossed
+  the eyes/eyebrows instead of sitting on the shoulders. Then a flat fill
+  clipped higher, at y175 — verified pixel-for-pixel against the rendered
+  SVG to sit well clear of the head/jaw path geometry — which still visibly
+  read as the collar touching the chin: y175 is only ~15px below the
+  mouth's own drawn shape (origin y134), not the wide margin the path
+  geometry alone suggested. Matching the breathing layer's own y199 is far
+  more conservative (no collar creeping up the neck at all — the shirt
+  starts right at the shoulder line) but guarantees clothing can't read as
+  touching the face again, regardless of age band or head-bulge amount.
 
 `patient_meta.age` (verbatim `patient.age` from generator.html — a plain
 number of years, a "N months" string, or the literal string "newborn";

@@ -212,7 +212,6 @@ body { display: flex; flex-direction: column; }
       <svg id="av-svg" viewBox="0 0 280 260" width="280" height="260" style="max-width:100%;max-height:100%;object-fit:contain;display:block;" xmlns="http://www.w3.org/2000/svg">
         <defs>
           <clipPath id="av-chest-clip"><rect x="0" y="199" width="280" height="61"/></clipPath>
-          <clipPath id="av-clothes-static-clip"><rect id="av-clothes-static-clip-rect" x="0" y="100" width="280" height="99"/></clipPath>
         </defs>
         <g id="av-scale-group">
           <g id="av-chest-group" transform="translate(8)">
@@ -222,7 +221,7 @@ body { display: flex; flex-direction: column; }
             <ellipse id="av-head-bulge" cx="132" cy="92" rx="56" ry="56" fill="#E0AC81"/>
             <path id="av-head-path" d="M132 36a56 56 0 0 0-56 56v6.17A12 12 0 0 0 66 110v14a12 12 0 0 0 10.3 11.88 56.04 56.04 0 0 0 31.7 44.73v18.4h-4a72 72 0 0 0-72 72v9h200v-9a72 72 0 0 0-72-72h-4v-18.39a56.04 56.04 0 0 0 31.7-44.73A12 12 0 0 0 198 124v-14a12 12 0 0 0-10-11.83V92a56 56 0 0 0-56-56Z" fill="#E0AC81"/>
             <path d="M108 180.61v8a55.79 55.79 0 0 0 24 5.39c8.59 0 16.73-1.93 24-5.39v-8a55.79 55.79 0 0 1-24 5.39 55.79 55.79 0 0 1-24-5.39Z" fill="#000" fill-opacity=".1"/>
-            <path id="av-clothes-static-path" d="M132 36a56 56 0 0 0-56 56v6.17A12 12 0 0 0 66 110v14a12 12 0 0 0 10.3 11.88 56.04 56.04 0 0 0 31.7 44.73v18.4h-4a72 72 0 0 0-72 72v9h200v-9a72 72 0 0 0-72-72h-4v-18.39a56.04 56.04 0 0 0 31.7-44.73A12 12 0 0 0 198 124v-14a12 12 0 0 0-10-11.83V92a56 56 0 0 0-56-56Z" fill="#3b6ea5" clip-path="url(#av-clothes-static-clip)"/>
+            <path id="av-clothes-static-path" d="M132 36a56 56 0 0 0-56 56v6.17A12 12 0 0 0 66 110v14a12 12 0 0 0 10.3 11.88 56.04 56.04 0 0 0 31.7 44.73v18.4h-4a72 72 0 0 0-72 72v9h200v-9a72 72 0 0 0-72-72h-4v-18.39a56.04 56.04 0 0 0 31.7-44.73A12 12 0 0 0 198 124v-14a12 12 0 0 0-10-11.83V92a56 56 0 0 0-56-56Z" fill="#3b6ea5" clip-path="url(#av-chest-clip)"/>
             <g id="av-mouth" transform="translate(78 134)"></g>
             <g id="av-eyes" transform="translate(76 90)">
               <ellipse id="av-eye-l-sclera" cx="30" cy="22" rx="14" ry="7" fill="#fff"/>
@@ -379,16 +378,18 @@ const HEAD_BULGE = { infant: 1.2, toddler: 1.1, child: 1.05, teen: 1.02, adult: 
 // the eyebrows/eyes instead of sitting on the shoulders where they were
 // meant to. Tried clipping/offsetting them to compensate — kept breaking a
 // different way each time. A flat fill sidesteps the whole problem: it's
-// just #av-head-path's own silhouette re-filled below a safe boundary, so
-// it can never be positioned wrong relative to the face.
+// just #av-head-path's own silhouette re-filled, so it can never be
+// positioned wrong relative to the face.
 //
-// CLOTHES_FLAT_CLIP_Y is that boundary — chosen where the body path's own
-// jaw curve has already narrowed down near actual neck width (the path is
-// still near its full head-width as late as y110, an ear bump; it doesn't
-// close in until the big jaw arc between y136-180, and HEAD_BULGE's widest
-// band still tapers to zero by y~159), so clothing can never visibly
-// overlap the face or the bulge at any age.
-const CLOTHES_FLAT_CLIP_Y = 175;
+// Reuses #av-chest-clip (y=199) rather than a separate, higher boundary —
+// an earlier version clipped at y=175, well clear of the head/jaw path
+// geometry (verified pixel-for-pixel against the rendered SVG), but still
+// visibly read as the collar sitting on the chin: y175 is only ~15px below
+// the mouth (origin y134) once the mouth's own drawn shape is accounted
+// for, not the wide margin the geometry alone suggested. Sharing the
+// shoulder-line boundary with the breathing layer is far more conservative
+// (no collar creeping up the neck at all) but guarantees clothing can never
+// again read as touching the face.
 // Hairstyles that read as distinctly adult (structured adult cuts, a
 // receding-hairline-prone crop) — excluded below teen so a pediatric
 // scenario can't land on a look that reads as a grown adult, same
@@ -486,15 +487,6 @@ function applyAgeScale() {
   const bulge = document.getElementById('av-head-bulge');
   bulge.setAttribute('rx', bulgeR.toFixed(1));
   bulge.setAttribute('ry', bulgeR.toFixed(1));
-  // Extends all the way to the bottom of the figure (260), not just to the
-  // breathing-clip boundary (199) — av-head-path is the full head+body
-  // silhouette and, being drawn after av-chest-path, is what's actually
-  // visible at rest for y>=199 too; stopping this clip at 199 left the
-  // shoulders/torso showing bare skin through it. av-chest-path (behind,
-  // in av-chest-group) still needs its own clothes-coloured fill for the
-  // breathing reveal to read as fabric shifting rather than skin.
-  document.getElementById('av-clothes-static-clip-rect').setAttribute('y', CLOTHES_FLAT_CLIP_Y);
-  document.getElementById('av-clothes-static-clip-rect').setAttribute('height', 260 - CLOTHES_FLAT_CLIP_Y);
 }
 
 function renderAvatarBuild() {
