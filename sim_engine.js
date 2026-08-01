@@ -263,20 +263,34 @@
     if (sys < 100) return 1;
     return 0;
   }
+  // Real session data can momentarily lack a key (older scenarios, a field
+  // mid-splice) or carry a non-finite value — this must never throw, since
+  // sim_patient.html's tick() depends on everything after its avatar call
+  // still running (timer, override polling, etc). Non-finite input maps to
+  // a safe, unremarkable default rather than propagating NaN into severity
+  // comparisons (which silently evaluate false, not throw, but would render
+  // a misleading "resting" appearance instead of an honest fallback).
+  function numOr(x, fallback) {
+    return Number.isFinite(x) ? x : fallback;
+  }
   function getAppearanceState(v) {
-    const unresponsive = (v.gcsE || 0) + (v.gcsV || 0) + (v.gcsM || 0) <= 8;
-    const hypoxia = spo2Severity(v.SpO2);
-    const perfusion = Math.max(hrSeverity(v.HR), bpSysSeverity(v.BPsys));
-    const distressLevel = Math.max(hrSeverity(v.HR), rrSeverity(v.RR), hypoxia, painSeverity(v.pain));
+    v = v || {};
+    const hr = numOr(v.HR, 80), rr = numOr(v.RR, 16), spo2 = numOr(v.SpO2, 98),
+          bpSys = numOr(v.BPsys, 120), pain = numOr(v.pain, 0),
+          gcsE = numOr(v.gcsE, 4), gcsV = numOr(v.gcsV, 5), gcsM = numOr(v.gcsM, 6);
+    const unresponsive = (gcsE + gcsV + gcsM) <= 8;
+    const hypoxia = spo2Severity(spo2);
+    const perfusion = Math.max(hrSeverity(hr), bpSysSeverity(bpSys));
+    const distressLevel = Math.max(hrSeverity(hr), rrSeverity(rr), hypoxia, painSeverity(pain));
     let skinColour;
     if (hypoxia >= 3) skinColour = 'cyanotic';
     else if (perfusion >= 3) skinColour = 'mottled';
     else if (perfusion >= 1 || hypoxia >= 1) skinColour = 'pale';
     else skinColour = 'normal';
-    const moistureLvl = Math.max(perfusion, painSeverity(v.pain));
+    const moistureLvl = Math.max(perfusion, painSeverity(pain));
     const moisture = moistureLvl >= 2 ? 'diaphoretic' : moistureLvl >= 1 ? 'clammy' : 'dry';
-    const wob = v.RR <= 0 ? 'apnoeic' : v.RR <= 4 ? 'agonal' : Math.max(rrSeverity(v.RR), hypoxia);
-    return { unresponsive, distressLevel, skinColour, moisture, wob, gcsE: v.gcsE || 1, pain: v.pain || 0 };
+    const wob = rr <= 0 ? 'apnoeic' : rr <= 4 ? 'agonal' : Math.max(rrSeverity(rr), hypoxia);
+    return { unresponsive, distressLevel, skinColour, moisture, wob, gcsE, pain };
   }
 
   global.SimEngine = { ACTION_DURATIONS, getActionDurationSec, getVitals, getVitalsRaw, getSimNow, getStaticVitalAt, getRhythmAt, getAppearanceState };

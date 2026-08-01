@@ -918,7 +918,6 @@ function tick() {
   renderMonitor(v, now);
   updateEcgMain(v.HR);
   renderOneOff();
-  updateAvatarFace(extendedVitalsNow());
   _lastHR = v.HR;
   document.getElementById('scenario-timer').textContent = fmtTimer(simNow - testConfig.startTimeMs);
   const indEl = document.getElementById('instant-mode-indicator');
@@ -926,6 +925,12 @@ function tick() {
   const pauseEl = document.getElementById('pause-indicator');
   pauseEl.style.display = testConfig.isPaused ? 'inline' : 'none';
   pushActionState();
+  // Last, and fault-isolated: a bug in the avatar's cosmetic rendering must
+  // never take down the vitals/timer/override-sync work above it — tick()
+  // runs once synchronously before the periodic setInterval(tick, ...) is
+  // even registered (see connectSession()), so an uncaught throw here would
+  // have silently killed that registration and frozen the whole page.
+  try { updateAvatarFace(extendedVitalsNow()); } catch (e) { console.error('avatar render failed:', e); }
 }
 
 window.addEventListener('DOMContentLoaded', () => {
