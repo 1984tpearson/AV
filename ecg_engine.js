@@ -911,7 +911,7 @@ let state=makeState();
 // shock's duration, consumed once per column exactly like spikeA/spikeV are.
 let shockArtifactLeadRemaining=0, shockArtifactStripRemaining=0;
 function triggerShockArtifact(){
-  const artifactMs=180; // roughly how long a real shock saturates the trace
+  const artifactMs=45; // how long the bar reads as — quartered from an initial 180ms, which read too wide
   shockArtifactLeadRemaining=Math.max(3,Math.round(artifactMs*PX_PER_MS));
   shockArtifactStripRemaining=Math.max(3,Math.round(artifactMs*STRIP_PX_PER_MS));
 }
@@ -1362,9 +1362,10 @@ function drawSpikesOn(ctx, spikes, W, hX, erasePx, mid, fullH){
     if(sp===9){
       // Shock artifact — solid and near-full-height, deliberately unlike the
       // small dashed pacer ticks below: a real defib discharge saturates the
-      // amplifier, not a small timed blip.
-      ctx.strokeStyle='#ffffff';
-      ctx.lineWidth=4;
+      // amplifier, not a small timed blip. Same green as the trace itself
+      // (not a distinct colour) — it's the same electrical signal railing out.
+      ctx.strokeStyle=window._traceColour||'#00ff88';
+      ctx.lineWidth=window._traceWidth||1.5;
       ctx.setLineDash([]);
       ctx.beginPath();
       ctx.moveTo(x,mid-(fullH||120)*0.48); ctx.lineTo(x,mid+(fullH||120)*0.48);
