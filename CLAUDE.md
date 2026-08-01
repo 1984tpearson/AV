@@ -140,11 +140,20 @@ dynamic. Two layers on top of that shared data:
   hair style/colour and eyebrow style all picked deterministically from a hash
   of `scenario_id` (each with a differently-suffixed hash so they don't land
   in lockstep) so they're stable across reconnects rather than re-rolling
-  each page load. Deliberately NOT gender-biased — early versions picked from
-  only 2-3 hand-drawn hair shapes and used gender to pick between them, but
-  with 34 real hairstyles available there's no need, so hair selection now
-  ignores gender entirely and pulls from the full set for maximum
-  per-scenario variety. `buildAvatarBase()` in `sim_patient.html`.
+  each page load. Hair style is softly weighted by `patient_meta.gender` via
+  `HAIR_STYLE_LEAN` (each of the 34 styles tagged masc/femme/neutral-leaning)
+  and `weightedPick()` — a *soft* bias (male ≈61% masc/13% femme/26% neutral
+  in practice, mirrored for female), not a hard filter: gender-unset scenarios
+  and eyebrow/colour selection stay fully unweighted. Went through two prior
+  versions of this: first hard-restricted to 2-3 hand-drawn hair shapes by
+  gender (too rigid), then dropped gender entirely once real variety existed
+  (came across as arbitrary — see conversation history) — this weighted
+  middle ground is what stuck. `buildAvatarBase()` in `sim_patient.html`.
+  `hashStr()` is a simple rolling hash with poor avalanche behaviour for
+  inputs differing only in a short numeric suffix (e.g. sequential test
+  seeds) — fine for real `scenario_id` UUIDs (verified: near-uniform
+  distribution across 300 real-shaped seeds) but worth knowing if ever
+  seeding from something more patterned.
 - **Live state** (re-derived every tick): eyes are NOT one of
   `avatar_assets.js`'s pre-baked variants — several of those (including
   `default`, the plain look) are just flat pupil dots with no sclera

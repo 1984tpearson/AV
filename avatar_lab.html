@@ -97,6 +97,14 @@ button.secondary:hover { background: #475569; }
     <select id="sel-brow" onchange="onBuildChange()"></select>
   </div>
   <div class="row"><label>Seed</label><input type="text" id="txt-seed" value="lab-seed-1" oninput="onBuildChange()"> <button class="secondary" onclick="randomSeed()">Random</button></div>
+  <div class="row"><label>Gender</label>
+    <select id="sel-patient-gender" onchange="rebuildWithSameSeed()">
+      <option value="">unset (no weighting)</option>
+      <option value="male">Male</option>
+      <option value="female">Female</option>
+    </select>
+    <span style="font-size:10px;color:#94a3b8;">soft hair-style weighting only</span>
+  </div>
 
   <h2>Browse raw variants (overrides live state)</h2>
   <div class="row"><label>Eyes</label><select id="sel-eyes-browse" onchange="browseEyes()"></select></div>
@@ -121,18 +129,38 @@ button.secondary:hover { background: #475569; }
 let avatarBuild = { skin: '#E0AC81', hairColour: '#3b2b20', hairStyle: 'shortFlat', eyebrowStyle: 'defaultNatural' };
 const HAIR_COLOURS = ['#1b1410', '#3b2b20', '#5a3b23', '#8a5a2b', '#c9a227', '#8c8c8c', '#7a2e1d'];
 const SKIN_TONE_SWATCHES = ['#F5D5C5', '#EFC3A3', '#E0AC81', '#C68863', '#A96C4A', '#8D5A3B', '#6B4530', '#4A2F20'];
+const HAIR_STYLE_LEAN = {
+  hat: 'n', hijab: 'f', turban: 'm', winterHat1: 'n', winterHat02: 'n', winterHat03: 'n', winterHat04: 'n',
+  bob: 'f', bun: 'f', curly: 'n', curvy: 'f', dreads: 'n', frida: 'f', fro: 'n', froBand: 'f',
+  longButNotTooLong: 'f', miaWallace: 'f', shavedSides: 'm', straight02: 'f', straight01: 'f',
+  straightAndStrand: 'f', dreads01: 'n', dreads02: 'n', frizzle: 'n', shaggy: 'm', shaggyMullet: 'm',
+  shortCurly: 'm', shortFlat: 'm', shortRound: 'm', shortWaved: 'm', sides: 'm', theCaesar: 'm',
+  theCaesarAndSidePart: 'm', bigHair: 'f'
+};
 
 function hashStr(s) {
   let h = 0;
   for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0;
   return Math.abs(h);
 }
-function buildAvatarBase(seed, skinHex) {
+function weightedPick(keys, weightOf, h) {
+  const weights = keys.map(weightOf);
+  const total = weights.reduce((a, b) => a + b, 0);
+  let target = ((h % 100000) / 100000) * total;
+  for (let i = 0; i < keys.length; i++) {
+    target -= weights[i];
+    if (target <= 0) return keys[i];
+  }
+  return keys[keys.length - 1];
+}
+function buildAvatarBase(seed, skinHex, gender) {
   avatarBuild.skin = skinHex || avatarBuild.skin;
   const s = String(seed || 'default');
   const hairKeys = Object.keys(AvatarAssets.top);
   const browKeys = Object.keys(AvatarAssets.eyebrows);
-  avatarBuild.hairStyle = hairKeys[hashStr(s) % hairKeys.length];
+  const g = (gender || '').toLowerCase();
+  const leanWeights = g === 'male' ? { m: 3, n: 1.5, f: 0.5 } : g === 'female' ? { f: 3, n: 1.5, m: 0.5 } : { m: 1, n: 1, f: 1 };
+  avatarBuild.hairStyle = weightedPick(hairKeys, k => leanWeights[HAIR_STYLE_LEAN[k] || 'n'], hashStr(s));
   avatarBuild.hairColour = HAIR_COLOURS[hashStr(s + '|hair') % HAIR_COLOURS.length];
   avatarBuild.eyebrowStyle = browKeys[hashStr(s + '|brow') % browKeys.length];
   renderAvatarBuild();
@@ -287,9 +315,15 @@ function onBuildChange() {
   avatarBuild.eyebrowStyle = document.getElementById('sel-brow').value;
   renderAvatarBuild();
 }
+function currentGender() {
+  return document.getElementById('sel-patient-gender').value || null;
+}
+function rebuildWithSameSeed() {
+  buildAvatarBase(document.getElementById('txt-seed').value, avatarBuild.skin, currentGender());
+}
 function randomSeed() {
   document.getElementById('txt-seed').value = 'seed-' + Math.random().toString(36).slice(2, 8);
-  buildAvatarBase(document.getElementById('txt-seed').value, avatarBuild.skin);
+  buildAvatarBase(document.getElementById('txt-seed').value, avatarBuild.skin, currentGender());
 }
 function syncBuildSelectsToState() {
   document.getElementById('sel-hair').value = avatarBuild.hairStyle;
