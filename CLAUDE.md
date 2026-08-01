@@ -142,12 +142,41 @@ deliberately no AI/image generation involved. Two layers:
   (`hrSeverity`/`rrSeverity`/`spo2Severity`/`painSeverity`/`bpSysSeverity`)
   `sim_control.html`'s assessor-facing Appearance tab computes independently,
   kept in `sim_engine.js` as the one shared source rather than two threshold
-  tables drifting apart. `updateAvatarFace()`, called from `tick()`.
+  tables drifting apart. `updateAvatarFace()`, called from `tick()` — always
+  as the LAST thing tick() does, wrapped in try/catch (see Gotchas): tick()
+  runs once synchronously before the setInterval(tick,...) that keeps the
+  page live even gets registered, so a throw anywhere earlier in the avatar
+  path would silently freeze vitals/override-sync too, not just the avatar.
+
+GCS eye-opening (E) maps to clinical exam findings, not a linear scale: E4
+open spontaneously, E1 (or overall GCS ≤8, "unresponsive") closed — but
+E3 ("opens to voice") renders CLOSED at rest and only opens while
+`_voiceModalOpen` is true, i.e. a crew member is actively mid-interaction
+via Treat/Assess/Talk. That's the actual voice stimulus being modelled, not
+just cosmetic.
+
+Two idle animations run independently of the 1s vitals tick (a 1s-stepped
+animation reads as a slideshow, not motion): a blink every ~2.5–6s
+(`scheduleNextBlink()`/`doBlink()`, only from a fully-open resting state —
+skipped for droopy/closed, restores to whatever `_restingEyeLevel` is AT
+RESTORE time so a vitals change mid-blink isn't clobbered back open), and a
+whole-head breathing bob via `requestAnimationFrame` (`breathingLoop()`)
+whose period is driven by live RR — stops dead at RR≤0 rather than
+continuing to oscillate, since an apnoeic patient shouldn't still look like
+they're breathing.
 
 Mouth also flaps between a talking frame and the current resting expression
 while patient TTS is actually speaking (`utter.onstart`/`onend` in
 `checkForPatientReply()` drive `startTalkAnimation()`/`stopTalkAnimation()`)
 — so a distressed patient still looks distressed mid-sentence, not neutral.
+
+`avatar_lab.html` is a standalone playground (sliders for vitals/GCS, build
+controls, preset buttons, an SVG-source viewer) that runs the exact same
+avatar functions against slider input instead of a real session — for
+iterating on the artwork/thresholds without needing a live scenario. Kept
+manually in sync with `sim_patient.html`'s copy of these functions (not
+shared via a script include) since the two have different plumbing around
+them (real session state vs. slider state).
 
 ### Graph rendering
 

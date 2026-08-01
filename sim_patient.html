@@ -182,22 +182,24 @@ body { display: flex; flex-direction: column; }
         <defs>
           <clipPath id="av-hair-clip"><rect id="av-hair-clip-rect" x="0" y="0" width="200" height="62"/></clipPath>
         </defs>
-        <ellipse id="av-neck" cx="100" cy="196" rx="24" ry="26" fill="#E0AC81"/>
-        <ellipse id="av-head" cx="100" cy="102" rx="62" ry="72" fill="#E0AC81"/>
-        <path id="av-hair-side-l" d="M34 96 Q28 140 36 176 L50 176 Q44 140 47 96 Z" fill="#3b2b20" style="display:none;"/>
-        <path id="av-hair-side-r" d="M166 96 Q172 140 164 176 L150 176 Q156 140 153 96 Z" fill="#3b2b20" style="display:none;"/>
-        <ellipse id="av-hair-cap" cx="100" cy="94" rx="64" ry="74" fill="#3b2b20" clip-path="url(#av-hair-clip)"/>
-        <path id="av-brow-l" d="M60 76 Q75 66 92 76" stroke="#3b2b20" stroke-width="4" fill="none" stroke-linecap="round"/>
-        <path id="av-brow-r" d="M108 76 Q125 66 140 76" stroke="#3b2b20" stroke-width="4" fill="none" stroke-linecap="round"/>
-        <ellipse id="av-eye-l-white" cx="76" cy="98" rx="11" ry="11" fill="#fff"/>
-        <circle id="av-eye-l-pupil" cx="76" cy="98" r="5.5" fill="#2b2118"/>
-        <ellipse id="av-eye-r-white" cx="124" cy="98" rx="11" ry="11" fill="#fff"/>
-        <circle id="av-eye-r-pupil" cx="124" cy="98" r="5.5" fill="#2b2118"/>
-        <path d="M100 100 L95 124 Q100 128 105 124 Z" fill="none" stroke="#00000030" stroke-width="2"/>
-        <path id="av-mouth" d="M78 148 Q100 152 122 148" stroke="#7a3b3b" stroke-width="4" fill="none" stroke-linecap="round"/>
-        <g id="av-sweat" style="display:none;">
-          <path d="M52 66 q7 10 0 17 q-7 -2 -7 -9 q0 -6 7 -8z" fill="#7ec8e3"/>
-          <path d="M144 62 q7 10 0 17 q-7 -2 -7 -9 q0 -6 7 -8z" fill="#7ec8e3"/>
+        <g id="av-face-group">
+          <ellipse id="av-neck" cx="100" cy="196" rx="24" ry="26" fill="#E0AC81"/>
+          <ellipse id="av-head" cx="100" cy="102" rx="62" ry="72" fill="#E0AC81"/>
+          <path id="av-hair-side-l" d="M34 96 Q28 140 36 176 L50 176 Q44 140 47 96 Z" fill="#3b2b20" style="display:none;"/>
+          <path id="av-hair-side-r" d="M166 96 Q172 140 164 176 L150 176 Q156 140 153 96 Z" fill="#3b2b20" style="display:none;"/>
+          <ellipse id="av-hair-cap" cx="100" cy="94" rx="64" ry="74" fill="#3b2b20" clip-path="url(#av-hair-clip)"/>
+          <path id="av-brow-l" d="M60 76 Q75 66 92 76" stroke="#3b2b20" stroke-width="4" fill="none" stroke-linecap="round"/>
+          <path id="av-brow-r" d="M108 76 Q125 66 140 76" stroke="#3b2b20" stroke-width="4" fill="none" stroke-linecap="round"/>
+          <ellipse id="av-eye-l-white" cx="76" cy="98" rx="11" ry="11" fill="#fff"/>
+          <circle id="av-eye-l-pupil" cx="76" cy="98" r="5.5" fill="#2b2118"/>
+          <ellipse id="av-eye-r-white" cx="124" cy="98" rx="11" ry="11" fill="#fff"/>
+          <circle id="av-eye-r-pupil" cx="124" cy="98" r="5.5" fill="#2b2118"/>
+          <path d="M100 100 L95 124 Q100 128 105 124 Z" fill="none" stroke="#00000030" stroke-width="2"/>
+          <path id="av-mouth" d="M78 148 Q100 152 122 148" stroke="#7a3b3b" stroke-width="4" fill="none" stroke-linecap="round"/>
+          <g id="av-sweat" style="display:none;">
+            <path d="M52 66 q7 10 0 17 q-7 -2 -7 -9 q0 -6 7 -8z" fill="#7ec8e3"/>
+            <path d="M144 62 q7 10 0 17 q-7 -2 -7 -9 q0 -6 7 -8z" fill="#7ec8e3"/>
+          </g>
         </g>
       </svg>
       <span id="voice-mic-indicator" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 15a3.5 3.5 0 0 0 3.5-3.5v-6a3.5 3.5 0 0 0-7 0v6A3.5 3.5 0 0 0 12 15zm5.5-3.5a5.5 5.5 0 0 1-11 0H5a7 7 0 0 0 6 6.93V21h2v-2.57a7 7 0 0 0 6-6.93h-1.5z"/></svg></span>
@@ -314,6 +316,49 @@ function setEyeOpenness(level) {
   document.getElementById('av-eye-r-pupil').style.opacity = pupilOpacity;
 }
 
+// Idle blink — independent of the 1s vitals tick, purely cosmetic. Only
+// blinks from a fully 'open' resting state (droopy/closed eyes don't get a
+// blink cycle layered on top — nothing meaningful to distinguish). Restores
+// to whatever _restingEyeLevel is AT RESTORE TIME, not capture time, so a
+// vitals-driven state change mid-blink (e.g. GCS drops right as the lids
+// close) is still respected rather than overwritten back open.
+let _restingEyeLevel = 'open';
+let _blinkTimer = null;
+function scheduleNextBlink() {
+  clearTimeout(_blinkTimer);
+  _blinkTimer = setTimeout(doBlink, 2500 + Math.random() * 3500);
+}
+function doBlink() {
+  if (_restingEyeLevel === 'open') {
+    setEyeOpenness('closed');
+    setTimeout(() => setEyeOpenness(_restingEyeLevel), 130);
+  }
+  scheduleNextBlink();
+}
+scheduleNextBlink();
+
+// Idle breathing — a subtle whole-head bob, period matched to live RR so it
+// visibly speeds up/slows down with the patient's actual respiratory rate.
+// Stops dead (translate back to 0) at RR<=0 rather than continuing to
+// oscillate — an apnoeic patient shouldn't still look like they're
+// breathing. Runs continuously via rAF, independent of the 1s vitals tick,
+// since a 1s-stepped animation would look like a slideshow, not a bob.
+let _lastRR = 16;
+function breathingLoop(tsMs) {
+  const group = document.getElementById('av-face-group');
+  if (group) {
+    if (_lastRR > 0) {
+      const periodMs = 60000 / _lastRR;
+      const y = Math.sin((tsMs / periodMs) * 2 * Math.PI) * 1.6;
+      group.setAttribute('transform', `translate(0, ${y.toFixed(2)})`);
+    } else {
+      group.setAttribute('transform', 'translate(0, 0)');
+    }
+  }
+  requestAnimationFrame(breathingLoop);
+}
+requestAnimationFrame(breathingLoop);
+
 function setSweat(visible) {
   document.getElementById('av-sweat').style.display = visible ? '' : 'none';
 }
@@ -345,8 +390,17 @@ function setMouth(stateKey) {
 let _restingMouthState = 'neutral';
 function updateAvatarFace(v) {
   const app = SimEngine.getAppearanceState(v);
-  const eyeLevel = (app.unresponsive || app.gcsE <= 1) ? 'closed' : app.gcsE === 2 ? 'droopy' : 'open';
+  // GCS E3 = "opens to voice" clinically — closed at rest, opens while the
+  // crew is actively talking to the patient (voice modal open covers
+  // Treat/Assess/Talk — all are a crew member speaking to the patient).
+  let eyeLevel;
+  if (app.unresponsive || app.gcsE <= 1) eyeLevel = 'closed';
+  else if (app.gcsE === 2) eyeLevel = 'droopy';
+  else if (app.gcsE === 3) eyeLevel = (typeof _voiceModalOpen !== 'undefined' && _voiceModalOpen) ? 'open' : 'closed';
+  else eyeLevel = 'open';
+  _restingEyeLevel = eyeLevel;
   setEyeOpenness(eyeLevel);
+  _lastRR = Number.isFinite(v.RR) ? v.RR : _lastRR;
   applySkinTint(app.skinColour);
   setSweat(app.moisture === 'diaphoretic' || app.moisture === 'clammy');
   let mouthState;
