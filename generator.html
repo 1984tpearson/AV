@@ -1423,16 +1423,20 @@ ${SCENARIO_JSON_TEMPLATE.replace('CAT', category).replace('SUB', subcategory)}`;
       const rawNausea = parseInt(scenario.vitals.NauseaScore);
       scenario.vitals.NauseaScore = Number.isFinite(rawNausea) ? Math.max(0, Math.min(10, rawNausea)) : 0;
     }
-    // Patient metadata — name/gender/ethnicity/skin_colour come from the code-
-    // generated `patient` object (never the AI), so the exact name fed into
-    // the prompt is guaranteed to match what's stored. baseline_cognitive_status
+    // Patient metadata — name/gender/age/ethnicity/skin_colour come from the
+    // code-generated `patient` object (never the AI), so the exact name fed
+    // into the prompt is guaranteed to match what's stored. baseline_cognitive_status
     // and pregnancy_status ARE AI-authored (context-dependent) — pulled off the
     // top-level response and folded in here, then removed as top-level keys.
-    // gender/skin_colour/hair are what sim_patient.html's dynamic avatar
-    // builds its base look from — see CLAUDE.md.
+    // gender/age/skin_colour/hair are what sim_patient.html's dynamic avatar
+    // builds its base look from — see CLAUDE.md. age is patient.age verbatim
+    // (a plain number of years, a "N months" string, or the literal string
+    // "newborn" — see randomAustralianPatient()), not reformatted here so
+    // the avatar's own age-banding logic is the one place that parses it.
     scenario.patient_meta = {
       name: patient.name,
       gender: patient.gender,
+      age: patient.age,
       ethnicity: patient.ethnicity,
       skin_colour: pickRandomSkinTone(),
       baseline_cognitive_status: (scenario.baseline_cognitive_status || '').trim() || 'Normal baseline cognition',

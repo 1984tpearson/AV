@@ -35,25 +35,27 @@ button.secondary:hover { background: #475569; }
     <defs>
       <clipPath id="av-chest-clip"><rect x="0" y="175" width="280" height="105"/></clipPath>
     </defs>
-    <g id="av-chest-group" transform="translate(8)">
-      <path id="av-chest-path" d="M132 36a56 56 0 0 0-56 56v6.17A12 12 0 0 0 66 110v14a12 12 0 0 0 10.3 11.88 56.04 56.04 0 0 0 31.7 44.73v18.4h-4a72 72 0 0 0-72 72v9h200v-9a72 72 0 0 0-72-72h-4v-18.39a56.04 56.04 0 0 0 31.7-44.73A12 12 0 0 0 198 124v-14a12 12 0 0 0-10-11.83V92a56 56 0 0 0-56-56Z" fill="#E0AC81" clip-path="url(#av-chest-clip)"/>
-    </g>
-    <g id="av-face-group" transform="translate(8)">
-      <path id="av-head-path" d="M132 36a56 56 0 0 0-56 56v6.17A12 12 0 0 0 66 110v14a12 12 0 0 0 10.3 11.88 56.04 56.04 0 0 0 31.7 44.73v18.4h-4a72 72 0 0 0-72 72v9h200v-9a72 72 0 0 0-72-72h-4v-18.39a56.04 56.04 0 0 0 31.7-44.73A12 12 0 0 0 198 124v-14a12 12 0 0 0-10-11.83V92a56 56 0 0 0-56-56Z" fill="#E0AC81"/>
-      <path d="M108 180.61v8a55.79 55.79 0 0 0 24 5.39c8.59 0 16.73-1.93 24-5.39v-8a55.79 55.79 0 0 1-24 5.39 55.79 55.79 0 0 1-24-5.39Z" fill="#000" fill-opacity=".1"/>
-      <g id="av-mouth" transform="translate(78 134)"></g>
-      <g id="av-eyes" transform="translate(76 90)">
-        <ellipse id="av-eye-l-sclera" cx="30" cy="22" rx="14" ry="7" fill="#fff"/>
-        <circle id="av-eye-l-pupil" cx="30" cy="22" r="5.5" fill="#2b2118"/>
-        <ellipse id="av-eye-r-sclera" cx="82" cy="22" rx="14" ry="7" fill="#fff"/>
-        <circle id="av-eye-r-pupil" cx="82" cy="22" r="5.5" fill="#2b2118"/>
-        <g id="av-eyes-closed-overlay" style="display:none;"></g>
+    <g id="av-scale-group">
+      <g id="av-chest-group" transform="translate(8)">
+        <path id="av-chest-path" d="M132 36a56 56 0 0 0-56 56v6.17A12 12 0 0 0 66 110v14a12 12 0 0 0 10.3 11.88 56.04 56.04 0 0 0 31.7 44.73v18.4h-4a72 72 0 0 0-72 72v9h200v-9a72 72 0 0 0-72-72h-4v-18.39a56.04 56.04 0 0 0 31.7-44.73A12 12 0 0 0 198 124v-14a12 12 0 0 0-10-11.83V92a56 56 0 0 0-56-56Z" fill="#E0AC81" clip-path="url(#av-chest-clip)"/>
       </g>
-      <g id="av-eyebrows" transform="translate(76 82)"></g>
-      <g id="av-top" transform="translate(-1)"></g>
-      <g id="av-sweat" style="display:none;">
-        <path d="M62 60 q7 10 0 17 q-7 -2 -7 -9 q0 -6 7 -8z" fill="#7ec8e3"/>
-        <path d="M206 56 q7 10 0 17 q-7 -2 -7 -9 q0 -6 7 -8z" fill="#7ec8e3"/>
+      <g id="av-face-group" transform="translate(8)">
+        <path id="av-head-path" d="M132 36a56 56 0 0 0-56 56v6.17A12 12 0 0 0 66 110v14a12 12 0 0 0 10.3 11.88 56.04 56.04 0 0 0 31.7 44.73v18.4h-4a72 72 0 0 0-72 72v9h200v-9a72 72 0 0 0-72-72h-4v-18.39a56.04 56.04 0 0 0 31.7-44.73A12 12 0 0 0 198 124v-14a12 12 0 0 0-10-11.83V92a56 56 0 0 0-56-56Z" fill="#E0AC81"/>
+        <path d="M108 180.61v8a55.79 55.79 0 0 0 24 5.39c8.59 0 16.73-1.93 24-5.39v-8a55.79 55.79 0 0 1-24 5.39 55.79 55.79 0 0 1-24-5.39Z" fill="#000" fill-opacity=".1"/>
+        <g id="av-mouth" transform="translate(78 134)"></g>
+        <g id="av-eyes" transform="translate(76 90)">
+          <ellipse id="av-eye-l-sclera" cx="30" cy="22" rx="14" ry="7" fill="#fff"/>
+          <circle id="av-eye-l-pupil" cx="30" cy="22" r="5.5" fill="#2b2118"/>
+          <ellipse id="av-eye-r-sclera" cx="82" cy="22" rx="14" ry="7" fill="#fff"/>
+          <circle id="av-eye-r-pupil" cx="82" cy="22" r="5.5" fill="#2b2118"/>
+          <g id="av-eyes-closed-overlay" style="display:none;"></g>
+        </g>
+        <g id="av-eyebrows" transform="translate(76 82)"></g>
+        <g id="av-top" transform="translate(-1)"></g>
+        <g id="av-sweat" style="display:none;">
+          <path d="M62 60 q7 10 0 17 q-7 -2 -7 -9 q0 -6 7 -8z" fill="#7ec8e3"/>
+          <path d="M206 56 q7 10 0 17 q-7 -2 -7 -9 q0 -6 7 -8z" fill="#7ec8e3"/>
+        </g>
       </g>
     </g>
   </svg>
@@ -111,6 +113,19 @@ button.secondary:hover { background: #475569; }
     </select>
     <span style="font-size:10px;color:#94a3b8;">soft hair-style weighting only</span>
   </div>
+  <div class="row"><label>Age</label>
+    <select id="sel-patient-age" onchange="rebuildWithSameSeed()">
+      <option value="">unset (adult)</option>
+      <option value="newborn">newborn</option>
+      <option value="0.3">3 months</option>
+      <option value="2">2yo (toddler)</option>
+      <option value="8">8yo (child)</option>
+      <option value="15">15yo (teen)</option>
+      <option value="45">45yo (adult)</option>
+      <option value="80">80yo (elderly)</option>
+    </select>
+    <span style="font-size:10px;color:#94a3b8;">scales figure + hair pool below teen, greys hair colour above ~40</span>
+  </div>
 
   <h2>Browse raw variants (overrides live state)</h2>
   <div class="row"><label>Eyes</label><select id="sel-eyes-browse" onchange="browseEyes()"></select></div>
@@ -132,8 +147,9 @@ button.secondary:hover { background: #475569; }
 // --- Verbatim copies of sim_patient.html's avatar functions, restyled to
 // take slider input instead of live session vitals — see CLAUDE.md's
 // "Patient avatar" section. Keep this in sync if the real thing changes.
-let avatarBuild = { skin: '#E0AC81', hairColour: '#3b2b20', hairStyle: 'shortFlat', eyebrowStyle: 'defaultNatural' };
-const HAIR_COLOURS = ['#1b1410', '#3b2b20', '#5a3b23', '#8a5a2b', '#c9a227', '#8c8c8c', '#7a2e1d'];
+let avatarBuild = { skin: '#E0AC81', hairColour: '#3b2b20', hairStyle: 'shortFlat', eyebrowStyle: 'defaultNatural', ageBand: 'adult' };
+const HAIR_COLOURS = ['#1b1410', '#3b2b20', '#5a3b23', '#8a5a2b', '#c9a227', '#7a2e1d', '#8c8c8c', '#b0b0b0', '#e8e4dc'];
+const GREY_HAIR_COLOURS = new Set(['#8c8c8c', '#b0b0b0', '#e8e4dc']);
 const SKIN_TONE_SWATCHES = ['#F5D5C5', '#EFC3A3', '#E0AC81', '#C68863', '#A96C4A', '#8D5A3B', '#6B4530', '#4A2F20'];
 const HAIR_STYLE_LEAN = {
   hat: 'n', hijab: 'f', turban: 'm', winterHat1: 'n', winterHat02: 'n', winterHat03: 'n', winterHat04: 'n',
@@ -143,6 +159,33 @@ const HAIR_STYLE_LEAN = {
   shortCurly: 'm', shortFlat: 'm', shortRound: 'm', shortWaved: 'm', sides: 'm', theCaesar: 'm',
   theCaesarAndSidePart: 'm', bigHair: 'f'
 };
+function parseAgeYears(age) {
+  if (age == null) return null;
+  if (typeof age === 'string') {
+    if (/newborn/i.test(age)) return 0;
+    const m = age.match(/(\d+(?:\.\d+)?)\s*month/i);
+    if (m) return parseFloat(m[1]) / 12;
+    const n = parseFloat(age);
+    return Number.isFinite(n) ? n : null;
+  }
+  return Number.isFinite(age) ? age : null;
+}
+function ageBandFromMeta(age) {
+  const years = parseAgeYears(age);
+  if (years == null) return 'adult';
+  if (years < 1) return 'infant';
+  if (years < 5) return 'toddler';
+  if (years < 12) return 'child';
+  if (years < 18) return 'teen';
+  return 'adult';
+}
+function greyWeight(age) {
+  const years = parseAgeYears(age);
+  if (years == null) return 0;
+  return Math.max(0, Math.min(1, (years - 40) / 35));
+}
+const AGE_SCALE = { infant: 0.6, toddler: 0.7, child: 0.8, teen: 0.92, adult: 1 };
+const ADULT_ONLY_HAIR = new Set(['theCaesar', 'theCaesarAndSidePart', 'shavedSides', 'sides']);
 
 function hashStr(s) {
   let h = 0;
@@ -159,23 +202,31 @@ function weightedPick(keys, weightOf, h) {
   }
   return keys[keys.length - 1];
 }
-function buildAvatarBase(seed, skinHex, gender) {
+function buildAvatarBase(seed, skinHex, gender, age) {
   avatarBuild.skin = skinHex || avatarBuild.skin;
+  avatarBuild.ageBand = ageBandFromMeta(age);
   const s = String(seed || 'default');
-  const hairKeys = Object.keys(AvatarAssets.top);
+  const allowAdultHair = avatarBuild.ageBand === 'teen' || avatarBuild.ageBand === 'adult';
+  const hairKeys = Object.keys(AvatarAssets.top).filter(k => allowAdultHair || !ADULT_ONLY_HAIR.has(k));
   const browKeys = Object.keys(AvatarAssets.eyebrows);
   const g = (gender || '').toLowerCase();
   const leanWeights = g === 'male' ? { m: 3, n: 1.5, f: 0.5 } : g === 'female' ? { f: 3, n: 1.5, m: 0.5 } : { m: 1, n: 1, f: 1 };
   avatarBuild.hairStyle = weightedPick(hairKeys, k => leanWeights[HAIR_STYLE_LEAN[k] || 'n'], hashStr(s));
-  avatarBuild.hairColour = HAIR_COLOURS[hashStr(s + '|hair') % HAIR_COLOURS.length];
+  const gw = greyWeight(age);
+  avatarBuild.hairColour = weightedPick(HAIR_COLOURS, c => GREY_HAIR_COLOURS.has(c) ? (0.15 + gw * 10) : 1, hashStr(s + '|hair'));
   avatarBuild.eyebrowStyle = browKeys[hashStr(s + '|brow') % browKeys.length];
   renderAvatarBuild();
   syncBuildSelectsToState();
+}
+function applyAgeScale() {
+  const s = AGE_SCALE[avatarBuild.ageBand] || 1;
+  document.getElementById('av-scale-group').setAttribute('transform', `translate(140,36) scale(${s}) translate(-140,-36)`);
 }
 function renderAvatarBuild() {
   document.getElementById('av-top').innerHTML = AvatarAssets.top[avatarBuild.hairStyle].replace(/__HAIRCOLOR__/g, avatarBuild.hairColour);
   document.getElementById('av-eyebrows').innerHTML = AvatarAssets.eyebrows[avatarBuild.eyebrowStyle];
   document.getElementById('av-eyes-closed-overlay').innerHTML = AvatarAssets.eyes.closed;
+  applyAgeScale();
   applySkinTint('normal');
 }
 function hexToRgb(hex) {
@@ -338,12 +389,16 @@ function onBuildChange() {
 function currentGender() {
   return document.getElementById('sel-patient-gender').value || null;
 }
+function currentAge() {
+  const v = document.getElementById('sel-patient-age').value;
+  return v || null;
+}
 function rebuildWithSameSeed() {
-  buildAvatarBase(document.getElementById('txt-seed').value, avatarBuild.skin, currentGender());
+  buildAvatarBase(document.getElementById('txt-seed').value, avatarBuild.skin, currentGender(), currentAge());
 }
 function randomSeed() {
   document.getElementById('txt-seed').value = 'seed-' + Math.random().toString(36).slice(2, 8);
-  buildAvatarBase(document.getElementById('txt-seed').value, avatarBuild.skin, currentGender());
+  buildAvatarBase(document.getElementById('txt-seed').value, avatarBuild.skin, currentGender(), currentAge());
 }
 function syncBuildSelectsToState() {
   document.getElementById('sel-hair').value = avatarBuild.hairStyle;

@@ -154,6 +154,33 @@ dynamic. Two layers on top of that shared data:
   seeds) — fine for real `scenario_id` UUIDs (verified: near-uniform
   distribution across 300 real-shaped seeds) but worth knowing if ever
   seeding from something more patterned.
+
+`patient_meta.age` (verbatim `patient.age` from generator.html — a plain
+number of years, a "N months" string, or the literal string "newborn";
+older scenarios predate the field and fall through to 'adult', not a guess)
+drives two more build-time effects, added after a paediatric scenario
+rendered as a literal middle-aged adult:
+- **`AGE_SCALE`**: the whole figure is scaled (`av-scale-group`, anchored at
+  the top of the head at (140,36) so it shrinks toward that point rather
+  than the viewBox origin) — infant 0.6 through teen 0.92, adult 1. A blunt
+  instrument (real toddlers have proportionally *bigger* heads than adults,
+  not just a smaller everything; Avataaars is one adult-proportioned body,
+  there's no separately-scalable head/body split without new art) but
+  enough that a newborn scenario no longer looks like a grown adult.
+- **`ADULT_ONLY_HAIR`**: a small set of structured/receding-hairline-prone
+  cuts (theCaesar, theCaesarAndSidePart, shavedSides, sides) excluded from
+  the hair pool below teen — a hard filter, unlike the gender lean, since
+  there's no equivalent "some variety is good here" case for a toddler
+  landing on a middle-aged man's haircut.
+- **`greyWeight()`**: separately, hair *colour* (not style) softly ramps
+  toward grey/silver/white (`GREY_HAIR_COLOURS`) as age climbs from 40 to
+  75+ (≈7% grey at 20, ≈47% at 45, ≈83% at 80 — verified against 500
+  seeds per age) — same weighted-pick mechanism as the gender lean, low but
+  nonzero baseline at any age rather than a hard young/old split. Eyebrows
+  are NOT recoloured to match — `avatar_assets.js`'s eyebrow paths have
+  their fill baked in (`fill="#000"`, no `__COLOR__` token like hair has),
+  so this would need SVG surgery on the asset file to add; skipped as
+  out of scope for now.
 - **Live state** (re-derived every tick): eyes are NOT one of
   `avatar_assets.js`'s pre-baked variants — several of those (including
   `default`, the plain look) are just flat pupil dots with no sclera

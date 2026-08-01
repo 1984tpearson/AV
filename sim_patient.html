@@ -213,25 +213,27 @@ body { display: flex; flex-direction: column; }
         <defs>
           <clipPath id="av-chest-clip"><rect x="0" y="175" width="280" height="105"/></clipPath>
         </defs>
-        <g id="av-chest-group" transform="translate(8)">
-          <path id="av-chest-path" d="M132 36a56 56 0 0 0-56 56v6.17A12 12 0 0 0 66 110v14a12 12 0 0 0 10.3 11.88 56.04 56.04 0 0 0 31.7 44.73v18.4h-4a72 72 0 0 0-72 72v9h200v-9a72 72 0 0 0-72-72h-4v-18.39a56.04 56.04 0 0 0 31.7-44.73A12 12 0 0 0 198 124v-14a12 12 0 0 0-10-11.83V92a56 56 0 0 0-56-56Z" fill="#E0AC81" clip-path="url(#av-chest-clip)"/>
-        </g>
-        <g id="av-face-group" transform="translate(8)">
-          <path id="av-head-path" d="M132 36a56 56 0 0 0-56 56v6.17A12 12 0 0 0 66 110v14a12 12 0 0 0 10.3 11.88 56.04 56.04 0 0 0 31.7 44.73v18.4h-4a72 72 0 0 0-72 72v9h200v-9a72 72 0 0 0-72-72h-4v-18.39a56.04 56.04 0 0 0 31.7-44.73A12 12 0 0 0 198 124v-14a12 12 0 0 0-10-11.83V92a56 56 0 0 0-56-56Z" fill="#E0AC81"/>
-          <path d="M108 180.61v8a55.79 55.79 0 0 0 24 5.39c8.59 0 16.73-1.93 24-5.39v-8a55.79 55.79 0 0 1-24 5.39 55.79 55.79 0 0 1-24-5.39Z" fill="#000" fill-opacity=".1"/>
-          <g id="av-mouth" transform="translate(78 134)"></g>
-          <g id="av-eyes" transform="translate(76 90)">
-            <ellipse id="av-eye-l-sclera" cx="30" cy="22" rx="14" ry="7" fill="#fff"/>
-            <circle id="av-eye-l-pupil" cx="30" cy="22" r="5.5" fill="#2b2118"/>
-            <ellipse id="av-eye-r-sclera" cx="82" cy="22" rx="14" ry="7" fill="#fff"/>
-            <circle id="av-eye-r-pupil" cx="82" cy="22" r="5.5" fill="#2b2118"/>
-            <g id="av-eyes-closed-overlay" style="display:none;"></g>
+        <g id="av-scale-group">
+          <g id="av-chest-group" transform="translate(8)">
+            <path id="av-chest-path" d="M132 36a56 56 0 0 0-56 56v6.17A12 12 0 0 0 66 110v14a12 12 0 0 0 10.3 11.88 56.04 56.04 0 0 0 31.7 44.73v18.4h-4a72 72 0 0 0-72 72v9h200v-9a72 72 0 0 0-72-72h-4v-18.39a56.04 56.04 0 0 0 31.7-44.73A12 12 0 0 0 198 124v-14a12 12 0 0 0-10-11.83V92a56 56 0 0 0-56-56Z" fill="#E0AC81" clip-path="url(#av-chest-clip)"/>
           </g>
-          <g id="av-eyebrows" transform="translate(76 82)"></g>
-          <g id="av-top" transform="translate(-1)"></g>
-          <g id="av-sweat" style="display:none;">
-            <path d="M62 60 q7 10 0 17 q-7 -2 -7 -9 q0 -6 7 -8z" fill="#7ec8e3"/>
-            <path d="M206 56 q7 10 0 17 q-7 -2 -7 -9 q0 -6 7 -8z" fill="#7ec8e3"/>
+          <g id="av-face-group" transform="translate(8)">
+            <path id="av-head-path" d="M132 36a56 56 0 0 0-56 56v6.17A12 12 0 0 0 66 110v14a12 12 0 0 0 10.3 11.88 56.04 56.04 0 0 0 31.7 44.73v18.4h-4a72 72 0 0 0-72 72v9h200v-9a72 72 0 0 0-72-72h-4v-18.39a56.04 56.04 0 0 0 31.7-44.73A12 12 0 0 0 198 124v-14a12 12 0 0 0-10-11.83V92a56 56 0 0 0-56-56Z" fill="#E0AC81"/>
+            <path d="M108 180.61v8a55.79 55.79 0 0 0 24 5.39c8.59 0 16.73-1.93 24-5.39v-8a55.79 55.79 0 0 1-24 5.39 55.79 55.79 0 0 1-24-5.39Z" fill="#000" fill-opacity=".1"/>
+            <g id="av-mouth" transform="translate(78 134)"></g>
+            <g id="av-eyes" transform="translate(76 90)">
+              <ellipse id="av-eye-l-sclera" cx="30" cy="22" rx="14" ry="7" fill="#fff"/>
+              <circle id="av-eye-l-pupil" cx="30" cy="22" r="5.5" fill="#2b2118"/>
+              <ellipse id="av-eye-r-sclera" cx="82" cy="22" rx="14" ry="7" fill="#fff"/>
+              <circle id="av-eye-r-pupil" cx="82" cy="22" r="5.5" fill="#2b2118"/>
+              <g id="av-eyes-closed-overlay" style="display:none;"></g>
+            </g>
+            <g id="av-eyebrows" transform="translate(76 82)"></g>
+            <g id="av-top" transform="translate(-1)"></g>
+            <g id="av-sweat" style="display:none;">
+              <path d="M62 60 q7 10 0 17 q-7 -2 -7 -9 q0 -6 7 -8z" fill="#7ec8e3"/>
+              <path d="M206 56 q7 10 0 17 q-7 -2 -7 -9 q0 -6 7 -8z" fill="#7ec8e3"/>
+            </g>
           </g>
         </g>
       </svg>
@@ -295,8 +297,61 @@ function extendedVitalsNow() {
 // tint/sweat) is re-derived every tick from SimEngine.getAppearanceState(),
 // the same severity bands sim_control.html's assessor-facing Appearance tab
 // uses — see sim_engine.js.
-let avatarBuild = { skin: '#E0AC81', hairColour: '#3b2b20', hairStyle: 'shortFlat', eyebrowStyle: 'defaultNatural' };
-const HAIR_COLOURS = ['#1b1410', '#3b2b20', '#5a3b23', '#8a5a2b', '#c9a227', '#8c8c8c', '#7a2e1d'];
+let avatarBuild = { skin: '#E0AC81', hairColour: '#3b2b20', hairStyle: 'shortFlat', eyebrowStyle: 'defaultNatural', ageBand: 'adult' };
+// Last three are grey/silver/white — see GREY_HAIR_COLOURS and greyWeight()
+// below. Kept in the same flat array (not a separate palette) so an unset
+// age still lets a young-reading grey/premature-grey/platinum tone turn up
+// occasionally, same "soft weighting, not a hard rule" approach as gender.
+const HAIR_COLOURS = ['#1b1410', '#3b2b20', '#5a3b23', '#8a5a2b', '#c9a227', '#7a2e1d', '#8c8c8c', '#b0b0b0', '#e8e4dc'];
+const GREY_HAIR_COLOURS = new Set(['#8c8c8c', '#b0b0b0', '#e8e4dc']);
+
+// patient_meta.age is patient.age verbatim from generator.html — a plain
+// number of years, a "N months" string, or the literal string "newborn".
+// Returns null (not 0) when nothing usable is present, so callers can tell
+// "genuinely unknown" apart from "known to be very young".
+function parseAgeYears(age) {
+  if (age == null) return null;
+  if (typeof age === 'string') {
+    if (/newborn/i.test(age)) return 0;
+    const m = age.match(/(\d+(?:\.\d+)?)\s*month/i);
+    if (m) return parseFloat(m[1]) / 12;
+    const n = parseFloat(age);
+    return Number.isFinite(n) ? n : null;
+  }
+  return Number.isFinite(age) ? age : null;
+}
+// Older scenarios predate patient_meta.age entirely (years === null), which
+// deliberately falls through to 'adult' — the avatar's pre-existing default
+// look, not a guess.
+function ageBandFromMeta(age) {
+  const years = parseAgeYears(age);
+  if (years == null) return 'adult';
+  if (years < 1) return 'infant';
+  if (years < 5) return 'toddler';
+  if (years < 12) return 'child';
+  if (years < 18) return 'teen';
+  return 'adult';
+}
+// How strongly hair colour should lean grey/silver/white — ramps from 0 at
+// 40 to 1 at 75+. Deliberately gradual/wide rather than a step at some
+// "elderly" cutoff; real greying is a spectrum, not a threshold.
+function greyWeight(age) {
+  const years = parseAgeYears(age);
+  if (years == null) return 0;
+  return Math.max(0, Math.min(1, (years - 40) / 35));
+}
+// Uniform scale of the whole figure per age band — a blunt instrument
+// (real toddlers have proportionally BIGGER heads than adults, not just a
+// smaller everything; Avataaars only offers one adult-proportioned body,
+// there's no separately-scalable head/body split without new art) but
+// enough to stop, say, an infant scenario rendering as a literal
+// middle-aged adult, which is what shipped before this existed.
+const AGE_SCALE = { infant: 0.6, toddler: 0.7, child: 0.8, teen: 0.92, adult: 1 };
+// Hairstyles that read as distinctly adult (structured adult cuts, a
+// receding-hairline-prone crop) — excluded below teen so a pediatric
+// scenario can't land on a look that reads as a grown adult, same
+// complaint that prompted this whole age system.
+const ADULT_ONLY_HAIR = new Set(['theCaesar', 'theCaesarAndSidePart', 'shavedSides', 'sides']);
 
 // Rough masc('m')/femme('f')/neutral('n') lean per hairstyle — used only as
 // a soft weighting (see weightedPick() below), never a hard filter. Real
@@ -337,25 +392,41 @@ function weightedPick(keys, weightOf, h) {
 // given scenario across reconnects, rather than re-rolling on every page
 // load. Each pick uses a differently-suffixed hash so they don't always
 // correlate (e.g. hair style and colour landing in lockstep). gender softly
-// weights hair style only (see HAIR_STYLE_LEAN) — eyebrows/colour stay
-// unweighted, there's no equivalent "reads as gendered" concern there.
-function buildAvatarBase(seed, skinHex, gender) {
+// weights hair style only (see HAIR_STYLE_LEAN) — eyebrows stay unweighted,
+// there's no equivalent "reads as gendered" concern there. age
+// (patient_meta.age, see ageBandFromMeta()) scales the whole figure,
+// excludes adult-only hairstyles below teen, and separately weights hair
+// colour toward grey/silver/white via greyWeight() — an 8yo and an 80yo
+// can share a hairstyle pool (teen/adult) but shouldn't share a colour pool.
+function buildAvatarBase(seed, skinHex, gender, age) {
   avatarBuild.skin = skinHex || avatarBuild.skin;
+  avatarBuild.ageBand = ageBandFromMeta(age);
   const s = String(seed || sessionCode || 'default');
-  const hairKeys = Object.keys(AvatarAssets.top);
+  const allowAdultHair = avatarBuild.ageBand === 'teen' || avatarBuild.ageBand === 'adult';
+  const hairKeys = Object.keys(AvatarAssets.top).filter(k => allowAdultHair || !ADULT_ONLY_HAIR.has(k));
   const browKeys = Object.keys(AvatarAssets.eyebrows);
   const g = (gender || '').toLowerCase();
   const leanWeights = g === 'male' ? { m: 3, n: 1.5, f: 0.5 } : g === 'female' ? { f: 3, n: 1.5, m: 0.5 } : { m: 1, n: 1, f: 1 };
   avatarBuild.hairStyle = weightedPick(hairKeys, k => leanWeights[HAIR_STYLE_LEAN[k] || 'n'], hashStr(s));
-  avatarBuild.hairColour = HAIR_COLOURS[hashStr(s + '|hair') % HAIR_COLOURS.length];
+  const gw = greyWeight(age);
+  avatarBuild.hairColour = weightedPick(HAIR_COLOURS, c => GREY_HAIR_COLOURS.has(c) ? (0.15 + gw * 10) : 1, hashStr(s + '|hair'));
   avatarBuild.eyebrowStyle = browKeys[hashStr(s + '|brow') % browKeys.length];
   renderAvatarBuild();
+}
+
+// Scales around the top of the head (140,36 — matches where av-head-path
+// starts) rather than the viewBox origin, so a smaller figure keeps its
+// head near the same spot instead of shrinking toward the top-left corner.
+function applyAgeScale() {
+  const s = AGE_SCALE[avatarBuild.ageBand] || 1;
+  document.getElementById('av-scale-group').setAttribute('transform', `translate(140,36) scale(${s}) translate(-140,-36)`);
 }
 
 function renderAvatarBuild() {
   document.getElementById('av-top').innerHTML = AvatarAssets.top[avatarBuild.hairStyle].replace(/__HAIRCOLOR__/g, avatarBuild.hairColour);
   document.getElementById('av-eyebrows').innerHTML = AvatarAssets.eyebrows[avatarBuild.eyebrowStyle];
   document.getElementById('av-eyes-closed-overlay').innerHTML = AvatarAssets.eyes.closed; // static, set once
+  applyAgeScale();
   applySkinTint('normal'); // base skin tone shown immediately, before the first live tick
 }
 
@@ -589,10 +660,13 @@ async function connectSession(code) {
     sbPatch(`sim_sessions?session_code=eq.${encodeURIComponent(code)}`, { patient_connected: true, updated_at: new Date().toISOString() })
       .catch(() => {}); // best-effort — control just falls back to showing the join panel if this fails
     // Best-effort only — patient_meta.skin_colour drives the avatar's skin
-    // tone and gender softly weights hair style (see buildAvatarBase() /
-    // HAIR_STYLE_LEAN) as well as biasing TTS voice selection. Older
-    // scenarios predate patient_meta.gender, so fall back to the same
-    // title-sniffing heuristic used before that field existed.
+    // tone, gender softly weights hair style (see buildAvatarBase() /
+    // HAIR_STYLE_LEAN) as well as biasing TTS voice selection, and age
+    // scales the figure + excludes adult-only hairstyles below teen (see
+    // ageBandFromMeta()). Older scenarios predate patient_meta.gender/age,
+    // so fall back to the same title-sniffing heuristic used before those
+    // fields existed — SimEngine.parseAgeFromScenario() already does this
+    // for the defib dosing calc below, reused here rather than re-parsing.
     if (row.scenario_id) {
       // subtitle/dispatch/vitals/medical_conditions are fetched alongside
       // title/patient_meta so handleShockBtn() can run
@@ -612,7 +686,8 @@ async function connectSession(code) {
             else if (/\bmale\b/i.test(title)) gender = 'male';
           }
           if (gender === 'male' || gender === 'female') patientGender = gender;
-          buildAvatarBase(row.scenario_id, meta.skin_colour, gender);
+          const age = meta.age != null ? meta.age : SimEngine.parseAgeFromScenario(scen);
+          buildAvatarBase(row.scenario_id, meta.skin_colour, gender, age);
         })
         .catch(() => {});
     }
