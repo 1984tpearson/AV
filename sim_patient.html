@@ -1195,7 +1195,7 @@ async function handleShockBtn() {
   if (_ecgInst) _ecgInst.triggerShockArtifact();
 
   const givenAtMs = SimEngine.getSimNow(testConfig, Date.now());
-  const { parsedOverrides, parsedRhythm, note, vitalsNow } =
+  const { parsedOverrides, parsedRhythm, note, vitalsNow, outcome, followUpDelayMin } =
     SimEngine.computeDefibrillationEffect(testConfig, scenarioMeta || {}, joules, givenAtMs);
 
   if (Object.keys(parsedOverrides).length || parsedRhythm.length) {
@@ -1209,7 +1209,13 @@ async function handleShockBtn() {
   try {
     const rows = await sbGet(`sim_sessions?session_code=eq.${encodeURIComponent(sessionCode)}&select=treatments`);
     const treatments = (rows[0] && rows[0].treatments) || [];
-    treatments.push({ action: `Defibrillation ${joules}J`, givenAtMin, source: 'patient_device', assumptions: [note] });
+    // defibOutcome/followUpAtMin let sim_control.html's pollSession decide,
+    // without regexing the prose note, whether this shock needs a follow-up
+    // AI re-projection (only ROSC/cardioverted do — see
+    // SimEngine.computeDefibrillationEffect's followUpDelayMin comment).
+    const entry = { action: `Defibrillation ${joules}J`, givenAtMin, source: 'patient_device', assumptions: [note], defibOutcome: outcome };
+    if (followUpDelayMin != null) entry.followUpAtMin = givenAtMin + followUpDelayMin;
+    treatments.push(entry);
     await sbPatch(`sim_sessions?session_code=eq.${encodeURIComponent(sessionCode)}`, {
       overrides: testConfig.overrides,
       treatments,

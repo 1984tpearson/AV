@@ -438,6 +438,10 @@
     const parsedOverrides = {};
     const parsedRhythm = [];
     let note;
+    // Tracked separately from the prose note so callers (sim_control.html's
+    // pollSession, deciding whether a follow-up AI re-projection is needed)
+    // don't have to regex-match the note text — see resultOutcome below.
+    let resultOutcome;
 
     if (rhythmClass === 'shockable') {
       const downtimeMs = msSinceArrestStart(cfg, givenAtMs);
@@ -446,6 +450,7 @@
       const weightKg = parseWeightKgFromScenario(scenarioMeta);
       const energyFactor = computeEnergyFactor(joules, age, weightKg);
       const { outcome, convertChance } = computeShockableOutcome(survivability, energyFactor, downtimeMs);
+      resultOutcome = outcome;
 
       if (outcome === 'converted') {
         const postTachy = Math.random() < 0.65; // catecholamine surge post-ROSC — tachycardia is the more common immediate picture
@@ -488,10 +493,12 @@
       // Real ACLS teaching point: asystole/PEA are not shockable — there's
       // no fibrillating myocardium for a shock to terminate. Deliberately a
       // pure no-op, not a randomised low chance of something.
+      resultOutcome = 'nonshockable-arrest';
       note = `Defibrillation ${joules}J: not indicated for ${rhythmLabel} — no effect (hardcoded, no AI call).`;
     } else {
       const conscious = vitalsNow.gcsV >= 4; // same "can this patient perceive/report it" threshold the AI treatment prompt uses for pain/nausea
       const { outcome, induceVfChance } = computeOrganizedShockOutcome(rhythmLabel, joules);
+      resultOutcome = outcome;
 
       if (outcome === 'induced-vf') {
         parsedRhythm.push({ label: 'ventricular fibrillation', startMin: 0.05 });
@@ -521,7 +528,22 @@
       }
     }
 
-    return { parsedOverrides, parsedRhythm, note, vitalsNow };
+    // A follow-up AI re-projection is only worth it for an outcome that
+    // actually changes the patient's underlying trajectory going forward —
+    // ROSC or a successful cardioversion. An unattended VF/VT would, in
+    // reality, eventually degrade further on its own, but that's not worth
+    // modelling: a crew that does nothing after a failed shock has
+    // effectively walked away, not created a scenario branch worth AI time.
+    // asystole/nonshockable-arrest/induced-vf are all static without further
+    // intervention, and "no-change" never touched the rhythm at all — none
+    // of those need anything beyond the hardcoded cascade already applied.
+    // 5 minutes safely clears the longest hardcoded cascade phase in either
+    // qualifying outcome (ROSC's SpO2 recovery ends at minute 5; a
+    // cardioverted patient's pain fade-out ends around minute 4.55) so a
+    // follow-up plan splicing in at that point never clobbers this cascade.
+    const followUpDelayMin = (resultOutcome === 'converted' || resultOutcome === 'cardioverted') ? 5 : null;
+
+    return { parsedOverrides, parsedRhythm, note, vitalsNow, outcome: resultOutcome, followUpDelayMin };
   }
 
   // Splices a computed override plan (AI-authored, or the hardcoded defib

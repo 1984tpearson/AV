@@ -916,6 +916,7 @@ async function pollSession() {
     if (!rows.length) return;
     const row = rows[0];
     processStudentQueue(row); // fire-and-forget — auto-applies any new voice-queued items from sim_patient.html (see below)
+    processDefibFollowUps(row); // fire-and-forget — re-projects the trajectory after a ROSC/cardioversion shock (see below)
     liveConfig.treatments = row.treatments || [];
     liveConfig.overrides = row.overrides || {};
     liveConfig.instantMode = row.instant_mode;
@@ -2451,6 +2452,90 @@ async function processStudentQueue(row) {
     }
   } finally {
     _studentQueueBusy = false;
+  }
+}
+
+// --- Follow-up AI re-projection after a hardcoded defib outcome ----------
+// sim_patient.html's handleShockBtn() computes/applies a defib shock's
+// effect entirely locally (see SimEngine.computeDefibrillationEffect) for a
+// zero-delay crew-facing response, then syncs the result here. That
+// hardcoded cascade only covers the immediate peri-shock window (a few
+// minutes) — past that, a ROSC or cardioverted patient would otherwise just
+// freeze at whatever those numbers landed on, forever. Only those two
+// outcomes get a follow-up: an unattended VF/VT or asystole doesn't evolve
+// further without another intervention, so there's nothing for the AI to
+// re-project (see computeDefibrillationEffect's followUpDelayMin comment).
+// followUpRequested is claimed (persisted) before the AI call starts, same
+// spirit as student_queue_ack_id, so an overlapping poll or a page reload
+// mid-flight can't trigger this twice for the same shock.
+let _defibFollowUpBusy = false;
+async function processDefibFollowUps(row) {
+  if (_defibFollowUpBusy) return;
+  const rowTreatments = row.treatments || [];
+  const pending = rowTreatments.filter(t =>
+    t.source === 'patient_device' &&
+    (t.defibOutcome === 'converted' || t.defibOutcome === 'cardioverted') &&
+    t.followUpAtMin != null && !t.followUpRequested
+  );
+  if (!pending.length) return;
+  _defibFollowUpBusy = true;
+  try {
+    for (const entry of pending) {
+      entry.followUpRequested = true; // claim first — persisted before any AI call starts
+      try {
+        await sbFetch(`sim_sessions?session_code=eq.${sessionCode}`, {
+          method: 'PATCH', prefer: 'return=minimal',
+          body: JSON.stringify({ treatments: rowTreatments, updated_at: new Date().toISOString() })
+        });
+      } catch (e) { continue; } // couldn't claim — flag never persisted, so it's retried next poll rather than risking a duplicate
+      const followUpAtMs = liveConfig.startTimeMs + entry.followUpAtMin * 60000;
+      await runDefibFollowUpPlan(entry, rowTreatments, followUpAtMs);
+    }
+  } finally {
+    _defibFollowUpBusy = false;
+  }
+}
+
+// Reuses regenerateTimelineForScriptedEvent (a synthetic command describing
+// what just happened, rather than a second bespoke prompt) — that function
+// already handles arbitrary free-text clinical events robustly. followUpAtMs
+// is deliberately a point in sim-time PAST the hardcoded cascade's own last
+// entries (not "real now") — regenerateTimelineForScriptedEvent's splice
+// only touches overrides scheduled at/after the givenAtMs it's called with,
+// so calling it with a future timestamp for "now" is exactly how an
+// assessor's own "in 5 minutes" delayed commands already work; it doesn't
+// need to wait for the sim clock to actually get there first.
+async function runDefibFollowUpPlan(entry, rowTreatments, followUpAtMs) {
+  const isRosc = entry.defibOutcome === 'converted';
+  const rhythmAtFollowUp = SimEngine.getRhythmAt(liveConfig, followUpAtMs) || (isRosc ? 'a perfusing rhythm' : 'sinus rhythm');
+  const command = isRosc
+    ? `The crew's defibrillation shock (${entry.action}) achieved ROSC — the patient reverted to ${rhythmAtFollowUp} and the immediate post-shock numbers are already fixed for the first few minutes. Reason about the patient's underlying condition and project realistically how their course continues from here — sustained recovery, ongoing instability, or re-arrest, whichever this patient's actual presentation genuinely supports.`
+    : `The crew's defibrillation shock (${entry.action}) cardioverted the patient to ${rhythmAtFollowUp} — the immediate post-shock HR is already fixed for the first few minutes. Reason about the patient's underlying condition and project realistically how their course continues from here now that the tachyarrhythmia has resolved.`;
+
+  const givenAtMin = (followUpAtMs - liveConfig.startTimeMs) / 60000;
+  const newEntry = { action: `(AI) Re-projecting course after ${isRosc ? 'ROSC' : 'cardioversion'}`, givenAtMin, source: 'defib_followup' };
+  treatments = [...rowTreatments, newEntry];
+  liveConfig.treatments = treatments;
+  try {
+    await sbFetch(`sim_sessions?session_code=eq.${sessionCode}`, {
+      method: 'PATCH', prefer: 'return=minimal',
+      body: JSON.stringify({ treatments, updated_at: new Date().toISOString() })
+    });
+    renderLog();
+  } catch (e) { return; } // couldn't even log it — leave the hardcoded cascade as-is rather than risk a partial write
+
+  try {
+    await regenerateTimelineForScriptedEvent(command, followUpAtMs);
+  } catch (e) {
+    newEntry.assumptions = [`Could not compute follow-up trajectory: ${e.message}`];
+    liveConfig.treatments = treatments;
+    try {
+      await sbFetch(`sim_sessions?session_code=eq.${sessionCode}`, {
+        method: 'PATCH', prefer: 'return=minimal',
+        body: JSON.stringify({ treatments, updated_at: new Date().toISOString() })
+      });
+      renderLog();
+    } catch (e2) { /* best-effort — the failure is at least visible in console */ }
   }
 }
 
