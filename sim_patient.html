@@ -78,8 +78,8 @@ body { display: flex; flex-direction: column; }
 #defib-shock-btn:disabled { color: #5a2a1c; cursor: default; }
 #defib-shock-btn:active:not(:disabled) { background: rgba(255,90,54,0.2); }
 
-#joule-tower { position: absolute; right: 0; bottom: 40px; width: 60px; display: none; flex-direction: column; overflow-y: auto; background: #060910; border-left: 2px solid #1a2a3a; border-top: 2px solid #1a2a3a; z-index: 20; }
-.joule-row { flex: 1 0 14px; display: flex; align-items: center; justify-content: center; font-family: 'Courier New', monospace; font-size: 11px; font-weight: 700; color: #c0d4e8; border-bottom: 1px solid #101c2c; cursor: pointer; -webkit-tap-highlight-color: rgba(255,255,255,0.15); }
+#joule-tower { position: absolute; right: 0; top: 0; bottom: 40px; width: 15%; display: none; flex-direction: column; overflow-y: auto; background: #060910; border-left: 2px solid #1a2a3a; border-top: 2px solid #1a2a3a; z-index: 20; }
+.joule-row { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; font-family: 'Courier New', monospace; font-size: 13px; font-weight: 700; color: #c0d4e8; border-bottom: 1px solid #101c2c; cursor: pointer; -webkit-tap-highlight-color: rgba(255,255,255,0.15); }
 .joule-row.joule-charged { background: #274a66; color: #eaf6ff; }
 .joule-row.joule-selected { background: #0369a1; color: #fff; }
 
@@ -1009,7 +1009,7 @@ function renderOneOff() {
 const JOULE_LEVELS = [200, 150, 120, 100, 85, 70, 50, 30, 20, 15, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1];
 const CHARGE_STEP_MS = 180;
 let defibState = 'idle'; // idle -> selecting -> charging -> charged -> (shock) -> idle
-let selectedJoules = null;
+let selectedJoules = 200; // default preset, matching a real monitor remembering the last-used energy
 let chargeFillCount = 0; // rows lit, counting from the bottom (1J) up
 let _chargeTimer = null;
 
