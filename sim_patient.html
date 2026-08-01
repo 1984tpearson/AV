@@ -1148,6 +1148,10 @@ async function handleShockBtn() {
   chargeFillCount = 0;
   renderJouleTower();
   updateDefibButtons();
+  // The huge amplifier-saturating artifact a real shock puts on every lead —
+  // shown regardless of rhythm outcome, since it's the electrical event
+  // itself hitting the leads, not a verdict on whether the shock worked.
+  if (_ecgInst) _ecgInst.triggerShockArtifact();
 
   const givenAtMs = SimEngine.getSimNow(testConfig, Date.now());
   const { parsedOverrides, parsedRhythm, note, vitalsNow } =
