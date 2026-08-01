@@ -961,15 +961,15 @@ async function updateInstantMode() {
 // same overrides mechanism, so they all sample the same way — no more
 // special-case step-path branch.
 const GRAPH_SERIES = [
-  { key: 'HR',      label: 'HR',     color: '#dc1114', unit: 'bpm',     min: 0,  max: 200, get: v => v.HR },
-  { key: 'BPsys',   label: 'BP Sys', color: '#65b440', unit: 'mmHg',    min: 0,  max: 220, get: v => v.BPsys },
+  { key: 'HR',      label: 'HR',     color: '#dc1114', unit: 'bpm',     min: 0,  max: 250, get: v => v.HR },
+  { key: 'BPsys',   label: 'BP Sys', color: '#65b440', unit: 'mmHg',    min: 0,  max: 260, get: v => v.BPsys },
   { key: 'BPdia',   label: 'BP Dia', color: '#8bbf2c', unit: 'mmHg',    min: 0,  max: 220, get: v => v.BPdia },
-  { key: 'SpO2',    label: 'SpO\u2082', color: '#2980c5', unit: '%',    min: 50, max: 100, get: v => v.SpO2 },
+  { key: 'SpO2',    label: 'SpO\u2082', color: '#2980c5', unit: '%',    min: 0,  max: 100, get: v => v.SpO2 },
   { key: 'RR',      label: 'RR',     color: '#dc5e19', unit: '/min',    min: 0,  max: 50,  get: v => v.RR },
-  { key: 'EtCO2',   label: 'EtCO\u2082', color: '#f3e511', unit: 'mmHg', min: 0, max: 80,  get: v => v.EtCO2 },
-  { key: 'temp',    label: 'Temp',    color: '#4e4193', unit: '\u00b0C', min: 20, max: 41, get: v => v.temp },
+  { key: 'EtCO2',   label: 'EtCO\u2082', color: '#f3e511', unit: 'mmHg', min: 0, max: 100, get: v => v.EtCO2 },
+  { key: 'temp',    label: 'Temp',    color: '#4e4193', unit: '\u00b0C', min: 20, max: 43, get: v => v.temp },
   { key: 'bgl',     label: 'BGL',     color: '#54bec4', unit: 'mmol/L', min: 0,  max: 40,  get: v => v.bgl },
-  { key: 'ketones', label: 'Ketones', color: '#a96aab', unit: 'mmol/L', min: 0,  max: 6,  get: v => v.ketones },
+  { key: 'ketones', label: 'Ketones', color: '#a96aab', unit: 'mmol/L', min: 0,  max: 15,  get: v => v.ketones },
   { key: 'gcs',     label: 'GCS',     color: '#d02e8b', unit: '/15',    min: 3,  max: 15, get: v => v.gcsE + v.gcsV + v.gcsM },
   { key: 'pain',    label: 'Pain',    color: '#dd9806', unit: '/10',    min: 0,  max: 10, get: v => v.pain },
   { key: 'nausea',  label: 'Nausea',  color: '#14b8a6', unit: '/10',    min: 0,  max: 10, get: v => v.nausea }
