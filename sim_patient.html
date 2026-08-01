@@ -211,7 +211,7 @@ body { display: flex; flex-direction: column; }
     <div id="head-wrap">
       <svg id="av-svg" viewBox="0 0 280 260" width="280" height="260" style="max-width:100%;max-height:100%;object-fit:contain;display:block;" xmlns="http://www.w3.org/2000/svg">
         <defs>
-          <clipPath id="av-chest-clip"><rect x="0" y="199" width="280" height="61"/></clipPath>
+          <clipPath id="av-chest-clip"><rect x="0" y="199" width="280" height="81"/></clipPath>
         </defs>
         <g id="av-scale-group">
           <g id="av-chest-group" transform="translate(8)">
@@ -353,9 +353,8 @@ const AGE_SCALE = { infant: 0.78, toddler: 0.85, child: 0.9, teen: 0.95, adult: 
 // Three cartoon "younger = bigger head/eyes, lower/rounder face" cues,
 // layered on top of the uniform AGE_SCALE above. The face features
 // (eyes/eyebrows/mouth) are independent groups, so they can move and eyes
-// can grow independently of the head outline they sit on — EYE_SCALE scales
-// #av-eyes around its own on-screen centre (56,22) so both eyes grow
-// symmetrically rather than spreading apart, FACE_LOWER_OFFSET shifts
+// can grow independently of the head outline they sit on — #av-eyes scales
+// around its own on-screen centre (56,22), FACE_LOWER_OFFSET shifts
 // eyes/eyebrows/mouth down as a unit. The head OUTLINE itself is a single
 // rigid path shared with the torso (no separate head/body art to scale
 // independently) — HEAD_BULGE works around that with #av-head-bulge, a
@@ -366,7 +365,16 @@ const AGE_SCALE = { infant: 0.78, toddler: 0.85, child: 0.9, teen: 0.95, adult: 
 // as a wider/rounder head+cheeks without any clipping or seam against the
 // body below — no risk of the "second chin" class of bug from a mismatched
 // hard edge, because there isn't one.
-const EYE_SCALE = { infant: 1.45, toddler: 1.3, child: 1.15, teen: 1.05, adult: 1 };
+//
+// Eye scale is deliberately non-uniform (X and Y scaled separately, not one
+// EYE_SCALE for both) — scaling around the shared two-eye centre (56,22)
+// moves each eye away from that centre by the same factor it grows them,
+// so a uniform 1.45x also pushed the two eyes 45% further apart, which read
+// as wall-eyed/alien on infants rather than "big eyed". Keeping X close to
+// 1 while Y does most of the work gives bigger, rounder eyes without much
+// added horizontal separation.
+const EYE_SCALE_X = { infant: 1.1, toddler: 1.08, child: 1.05, teen: 1.02, adult: 1 };
+const EYE_SCALE_Y = { infant: 1.6, toddler: 1.4, child: 1.2, teen: 1.08, adult: 1 };
 const FACE_LOWER_OFFSET = { infant: 12, toddler: 9, child: 5, teen: 2, adult: 0 };
 const HEAD_BULGE = { infant: 1.2, toddler: 1.1, child: 1.05, teen: 1.02, adult: 1 };
 // Clothing is a flat-colour fill only — no separate neckline graphic.
@@ -421,6 +429,14 @@ const HAIR_STYLE_LEAN = {
 // they're excluded from that weighting even though they share the same
 // __HAIRCOLOR__-token colour pool for lack of a more specific one.
 const HEADWEAR = new Set(['hat', 'hijab', 'turban', 'winterHat1', 'winterHat02', 'winterHat03', 'winterHat04']);
+// Of that set, only the plain hat/winter hats get down-weighted below —
+// hijab/turban stay at their normal (gender-leaned) weight since they're
+// day-to-day headwear for a real portion of the population, same reasoning
+// as SKIN_TONE_LEAN in generator.html. Plain 'hat'/winter hats are more
+// "costume" variety than a real everyday look and were landing far too
+// often (~1 in 7 patients) purely because they shared the same 'n' lean
+// tag and per-item weight as actual hairstyles.
+const CASUAL_HEADWEAR = new Set(['hat', 'winterHat1', 'winterHat02', 'winterHat03', 'winterHat04']);
 
 function hashStr(s) {
   let h = 0;
@@ -463,7 +479,10 @@ function buildAvatarBase(seed, skinHex, gender, age) {
   // Infants never get a hairstyle — real babies are frequently bald or
   // near-bald, and there's no asset in this pool that reads as "infant
   // hair" (the shortest options are still styled adult/child cuts).
-  avatarBuild.hairStyle = avatarBuild.ageBand === 'infant' ? null : weightedPick(hairKeys, k => leanWeights[HAIR_STYLE_LEAN[k] || 'n'], hashStr(s));
+  avatarBuild.hairStyle = avatarBuild.ageBand === 'infant' ? null : weightedPick(hairKeys, k => {
+    const base = leanWeights[HAIR_STYLE_LEAN[k] || 'n'];
+    return CASUAL_HEADWEAR.has(k) ? base * 0.3 : base;
+  }, hashStr(s));
   const gw = HEADWEAR.has(avatarBuild.hairStyle) ? 0 : greyWeight(age);
   avatarBuild.hairColour = weightedPick(HAIR_COLOURS, c => GREY_HAIR_COLOURS.has(c) ? (0.15 + gw * 10) : 1, hashStr(s + '|hair'));
   avatarBuild.eyebrowStyle = browKeys[hashStr(s + '|brow') % browKeys.length];
@@ -479,10 +498,11 @@ function applyAgeScale() {
   const s = AGE_SCALE[band] || 1;
   document.getElementById('av-scale-group').setAttribute('transform', `translate(140,36) scale(${s}) translate(-140,-36)`);
   const dy = FACE_LOWER_OFFSET[band] || 0;
-  const eyeScale = EYE_SCALE[band] || 1;
+  const eyeScaleX = EYE_SCALE_X[band] || 1;
+  const eyeScaleY = EYE_SCALE_Y[band] || 1;
   document.getElementById('av-eyebrows').setAttribute('transform', `translate(76 ${82 + dy})`);
   document.getElementById('av-mouth').setAttribute('transform', `translate(78 ${134 + dy})`);
-  document.getElementById('av-eyes').setAttribute('transform', `translate(76 ${90 + dy}) translate(56,22) scale(${eyeScale}) translate(-56,-22)`);
+  document.getElementById('av-eyes').setAttribute('transform', `translate(76 ${90 + dy}) translate(56,22) scale(${eyeScaleX},${eyeScaleY}) translate(-56,-22)`);
   const bulgeR = 56 * (HEAD_BULGE[band] || 1);
   const bulge = document.getElementById('av-head-bulge');
   bulge.setAttribute('rx', bulgeR.toFixed(1));

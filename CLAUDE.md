@@ -163,6 +163,17 @@ dynamic. Two layers on top of that shared data:
   distribution across 300 real-shaped seeds) but worth knowing if ever
   seeding from something more patterned.
 
+  `CASUAL_HEADWEAR` (hat, the four winter hats — NOT hijab/turban, see
+  `HEADWEAR` below) gets an extra 0.3x knocked off its weight within
+  whichever `HAIR_STYLE_LEAN` category it's tagged into: it's plain
+  'n'-tagged, same as several real hairstyles (curly, dreads, fro, etc), so
+  it was landing on ~1 in 7 patients — reads as costume variety rather than
+  a real hairstyle, unlike hijab/turban which represent real day-to-day
+  headwear for a portion of the population and are deliberately left at
+  normal weight. Verified: ~5.6% casual headwear / ~6.4% hijab+turban /
+  ~88% real hair across 500 real-shaped seeds, down from casual headwear's
+  previous ~14.7%.
+
   Clothing colour — the patient's own, not a uniform — is picked the same
   way: `CLOTHES_COLOURS`, unweighted (no gender/age lean; a pool this broad
   doesn't need one). Rendered as a flat-colour fill only, no separate
@@ -186,6 +197,16 @@ dynamic. Two layers on top of that shared data:
   starts right at the shoulder line) but guarantees clothing can't read as
   touching the face again, regardless of age band or head-bulge amount.
 
+  `#av-chest-clip`'s rect height is 81 (covering y199 to y280), not 61
+  (which would stop at y260, the viewBox's own bottom edge) — the
+  `headBodyPaths` `d` actually reaches y280, past what's visible at
+  `AGE_SCALE=1`. For a shrunk-down pediatric figure, `av-scale-group`'s
+  scale pulls that y260-280 sliver up into the visible frame, so a clip
+  that only covered the viewBox's edge left a bare skin gap right at the
+  bottom of the frame below the shirt for every band except adult, while
+  invisibly doing nothing wrong at adult scale (hence not caught until a
+  younger band was actually checked against it).
+
 `patient_meta.age` (verbatim `patient.age` from generator.html — a plain
 number of years, a "N months" string, or the literal string "newborn";
 older scenarios predate the field and fall through to 'adult', not a guess)
@@ -206,13 +227,18 @@ rendered as a literal middle-aged adult:
   entirely (`avatarBuild.hairStyle = null`, `#av-top` left empty) — real
   babies are frequently bald or near-bald and nothing in the pool reads as
   "infant hair," the shortest options are still styled cuts.
-- **`EYE_SCALE`/`FACE_LOWER_OFFSET`**: the classic cartoon "younger = bigger
-  eyes, face sits lower/rounder" cues, layered on top of `AGE_SCALE` since
-  eyes/eyebrows/mouth are already independent groups that can move/scale on
-  their own — `#av-eyes` scales around its own on-screen centre (56,22) so
-  both eyes grow symmetrically rather than spreading apart, while
-  eyes/eyebrows/mouth all shift down as a unit, hair/head outline
-  untouched.
+- **`EYE_SCALE_X`/`EYE_SCALE_Y`/`FACE_LOWER_OFFSET`**: the classic cartoon
+  "younger = bigger eyes, face sits lower/rounder" cues, layered on top of
+  `AGE_SCALE` since eyes/eyebrows/mouth are already independent groups that
+  can move/scale on their own — `#av-eyes` scales around its own on-screen
+  centre (56,22), while eyes/eyebrows/mouth all shift down as a unit,
+  hair/head outline untouched. X and Y scale separately rather than one
+  shared factor: scaling around the two-eye centre moves each eye away from
+  it by the same factor it grows them, so an earlier single `EYE_SCALE` of
+  1.45 for infants also pushed the two eyes 45% further apart — read as
+  wall-eyed/alien rather than "big eyed". Y still does most of the work
+  (infant 1.6) for the bigger/rounder look; X stays close to 1 (infant 1.1)
+  so eyes grow without spreading far apart.
 - **`HEAD_BULGE`**: makes the head outline itself read as proportionally
   bigger for younger bands (infant 1.2 down to adult 1), which `EYE_SCALE`/
   `FACE_LOWER_OFFSET` alone don't touch — the head/body outline is one

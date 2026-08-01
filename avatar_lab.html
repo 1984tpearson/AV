@@ -33,7 +33,7 @@ button.secondary:hover { background: #475569; }
 <div id="preview">
   <svg id="av-svg" viewBox="0 0 280 260" xmlns="http://www.w3.org/2000/svg">
     <defs>
-      <clipPath id="av-chest-clip"><rect x="0" y="199" width="280" height="61"/></clipPath>
+      <clipPath id="av-chest-clip"><rect x="0" y="199" width="280" height="81"/></clipPath>
     </defs>
     <g id="av-scale-group">
       <g id="av-chest-group" transform="translate(8)">
@@ -167,6 +167,7 @@ const HAIR_STYLE_LEAN = {
   theCaesarAndSidePart: 'm', bigHair: 'f'
 };
 const HEADWEAR = new Set(['hat', 'hijab', 'turban', 'winterHat1', 'winterHat02', 'winterHat03', 'winterHat04']);
+const CASUAL_HEADWEAR = new Set(['hat', 'winterHat1', 'winterHat02', 'winterHat03', 'winterHat04']);
 function parseAgeYears(age) {
   if (age == null) return null;
   if (typeof age === 'string') {
@@ -193,7 +194,8 @@ function greyWeight(age) {
   return Math.max(0, Math.min(1, (years - 40) / 35));
 }
 const AGE_SCALE = { infant: 0.78, toddler: 0.85, child: 0.9, teen: 0.95, adult: 1 };
-const EYE_SCALE = { infant: 1.45, toddler: 1.3, child: 1.15, teen: 1.05, adult: 1 };
+const EYE_SCALE_X = { infant: 1.1, toddler: 1.08, child: 1.05, teen: 1.02, adult: 1 };
+const EYE_SCALE_Y = { infant: 1.6, toddler: 1.4, child: 1.2, teen: 1.08, adult: 1 };
 const FACE_LOWER_OFFSET = { infant: 12, toddler: 9, child: 5, teen: 2, adult: 0 };
 const HEAD_BULGE = { infant: 1.2, toddler: 1.1, child: 1.05, teen: 1.02, adult: 1 };
 const ADULT_ONLY_HAIR = new Set(['theCaesar', 'theCaesarAndSidePart', 'shavedSides', 'sides']);
@@ -223,7 +225,10 @@ function buildAvatarBase(seed, skinHex, gender, age) {
   const browKeys = Object.keys(AvatarAssets.eyebrows);
   const g = (gender || '').toLowerCase();
   const leanWeights = g === 'male' ? { m: 3, n: 1.5, f: 0.5 } : g === 'female' ? { f: 3, n: 1.5, m: 0.5 } : { m: 1, n: 1, f: 1 };
-  avatarBuild.hairStyle = avatarBuild.ageBand === 'infant' ? null : weightedPick(hairKeys, k => leanWeights[HAIR_STYLE_LEAN[k] || 'n'], hashStr(s));
+  avatarBuild.hairStyle = avatarBuild.ageBand === 'infant' ? null : weightedPick(hairKeys, k => {
+    const base = leanWeights[HAIR_STYLE_LEAN[k] || 'n'];
+    return CASUAL_HEADWEAR.has(k) ? base * 0.3 : base;
+  }, hashStr(s));
   const gw = HEADWEAR.has(avatarBuild.hairStyle) ? 0 : greyWeight(age);
   avatarBuild.hairColour = weightedPick(HAIR_COLOURS, c => GREY_HAIR_COLOURS.has(c) ? (0.15 + gw * 10) : 1, hashStr(s + '|hair'));
   avatarBuild.eyebrowStyle = browKeys[hashStr(s + '|brow') % browKeys.length];
@@ -236,10 +241,11 @@ function applyAgeScale() {
   const s = AGE_SCALE[band] || 1;
   document.getElementById('av-scale-group').setAttribute('transform', `translate(140,36) scale(${s}) translate(-140,-36)`);
   const dy = FACE_LOWER_OFFSET[band] || 0;
-  const eyeScale = EYE_SCALE[band] || 1;
+  const eyeScaleX = EYE_SCALE_X[band] || 1;
+  const eyeScaleY = EYE_SCALE_Y[band] || 1;
   document.getElementById('av-eyebrows').setAttribute('transform', `translate(76 ${82 + dy})`);
   document.getElementById('av-mouth').setAttribute('transform', `translate(78 ${134 + dy})`);
-  document.getElementById('av-eyes').setAttribute('transform', `translate(76 ${90 + dy}) translate(56,22) scale(${eyeScale}) translate(-56,-22)`);
+  document.getElementById('av-eyes').setAttribute('transform', `translate(76 ${90 + dy}) translate(56,22) scale(${eyeScaleX},${eyeScaleY}) translate(-56,-22)`);
   const bulgeR = 56 * (HEAD_BULGE[band] || 1);
   const bulge = document.getElementById('av-head-bulge');
   bulge.setAttribute('rx', bulgeR.toFixed(1));
