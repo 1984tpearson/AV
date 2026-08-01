@@ -8,7 +8,7 @@
 * { box-sizing: border-box; }
 body { margin: 0; font-family: 'Courier New', monospace; background: #1b2634; color: #e2e8f0; display: flex; flex-wrap: wrap; min-height: 100vh; }
 #preview { flex: 1; min-width: 320px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 20px; background: #0f1622; }
-#av-svg { width: 320px; height: 352px; background: #223047; border-radius: 12px; }
+#av-svg { width: 320px; height: 251px; background: #223047; border-radius: 12px; }
 #preview-note { font-size: 11px; color: #8aa; text-align: center; max-width: 320px; }
 #controls { flex: 1; min-width: 340px; padding: 16px 20px; overflow-y: auto; max-height: 100vh; }
 h1 { font-size: 14px; text-transform: uppercase; letter-spacing: 1px; color: #7dd3fc; margin: 0 0 4px; }
@@ -31,40 +31,29 @@ button.secondary:hover { background: #475569; }
 </head>
 <body>
 <div id="preview">
-  <svg id="av-svg" viewBox="0 0 200 220" xmlns="http://www.w3.org/2000/svg">
-    <defs>
-      <clipPath id="av-hair-clip"><rect id="av-hair-clip-rect" x="0" y="0" width="200" height="62"/></clipPath>
-    </defs>
-    <g id="av-face-group">
-      <ellipse id="av-neck" cx="100" cy="196" rx="24" ry="26" fill="#E0AC81"/>
-      <ellipse id="av-head" cx="100" cy="102" rx="62" ry="72" fill="#E0AC81"/>
-      <path id="av-hair-side-l" d="M34 96 Q28 140 36 176 L50 176 Q44 140 47 96 Z" fill="#3b2b20" style="display:none;"/>
-      <path id="av-hair-side-r" d="M166 96 Q172 140 164 176 L150 176 Q156 140 153 96 Z" fill="#3b2b20" style="display:none;"/>
-      <ellipse id="av-hair-cap" cx="100" cy="94" rx="64" ry="74" fill="#3b2b20" clip-path="url(#av-hair-clip)"/>
-      <path id="av-brow-l" d="M60 76 Q75 66 92 76" stroke="#3b2b20" stroke-width="4" fill="none" stroke-linecap="round"/>
-      <path id="av-brow-r" d="M108 76 Q125 66 140 76" stroke="#3b2b20" stroke-width="4" fill="none" stroke-linecap="round"/>
-      <ellipse id="av-eye-l-white" cx="76" cy="98" rx="11" ry="11" fill="#fff"/>
-      <circle id="av-eye-l-pupil" cx="76" cy="98" r="5.5" fill="#2b2118"/>
-      <ellipse id="av-eye-r-white" cx="124" cy="98" rx="11" ry="11" fill="#fff"/>
-      <circle id="av-eye-r-pupil" cx="124" cy="98" r="5.5" fill="#2b2118"/>
-      <path d="M100 100 L95 124 Q100 128 105 124 Z" fill="none" stroke="#00000030" stroke-width="2"/>
-      <path id="av-mouth" d="M78 148 Q100 152 122 148" stroke="#7a3b3b" stroke-width="4" fill="none" stroke-linecap="round"/>
+  <svg id="av-svg" viewBox="0 0 280 220" xmlns="http://www.w3.org/2000/svg">
+    <g id="av-face-group" transform="translate(8)">
+      <path id="av-head-path" d="M132 36a56 56 0 0 0-56 56v6.17A12 12 0 0 0 66 110v14a12 12 0 0 0 10.3 11.88 56.04 56.04 0 0 0 31.7 44.73v18.4h-4a72 72 0 0 0-72 72v9h200v-9a72 72 0 0 0-72-72h-4v-18.39a56.04 56.04 0 0 0 31.7-44.73A12 12 0 0 0 198 124v-14a12 12 0 0 0-10-11.83V92a56 56 0 0 0-56-56Z" fill="#E0AC81"/>
+      <path d="M108 180.61v8a55.79 55.79 0 0 0 24 5.39c8.59 0 16.73-1.93 24-5.39v-8a55.79 55.79 0 0 1-24 5.39 55.79 55.79 0 0 1-24-5.39Z" fill="#000" fill-opacity=".1"/>
+      <g id="av-mouth" transform="translate(78 134)"></g>
+      <g id="av-eyes" transform="translate(76 90)"></g>
+      <g id="av-eyebrows" transform="translate(76 82)"></g>
+      <g id="av-top" transform="translate(-1)"></g>
       <g id="av-sweat" style="display:none;">
-        <path d="M52 66 q7 10 0 17 q-7 -2 -7 -9 q0 -6 7 -8z" fill="#7ec8e3"/>
-        <path d="M144 62 q7 10 0 17 q-7 -2 -7 -9 q0 -6 7 -8z" fill="#7ec8e3"/>
+        <path d="M62 60 q7 10 0 17 q-7 -2 -7 -9 q0 -6 7 -8z" fill="#7ec8e3"/>
+        <path d="M206 56 q7 10 0 17 q-7 -2 -7 -9 q0 -6 7 -8z" fill="#7ec8e3"/>
       </g>
     </g>
   </svg>
   <div id="preview-note">
-    viewBox is 200&times;220. Head ellipse: cx100 cy102 rx62 ry72. Eyes: cx76/124 cy98.
-    Mouth centre: ~100,150. Hair region: above y&asymp;90 (cap) / sides down to y176 (long).
-    Draw replacement art at this scale and these landmarks so it drops into
-    sim_patient.html's existing element IDs without retuning the JS.
+    Artwork from avatar_assets.js (DiceBear Avataaars, see its file header for
+    licensing). viewBox 280&times;220. Component offsets: hair(-1,0),
+    eyebrows(76,82), eyes(76,90), mouth(78,134) — see CLAUDE.md.
   </div>
 </div>
 <div id="controls">
   <h1>Patient Avatar Lab</h1>
-  <div style="font-size:11px;color:#94a3b8;">Live playground for sim_patient.html's avatar — same SVG, same rendering functions, driven by sliders instead of a real session. Tweak vitals/build to see every state without spinning up a scenario.</div>
+  <div style="font-size:11px;color:#94a3b8;">Live playground for sim_patient.html's avatar — same artwork, same rendering functions, driven by sliders instead of a real session.</div>
 
   <h2>Presets</h2>
   <div id="presets">
@@ -92,15 +81,21 @@ button.secondary:hover { background: #475569; }
   <h2>Build (fixed per scenario)</h2>
   <div class="row"><label>Skin tone</label></div>
   <div class="swatches" id="skin-swatches"></div>
-  <div class="row"><label>Gender</label>
-    <select id="sel-gender" onchange="onBuildChange()">
-      <option value="">unset (hash-random)</option>
-      <option value="male">Male</option>
-      <option value="female">Female</option>
-      <option value="non-binary">Non-binary</option>
-    </select>
+  <div class="row"><label>Hair style</label>
+    <select id="sel-hair" onchange="onBuildChange()"></select>
   </div>
-  <div class="row"><label>Seed</label><input type="text" id="txt-seed" value="lab-seed-1" oninput="onBuildChange()"></div>
+  <div class="row"><label>Hair colour</label>
+    <select id="sel-haircolor" onchange="onBuildChange()"></select>
+  </div>
+  <div class="row"><label>Eyebrows</label>
+    <select id="sel-brow" onchange="onBuildChange()"></select>
+  </div>
+  <div class="row"><label>Seed</label><input type="text" id="txt-seed" value="lab-seed-1" oninput="onBuildChange()"> <button class="secondary" onclick="randomSeed()">Random</button></div>
+
+  <h2>Browse raw variants (overrides live state)</h2>
+  <div class="row"><label>Eyes</label><select id="sel-eyes-browse" onchange="browseEyes()"></select></div>
+  <div class="row"><label>Mouth</label><select id="sel-mouth-browse" onchange="browseMouth()"></select></div>
+  <button class="secondary" onclick="onSlider()">Back to vitals-driven state</button>
 
   <h2>Animation</h2>
   <button onclick="doBlink()">Blink now</button>
@@ -112,11 +107,12 @@ button.secondary:hover { background: #475569; }
 </div>
 
 <script src="https://1984tpearson.github.io/AV/sim_engine.js"></script>
+<script src="https://1984tpearson.github.io/AV/avatar_assets.js"></script>
 <script>
 // --- Verbatim copies of sim_patient.html's avatar functions, restyled to
 // take slider input instead of live session vitals — see CLAUDE.md's
 // "Patient avatar" section. Keep this in sync if the real thing changes.
-let avatarBuild = { skin: '#E0AC81', hairColour: '#3b2b20', hairStyle: 'medium', gender: null };
+let avatarBuild = { skin: '#E0AC81', hairColour: '#3b2b20', hairStyle: 'shortFlat', eyebrowStyle: 'defaultNatural' };
 const HAIR_COLOURS = ['#1b1410', '#3b2b20', '#5a3b23', '#8a5a2b', '#c9a227', '#8c8c8c', '#7a2e1d'];
 const SKIN_TONE_SWATCHES = ['#F5D5C5', '#EFC3A3', '#E0AC81', '#C68863', '#A96C4A', '#8D5A3B', '#6B4530', '#4A2F20'];
 
@@ -125,23 +121,20 @@ function hashStr(s) {
   for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0;
   return Math.abs(h);
 }
-function buildAvatarBase(seed, gender, skinHex) {
+function buildAvatarBase(seed, skinHex) {
   avatarBuild.skin = skinHex || avatarBuild.skin;
-  avatarBuild.gender = gender || null;
-  const h = hashStr(String(seed || 'default'));
-  avatarBuild.hairColour = HAIR_COLOURS[h % HAIR_COLOURS.length];
-  const g = (avatarBuild.gender || '').toLowerCase();
-  avatarBuild.hairStyle = g === 'male' ? 'short' : g === 'female' ? 'long' : (h % 2 === 0 ? 'medium' : 'short');
+  const s = String(seed || 'default');
+  const hairKeys = Object.keys(AvatarAssets.top);
+  const browKeys = Object.keys(AvatarAssets.eyebrows);
+  avatarBuild.hairStyle = hairKeys[hashStr(s) % hairKeys.length];
+  avatarBuild.hairColour = HAIR_COLOURS[hashStr(s + '|hair') % HAIR_COLOURS.length];
+  avatarBuild.eyebrowStyle = browKeys[hashStr(s + '|brow') % browKeys.length];
   renderAvatarBuild();
+  syncBuildSelectsToState();
 }
 function renderAvatarBuild() {
-  document.getElementById('av-hair-cap').setAttribute('fill', avatarBuild.hairColour);
-  document.getElementById('av-hair-side-l').setAttribute('fill', avatarBuild.hairColour);
-  document.getElementById('av-hair-side-r').setAttribute('fill', avatarBuild.hairColour);
-  const showSides = avatarBuild.hairStyle === 'long';
-  document.getElementById('av-hair-side-l').style.display = showSides ? '' : 'none';
-  document.getElementById('av-hair-side-r').style.display = showSides ? '' : 'none';
-  document.getElementById('av-hair-clip-rect').setAttribute('height', avatarBuild.hairStyle === 'short' ? 62 : 80);
+  document.getElementById('av-top').innerHTML = AvatarAssets.top[avatarBuild.hairStyle].replace(/__HAIRCOLOR__/g, avatarBuild.hairColour);
+  document.getElementById('av-eyebrows').innerHTML = AvatarAssets.eyebrows[avatarBuild.eyebrowStyle];
   applySkinTint('normal');
 }
 function hexToRgb(hex) {
@@ -157,16 +150,11 @@ const SKIN_TINTS = { cyanotic: { hex: '#4f6f92', t: 0.55 }, mottled: { hex: '#8a
 function applySkinTint(state) {
   const tint = SKIN_TINTS[state];
   const fill = tint ? blendHex(avatarBuild.skin, tint.hex, tint.t) : avatarBuild.skin;
-  document.getElementById('av-head').setAttribute('fill', fill);
-  document.getElementById('av-neck').setAttribute('fill', fill);
+  document.getElementById('av-head-path').setAttribute('fill', fill);
 }
 function setEyeOpenness(level) {
-  const ry = level === 'open' ? 11 : level === 'droopy' ? 4.5 : 0.8;
-  const pupilOpacity = level === 'closed' ? 0 : level === 'droopy' ? 0.5 : 1;
-  document.getElementById('av-eye-l-white').setAttribute('ry', ry);
-  document.getElementById('av-eye-r-white').setAttribute('ry', ry);
-  document.getElementById('av-eye-l-pupil').style.opacity = pupilOpacity;
-  document.getElementById('av-eye-r-pupil').style.opacity = pupilOpacity;
+  const variant = level === 'open' ? 'default' : level === 'droopy' ? 'squint' : 'closed';
+  document.getElementById('av-eyes').innerHTML = AvatarAssets.eyes[variant];
 }
 let _restingEyeLevel = 'open';
 let _blinkTimer = null;
@@ -190,9 +178,9 @@ function breathingLoop(tsMs) {
     if (_lastRR > 0) {
       const periodMs = 60000 / _lastRR;
       const y = Math.sin((tsMs / periodMs) * 2 * Math.PI) * 1.6;
-      group.setAttribute('transform', `translate(0, ${y.toFixed(2)})`);
+      group.setAttribute('transform', `translate(8, ${y.toFixed(2)})`);
     } else {
-      group.setAttribute('transform', 'translate(0, 0)');
+      group.setAttribute('transform', 'translate(8, 0)');
     }
   }
   requestAnimationFrame(breathingLoop);
@@ -202,21 +190,10 @@ requestAnimationFrame(breathingLoop);
 function setSweat(visible) {
   document.getElementById('av-sweat').style.display = visible ? '' : 'none';
 }
-const MOUTH_STATES = {
-  neutral:    { d: 'M78 148 Q100 152 122 148', fill: 'none', stroke: '#7a3b3b', sw: 4 },
-  mild:       { d: 'M80 150 Q100 147 120 150', fill: 'none', stroke: '#7a3b3b', sw: 4 },
-  grimace:    { d: 'M76 149 L85 153 L93 147 L100 153 L107 147 L115 153 L124 149', fill: 'none', stroke: '#7a3b3b', sw: 3 },
-  distress:   { d: 'M82 143 Q100 141 118 143 Q121 157 100 159 Q79 157 82 143 Z', fill: '#5a2020', stroke: 'none', sw: 0 },
-  slack:      { d: 'M79 145 Q100 142 121 145 Q124 161 100 164 Q76 161 79 145 Z', fill: '#4a2222', stroke: 'none', sw: 0 },
-  talkOpen:   { d: 'M84 145 Q100 143 116 145 Q118 155 100 157 Q82 155 84 145 Z', fill: '#5a2020', stroke: 'none', sw: 0 }
-};
+const MOUTH_VARIANT = { neutral: 'default', mild: 'serious', distress: 'concerned', grimace: 'grimace', slack: 'sad', talkOpen: 'screamOpen' };
 function setMouth(stateKey) {
-  const st = MOUTH_STATES[stateKey] || MOUTH_STATES.neutral;
-  const el = document.getElementById('av-mouth');
-  el.setAttribute('d', st.d);
-  el.setAttribute('fill', st.fill);
-  el.setAttribute('stroke', st.stroke);
-  el.setAttribute('stroke-width', st.sw);
+  const variant = MOUTH_VARIANT[stateKey] || MOUTH_VARIANT.neutral;
+  document.getElementById('av-mouth').innerHTML = AvatarAssets.mouth[variant];
 }
 let _restingMouthState = 'neutral';
 let _isSpeaking = false;
@@ -287,9 +264,20 @@ function applyPreset(name) {
   setSliders(presets[name]);
 }
 function onBuildChange() {
-  const gender = document.getElementById('sel-gender').value || null;
   const seed = document.getElementById('txt-seed').value;
-  buildAvatarBase(seed, gender, avatarBuild.skin);
+  avatarBuild.hairStyle = document.getElementById('sel-hair').value;
+  avatarBuild.hairColour = document.getElementById('sel-haircolor').value;
+  avatarBuild.eyebrowStyle = document.getElementById('sel-brow').value;
+  renderAvatarBuild();
+}
+function randomSeed() {
+  document.getElementById('txt-seed').value = 'seed-' + Math.random().toString(36).slice(2, 8);
+  buildAvatarBase(document.getElementById('txt-seed').value, avatarBuild.skin);
+}
+function syncBuildSelectsToState() {
+  document.getElementById('sel-hair').value = avatarBuild.hairStyle;
+  document.getElementById('sel-haircolor').value = avatarBuild.hairColour;
+  document.getElementById('sel-brow').value = avatarBuild.eyebrowStyle;
   refreshSkinSwatchActive();
 }
 function refreshSkinSwatchActive() {
@@ -302,14 +290,33 @@ function initSwatches() {
     el.className = 'swatch';
     el.style.background = hex;
     el.dataset.hex = hex;
-    el.onclick = () => {
-      const gender = document.getElementById('sel-gender').value || null;
-      const seed = document.getElementById('txt-seed').value;
-      buildAvatarBase(seed, gender, hex);
-      refreshSkinSwatchActive();
-    };
+    el.onclick = () => { avatarBuild.skin = hex; renderAvatarBuild(); refreshSkinSwatchActive(); };
     wrap.appendChild(el);
   });
+}
+function initSelects() {
+  const hairSel = document.getElementById('sel-hair');
+  Object.keys(AvatarAssets.top).forEach(k => hairSel.appendChild(new Option(k, k)));
+  const colorSel = document.getElementById('sel-haircolor');
+  HAIR_COLOURS.forEach(hex => colorSel.appendChild(new Option(hex, hex)));
+  const browSel = document.getElementById('sel-brow');
+  Object.keys(AvatarAssets.eyebrows).forEach(k => browSel.appendChild(new Option(k, k)));
+  const eyesSel = document.getElementById('sel-eyes-browse');
+  eyesSel.appendChild(new Option('(vitals-driven)', ''));
+  Object.keys(AvatarAssets.eyes).forEach(k => eyesSel.appendChild(new Option(k, k)));
+  const mouthSel = document.getElementById('sel-mouth-browse');
+  mouthSel.appendChild(new Option('(vitals-driven)', ''));
+  Object.keys(AvatarAssets.mouth).forEach(k => mouthSel.appendChild(new Option(k, k)));
+}
+function browseEyes() {
+  const key = document.getElementById('sel-eyes-browse').value;
+  if (key) document.getElementById('av-eyes').innerHTML = AvatarAssets.eyes[key];
+  else onSlider();
+}
+function browseMouth() {
+  const key = document.getElementById('sel-mouth-browse').value;
+  if (key) document.getElementById('av-mouth').innerHTML = AvatarAssets.mouth[key];
+  else onSlider();
 }
 function refreshSource() {
   document.getElementById('svg-source').value = document.getElementById('av-svg').outerHTML
@@ -317,8 +324,8 @@ function refreshSource() {
 }
 
 initSwatches();
-buildAvatarBase('lab-seed-1', null, SKIN_TONE_SWATCHES[2]);
-refreshSkinSwatchActive();
+initSelects();
+buildAvatarBase('lab-seed-1', SKIN_TONE_SWATCHES[2]);
 onSlider();
 refreshSource();
 </script>

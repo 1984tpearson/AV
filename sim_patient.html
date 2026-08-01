@@ -77,7 +77,7 @@ body { display: flex; flex-direction: column; }
 /* Floating head + mic badge — mic sits just above/right of the gif, flat
    red icon, invisible unless actively listening (toggled via .listening,
    same mechanism as before — just relocated and restyled). */
-#head-wrap { position: relative; display: inline-block; line-height: 0; }
+#head-wrap { position: relative; display: inline-block; line-height: 0; min-width: 50px; min-height: 50px; overflow: hidden; }
 #voice-mic-indicator { display: none; position: absolute; top: -8px; right: -8px; width: 22px; height: 22px; align-items: center; justify-content: center; background: #fff; border-radius: 50%; box-shadow: 0 1px 4px rgba(0,0,0,0.3); }
 #voice-mic-indicator svg { width: 13px; height: 13px; fill: #dc2626; }
 #voice-mic-indicator.listening { display: flex; animation: micBlink 1s steps(1) infinite; }
@@ -178,27 +178,17 @@ body { display: flex; flex-direction: column; }
   <div id="info-col">
     <div class="panel" id="patient-graphic" style="flex-direction:column;gap:8px;">
     <div id="head-wrap">
-      <svg id="av-svg" viewBox="0 0 200 220" width="160" height="176" style="max-width:100%;max-height:100%;object-fit:contain;display:block;" xmlns="http://www.w3.org/2000/svg">
-        <defs>
-          <clipPath id="av-hair-clip"><rect id="av-hair-clip-rect" x="0" y="0" width="200" height="62"/></clipPath>
-        </defs>
-        <g id="av-face-group">
-          <ellipse id="av-neck" cx="100" cy="196" rx="24" ry="26" fill="#E0AC81"/>
-          <ellipse id="av-head" cx="100" cy="102" rx="62" ry="72" fill="#E0AC81"/>
-          <path id="av-hair-side-l" d="M34 96 Q28 140 36 176 L50 176 Q44 140 47 96 Z" fill="#3b2b20" style="display:none;"/>
-          <path id="av-hair-side-r" d="M166 96 Q172 140 164 176 L150 176 Q156 140 153 96 Z" fill="#3b2b20" style="display:none;"/>
-          <ellipse id="av-hair-cap" cx="100" cy="94" rx="64" ry="74" fill="#3b2b20" clip-path="url(#av-hair-clip)"/>
-          <path id="av-brow-l" d="M60 76 Q75 66 92 76" stroke="#3b2b20" stroke-width="4" fill="none" stroke-linecap="round"/>
-          <path id="av-brow-r" d="M108 76 Q125 66 140 76" stroke="#3b2b20" stroke-width="4" fill="none" stroke-linecap="round"/>
-          <ellipse id="av-eye-l-white" cx="76" cy="98" rx="11" ry="11" fill="#fff"/>
-          <circle id="av-eye-l-pupil" cx="76" cy="98" r="5.5" fill="#2b2118"/>
-          <ellipse id="av-eye-r-white" cx="124" cy="98" rx="11" ry="11" fill="#fff"/>
-          <circle id="av-eye-r-pupil" cx="124" cy="98" r="5.5" fill="#2b2118"/>
-          <path d="M100 100 L95 124 Q100 128 105 124 Z" fill="none" stroke="#00000030" stroke-width="2"/>
-          <path id="av-mouth" d="M78 148 Q100 152 122 148" stroke="#7a3b3b" stroke-width="4" fill="none" stroke-linecap="round"/>
+      <svg id="av-svg" viewBox="0 0 280 220" width="280" height="220" style="max-width:100%;max-height:100%;object-fit:contain;display:block;" xmlns="http://www.w3.org/2000/svg">
+        <g id="av-face-group" transform="translate(8)">
+          <path id="av-head-path" d="M132 36a56 56 0 0 0-56 56v6.17A12 12 0 0 0 66 110v14a12 12 0 0 0 10.3 11.88 56.04 56.04 0 0 0 31.7 44.73v18.4h-4a72 72 0 0 0-72 72v9h200v-9a72 72 0 0 0-72-72h-4v-18.39a56.04 56.04 0 0 0 31.7-44.73A12 12 0 0 0 198 124v-14a12 12 0 0 0-10-11.83V92a56 56 0 0 0-56-56Z" fill="#E0AC81"/>
+          <path d="M108 180.61v8a55.79 55.79 0 0 0 24 5.39c8.59 0 16.73-1.93 24-5.39v-8a55.79 55.79 0 0 1-24 5.39 55.79 55.79 0 0 1-24-5.39Z" fill="#000" fill-opacity=".1"/>
+          <g id="av-mouth" transform="translate(78 134)"></g>
+          <g id="av-eyes" transform="translate(76 90)"></g>
+          <g id="av-eyebrows" transform="translate(76 82)"></g>
+          <g id="av-top" transform="translate(-1)"></g>
           <g id="av-sweat" style="display:none;">
-            <path d="M52 66 q7 10 0 17 q-7 -2 -7 -9 q0 -6 7 -8z" fill="#7ec8e3"/>
-            <path d="M144 62 q7 10 0 17 q-7 -2 -7 -9 q0 -6 7 -8z" fill="#7ec8e3"/>
+            <path d="M62 60 q7 10 0 17 q-7 -2 -7 -9 q0 -6 7 -8z" fill="#7ec8e3"/>
+            <path d="M206 56 q7 10 0 17 q-7 -2 -7 -9 q0 -6 7 -8z" fill="#7ec8e3"/>
           </g>
         </g>
       </svg>
@@ -216,6 +206,7 @@ body { display: flex; flex-direction: column; }
 
 <script src="https://1984tpearson.github.io/AV/ecg_engine.js"></script>
 <script src="https://1984tpearson.github.io/AV/sim_engine.js"></script>
+<script src="https://1984tpearson.github.io/AV/avatar_assets.js"></script>
 <script>
 // --- Supabase session sync ------------------------------------------------
 const SUPABASE_URL = 'https://befsjenbaruxqrntuhpn.supabase.co';
@@ -250,12 +241,16 @@ function extendedVitalsNow() {
 }
 
 // --- Dynamic patient avatar -------------------------------------------------
-// Entirely local/deterministic — no AI, no image generation. A "build" (skin
-// tone, hair colour/style) is picked once per scenario and stays fixed for
-// the session; live "state" (eyes/mouth/skin tint/sweat) is re-derived every
-// tick from SimEngine.getAppearanceState(), the same severity bands
-// sim_control.html's assessor-facing Appearance tab uses — see sim_engine.js.
-let avatarBuild = { skin: '#E0AC81', hairColour: '#3b2b20', hairStyle: 'medium', gender: null };
+// Entirely local/deterministic — no AI, no image generation. Face/hair
+// artwork itself comes from avatar_assets.js (extracted from DiceBear's
+// Avataaars style — see the licensing note at the top of that file), which
+// is what supplies the actual variety: 34 hairstyles, 13 eyebrow shapes.
+// A "build" (skin tone, hair colour/style, eyebrow style) is picked once per
+// scenario and stays fixed for the session; live "state" (eyes/mouth/skin
+// tint/sweat) is re-derived every tick from SimEngine.getAppearanceState(),
+// the same severity bands sim_control.html's assessor-facing Appearance tab
+// uses — see sim_engine.js.
+let avatarBuild = { skin: '#E0AC81', hairColour: '#3b2b20', hairStyle: 'shortFlat', eyebrowStyle: 'defaultNatural' };
 const HAIR_COLOURS = ['#1b1410', '#3b2b20', '#5a3b23', '#8a5a2b', '#c9a227', '#8c8c8c', '#7a2e1d'];
 
 function hashStr(s) {
@@ -264,26 +259,24 @@ function hashStr(s) {
   return Math.abs(h);
 }
 
-// seed drives hair colour/style so it's stable for a given scenario across
-// reconnects, rather than re-rolling randomly on every page load.
-function buildAvatarBase(seed, gender, skinHex) {
+// seed drives hair style/colour and eyebrow style so they're stable for a
+// given scenario across reconnects, rather than re-rolling on every page
+// load. Each pick uses a differently-suffixed hash so they don't always
+// correlate (e.g. hair style and colour landing in lockstep).
+function buildAvatarBase(seed, skinHex) {
   avatarBuild.skin = skinHex || avatarBuild.skin;
-  avatarBuild.gender = gender || avatarBuild.gender;
-  const h = hashStr(String(seed || sessionCode || 'default'));
-  avatarBuild.hairColour = HAIR_COLOURS[h % HAIR_COLOURS.length];
-  const g = (avatarBuild.gender || '').toLowerCase();
-  avatarBuild.hairStyle = g === 'male' ? 'short' : g === 'female' ? 'long' : (h % 2 === 0 ? 'medium' : 'short');
+  const s = String(seed || sessionCode || 'default');
+  const hairKeys = Object.keys(AvatarAssets.top);
+  const browKeys = Object.keys(AvatarAssets.eyebrows);
+  avatarBuild.hairStyle = hairKeys[hashStr(s) % hairKeys.length];
+  avatarBuild.hairColour = HAIR_COLOURS[hashStr(s + '|hair') % HAIR_COLOURS.length];
+  avatarBuild.eyebrowStyle = browKeys[hashStr(s + '|brow') % browKeys.length];
   renderAvatarBuild();
 }
 
 function renderAvatarBuild() {
-  document.getElementById('av-hair-cap').setAttribute('fill', avatarBuild.hairColour);
-  document.getElementById('av-hair-side-l').setAttribute('fill', avatarBuild.hairColour);
-  document.getElementById('av-hair-side-r').setAttribute('fill', avatarBuild.hairColour);
-  const showSides = avatarBuild.hairStyle === 'long';
-  document.getElementById('av-hair-side-l').style.display = showSides ? '' : 'none';
-  document.getElementById('av-hair-side-r').style.display = showSides ? '' : 'none';
-  document.getElementById('av-hair-clip-rect').setAttribute('height', avatarBuild.hairStyle === 'short' ? 62 : 80);
+  document.getElementById('av-top').innerHTML = AvatarAssets.top[avatarBuild.hairStyle].replace(/__HAIRCOLOR__/g, avatarBuild.hairColour);
+  document.getElementById('av-eyebrows').innerHTML = AvatarAssets.eyebrows[avatarBuild.eyebrowStyle];
   applySkinTint('normal'); // base skin tone shown immediately, before the first live tick
 }
 
@@ -303,17 +296,15 @@ const SKIN_TINTS = { cyanotic: { hex: '#4f6f92', t: 0.55 }, mottled: { hex: '#8a
 function applySkinTint(state) {
   const tint = SKIN_TINTS[state];
   const fill = tint ? blendHex(avatarBuild.skin, tint.hex, tint.t) : avatarBuild.skin;
-  document.getElementById('av-head').setAttribute('fill', fill);
-  document.getElementById('av-neck').setAttribute('fill', fill);
+  document.getElementById('av-head-path').setAttribute('fill', fill);
 }
 
+// Eyes/mouth below are discrete pre-drawn variants (avatar_assets.js), swapped
+// wholesale via innerHTML rather than the old continuous-scale trick — a
+// cleaner fit for real artwork than trying to morph one shape into another.
 function setEyeOpenness(level) {
-  const ry = level === 'open' ? 11 : level === 'droopy' ? 4.5 : 0.8;
-  const pupilOpacity = level === 'closed' ? 0 : level === 'droopy' ? 0.5 : 1;
-  document.getElementById('av-eye-l-white').setAttribute('ry', ry);
-  document.getElementById('av-eye-r-white').setAttribute('ry', ry);
-  document.getElementById('av-eye-l-pupil').style.opacity = pupilOpacity;
-  document.getElementById('av-eye-r-pupil').style.opacity = pupilOpacity;
+  const variant = level === 'open' ? 'default' : level === 'droopy' ? 'squint' : 'closed';
+  document.getElementById('av-eyes').innerHTML = AvatarAssets.eyes[variant];
 }
 
 // Idle blink — independent of the 1s vitals tick, purely cosmetic. Only
@@ -363,24 +354,15 @@ function setSweat(visible) {
   document.getElementById('av-sweat').style.display = visible ? '' : 'none';
 }
 
-// talkOpen/talkClosed are the two frames the TTS-driven talking animation
-// alternates between (see startTalkAnimation()) — every other state is a
+// Maps this page's clinical mouth states onto Avataaars' named expressions
+// — 'grimace' is a literal match, the rest are the closest visual fit.
+// talkOpen is the "mouth open" frame the TTS-driven talking animation
+// alternates with (see startTalkAnimation()); every other state is a
 // resting expression driven by pain/distress/consciousness.
-const MOUTH_STATES = {
-  neutral:    { d: 'M78 148 Q100 152 122 148', fill: 'none', stroke: '#7a3b3b', sw: 4 },
-  mild:       { d: 'M80 150 Q100 147 120 150', fill: 'none', stroke: '#7a3b3b', sw: 4 },
-  grimace:    { d: 'M76 149 L85 153 L93 147 L100 153 L107 147 L115 153 L124 149', fill: 'none', stroke: '#7a3b3b', sw: 3 },
-  distress:   { d: 'M82 143 Q100 141 118 143 Q121 157 100 159 Q79 157 82 143 Z', fill: '#5a2020', stroke: 'none', sw: 0 },
-  slack:      { d: 'M79 145 Q100 142 121 145 Q124 161 100 164 Q76 161 79 145 Z', fill: '#4a2222', stroke: 'none', sw: 0 },
-  talkOpen:   { d: 'M84 145 Q100 143 116 145 Q118 155 100 157 Q82 155 84 145 Z', fill: '#5a2020', stroke: 'none', sw: 0 }
-};
+const MOUTH_VARIANT = { neutral: 'default', mild: 'serious', distress: 'concerned', grimace: 'grimace', slack: 'sad', talkOpen: 'screamOpen' };
 function setMouth(stateKey) {
-  const st = MOUTH_STATES[stateKey] || MOUTH_STATES.neutral;
-  const el = document.getElementById('av-mouth');
-  el.setAttribute('d', st.d);
-  el.setAttribute('fill', st.fill);
-  el.setAttribute('stroke', st.stroke);
-  el.setAttribute('stroke-width', st.sw);
+  const variant = MOUTH_VARIANT[stateKey] || MOUTH_VARIANT.neutral;
+  document.getElementById('av-mouth').innerHTML = AvatarAssets.mouth[variant];
 }
 
 // Live per-tick state — resting expression is computed regardless of whether
@@ -458,13 +440,15 @@ async function connectSession(code) {
     sessionCode = code;
     document.getElementById('session-gate').style.display = 'none';
     requestMicPermissionEarly();
-    buildAvatarBase(row.scenario_id, null, null); // sensible defaults up front; refined below once scenario meta arrives
+    buildAvatarBase(row.scenario_id, null); // sensible defaults up front; refined below once scenario meta arrives
     sbPatch(`sim_sessions?session_code=eq.${encodeURIComponent(code)}`, { patient_connected: true, updated_at: new Date().toISOString() })
       .catch(() => {}); // best-effort — control just falls back to showing the join panel if this fails
-    // Best-effort only — patient_meta.gender/skin_colour drive the avatar's
-    // build (see buildAvatarBase()); gender also biases TTS voice selection.
-    // Older scenarios predate patient_meta.gender, so fall back to the same
-    // title-sniffing heuristic used before this existed.
+    // Best-effort only — patient_meta.skin_colour drives the avatar's skin
+    // tone (see buildAvatarBase()); gender (still read here) only biases TTS
+    // voice selection now — hair/eyebrow variety comes from avatar_assets.js
+    // and no longer needs a gender signal. Older scenarios predate
+    // patient_meta.gender, so fall back to the same title-sniffing heuristic
+    // used before that field existed.
     if (row.scenario_id) {
       sbGet(`scenarios?id=eq.${encodeURIComponent(row.scenario_id)}&select=title,patient_meta`)
         .then(rows2 => {
@@ -477,7 +461,7 @@ async function connectSession(code) {
             else if (/\bmale\b/i.test(title)) gender = 'male';
           }
           if (gender === 'male' || gender === 'female') patientGender = gender;
-          buildAvatarBase(row.scenario_id, gender, meta.skin_colour);
+          buildAvatarBase(row.scenario_id, meta.skin_colour);
         })
         .catch(() => {});
     }

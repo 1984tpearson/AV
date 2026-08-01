@@ -123,30 +123,44 @@ starting entry itself — the badge already covers that).
 
 ### Patient avatar (`sim_patient.html` only)
 
-The `#head-wrap` placeholder is a hand-built inline SVG face, not an image —
-deliberately no AI/image generation involved. Two layers:
+The `#head-wrap` placeholder is a hand-built inline SVG face, not a photo —
+deliberately no AI/image generation involved. The artwork itself lives in
+`avatar_assets.js`, extracted once from DiceBear's "Avataaars" style (MIT
+core, art free for personal/commercial use — see that file's header for the
+full licensing note and extraction method) rather than calling DiceBear at
+runtime: this repo is otherwise all static files, and a live external
+avatar-service call is a new failure mode this training tool doesn't need.
+`window.AvatarAssets = { eyes, eyebrows, mouth, top, headBodyPaths }` — hair
+(`top`) keeps a `__HAIRCOLOR__` token, the head/body path a `__SKINCOLOR__`
+token, substituted at render time rather than baked in, so colour stays
+dynamic. Two layers on top of that shared data:
 
 - **Build** (fixed per scenario): skin tone from `scenario.patient_meta.skin_colour`
   (hex swatch, already stored by `generator.html` — see `pickRandomSkinTone()`),
-  hair colour/style picked deterministically from a hash of `scenario_id` so
-  it's stable across reconnects rather than re-rolling each page load. Gender
-  (`patient_meta.gender`, code-generated alongside name/ethnicity — see
-  `randomAustralianPatient()`) biases hair style short/long; falls back to the
-  pre-existing title-sniffing heuristic for scenarios generated before this
-  field existed. `buildAvatarBase()` in `sim_patient.html`.
-- **Live state** (re-derived every tick): eyes open/droopy/closed from GCS eye
-  score, skin tint blended toward cyanotic/mottled/pale, sweat droplets shown
-  for diaphoretic/clammy, and a resting mouth expression (neutral/mild/
-  distress/grimace/slack) from pain score, distress level, and consciousness.
-  Driven by `SimEngine.getAppearanceState(v)` — the same severity bands
-  (`hrSeverity`/`rrSeverity`/`spo2Severity`/`painSeverity`/`bpSysSeverity`)
-  `sim_control.html`'s assessor-facing Appearance tab computes independently,
-  kept in `sim_engine.js` as the one shared source rather than two threshold
-  tables drifting apart. `updateAvatarFace()`, called from `tick()` — always
-  as the LAST thing tick() does, wrapped in try/catch (see Gotchas): tick()
-  runs once synchronously before the setInterval(tick,...) that keeps the
-  page live even gets registered, so a throw anywhere earlier in the avatar
-  path would silently freeze vitals/override-sync too, not just the avatar.
+  hair style/colour and eyebrow style all picked deterministically from a hash
+  of `scenario_id` (each with a differently-suffixed hash so they don't land
+  in lockstep) so they're stable across reconnects rather than re-rolling
+  each page load. Deliberately NOT gender-biased — early versions picked from
+  only 2-3 hand-drawn hair shapes and used gender to pick between them, but
+  with 34 real hairstyles available there's no need, so hair selection now
+  ignores gender entirely and pulls from the full set for maximum
+  per-scenario variety. `buildAvatarBase()` in `sim_patient.html`.
+- **Live state** (re-derived every tick): eyes swapped between discrete
+  open/droopy/closed variants (`AvatarAssets.eyes.default/squint/closed`)
+  from GCS eye score, skin tint blended toward cyanotic/mottled/pale, sweat
+  droplets shown for diaphoretic/clammy, and a resting mouth expression
+  (neutral/mild/distress/grimace/slack, mapped onto Avataaars' named mouth
+  shapes — `grimace` for pain is a literal match) from pain score, distress
+  level, and consciousness. Driven by `SimEngine.getAppearanceState(v)` — the
+  same severity bands (`hrSeverity`/`rrSeverity`/`spo2Severity`/
+  `painSeverity`/`bpSysSeverity`) `sim_control.html`'s assessor-facing
+  Appearance tab computes independently, kept in `sim_engine.js` as the one
+  shared source rather than two threshold tables drifting apart.
+  `updateAvatarFace()`, called from `tick()` — always as the LAST thing
+  tick() does, wrapped in try/catch (see Gotchas): tick() runs once
+  synchronously before the setInterval(tick,...) that keeps the page live
+  even gets registered, so a throw anywhere earlier in the avatar path would
+  silently freeze vitals/override-sync too, not just the avatar.
 
 GCS eye-opening (E) maps to clinical exam findings, not a linear scale: E4
 open spontaneously, E1 (or overall GCS ≤8, "unresponsive") closed — but
@@ -171,12 +185,15 @@ while patient TTS is actually speaking (`utter.onstart`/`onend` in
 — so a distressed patient still looks distressed mid-sentence, not neutral.
 
 `avatar_lab.html` is a standalone playground (sliders for vitals/GCS, build
-controls, preset buttons, an SVG-source viewer) that runs the exact same
-avatar functions against slider input instead of a real session — for
-iterating on the artwork/thresholds without needing a live scenario. Kept
-manually in sync with `sim_patient.html`'s copy of these functions (not
-shared via a script include) since the two have different plumbing around
-them (real session state vs. slider state).
+controls including direct hair/eyebrow pickers, preset states, dropdowns to
+browse every raw eyes/mouth variant by name, an SVG-source viewer) that runs
+the exact same avatar functions against slider input instead of a real
+session — for iterating on the artwork/thresholds without needing a live
+scenario. It loads `avatar_assets.js` the same way `sim_patient.html` does
+(shared data, no duplication), but keeps its own copy of the render
+functions (`updateAvatarFace()` etc — not shared via a script include) since
+the two have different plumbing around them (real session state vs. slider
+state).
 
 ### Graph rendering
 
@@ -282,3 +299,24 @@ editing.
   exactly once against whatever final box the flex layout settles on. Any
   new image/SVG dropped into a flex column here should use that pattern,
   not an ad hoc percentage.
+- **A flex item's default `min-height`/`min-width` is `auto`, which resolves
+  to its own content size — not 0 — and silently wins over `max-height`/
+  `max-width` when they conflict.** Bit `#head-wrap` when the avatar's SVG
+  grew from a small hand-drawn placeholder to real artwork sized to its full
+  viewBox: `max-height:100%` looked like it should cap the element, but the
+  browser was still enforcing an implicit minimum equal to the SVG's
+  intrinsic height (from its `width`/`height` attributes) — so instead of
+  shrinking, `#head-wrap` refused to shrink and got pushed out of its
+  `overflow:hidden` container by `#patient-graphic`'s `justify-content:
+  center` (the *top* of the face — eyes, eyebrows — went missing, since
+  centering overflow clips symmetrically and head-wrap is the first child).
+  Setting `min-height:0` fixes the clip but can overcorrect the other way —
+  once nothing protects it, `#head-wrap` can lose ALL the flex-shrink
+  contest to sibling elements with their own intact auto-minimums (here,
+  `#voice-fab-strip` has `flex-shrink:0`, so all the pressure landed on
+  `#head-wrap` alone and it collapsed toward 0). The actual fix is a small
+  explicit floor — `min-height:50px; min-width:50px;` — small enough to let
+  real shrinking happen under space pressure, non-zero so the avatar can't
+  fully disappear. Any element sized from an SVG/image's own intrinsic
+  dimensions inside a shrinking flex container needs an explicit min-size;
+  never assume `max-*` alone is enough.
