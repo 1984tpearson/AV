@@ -143,6 +143,7 @@ body { display: flex; flex-direction: column; }
     <h2 style="margin-bottom:10px;">Join Scenario Session</h2>
     <input id="gate-code-input" type="text" inputmode="numeric" maxlength="6" placeholder="6-digit code" style="width:100%;font-size:18px;text-align:center;letter-spacing:4px;padding:8px;border:1px solid #d7dee6;border-radius:6px;font-family:'Courier New',monospace;margin-bottom:8px;">
     <button style="width:100%;padding:8px;font-size:13px;font-weight:700;color:#fff;background:#0369a1;border:none;border-radius:6px;cursor:pointer;" onclick="connectSession(document.getElementById('gate-code-input').value.trim())">Connect</button>
+    <button style="width:100%;padding:7px;font-size:11px;font-weight:700;color:#33475a;background:#e2e8f0;border:none;border-radius:6px;cursor:pointer;margin-top:6px;" onclick="joinMostRecentSession()">Join Most Recent Session</button>
     <div id="gate-error" style="color:#b91c1c;font-size:11px;margin-top:8px;"></div>
   </div>
 </div>
@@ -463,6 +464,21 @@ function stopTalkAnimation() {
 }
 
 // --- Session join flow -----------------------------------------------------
+// Convenience for repeated testing — skips typing the 6-digit code by just
+// grabbing whichever session sim_control.html most recently created.
+async function joinMostRecentSession() {
+  const errEl = document.getElementById('gate-error');
+  errEl.textContent = '';
+  try {
+    const rows = await sbGet('sim_sessions?select=session_code&order=created_at.desc&limit=1');
+    if (!rows.length) { errEl.textContent = 'No sessions found.'; return; }
+    document.getElementById('gate-code-input').value = rows[0].session_code;
+    connectSession(rows[0].session_code);
+  } catch (e) {
+    errEl.textContent = 'Could not reach the session list — check the connection and try again.';
+  }
+}
+
 async function connectSession(code) {
   const errEl = document.getElementById('gate-error');
   errEl.textContent = '';
