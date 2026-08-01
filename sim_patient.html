@@ -77,6 +77,8 @@ body { display: flex; flex-direction: column; }
 #defib-shock-btn { color: #ff5a36; cursor: pointer; }
 #defib-shock-btn:disabled { color: #5a2a1c; cursor: default; }
 #defib-shock-btn:active:not(:disabled) { background: rgba(255,90,54,0.2); }
+#defib-discharge-btn:not(:disabled) { color: #94a3b8; cursor: pointer; }
+#defib-discharge-btn:active:not(:disabled) { background: rgba(148,163,184,0.15); }
 
 #joule-tower { position: absolute; right: 0; top: 0; bottom: 40px; width: 15%; display: none; flex-direction: column; overflow-y: auto; background: #060910; border-left: 2px solid #1a2a3a; border-top: 2px solid #1a2a3a; z-index: 20; }
 .joule-row { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; font-family: 'Courier New', monospace; font-size: 13px; font-weight: 700; color: #c0d4e8; border-bottom: 1px solid #101c2c; cursor: pointer; -webkit-tap-highlight-color: rgba(255,255,255,0.15); }
@@ -199,7 +201,7 @@ body { display: flex; flex-direction: column; }
       <button class="defib-btn" disabled></button>
       <button class="defib-btn" disabled></button>
       <button class="defib-btn" disabled></button>
-      <button class="defib-btn" disabled></button>
+      <button class="defib-btn" id="defib-discharge-btn" onclick="handleDischargeBtn()" disabled></button>
       <button class="defib-btn" id="defib-charge-btn" onclick="handleChargeBtn()">Charge</button>
       <button class="defib-btn" id="defib-shock-btn" onclick="handleShockBtn()" disabled>Shock</button>
     </div>
@@ -1062,9 +1064,24 @@ function startCharging() {
 function updateDefibButtons() {
   const chargeBtn = document.getElementById('defib-charge-btn');
   const shockBtn = document.getElementById('defib-shock-btn');
+  const dischargeBtn = document.getElementById('defib-discharge-btn');
   chargeBtn.disabled = defibState === 'charging' || defibState === 'charged';
   chargeBtn.textContent = defibState === 'charging' ? 'Charging…' : defibState === 'charged' ? 'Charged' : 'Charge';
   shockBtn.disabled = defibState !== 'charged';
+  const charged = defibState === 'charged';
+  dischargeBtn.disabled = !charged;
+  dischargeBtn.textContent = charged ? 'Discharge' : '';
+}
+
+// Aborts an armed charge without shocking — no student_queue item is sent,
+// this is purely "stand down".
+function handleDischargeBtn() {
+  if (defibState !== 'charged') return;
+  clearInterval(_chargeTimer);
+  defibState = 'idle';
+  chargeFillCount = 0;
+  renderJouleTower();
+  updateDefibButtons();
 }
 
 async function handleShockBtn() {
