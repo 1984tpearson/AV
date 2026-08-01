@@ -1170,7 +1170,7 @@ const SCENARIO_JSON_TEMPLATE = `{"title":"","subtitle":"","category":"CAT","subc
 // kq[].cpgCode = the CPG code (e.g. "A0402") from the "--- CPG: title (code) ---" context blocks below,
 // identifying which specific guideline that question is testing. Must exactly match one shown in context.
 // baseline_cognitive_status and pregnancy_status are folded into scenario.patient_meta after generation —
-// see the post-processing block in generateAIScenario(). patient_name/ethnicity/skin_colour are NOT
+// see the post-processing block in generateAIScenario(). patient_name/gender/ethnicity/skin_colour are NOT
 // AI-generated at all — they're set from the code-generated `patient` object so the exact name fed
 // into the prompt is guaranteed to match what's stored, rather than hoping the AI echoes it back.
 
@@ -1423,13 +1423,16 @@ ${SCENARIO_JSON_TEMPLATE.replace('CAT', category).replace('SUB', subcategory)}`;
       const rawNausea = parseInt(scenario.vitals.NauseaScore);
       scenario.vitals.NauseaScore = Number.isFinite(rawNausea) ? Math.max(0, Math.min(10, rawNausea)) : 0;
     }
-    // Patient metadata — name/ethnicity/skin_colour come from the code-
+    // Patient metadata — name/gender/ethnicity/skin_colour come from the code-
     // generated `patient` object (never the AI), so the exact name fed into
     // the prompt is guaranteed to match what's stored. baseline_cognitive_status
     // and pregnancy_status ARE AI-authored (context-dependent) — pulled off the
     // top-level response and folded in here, then removed as top-level keys.
+    // gender/skin_colour/hair are what sim_patient.html's dynamic avatar
+    // builds its base look from — see CLAUDE.md.
     scenario.patient_meta = {
       name: patient.name,
+      gender: patient.gender,
       ethnicity: patient.ethnicity,
       skin_colour: pickRandomSkinTone(),
       baseline_cognitive_status: (scenario.baseline_cognitive_status || '').trim() || 'Normal baseline cognition',

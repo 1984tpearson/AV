@@ -222,6 +222,63 @@
     return current;
   }
 
-  global.SimEngine = { ACTION_DURATIONS, getActionDurationSec, getVitals, getVitalsRaw, getSimNow, getStaticVitalAt, getRhythmAt };
+  // ---- Live appearance state (derived from vitals, no AI) -----------------
+  // Same severity bands sim_control.html's assessor-facing Appearance tab
+  // uses, kept here as the one shared source so sim_patient.html's avatar
+  // reads identical thresholds instead of a second drifting copy. Only
+  // gates on consciousness where a working brain is actually required
+  // (eye-opening) — skin colour/moisture/work-of-breathing are physical
+  // findings and stay live regardless of GCS.
+  function hrSeverity(hr) {
+    if (hr <= 0) return 4;
+    if (hr < 40 || hr > 140) return 3;
+    if (hr < 50 || hr > 120) return 2;
+    if (hr < 60 || hr > 100) return 1;
+    return 0;
+  }
+  function rrSeverity(rr) {
+    if (rr <= 0) return 4;
+    if (rr <= 6 || rr > 30) return 3;
+    if (rr <= 9 || rr > 24) return 2;
+    if (rr < 12 || rr > 20) return 1;
+    return 0;
+  }
+  function spo2Severity(spo2) {
+    if (spo2 < 80) return 4;
+    if (spo2 < 85) return 3;
+    if (spo2 < 90) return 2;
+    if (spo2 < 95) return 1;
+    return 0;
+  }
+  function painSeverity(pain) {
+    if (pain >= 7) return 3;
+    if (pain >= 4) return 2;
+    if (pain >= 1) return 1;
+    return 0;
+  }
+  function bpSysSeverity(sys) {
+    if (sys <= 0) return 4;
+    if (sys < 70) return 3;
+    if (sys < 90) return 2;
+    if (sys < 100) return 1;
+    return 0;
+  }
+  function getAppearanceState(v) {
+    const unresponsive = (v.gcsE || 0) + (v.gcsV || 0) + (v.gcsM || 0) <= 8;
+    const hypoxia = spo2Severity(v.SpO2);
+    const perfusion = Math.max(hrSeverity(v.HR), bpSysSeverity(v.BPsys));
+    const distressLevel = Math.max(hrSeverity(v.HR), rrSeverity(v.RR), hypoxia, painSeverity(v.pain));
+    let skinColour;
+    if (hypoxia >= 3) skinColour = 'cyanotic';
+    else if (perfusion >= 3) skinColour = 'mottled';
+    else if (perfusion >= 1 || hypoxia >= 1) skinColour = 'pale';
+    else skinColour = 'normal';
+    const moistureLvl = Math.max(perfusion, painSeverity(v.pain));
+    const moisture = moistureLvl >= 2 ? 'diaphoretic' : moistureLvl >= 1 ? 'clammy' : 'dry';
+    const wob = v.RR <= 0 ? 'apnoeic' : v.RR <= 4 ? 'agonal' : Math.max(rrSeverity(v.RR), hypoxia);
+    return { unresponsive, distressLevel, skinColour, moisture, wob, gcsE: v.gcsE || 1, pain: v.pain || 0 };
+  }
+
+  global.SimEngine = { ACTION_DURATIONS, getActionDurationSec, getVitals, getVitalsRaw, getSimNow, getStaticVitalAt, getRhythmAt, getAppearanceState };
 })(typeof window !== 'undefined' ? window : this);
 

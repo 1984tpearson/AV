@@ -121,6 +121,34 @@ label at each in-scenario rhythm change in view, plus a persistent
 "♥ CURRENT RHYTHM" badge (skips drawing a marker line for the scenario's
 starting entry itself — the badge already covers that).
 
+### Patient avatar (`sim_patient.html` only)
+
+The `#head-wrap` placeholder is a hand-built inline SVG face, not an image —
+deliberately no AI/image generation involved. Two layers:
+
+- **Build** (fixed per scenario): skin tone from `scenario.patient_meta.skin_colour`
+  (hex swatch, already stored by `generator.html` — see `pickRandomSkinTone()`),
+  hair colour/style picked deterministically from a hash of `scenario_id` so
+  it's stable across reconnects rather than re-rolling each page load. Gender
+  (`patient_meta.gender`, code-generated alongside name/ethnicity — see
+  `randomAustralianPatient()`) biases hair style short/long; falls back to the
+  pre-existing title-sniffing heuristic for scenarios generated before this
+  field existed. `buildAvatarBase()` in `sim_patient.html`.
+- **Live state** (re-derived every tick): eyes open/droopy/closed from GCS eye
+  score, skin tint blended toward cyanotic/mottled/pale, sweat droplets shown
+  for diaphoretic/clammy, and a resting mouth expression (neutral/mild/
+  distress/grimace/slack) from pain score, distress level, and consciousness.
+  Driven by `SimEngine.getAppearanceState(v)` — the same severity bands
+  (`hrSeverity`/`rrSeverity`/`spo2Severity`/`painSeverity`/`bpSysSeverity`)
+  `sim_control.html`'s assessor-facing Appearance tab computes independently,
+  kept in `sim_engine.js` as the one shared source rather than two threshold
+  tables drifting apart. `updateAvatarFace()`, called from `tick()`.
+
+Mouth also flaps between a talking frame and the current resting expression
+while patient TTS is actually speaking (`utter.onstart`/`onend` in
+`checkForPatientReply()` drive `startTalkAnimation()`/`stopTalkAnimation()`)
+— so a distressed patient still looks distressed mid-sentence, not neutral.
+
 ### Graph rendering
 
 `renderGraph()` in `sim_control.html` is hand-rolled SVG (no charting
