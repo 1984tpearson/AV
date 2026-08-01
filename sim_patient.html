@@ -276,6 +276,8 @@ async function sbPatch(path, body) {
 }
 
 let testConfig = null; // populated once a session is joined — see connectSession()
+let scenarioMeta = null; // title/subtitle/dispatch/vitals/medical_conditions — see connectSession(); feeds handleShockBtn()'s local defib computation
+let _skipNextOverridesPoll = false; // guards against pollSession() clobbering an in-flight local defib write with a stale server copy — see handleShockBtn()
 let instantMode = false; // synced from the session row; assessor-controlled, not editable here
 // Temp/BGL/Ketones/Pain/GCS now go through the same overrides mechanism as
 // HR/BP/etc — read the current projected value straight from the engine.
@@ -592,9 +594,16 @@ async function connectSession(code) {
     // scenarios predate patient_meta.gender, so fall back to the same
     // title-sniffing heuristic used before that field existed.
     if (row.scenario_id) {
-      sbGet(`scenarios?id=eq.${encodeURIComponent(row.scenario_id)}&select=title,patient_meta`)
+      // subtitle/dispatch/vitals/medical_conditions are fetched alongside
+      // title/patient_meta so handleShockBtn() can run
+      // SimEngine.computeDefibrillationEffect() locally (age/weight/
+      // comorbidity parsing all read from this same scenarioMeta) — see
+      // CLAUDE.md on why this device otherwise deliberately has no scenario
+      // context beyond the avatar build.
+      sbGet(`scenarios?id=eq.${encodeURIComponent(row.scenario_id)}&select=title,subtitle,dispatch,vitals,medical_conditions,patient_meta`)
         .then(rows2 => {
           const scen = rows2[0] || {};
+          scenarioMeta = scen;
           const meta = scen.patient_meta || {};
           let gender = (meta.gender || '').toLowerCase() || null;
           if (!gender) {
@@ -631,7 +640,10 @@ async function pollSession() {
     if (!rows.length) return;
     const row = rows[0];
     testConfig.treatments = row.treatments || [];
-    testConfig.overrides = row.overrides || {};
+    // Skipped once right after a local defib shock: that write is already
+    // reflected locally and is mid-flight to the server, so a poll landing
+    // in that window would otherwise briefly clobber it with a stale copy.
+    if (!_skipNextOverridesPoll) testConfig.overrides = row.overrides || {};
     testConfig.instantMode = row.instant_mode;
     testConfig.hasStarted = row.has_started;
     testConfig.isPaused = row.is_paused;
@@ -849,12 +861,6 @@ let _show12Lead = false;
 let _currentRhythmKey = null;
 let _lastHR = 90;
 
-function deriveRhythmFromHR(hr) {
-  if (hr < 60) return 'sinus bradycardia';
-  if (hr > 100) return 'sinus tachycardia';
-  return 'sinus rhythm';
-}
-
 function ensureECG(hr) {
   // HR alone can't distinguish arrest rhythms (asystole/VF/PEA all show "no
   // pulse" but look completely different) or any other scripted arrhythmia
@@ -862,7 +868,7 @@ function ensureECG(hr) {
   // on the monitor, if anything. Only fall back to the plain HR-derived
   // sinus bucket once nothing's been scripted yet.
   const explicitRhythm = SimEngine.getRhythmAt(testConfig, SimEngine.getSimNow(testConfig, Date.now()));
-  const rhythmStr = explicitRhythm || deriveRhythmFromHR(hr);
+  const rhythmStr = explicitRhythm || SimEngine.deriveRhythmFromHR(hr);
   const mapped = ECGEngine.mapRhythm(rhythmStr, hr);
   if (!_ecgInst) {
     const container = document.getElementById('ecg-12lead-container');
@@ -1164,17 +1170,58 @@ function handleDischargeBtn() {
   updateDefibButtons();
 }
 
+// Computed and applied LOCALLY, immediately — this used to go through
+// sim_control.html's giveTreatment() via the student_queue voice-relay path
+// (queue here -> its ~3s poll -> its own write -> our ~3s poll back), which
+// made the crew's own monitor visibly lag behind hitting Shock by several
+// seconds. Defib's decision logic is fully deterministic and shared via
+// SimEngine.computeDefibrillationEffect() (sim_engine.js), so both this
+// page and sim_control.html compute byte-identical results from the same
+// inputs — this device just doesn't need to wait for the other one to do
+// it first. sim_control.html catches up on its own normal 3s poll once the
+// background sync below lands; that catch-up delay is expected/fine, only
+// this device's own feedback needed to be instant.
 async function handleShockBtn() {
-  if (defibState !== 'charged' || !sessionCode) return;
+  if (defibState !== 'charged' || !sessionCode || !testConfig) return;
   const joules = selectedJoules;
   clearInterval(_chargeTimer);
   defibState = 'idle';
   chargeFillCount = 0;
   renderJouleTower();
   updateDefibButtons();
-  // Same student_queue path the voice "Give Treatment" flow uses — sim_control.html's
-  // processStudentQueue()/giveTreatment() picks this up like any other typed treatment.
-  try { await queueStudentItem('treatment', `Defibrillation ${joules}J`); } catch (e) { /* best-effort, matches other student_queue sends */ }
+  // The huge amplifier-saturating artifact a real shock puts on every lead —
+  // shown regardless of rhythm outcome, since it's the electrical event
+  // itself hitting the leads, not a verdict on whether the shock worked.
+  if (_ecgInst) _ecgInst.triggerShockArtifact();
+
+  const givenAtMs = SimEngine.getSimNow(testConfig, Date.now());
+  const { parsedOverrides, parsedRhythm, note, vitalsNow } =
+    SimEngine.computeDefibrillationEffect(testConfig, scenarioMeta || {}, joules, givenAtMs);
+
+  if (Object.keys(parsedOverrides).length || parsedRhythm.length) {
+    SimEngine.spliceAiOverridePlan(testConfig.overrides, parsedOverrides, vitalsNow, givenAtMs);
+    SimEngine.spliceRhythmPlan(testConfig.overrides, parsedRhythm, givenAtMs);
+    tick(); // reflect on this device's own monitor now, don't wait for the next 1s interval
+  }
+
+  const givenAtMin = (givenAtMs - testConfig.startTimeMs) / 60000;
+  _skipNextOverridesPoll = true;
+  try {
+    const rows = await sbGet(`sim_sessions?session_code=eq.${encodeURIComponent(sessionCode)}&select=treatments`);
+    const treatments = (rows[0] && rows[0].treatments) || [];
+    treatments.push({ action: `Defibrillation ${joules}J`, givenAtMin, source: 'patient_device', assumptions: [note] });
+    await sbPatch(`sim_sessions?session_code=eq.${encodeURIComponent(sessionCode)}`, {
+      overrides: testConfig.overrides,
+      treatments,
+      updated_at: new Date().toISOString()
+    });
+  } catch (e) {
+    // Best-effort — sim_control.html's log/graph just won't show this shock
+    // until a later write touches the row; this device's own monitor is
+    // unaffected either way, since the effect is already applied locally.
+  } finally {
+    _skipNextOverridesPoll = false;
+  }
 }
 updateDefibButtons();
 

@@ -2613,298 +2613,30 @@ Report the finding.`;
 
 // --- Defibrillation: fully hardcoded, deliberately never touches Haiku or
 // Sonnet ------------------------------------------------------------------
-// Unlike drug treatments (regenerateTimelineAfterTreatment reasons about
-// pharmacology per-patient), a shock's physiology is well-established and
-// the crew needs the outcome the instant they hit Shock on
-// sim_patient.html — a network round trip to an LLM would be both
-// unnecessary and too slow for something this predictable. Modelled loosely
-// on real defibrillation outcomes (AHA/ILCOR-style figures): biphasic
-// first-shock termination of VF/pulseless VT is commonly cited around
-// 60-90% with prompt, adequately-energised shocks, falling off fast with
-// downtime (survival is often quoted as dropping roughly 7-10%/min without
-// bystander CPR, ~3-4%/min with it). Termination of the rhythm on a given
-// shock is NOT the same figure as eventual survival-to-discharge — a
-// patient can need several shocks before converting and still survive
-// overall, or convert on the first shock and still not survive the
-// admission — so this deliberately keeps two related but separate numbers:
-// a per-patient survivability score (computeSurvivabilityScore) and a
-// per-shock conversion chance (computeShockableOutcome) that USES the
-// survivability score as one input among several, rather than being it.
-
-const HIGH_RISK_CONDITION_KEYWORDS = [
-  'heart failure', 'chf', 'cardiomyopathy', 'copd', 'emphysema', 'chronic bronchitis',
-  'renal failure', 'dialysis', 'ckd', 'cancer', 'malignancy', 'metastatic',
-  'dementia', 'alzheimer', 'stroke', 'cva', 'diabetes', 'obesity', 'morbidly obese',
-  'ischaemic heart disease', 'ischemic heart disease', 'coronary artery disease', 'cad',
-  'previous mi', 'myocardial infarction', 'atrial fibrillation', 'valve disease',
-  'cirrhosis', 'immunocompromised', 'frailty', 'frail'
-];
-
-// Age/weight aren't structured fields anywhere in the schema (see CLAUDE.md —
-// only free-text demographics like "45yo Male"), so this parses the same
-// "[age]yo" convention generator.html always writes into title/subtitle/
-// dispatch, same spirit as the existing gender title-sniffing fallback in
-// sim_patient.html's connectSession(). Weight is similarly free text
-// ("82 kg") in vitals.Weight.
-function parseAgeFromScenario(scenario) {
-  const text = `${scenario.title || ''} ${scenario.subtitle || ''} ${scenario.dispatch || ''}`;
-  const m = text.match(/(\d{1,3})\s*(?:yo\b|y\.?o\.?\b|year[- ]old)/i);
-  return m ? parseInt(m[1], 10) : 55; // unknown — a neutral middle-aged default
-}
-function parseWeightKgFromScenario(scenario) {
-  const raw = (scenario.vitals && scenario.vitals.Weight) || '';
-  const m = String(raw).match(/(\d{1,3}(?:\.\d+)?)/);
-  return m ? parseFloat(m[1]) : 80; // unknown — an unremarkable adult default
-}
-
-// 0-100. Deliberately NOT the same number as any single shock's conversion
-// chance — see the comment above this section.
-function computeSurvivabilityScore(scenario, downtimeMs) {
-  let score = 70; // an average adult, witnessed arrest, prompt care
-  const age = parseAgeFromScenario(scenario);
-  if (age <= 1) score += 10; // infants/neonates are a genuinely different model in reality — out of scope, kept neutral rather than penalised
-  else if (age <= 35) score += 15;
-  else if (age <= 55) score += 5;
-  else if (age <= 70) score -= 5;
-  else if (age <= 85) score -= 15;
-  else score -= 25;
-
-  const weightKg = parseWeightKgFromScenario(scenario);
-  if (weightKg >= 120) score -= 10;
-  else if (weightKg >= 100) score -= 5;
-  else if (age > 15 && weightKg < 45) score -= 5; // frailty/cachexia proxy — only meaningful for an adult-sized patient
-
-  const conditionsText = (scenario.medical_conditions || []).join(' ').toLowerCase();
-  const hits = HIGH_RISK_CONDITION_KEYWORDS.filter(k => conditionsText.includes(k)).length;
-  score -= Math.min(30, hits * 6);
-
-  const downtimeMin = downtimeMs / 60000;
-  score -= downtimeMin * 5; // downtime dominates, per the AHA figures cited above
-
-  return Math.max(2, Math.min(95, Math.round(score)));
-}
-
-// Buckets a rhythm label into what matters for a defib decision — NOT the
-// same bucketing as ecg_engine.js's mapRhythm(), which is purely about
-// waveform rendering and conflates clinically distinct things (e.g. PEA and
-// sinus bradycardia both render as its 'sbrad' key, but PEA is pulseless
-// arrest and sinus brady isn't — defib logic cannot use that mapping).
-function classifyRhythmForDefib(label) {
-  const s = (label || '').toLowerCase();
-  if (/torsades|polymorphic|\bvt\b|ventricular tach|\bvf\b|ventricular fib/.test(s)) return 'shockable';
-  if (/asystole|\bpea\b|pulseless electrical/.test(s)) return 'nonshockable-arrest';
-  return 'organized';
-}
-
-// Local copy of sim_patient.html's deriveRhythmFromHR() — same fallback for
-// when nothing's been explicitly scripted on the rhythm timeline yet (see
-// SimEngine.getRhythmAt). Kept as a separate copy rather than shared, same
-// reasoning CLAUDE.md gives for avatar_lab.html's duplication: different
-// surrounding plumbing (assessor-side liveConfig vs patient-side testConfig).
-function deriveRhythmFromHR(hr) {
-  if (hr < 60) return 'sinus bradycardia';
-  if (hr > 100) return 'sinus tachycardia';
-  return 'sinus rhythm';
-}
-
-// Walks backwards through the rhythm timeline from a shockable/nonshockable-
-// arrest entry to find when this arrest actually began (the start of the
-// contiguous run of arrest-classified entries containing "now") — downtime
-// for the survivability score above. Returns 0 if the patient isn't
-// currently in an arrest rhythm at all.
-function msSinceArrestStart(cfg, nowMs) {
-  const events = ((cfg.overrides && cfg.overrides.rhythm) || []).slice().sort((a, b) => a.startMs - b.startMs);
-  let idx = -1;
-  for (let i = 0; i < events.length; i++) { if (events[i].startMs <= nowMs) idx = i; else break; }
-  if (idx === -1 || classifyRhythmForDefib(events[idx].label) === 'organized') return 0;
-  let arrestStartMs = events[idx].startMs;
-  for (let i = idx - 1; i >= 0; i--) {
-    if (classifyRhythmForDefib(events[i].label) === 'organized') break;
-    arrestStartMs = events[i].startMs;
-  }
-  return Math.max(0, nowMs - arrestStartMs);
-}
-
-// Real-world energy dosing is weight-based for paediatrics (2-4 J/kg) but a
-// fixed protocol dose for adults (typically 120-200J biphasic, with little
-// added benefit much past that) — NOT weight-based for adults, so this
-// deliberately branches on age rather than applying one formula to both.
-function computeEnergyFactor(joules, age, weightKg) {
-  if (age < 12) {
-    const idealLow = weightKg * 2, idealHigh = weightKg * 4;
-    if (joules < idealLow * 0.5) return 0.3;
-    if (joules < idealLow) return 0.6;
-    if (joules <= idealHigh * 1.5) return 1;
-    return 0.85; // over-energised for a child — likely still works, just not the guideline dose
-  }
-  if (joules < 100) return 0.55;
-  if (joules < 120) return 0.8;
-  return 1;
-}
-
-// Per-shock outcome for a genuinely shockable rhythm (VF/pulseless VT/
-// torsades). Three possible outcomes, not just success/fail — post-shock
-// asystole is a real, recognised (if less common) outcome, and is more
-// likely the worse the underlying prognosis.
-function computeShockableOutcome(survivability, energyFactor, downtimeMs) {
-  const downtimeMin = downtimeMs / 60000;
-  const downtimeDecay = Math.exp(-downtimeMin / 8); // ~50% remaining by ~5.5 min — "every minute counts"
-  const survivabilityFactor = 0.4 + (survivability / 100) * 0.8; // even a low-survivability patient can still convert on any given shock
-  let convertChance = 0.75 * energyFactor * downtimeDecay * survivabilityFactor;
-  convertChance = Math.max(0.03, Math.min(0.92, convertChance));
-
-  let asystoleChance = 0.03 + (1 - survivability / 100) * 0.12;
-  asystoleChance = Math.min(0.35, asystoleChance);
-
-  const r = Math.random();
-  const outcome = r < convertChance ? 'converted' : r < convertChance + asystoleChance ? 'asystole' : 'unchanged';
-  return { outcome, convertChance, asystoleChance };
-}
-
-// Shocking a patient who has a pulse (organized rhythm) is never actually
-// indicated, but the sim allows it — this models the real risk: an
-// unsynchronised shock landing on a vulnerable point in the cycle can
-// precipitate VF (the R-on-T mechanism, well known as the reason
-// cardioversion is normally synchronised), more likely on already-ischaemic
-// myocardium. Short of that, an unsynchronised shock CAN still cardiovert a
-// disorganised atrial/re-entry tachyarrhythmia back to sinus (cruder and
-// riskier than a proper synchronised cardioversion, but not physiologically
-// impossible) — otherwise it just hurts, with no rhythm change at all.
-function computeOrganizedShockOutcome(rhythmLabel, joules) {
-  const s = (rhythmLabel || '').toLowerCase();
-  const isIschaemic = /stemi|nstemi|ischaemia|ischemia/.test(s);
-  const isTachyarrhythmia = /fibrillation|flutter|svt|supraventricular|tachycardia/.test(s);
-  let induceVfChance = isIschaemic ? 0.12 : 0.04;
-  induceVfChance *= Math.max(0.6, Math.min(1.3, joules / 150));
-
-  if (Math.random() < induceVfChance) return { outcome: 'induced-vf', induceVfChance };
-  if (isTachyarrhythmia && Math.random() < 0.35) return { outcome: 'cardioverted', induceVfChance };
-  return { outcome: 'no-change', induceVfChance };
-}
-
-// A transient bump (onset -> hold -> fade) that fades back to whatever this
-// vital would have been doing anyway rather than a flat pre-shock number —
-// same "evaluate the untouched natural schedule" trick applyCodedEffect
-// uses for wearOffMin, just factored out here since both the pain and HR
-// startle-response bumps need it.
-function buildFadeToNaturalChain(overridesSnapshot, key, bumpTarget, onsetMin, holdMin, fadeMin, givenAtMs) {
-  const holdEndMin = onsetMin + holdMin;
-  const fadeEndMin = holdEndMin + fadeMin;
-  const fadeEndMs = givenAtMs + fadeEndMin * 60000;
-  const naturalConfig = { ...liveConfig, overrides: overridesSnapshot };
-  const naturalAtFadeEnd = SimEngine.getVitalsRaw(naturalConfig, fadeEndMs)[key];
-  return [
-    { targetValue: bumpTarget, startMin: 0, endMin: onsetMin },
-    { targetValue: bumpTarget, startMin: onsetMin, endMin: holdEndMin },
-    { targetValue: naturalAtFadeEnd, startMin: holdEndMin, endMin: fadeEndMin }
-  ];
-}
-
-// The actual effect application — reads fresh overrides from the DB first
-// (same read-modify-write pattern as applyCodedEffect/regenerateTimeline*),
-// branches on rhythm classification, and splices the result in via the same
-// spliceAiOverridePlan/spliceRhythmPlan the AI-authored paths use (an empty
-// overrides object or rhythm array is a safe no-op in both — see their
-// comments — so branches with nothing to change just pass those through).
+// The actual decision logic (rhythm classification, survivability scoring,
+// shock outcome probabilities, the vitals cascade for each outcome) now
+// lives in sim_engine.js as SimEngine.computeDefibrillationEffect() —
+// sim_patient.html's Shock button computes it locally for a zero-delay
+// crew-facing response and writes the result straight to the session row,
+// bypassing this page's giveTreatment()/student_queue path entirely (see
+// its handleShockBtn()). This wrapper exists so an assessor can still type
+// "Defibrillation 200J" directly into this page's own treatment box and get
+// the identical hardcoded behaviour — see the giveTreatment() intercept
+// below — reading/writing the session row here rather than duplicating the
+// decision logic itself.
 async function applyDefibrillation(joules, givenAtMs) {
   if (!currentScenario) return `Defibrillation ${joules}J: no scenario context — no effect modelled.`;
 
   const rows = await sbFetch(`sim_sessions?session_code=eq.${sessionCode}&select=overrides`, { method: 'GET' });
   const freshOverrides = (rows[0] && rows[0].overrides) || {};
   const previousSnapshot = JSON.parse(JSON.stringify(freshOverrides));
-  const vitalsNow = SimEngine.getVitalsRaw(liveConfig, givenAtMs);
-  const rhythmLabel = SimEngine.getRhythmAt(liveConfig, givenAtMs) || deriveRhythmFromHR(vitalsNow.HR);
-  const rhythmClass = classifyRhythmForDefib(rhythmLabel);
-
-  const parsedOverrides = {};
-  const parsedRhythm = [];
-  let note;
-
-  if (rhythmClass === 'shockable') {
-    const downtimeMs = msSinceArrestStart(liveConfig, givenAtMs);
-    const survivability = computeSurvivabilityScore(currentScenario, downtimeMs);
-    const age = parseAgeFromScenario(currentScenario);
-    const weightKg = parseWeightKgFromScenario(currentScenario);
-    const energyFactor = computeEnergyFactor(joules, age, weightKg);
-    const { outcome, convertChance } = computeShockableOutcome(survivability, energyFactor, downtimeMs);
-
-    if (outcome === 'converted') {
-      const postTachy = Math.random() < 0.65; // catecholamine surge post-ROSC — tachycardia is the more common immediate picture
-      const postLabel = postTachy ? 'sinus tachycardia' : 'sinus rhythm';
-      const postHR = postTachy ? 100 + Math.random() * 30 : 70 + Math.random() * 30;
-      parsedRhythm.push({ label: postLabel, startMin: 0 });
-      // Full cascade — ROSC is as much a state transition as arresting is,
-      // same "every implied vital, together" rule CLAUDE.md documents for
-      // the AI-authored paths.
-      parsedOverrides.HR = [{ targetValue: postHR, startMin: 0, endMin: 0.15 }];
-      parsedOverrides.BPsys = [{ targetValue: 70 + Math.random() * 25, startMin: 0, endMin: 0.3 }]; // post-ROSC hypotension is the norm, not the exception
-      parsedOverrides.BPdia = [{ targetValue: 40 + Math.random() * 20, startMin: 0, endMin: 0.3 }];
-      parsedOverrides.SpO2 = [{ targetValue: 85 + Math.random() * 7, startMin: 0, endMin: 1 }, { targetValue: 93 + Math.random() * 5, startMin: 1, endMin: 5 }];
-      parsedOverrides.EtCO2 = [{ targetValue: 35 + Math.random() * 10, startMin: 0, endMin: 0.15 }]; // the classic abrupt EtCO2 jump taught as a ROSC sign
-      parsedOverrides.RR = [{ targetValue: 4 + Math.random() * 6, startMin: 0, endMin: 0.5 }]; // usually still apnoeic/agonal immediately post-ROSC, needing support
-      parsedOverrides.gcsE = [{ targetValue: 1, startMin: 0, endMin: 0.1 }];
-      parsedOverrides.gcsV = [{ targetValue: 1, startMin: 0, endMin: 0.1 }];
-      parsedOverrides.gcsM = [{ targetValue: 1 + Math.round(Math.random()), startMin: 0, endMin: 0.1 }];
-      parsedOverrides.pain = [{ targetValue: 0, startMin: 0, endMin: 0.1 }];
-      parsedOverrides.nausea = [{ targetValue: 0, startMin: 0, endMin: 0.1 }];
-      note = `Defibrillation ${joules}J: ${rhythmLabel} terminated — ROSC, reverted to ${postLabel}. Survivability score ${survivability}/100, ~${Math.round(convertChance * 100)}% conversion chance modelled for this shock (hardcoded, no AI call).`;
-    } else if (outcome === 'asystole') {
-      parsedRhythm.push({ label: 'asystole', startMin: 0 });
-      parsedOverrides.HR = [{ targetValue: 0, startMin: 0, endMin: 0.1 }];
-      parsedOverrides.BPsys = [{ targetValue: 0, startMin: 0, endMin: 0.2 }];
-      parsedOverrides.BPdia = [{ targetValue: 0, startMin: 0, endMin: 0.2 }];
-      parsedOverrides.SpO2 = [{ targetValue: 0, startMin: 0, endMin: 1 }];
-      parsedOverrides.EtCO2 = [{ targetValue: 5 + Math.random() * 5, startMin: 0, endMin: 0.5 }];
-      parsedOverrides.RR = [{ targetValue: 0, startMin: 0, endMin: 0.1 }];
-      parsedOverrides.gcsE = [{ targetValue: 1, startMin: 0, endMin: 0.1 }];
-      parsedOverrides.gcsV = [{ targetValue: 1, startMin: 0, endMin: 0.1 }];
-      parsedOverrides.gcsM = [{ targetValue: 1, startMin: 0, endMin: 0.1 }];
-      parsedOverrides.pain = [{ targetValue: 0, startMin: 0, endMin: 0.1 }];
-      parsedOverrides.nausea = [{ targetValue: 0, startMin: 0, endMin: 0.1 }];
-      note = `Defibrillation ${joules}J: deteriorated to asystole post-shock. Survivability score ${survivability}/100 (hardcoded, no AI call).`;
-    } else {
-      note = `Defibrillation ${joules}J: no effect — remains in ${rhythmLabel}. Survivability score ${survivability}/100, ~${Math.round(convertChance * 100)}% conversion chance modelled for this shock (hardcoded, no AI call).`;
-    }
-  } else if (rhythmClass === 'nonshockable-arrest') {
-    // Real ACLS teaching point: asystole/PEA are not shockable — there's no
-    // fibrillating myocardium for a shock to terminate. Deliberately a pure
-    // no-op, not a randomised low chance of something.
-    note = `Defibrillation ${joules}J: not indicated for ${rhythmLabel} — no effect (hardcoded, no AI call).`;
-  } else {
-    const conscious = vitalsNow.gcsV >= 4; // same "can this patient perceive/report it" threshold the AI treatment prompt uses for pain/nausea
-    const { outcome, induceVfChance } = computeOrganizedShockOutcome(rhythmLabel, joules);
-
-    if (outcome === 'induced-vf') {
-      parsedRhythm.push({ label: 'ventricular fibrillation', startMin: 0.05 });
-      parsedOverrides.HR = [{ targetValue: 0, startMin: 0.05, endMin: 0.15 }];
-      parsedOverrides.BPsys = [{ targetValue: 0, startMin: 0.05, endMin: 0.25 }];
-      parsedOverrides.BPdia = [{ targetValue: 0, startMin: 0.05, endMin: 0.25 }];
-      parsedOverrides.SpO2 = [{ targetValue: 0, startMin: 0.05, endMin: 1 }];
-      parsedOverrides.EtCO2 = [{ targetValue: 5 + Math.random() * 5, startMin: 0.05, endMin: 0.5 }];
-      parsedOverrides.RR = [{ targetValue: 0, startMin: 0.05, endMin: 0.15 }];
-      parsedOverrides.gcsE = [{ targetValue: 1, startMin: 0.05, endMin: 0.15 }];
-      parsedOverrides.gcsV = [{ targetValue: 1, startMin: 0.05, endMin: 0.15 }];
-      parsedOverrides.gcsM = [{ targetValue: 1, startMin: 0.05, endMin: 0.15 }];
-      parsedOverrides.pain = [{ targetValue: 0, startMin: 0.05, endMin: 0.15 }];
-      parsedOverrides.nausea = [{ targetValue: 0, startMin: 0.05, endMin: 0.15 }];
-      note = `Defibrillation ${joules}J: inappropriate shock on ${rhythmLabel} precipitated ventricular fibrillation (~${Math.round(induceVfChance * 100)}% chance modelled, hardcoded, no AI call).`;
-    } else if (outcome === 'cardioverted') {
-      parsedRhythm.push({ label: 'sinus rhythm', startMin: 0 });
-      parsedOverrides.HR = [{ targetValue: 70 + Math.random() * 25, startMin: 0, endMin: 0.15 }];
-      if (conscious) parsedOverrides.pain = buildFadeToNaturalChain(previousSnapshot, 'pain', 8 + Math.random() * 2, 0.05, 0.5, 4, givenAtMs);
-      note = `Defibrillation ${joules}J: ${rhythmLabel} cardioverted to sinus rhythm${conscious ? ' — painful, unsynchronised shock' : ''} (hardcoded, no AI call).`;
-    } else if (conscious) {
-      parsedOverrides.pain = buildFadeToNaturalChain(previousSnapshot, 'pain', 8 + Math.random() * 2, 0.05, 0.5, 4, givenAtMs);
-      parsedOverrides.HR = buildFadeToNaturalChain(previousSnapshot, 'HR', vitalsNow.HR + 20 + Math.random() * 15, 0.05, 0.5, 3, givenAtMs);
-      note = `Defibrillation ${joules}J: no rhythm change (remains ${rhythmLabel}) — painful stimulus only (hardcoded, no AI call).`;
-    } else {
-      note = `Defibrillation ${joules}J: no rhythm change (remains ${rhythmLabel}); patient unresponsive, no pain response (hardcoded, no AI call).`;
-    }
-  }
+  const cfg = { ...liveConfig, overrides: freshOverrides };
+  const { parsedOverrides, parsedRhythm, note, vitalsNow } = SimEngine.computeDefibrillationEffect(cfg, currentScenario, joules, givenAtMs);
 
   if (Object.keys(parsedOverrides).length || parsedRhythm.length) {
-    spliceAiOverridePlan(freshOverrides, parsedOverrides, vitalsNow, givenAtMs);
-    spliceRhythmPlan(freshOverrides, parsedRhythm, givenAtMs);
+    SimEngine.spliceAiOverridePlan(freshOverrides, parsedOverrides, vitalsNow, givenAtMs);
+    SimEngine.spliceRhythmPlan(freshOverrides, parsedRhythm, givenAtMs);
+    autoEnableGraphSeriesFromOverrides(parsedOverrides);
     await sbFetch(`sim_sessions?session_code=eq.${sessionCode}`, {
       method: 'PATCH', prefer: 'return=minimal',
       body: JSON.stringify({ overrides: freshOverrides, previous_overrides: previousSnapshot, updated_at: new Date().toISOString() })
@@ -3033,67 +2765,14 @@ async function giveTreatment(providedText, opts) {
   }
 }
 
-// Splices an AI-authored override plan into the session's existing
-// overrides. For every vital key the AI actually returned entries for:
-// anything already fully in the past is kept as accurate history, anything
-// mid-transition right now is truncated to end exactly at givenAtMs (at its
-// real current value), and anything still in the future is dropped before
-// the new chain is appended — otherwise the engine (which always uses
-// whichever override, in start-time order, contains "now") would let the
-// OLD trajectory keep winning for its entire remaining duration. A vital
-// the AI didn't mention is left completely untouched — omission means
-// "keep whatever was already scheduled", not "erase it with nothing to
-// replace it". Shared by regenerateTimelineAfterTreatment (crew
-// treatments) and regenerateTimelineForScriptedEvent (assessor-injected
-// events) — they differ only in the prompt that produces parsedOverrides.
-function spliceAiOverridePlan(freshOverrides, parsedOverrides, vitalsNow, givenAtMs) {
-  const affectedKeys = new Set(Object.keys(parsedOverrides || {}).filter(k => Array.isArray(parsedOverrides[k]) && parsedOverrides[k].length));
-  autoEnableGraphSeriesFromOverrides(parsedOverrides);
-  Object.keys(freshOverrides).forEach(key => {
-    if (!affectedKeys.has(key)) return;
-    const arr = freshOverrides[key] || [];
-    const kept = [];
-    arr.forEach(ov => {
-      if (ov.endMs <= givenAtMs) {
-        kept.push(ov);
-      } else if (ov.startMs < givenAtMs) {
-        kept.push({ startMs: ov.startMs, endMs: givenAtMs, targetValue: vitalsNow[key] });
-      }
-      // else: startMs >= givenAtMs — superseded future plan, drop (this vital IS being replaced below)
-    });
-    freshOverrides[key] = kept;
-  });
-  Object.entries(parsedOverrides || {}).forEach(([key, arr]) => {
-    if (!Array.isArray(arr) || !arr.length) return;
-    const cleanArr = arr
-      .filter(ov => typeof ov.targetValue === 'number' && typeof ov.startMin === 'number' && typeof ov.endMin === 'number')
-      .map(ov => ({
-        targetValue: ov.targetValue,
-        startMs: givenAtMs + Math.min(60, Math.max(0, ov.startMin)) * 60000,
-        endMs: givenAtMs + Math.min(60, Math.max(0, ov.endMin)) * 60000
-      }));
-    if (!freshOverrides[key]) freshOverrides[key] = [];
-    freshOverrides[key] = freshOverrides[key].concat(cleanArr);
-  });
-  return freshOverrides;
-}
-
-// Splices an AI-authored rhythm plan into freshOverrides.rhythm — a separate,
-// much simpler mechanism from spliceAiOverridePlan because a rhythm is a
-// discrete step-change list (see SimEngine.getRhythmAt), not an
-// interpolated curve: no in-progress truncation is needed, just drop
-// anything scheduled at/after givenAtMs (a superseded future plan) and
-// append the new entries. If the AI didn't return a rhythm array at all,
-// the existing schedule — including its future — is left completely
-// alone, same "omission means don't touch it" rule as vitals.
-function spliceRhythmPlan(freshOverrides, parsedRhythm, givenAtMs) {
-  if (!Array.isArray(parsedRhythm) || !parsedRhythm.length) return;
-  const existing = ((freshOverrides.rhythm || [])).filter(ev => ev.startMs < givenAtMs);
-  const clean = parsedRhythm
-    .filter(ev => typeof ev.label === 'string' && ev.label.trim() && typeof ev.startMin === 'number')
-    .map(ev => ({ label: ev.label.trim(), startMs: givenAtMs + Math.min(60, Math.max(0, ev.startMin)) * 60000 }));
-  freshOverrides.rhythm = existing.concat(clean);
-}
+// spliceAiOverridePlan/spliceRhythmPlan now live in sim_engine.js (as
+// SimEngine.spliceAiOverridePlan/spliceRhythmPlan) — moved there so
+// sim_patient.html's local defib computation (see handleShockBtn()) can
+// splice its own instant result using the identical rule set, rather than
+// duplicating it. Both regenerateTimelineAfterTreatment and
+// regenerateTimelineForScriptedEvent below now call autoEnableGraphSeriesFromOverrides()
+// themselves right after splicing — that one line is a graph-UI concern
+// specific to this page, so it no longer lives inside the shared function.
 
 // Recalculates the patient's future trajectory in response to a specific
 // treatment/management action, using the AI to reason about THIS action on
@@ -3148,6 +2827,7 @@ Rules:
 - If the action only partially/temporarily addresses the problem, model it wearing off and the condition resuming — worse than before if it was just masking ongoing pathology, stable/improving if it substantively corrected it.
 - If the action is clinically inappropriate, ineffective, or wrongly dosed, reflect that honestly — continued deterioration or a toxic effect if that's the truth. Don't reward a wrong action with unrealistic improvement.
 - Only include a vital's key if this action would plausibly change it — but "plausibly change" includes indirect/downstream consequences, not just the vital most obviously targeted. If this action pushes the patient into a fundamentally different physiological state — cardiac arrest, severe shock, respiratory failure/apnoea, LOC change — include EVERY vital that state mechanically implies, not only the one or two most directly affected. Cardiac arrest, for example, is not just HR: with no cardiac output there is no BP, no perfusion to drive SpO2/EtCO2 readings as normal, breathing typically stops or becomes agonal (RR), and consciousness is lost (GCS 1/1/1). Leaving an uninvolved-looking vital on its old pre-event schedule while another vital shows arrest/collapse produces a contradictory graph — the two are the same patient at the same moment and must agree.
+- A NEW arrhythmia this action triggers is abrupt once it starts — a re-entrant/ectopic rhythm (VT, SVT, new-onset AF, etc.) engages within a beat or two, so its rate should reach the new value within a few seconds, not ramp over tens of seconds the way a genuinely gradual physiological trend does (e.g. sinus tachycardia building as a stimulant/toxic effect develops, which really can climb over 30-60s — that's a different mechanism, not a rhythm switch). If the mechanism is electrical and fatal (a new malignant arrhythmia — VF, pulseless VT, torsades — whatever the underlying cause), the arrest itself is equally near-instant: once the rhythm turns, there is no cardiac output from that same moment, so HR/BP/SpO2/EtCO2/RR/GCS should all reach their arrest values within a handful of seconds, not a slow ramp. The BUILD-UP to that arrhythmia (a toxic surge developing, ischaemia worsening) can genuinely take minutes — it's the transition into the new rhythm/arrest itself, once triggered, that should be fast.
 - Pain and nausea are self-reported symptoms, not independent physiological curves — they require a patient conscious and coherent enough to perceive and communicate them (roughly gcsV >= 4-5). The instant your own overrides drop the patient to full unresponsiveness (GCS 1/1/1, arrest, deep sedation/anaesthesia), pain and nausea must be cut to 0 with an entry starting at that same moment — not left to keep drifting down on whatever gradual schedule was already scheduled from before consciousness was lost. An unconscious or arrested patient is not "a bit less nauseous than five minutes ago"; there is no one home to report either.
 - gcsE range 1-4, gcsV range 1-5, gcsM range 1-6 — never exceed these.
 - 'rhythm' is a separate array (sibling of 'overrides', same JSON object), for when this action changes what actually shows on the cardiac monitor — the numeric HR alone can't tell the simulator that, since a rhythm is a distinct thing from a rate (asystole, VF, and PEA are all "no pulse" but look completely different, and none of them can be inferred from HR=0 by itself). Include a 'rhythm' entry any time this action starts, changes, or resolves an actual rhythm — cardiac arrest ALWAYS needs one (never leave the simulator to guess whether HR hitting 0 means asystole, VF, or PEA). A rate-only change that stays within whatever rhythm is already showing does not need one. Each entry is a single point in time the rhythm changes to, holding until the next entry: {"label": "<standard clinical rhythm name>", "startMin": <minutes from now>}. Use ordinary clinical terminology the simulator recognises — e.g. sinus rhythm, sinus tachycardia, sinus bradycardia, atrial fibrillation, atrial flutter, SVT, ventricular tachycardia, ventricular fibrillation, torsades de pointes, asystole, pulseless electrical activity (PEA), complete heart block, Mobitz I, Mobitz II, first degree heart block, junctional rhythm, WPW, PVCs, idioventricular rhythm, hyperkalaemia, prolonged QT, an inferior/anterior/lateral/posterior STEMI, LBBB, RBBB, paced rhythm — not novel or invented phrasing. Omit 'rhythm' entirely if this action doesn't change it.
@@ -3156,7 +2836,7 @@ Rules:
 
 Examples clarifying how chained entries work (illustrative shapes only, not clinical guidance):
 - A vital that rises then partially settles: [{"targetValue":150,"startMin":0,"endMin":3},{"targetValue":150,"startMin":3,"endMin":6},{"targetValue":95,"startMin":6,"endMin":25}]. The middle entry does not change the value, but it still gets its own entry so the chain reaches minute 6 before the decline begins.
-- A vital that changes once because a problem was genuinely, fully corrected: [{"targetValue":80,"startMin":0,"endMin":4}] is sufficient on its own — the value holds at 80 for the rest of the scenario, which is correct here because nothing further is expected to happen to it.
+- A vital that changes once because a problem was genuinely, fully corrected: [{"targetValue":80,"startMin":0,"endMin":4}] is sufficient on its own — the value holds at 80 for the rest of the scenario, which is correct here because nothing further is expected to happen to it. This only works because the entry's OWN endMin (4) is where the transition genuinely finishes — do not stretch endMin out to the edge of the whole projection window just to express "holds afterward": [{"targetValue":0,"startMin":0,"endMin":30}] does NOT mean "arrests instantly and holds at 0" — the engine linearly interpolates across that entire span, so it renders as a slow 30-minute decline still short of 0 at minute 30. A fast transition needs its own short entry (ending when it genuinely finishes), then a separate later entry to hold/continue from there.
 - A vital that is genuinely unaffected by the action: omit its key entirely from overrides rather than giving it a flat entry — a flat entry implies you deliberately fixed its value there, whereas omitting it lets it continue on whatever course was already scheduled.
 - A vital undergoing several distinct phases (e.g. a brief worsening, then a partial recovery, then a late relapse) needs one chained entry per phase, in order, each starting exactly where the previous one ended — gaps or overlaps between entries are not meaningful to the renderer and should be avoided.
 - Whatever endMin your LAST entry for a vital uses is where that vital's value locks in place for the rest of the scenario — it will not drift, improve, or deteriorate further on its own after that point unless you add another entry saying so. There is no implicit resumption of any other course (not the pre-treatment plan, not the underlying condition's natural progression) once your entries run out.
@@ -3170,7 +2850,7 @@ Examples clarifying how chained entries work (illustrative shapes only, not clin
 
 Worked examples (illustrative only — reason independently for the real case each time):
 
-Example A — a conscious inferior-STEMI patient is given a grossly supratherapeutic IV adrenaline dose. Correct reasoning: a massive sympathetic surge causes an immediate hypertensive/tachycardic crisis (onset in 30-60s), which precipitates a fatal arrhythmia within a few minutes given the ischaemic myocardium, leading to cardiac arrest with no reversal agent available — so the arrest persists for the rest of the projection (no return of spontaneous circulation modelled without further intervention). A correctly chained HR entry set: [{"targetValue":170,"startMin":0,"endMin":1},{"targetValue":170,"startMin":1,"endMin":4},{"targetValue":0,"startMin":4,"endMin":5},{"targetValue":0,"startMin":5,"endMin":30}] — four chained entries: the onset spike, a brief hold at peak, the transition into arrest, and a final entry holding the arrest value all the way to the edge of the projection window. Without that last entry, the graph would silently hold at the peak tachycardia value instead of showing the arrest for the remaining time. Crucially, arrest at minute 4-5 is not an HR-only event: BPsys/BPdia must collapse toward 0 on the same timeline (no cardiac output, no pressure), SpO2 and EtCO2 must fall to reflect no perfusion/no effective ventilation, RR must drop to agonal/0, and gcsE/gcsV/gcsM must fall to 1/1/1 for loss of consciousness — each as its own chained entry set following the same onset-to-arrest timing as HR. Submitting only the HR chain while leaving BP/RR/SpO2/EtCO2/GCS on their pre-treatment course is wrong even though HR alone "looks done." If this patient had an active pain or nausea score running (e.g. from the STEMI's chest pain), that must ALSO get a chained entry cutting it to 0 at the same minute 4-5 arrest transition — an unconscious, pulseless patient cannot report pain or nausea, so those scores cannot keep gradually drifting down on their old pre-arrest schedule; they end abruptly, in lockstep with GCS. This is also a case that needs a 'rhythm' entry: the ischaemic myocardium plus the toxic surge means the fatal arrhythmia here is ventricular fibrillation, so "rhythm": [{"label":"ventricular fibrillation","startMin":4}] — matching the same minute-4 transition as the HR/BP collapse. Leaving 'rhythm' out would mean the monitor keeps showing whatever it was already displaying (sinus tachycardia) even once every number on the graph says the patient has arrested.
+Example A — a conscious inferior-STEMI patient is given a grossly supratherapeutic IV adrenaline dose. Correct reasoning: a massive sympathetic surge causes an immediate hypertensive/tachycardic crisis (onset in 30-60s), which precipitates a fatal arrhythmia within a few minutes given the ischaemic myocardium. The BUILD-UP to that arrhythmia can take minutes, but the arrest itself, once the rhythm turns, is near-instant — there is no cardiac output the moment VF starts — so it persists for the rest of the projection (no return of spontaneous circulation modelled without further intervention). A correctly chained HR entry set: [{"targetValue":170,"startMin":0,"endMin":1},{"targetValue":170,"startMin":1,"endMin":4},{"targetValue":0,"startMin":4,"endMin":4.05},{"targetValue":0,"startMin":4.05,"endMin":30}] — four chained entries: the onset spike, a brief hold at peak, the near-instant collapse into arrest at minute 4, and a final entry holding the arrest value all the way to the edge of the projection window. Without that last entry, the graph would silently hold at the peak tachycardia value instead of showing the arrest for the remaining time. Crucially, arrest at minute 4 is not an HR-only event: BPsys/BPdia must collapse toward 0 on the same near-instant timeline (no cardiac output, no pressure), SpO2 and EtCO2 must fall to reflect no perfusion/no effective ventilation, RR must drop to agonal/0, and gcsE/gcsV/gcsM must fall to 1/1/1 for loss of consciousness — each as its own chained entry set following the same onset-to-arrest timing as HR, not a slower fade of its own. Submitting only the HR chain while leaving BP/RR/SpO2/EtCO2/GCS on their pre-treatment course is wrong even though HR alone "looks done." If this patient had an active pain or nausea score running (e.g. from the STEMI's chest pain), that must ALSO get a chained entry cutting it to 0 at the same minute-4 arrest transition — an unconscious, pulseless patient cannot report pain or nausea, so those scores cannot keep gradually drifting down on their old pre-arrest schedule; they end abruptly, in lockstep with GCS. This is also a case that needs a 'rhythm' entry: the ischaemic myocardium plus the toxic surge means the fatal arrhythmia here is ventricular fibrillation, so "rhythm": [{"label":"ventricular fibrillation","startMin":4}] — matching the same minute-4 transition as the HR/BP collapse. Leaving 'rhythm' out would mean the monitor keeps showing whatever it was already displaying (sinus tachycardia) even once every number on the graph says the patient has arrested.
 
 Example B — an opioid-overdosed patient (resp rate 4, GCS 6) is given a single standard dose of naloxone. Correct reasoning: naloxone reverses the respiratory depression within 2-3 minutes, but its effect is shorter-lived than most opioids — the improvement is genuine but temporary, and without a repeat dose the patient re-sedates as the naloxone wears off while the opioid is still on board. A correctly chained RR entry set: [{"targetValue":4,"startMin":0,"endMin":2},{"targetValue":16,"startMin":2,"endMin":3},{"targetValue":16,"startMin":3,"endMin":25},{"targetValue":6,"startMin":25,"endMin":35}] — the reversal, a hold while naloxone is still active, then a chained entry back down as it wears off and the opioid effect resumes. Missing that last entry would have left the patient looking permanently recovered instead of showing the realistic relapse.
 
@@ -3243,8 +2923,9 @@ Project how this patient's vitals change from here, given this specific action.`
   //    unconditionally on every treatment call was silently deleting
   //    already-correct, already-scheduled deterioration whenever an action
   //    genuinely had no effect.
-  spliceAiOverridePlan(freshOverrides, parsed.overrides, vitalsNow, givenAtMs);
-  spliceRhythmPlan(freshOverrides, parsed.rhythm, givenAtMs);
+  SimEngine.spliceAiOverridePlan(freshOverrides, parsed.overrides, vitalsNow, givenAtMs);
+  SimEngine.spliceRhythmPlan(freshOverrides, parsed.rhythm, givenAtMs);
+  autoEnableGraphSeriesFromOverrides(parsed.overrides);
 
   // Record any assumptions the AI had to make on the treatment log entry
   // itself (this action was just pushed as the last element of `treatments`
@@ -3347,9 +3028,11 @@ Shape (showing one example key only \u2014 yours will have however many keys are
 
 Rules:
 - Times are minutes from THIS MOMENT (the command is issued = minute 0).
+- The engine linearly interpolates between each entry's start and end \u2014 a value only holds flat where you give it its own entry saying so. A SINGLE entry spanning minute 0 to minute 30 targeting the arrest/end-state value renders as a slow 30-minute ramp toward it, NOT an instant change that then holds \u2014 that is almost never what you mean. Any transition faster than the full remaining projection needs at least two chained entries per vital: one covering the actual transition (as fast or slow as it genuinely is), then a separate one holding/continuing from there to the edge of the projection.
 - If the command states a delay before the event should start (e.g. "in 5 minutes", "after 2 minutes"), every affected vital's FIRST entry must hold flat at its CURRENT value from minute 0 until that delay, then the real transition begins \u2014 never start the change immediately when a delay was explicitly stated. If no delay is stated, start immediately at minute 0.
 - You'll be given the plan currently scheduled (the patient's course before this command) as context, not binding \u2014 keep what's still realistic given this event, override the rest.
 - Base onset and rate of change on real physiology for whatever is actually being described (a stated diagnosis/complication, a direct instruction to set a vital, a described mechanism of injury, etc).
+- A NEW arrhythmia's onset is abrupt regardless of whether it causes arrest \u2014 a re-entrant/ectopic rhythm (VT, SVT, new-onset AF, etc.) engages within a beat or two, so its rate should reach the new value within a few seconds, not ramp over tens of seconds the way a genuinely gradual physiological trend does (e.g. sinus tachycardia building from fever or exertion, which really does climb over minutes \u2014 that's a different mechanism, not a rhythm switch). If that new rhythm also causes arrest (VF, pulseless VT, torsades), the same near-instant timing applies to every vital arrest implies too \u2014 there is no cardiac output from the moment the rhythm turns, so HR/BP/SpO2/EtCO2/RR/GCS should all reach arrest values within a handful of seconds, not a slow ramp. This is different from a genuinely gradual complication (e.g. a developing tension pneumothorax or sepsis), which really does progress over minutes \u2014 use clinical judgement on which kind of event this is.
 - If this event pushes the patient into a fundamentally different physiological state \u2014 cardiac arrest, severe shock, respiratory failure/apnoea, loss of consciousness \u2014 include EVERY vital that state mechanically implies, not only the one most obviously named. Cardiac arrest is not just HR: BP collapses toward 0, SpO2/EtCO2 stop reflecting normal perfusion/ventilation, RR drops to agonal/0, and gcsE/gcsV/gcsM fall to 1/1/1. A vital left on its old pre-event schedule while others show arrest/collapse produces a contradictory graph.
 - Pain and nausea are self-reported and require a conscious, coherent patient (roughly gcsV >= 4-5). The moment your own overrides drop the patient to full unresponsiveness, pain and nausea must be cut to 0 with an entry starting at that same moment, not left drifting down independently.
 - If the command only sets one specific value or vital directly (e.g. "set the BP to 90/60"), affect only what was actually asked \u2014 do not invent knock-on effects on unrelated vitals unless the command or the patient's underlying condition genuinely implies them.
@@ -3360,9 +3043,9 @@ Rules:
 
 Worked examples (illustrative only \u2014 reason independently for the real case each time):
 
-Example A \u2014 command: "put the patient into cardiac arrest" (no delay stated, no rhythm specified). Immediate onset: HR, BP, SpO2, EtCO2, RR and GCS all transition to arrest values within seconds to a minute and hold there for the rest of the projection (no ROSC modelled without further intervention). Any active pain/nausea score is cut to 0 at that same transition. No specific rhythm was named, so pick the one most consistent with the scenario's underlying condition (e.g. VF for an ischaemic/toxic cause, asystole or PEA for a hypoxic/hypovolaemic one) rather than defaulting to the same one every time \u2014 this still needs a 'rhythm' entry, e.g. "rhythm": [{"label":"ventricular fibrillation","startMin":1}], timed to the same moment the vitals reach arrest.
+Example A \u2014 command: "put the patient into cardiac arrest" (no delay stated, no rhythm specified). Immediate, near-instant onset: HR, BP, SpO2, EtCO2, RR and GCS all collapse to arrest values within a few seconds \u2014 there is no cardiac output from the moment the rhythm turns \u2014 and hold there for the rest of the projection (no ROSC modelled without further intervention). This needs TWO chained entries per vital, not one \u2014 a short transition, then a separate flat-hold entry to the edge of the projection. E.g. a correctly chained HR set given current HR 101: [{"targetValue":0,"startMin":0,"endMin":0.05},{"targetValue":0,"startMin":0.05,"endMin":30}] \u2014 collapsing this into a single {"targetValue":0,"startMin":0,"endMin":30} entry is wrong: the engine would render that as a slow 30-minute decline that hasn't even reached 0 by the end of the projection, not an arrest. The same two-entry pattern applies to BPsys/BPdia/SpO2/EtCO2/RR/gcsE/gcsV/gcsM, and to any active pain/nausea score (cut to 0 at that same near-instant moment \u2014 an unconscious, pulseless patient cannot report either). No specific rhythm was named, so pick the one most consistent with the scenario's underlying condition (e.g. VF for an ischaemic/toxic cause, asystole or PEA for a hypoxic/hypovolaemic one) rather than defaulting to the same one every time \u2014 this still needs a 'rhythm' entry, e.g. "rhythm": [{"label":"ventricular fibrillation","startMin":0}], timed to the same near-instant moment the vitals reach arrest.
 
-Example B \u2014 command: "put the patient into VF in 5 minutes". Here the rhythm IS explicitly named, which also implies the arrest mechanism: every affected vital's first entry holds at its current value from minute 0 to minute 5, and the arrest transition begins at minute 5, not minute 0. E.g. a correctly chained HR set given current HR 92: [{"targetValue":92,"startMin":0,"endMin":5},{"targetValue":0,"startMin":5,"endMin":6},{"targetValue":0,"startMin":6,"endMin":30}] \u2014 the held current value, the transition, then the arrest holding to the edge of the projection. 'rhythm' must match the same minute-5 timing: [{"label":"ventricular fibrillation","startMin":5}] \u2014 not minute 0, even though VF was named immediately in the command text.
+Example B \u2014 command: "put the patient into VF in 5 minutes". Here the rhythm IS explicitly named, which also implies the arrest mechanism: every affected vital's first entry holds at its current value from minute 0 to minute 5, and the arrest transition begins at minute 5, not minute 0 \u2014 but the transition itself, once it begins, is near-instant (there is no cardiac output the moment VF starts), not a slow ramp. E.g. a correctly chained HR set given current HR 92: [{"targetValue":92,"startMin":0,"endMin":5},{"targetValue":0,"startMin":5,"endMin":5.05},{"targetValue":0,"startMin":5.05,"endMin":30}] \u2014 the held current value, the near-instant collapse into arrest, then holding to the edge of the projection. 'rhythm' must match the same minute-5 timing: [{"label":"ventricular fibrillation","startMin":5}] \u2014 not minute 0, even though VF was named immediately in the command text.
 
 Example C \u2014 command: "give the patient a tension pneumothorax on the right side". A new complication distinct from whatever's already happening: rising HR, falling SpO2, rising RR/distress, falling BP as obstructive shock develops, chained forward realistically over several minutes to its own genuine endpoint (respiratory/cardiac arrest if the remaining projection window allows it to get that far untreated).
 
@@ -3407,8 +3090,9 @@ Project how this patient's vitals change from here, given this command.`;
     throw new Error('AI returned an unparseable trajectory update' + (text ? ': ' + text.slice(0, 150).replace(/\s+/g, ' ') : ''));
   }
 
-  spliceAiOverridePlan(freshOverrides, parsed.overrides, vitalsNow, givenAtMs);
-  spliceRhythmPlan(freshOverrides, parsed.rhythm, givenAtMs);
+  SimEngine.spliceAiOverridePlan(freshOverrides, parsed.overrides, vitalsNow, givenAtMs);
+  SimEngine.spliceRhythmPlan(freshOverrides, parsed.rhythm, givenAtMs);
+  autoEnableGraphSeriesFromOverrides(parsed.overrides);
 
   const assumptions = Array.isArray(parsed.assumptions) ? parsed.assumptions.filter(a => typeof a === 'string') : [];
   if (treatments.length) {

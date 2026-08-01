@@ -123,6 +123,7 @@ class ECGEngine {
   setTheme(name)  { if (this._pub.setTheme)  this._pub.setTheme(name);  }
   setBBB(mode)    { if (this._pub.setBBB)    this._pub.setBBB(mode);    }
   setStripLead(name) { if (this._pub.setStripLead) this._pub.setStripLead(name); }
+  triggerShockArtifact() { if (this._pub.triggerShockArtifact) this._pub.triggerShockArtifact(); }
   getMorphSeed()  { return this._pub.getMorphSeed ? this._pub.getMorphSeed() : null; }
   applySeed(seed) { if (this._pub.applySeed) this._pub.applySeed(seed); }
   capture()       { if (this._pub.toggleCapture) this._pub.toggleCapture(); }
@@ -900,6 +901,20 @@ function makeState(){
   };
 }
 let state=makeState();
+// Defibrillation artifact — a huge amplifier-saturating vertical deflection,
+// NOT part of the cardiac cycle model (unlike spikeA/spikeV pacer ticks,
+// which are timed off the heartbeat state machine). Triggered externally via
+// triggerShockArtifact() the instant a shock is delivered, independent of
+// rhythm/outcome — it's the electrical event hitting the leads, not a
+// verdict on whether it worked. Modelled as a column counter (not a single
+// pixel) so it reads as a solid blown-out bar across the width of a real
+// shock's duration, consumed once per column exactly like spikeA/spikeV are.
+let shockArtifactLeadRemaining=0, shockArtifactStripRemaining=0;
+function triggerShockArtifact(){
+  const artifactMs=45; // how long the bar reads as — quartered from an initial 180ms, which read too wide
+  shockArtifactLeadRemaining=Math.max(3,Math.round(artifactMs*PX_PER_MS));
+  shockArtifactStripRemaining=Math.max(3,Math.round(artifactMs*STRIP_PX_PER_MS));
+}
 
 const RHYTHMS={
   nsr:  {label:'SINUS RHYTHM',        defaultBpm:72,  sliderMin:60,  sliderMax:100, sliderNote:''},
@@ -1337,16 +1352,29 @@ const ERASE_PX=2;
 // =====================================================================
 // RENDER LOOP
 // =====================================================================
-function drawSpikesOn(ctx, spikes, W, hX, erasePx, mid){
+function drawSpikesOn(ctx, spikes, W, hX, erasePx, mid, fullH){
   const startX=(hX+erasePx)%W;
   ctx.save();
-  ctx.strokeStyle=window._traceColour||'#00ff88';
-  ctx.lineWidth=1.5;
-  ctx.setLineDash([3,3]);
   for(let i=0;i<W-erasePx;i++){
     const x=(startX+i)%W;
     const sp=spikes[x];
     if(!sp) continue;
+    if(sp===9){
+      // Shock artifact — solid and near-full-height, deliberately unlike the
+      // small dashed pacer ticks below: a real defib discharge saturates the
+      // amplifier, not a small timed blip. Same green as the trace itself
+      // (not a distinct colour) — it's the same electrical signal railing out.
+      ctx.strokeStyle=window._traceColour||'#00ff88';
+      ctx.lineWidth=window._traceWidth||1.5;
+      ctx.setLineDash([]);
+      ctx.beginPath();
+      ctx.moveTo(x,mid-(fullH||120)*0.48); ctx.lineTo(x,mid+(fullH||120)*0.48);
+      ctx.stroke();
+      continue;
+    }
+    ctx.strokeStyle=window._traceColour||'#00ff88';
+    ctx.lineWidth=1.5;
+    ctx.setLineDash([3,3]);
     if(sp===1||sp===3){
       ctx.beginPath();
       ctx.moveTo(x,mid-55); ctx.lineTo(x,mid-5);
@@ -1384,9 +1412,11 @@ function draw(ts){
           spikeData[n][x]=0;
           if(state.spikeA){spikeData[n][x]=1;}
           if(state.spikeV){spikeData[n][x]=(spikeData[n][x]===1)?3:2;}
+          if(shockArtifactLeadRemaining>0){spikeData[n][x]=9;}
         });
         if(state.spikeA) state.spikeA=false;
         if(state.spikeV) state.spikeV=false;
+        if(shockArtifactLeadRemaining>0) shockArtifactLeadRemaining--;
         headX=(headX+1)%LEAD_W;
         leadsFrozen = true;
         break;
@@ -1401,9 +1431,11 @@ function draw(ts){
         spikeData[n][x]=0;
         if(state.spikeA){ spikeData[n][x]=1; }
         if(state.spikeV){ spikeData[n][x]=(spikeData[n][x]===1)?3:2; }
+        if(shockArtifactLeadRemaining>0){ spikeData[n][x]=9; }
       });
       if(state.spikeA) state.spikeA=false;
       if(state.spikeV) state.spikeV=false;
+      if(shockArtifactLeadRemaining>0) shockArtifactLeadRemaining--;
       headX=(headX+1)%LEAD_W;
     }
   }
@@ -1419,6 +1451,7 @@ function draw(ts){
         spikeData['strip'][x]=0;
         if(stripState.spikeA){ spikeData['strip'][x]=1; stripState.spikeA=false; }
         if(stripState.spikeV){ spikeData['strip'][x]=(spikeData['strip'][x]===1)?3:2; stripState.spikeV=false; }
+        if(shockArtifactStripRemaining>0){ spikeData['strip'][x]=9; shockArtifactStripRemaining--; }
         stripHead=(stripHead+1)%STRIP_W;
         doCapture();
         break;
@@ -1431,6 +1464,7 @@ function draw(ts){
       spikeData['strip'][x]=0;
       if(stripState.spikeA){ spikeData['strip'][x]=1; stripState.spikeA=false; }
       if(stripState.spikeV){ spikeData['strip'][x]=(spikeData['strip'][x]===1)?3:2; stripState.spikeV=false; }
+      if(shockArtifactStripRemaining>0){ spikeData['strip'][x]=9; shockArtifactStripRemaining--; }
       stripHead=(stripHead+1)%STRIP_W;
     }
   }
@@ -1443,7 +1477,7 @@ function draw(ts){
     ctx.fillStyle=window._traceGlow||'rgba(0,255,136,0.10)';
     ctx.fillRect(hX,0,2,LEAD_H);
     renderTraceOn(ctx,traceData[n],LEAD_W,hX,ERASE_PX);
-    drawSpikesOn(ctx,spikeData[n],LEAD_W,hX,ERASE_PX,MID_LEAD);
+    drawSpikesOn(ctx,spikeData[n],LEAD_W,hX,ERASE_PX,MID_LEAD,LEAD_H);
   });
 
   {
@@ -1453,7 +1487,7 @@ function draw(ts){
     ctx.fillStyle=window._traceGlow||'rgba(0,255,136,0.10)';
     ctx.fillRect(hX,0,2,STRIP_H);
     renderTraceOn(ctx,traceData['strip'],STRIP_W,hX,ERASE_PX);
-    drawSpikesOn(ctx,spikeData['strip'],STRIP_W,hX,ERASE_PX,MID_STRIP);
+    drawSpikesOn(ctx,spikeData['strip'],STRIP_W,hX,ERASE_PX,MID_STRIP,STRIP_H);
   }
 
   if(!frozen) requestAnimationFrame(draw);
@@ -1468,7 +1502,7 @@ function redrawAllTraces() {
     ctx.fillStyle=window._traceGlow||'rgba(0,255,136,0.10)';
     ctx.fillRect(hX,0,2,LEAD_H);
     renderTraceOn(ctx,traceData[n],LEAD_W,hX,ERASE_PX);
-    drawSpikesOn(ctx,spikeData[n],LEAD_W,hX,ERASE_PX,MID_LEAD);
+    drawSpikesOn(ctx,spikeData[n],LEAD_W,hX,ERASE_PX,MID_LEAD,LEAD_H);
   });
   const ctx=stripTraceC.getContext('2d');
   ctx.clearRect(0,0,STRIP_W,STRIP_H);
@@ -1817,6 +1851,7 @@ function doCapture() {
     _self._pub.setTheme     = setTheme;
     _self._pub.setBBB       = setBBB;
     _self._pub.setStripLead = setStripLead;
+    _self._pub.triggerShockArtifact = triggerShockArtifact;
     _self._pub.onSlider     = onSlider;
     _self._pub.toggleCapture = (typeof toggleCapture !== 'undefined') ? toggleCapture : null;
     _self._pub.resume       = function() {
