@@ -17,7 +17,7 @@ body { display: flex; flex-direction: column; }
 #main { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 10px; padding: 10px; overflow: hidden; }
 @media (min-width: 800px) { #main { flex-direction: row; } }
 .panel { background: #ffffff; border: 1px solid #d7dee6; border-radius: 8px; padding: 10px; }
-#monitor-col { background: #0a0e16 !important; border-color: #142235 !important; min-height: 0; }
+#monitor-col { background: #0a0e16 !important; border-color: #142235 !important; min-height: 0; position: relative; }
 #info-col { flex: 1; max-width: 280px; display: flex; flex-direction: column; gap: 10px; min-width: 0; min-height: 0; }
 #patient-info h2 { font-size: 12px; color: #0369a1; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; }
 #patient-info .row { font-size: 12px; color: #33475a; margin-bottom: 3px; }
@@ -63,6 +63,27 @@ body { display: flex; flex-direction: column; }
 .oo-tap-again { font-size: 8px; color: #4fc3f7; margin-top: 2px; font-style: italic; }
 .oo-pending { font-size: 10px; color: #4fc3f7; margin-top: 2px; }
 .oo-queued { font-size: 9px; color: #6b8299; margin-top: 2px; font-style: italic; }
+
+/* Defib strip — bottom row of the monitor. Four blank placeholder keys for
+   now, then Charge/Shock. The joule tower is an overlay (not part of flex
+   flow) anchored above this strip, matching a real monitor's energy-select
+   column covering part of the trace while armed. */
+#defib-strip { display: flex; flex-shrink: 0; height: 40px; border-top: 2px solid #0d1f35; background: #080c14; }
+.defib-btn { flex: 1; border: none; border-right: 1px solid #1a2a3a; background: transparent; font-family: 'Courier New', monospace; font-weight: 700; font-size: 11px; letter-spacing: 1px; text-transform: uppercase; color: #3a5570; -webkit-tap-highlight-color: rgba(255,255,255,0.15); }
+.defib-btn:last-child { border-right: none; }
+.defib-btn:disabled { cursor: default; }
+#defib-charge-btn { color: #fbbf24; cursor: pointer; }
+#defib-charge-btn:active:not(:disabled) { background: rgba(251,191,36,0.15); }
+#defib-shock-btn { color: #ff5a36; cursor: pointer; }
+#defib-shock-btn:disabled { color: #5a2a1c; cursor: default; }
+#defib-shock-btn:active:not(:disabled) { background: rgba(255,90,54,0.2); }
+#defib-discharge-btn:not(:disabled) { color: #94a3b8; cursor: pointer; }
+#defib-discharge-btn:active:not(:disabled) { background: rgba(148,163,184,0.15); }
+
+#joule-tower { position: absolute; right: 0; top: 0; bottom: 40px; width: 15%; display: none; flex-direction: column; overflow-y: auto; background: #060910; border-left: 2px solid #1a2a3a; border-top: 2px solid #1a2a3a; z-index: 20; }
+.joule-row { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; font-family: 'Courier New', monospace; font-size: 13px; font-weight: 700; color: #c0d4e8; border-bottom: 1px solid #101c2c; cursor: pointer; -webkit-tap-highlight-color: rgba(255,255,255,0.15); }
+.joule-row.joule-charged { background: #274a66; color: #eaf6ff; }
+.joule-row.joule-selected { background: #0369a1; color: #fff; }
 
 /* Voice capture — Give Treatment / Talk to Patient ------------------------ */
 #voice-fab-strip { display: flex; flex-direction: row; gap: 6px; flex-shrink: 0; width: 100%; max-width: 240px; }
@@ -124,6 +145,7 @@ body { display: flex; flex-direction: column; }
     <h2 style="margin-bottom:10px;">Join Scenario Session</h2>
     <input id="gate-code-input" type="text" inputmode="numeric" maxlength="6" placeholder="6-digit code" style="width:100%;font-size:18px;text-align:center;letter-spacing:4px;padding:8px;border:1px solid #d7dee6;border-radius:6px;font-family:'Courier New',monospace;margin-bottom:8px;">
     <button style="width:100%;padding:8px;font-size:13px;font-weight:700;color:#fff;background:#0369a1;border:none;border-radius:6px;cursor:pointer;" onclick="connectSession(document.getElementById('gate-code-input').value.trim())">Connect</button>
+    <button style="width:100%;padding:7px;font-size:11px;font-weight:700;color:#33475a;background:#e2e8f0;border:none;border-radius:6px;cursor:pointer;margin-top:6px;" onclick="joinMostRecentSession()">Join Most Recent Session</button>
     <div id="gate-error" style="color:#b91c1c;font-size:11px;margin-top:8px;"></div>
   </div>
 </div>
@@ -174,6 +196,15 @@ body { display: flex; flex-direction: column; }
       <div id="monitor-box"></div>
     </div>
     <div id="oneoff-strip"></div>
+    <div id="joule-tower"></div>
+    <div id="defib-strip">
+      <button class="defib-btn" disabled></button>
+      <button class="defib-btn" disabled></button>
+      <button class="defib-btn" disabled></button>
+      <button class="defib-btn" id="defib-discharge-btn" onclick="handleDischargeBtn()" disabled></button>
+      <button class="defib-btn" id="defib-charge-btn" onclick="handleChargeBtn()">Charge</button>
+      <button class="defib-btn" id="defib-shock-btn" onclick="handleShockBtn()" disabled>Shock</button>
+    </div>
   </div>
   <div id="info-col">
     <div class="panel" id="patient-graphic" style="flex-direction:column;gap:8px;">
@@ -417,6 +448,21 @@ function stopTalkAnimation() {
 }
 
 // --- Session join flow -----------------------------------------------------
+// Convenience for repeated testing — skips typing the 6-digit code by just
+// grabbing whichever session sim_control.html most recently created.
+async function joinMostRecentSession() {
+  const errEl = document.getElementById('gate-error');
+  errEl.textContent = '';
+  try {
+    const rows = await sbGet('sim_sessions?select=session_code&order=created_at.desc&limit=1');
+    if (!rows.length) { errEl.textContent = 'No sessions found.'; return; }
+    document.getElementById('gate-code-input').value = rows[0].session_code;
+    connectSession(rows[0].session_code);
+  } catch (e) {
+    errEl.textContent = 'Could not reach the session list — check the connection and try again.';
+  }
+}
+
 async function connectSession(code) {
   const errEl = document.getElementById('gate-error');
   errEl.textContent = '';
@@ -939,6 +985,102 @@ function renderOneOff() {
     return `<div class="oo-card" onclick="handleOneOffTap('${key}')"><div class="oo-label">${def.label}</div>${body}</div>`;
   }).join('');
 }
+
+// --- Defibrillation --------------------------------------------------------
+// Mirrors a real monitor's energy-select tower: top-to-bottom is highest to
+// lowest joules. Charging fills the tower from the bottom (1J) upward, one
+// row per tick, until it reaches the selected row — so higher energy takes
+// longer to charge, same as the real thing. Two taps of Charge: first opens
+// the tower for selection, second (once a value is picked) starts the charge.
+const JOULE_LEVELS = [200, 150, 120, 100, 85, 70, 50, 30, 20, 15, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1];
+const CHARGE_STEP_MS = 180;
+let defibState = 'idle'; // idle -> selecting -> charging -> charged -> (shock) -> idle
+let selectedJoules = 200; // default preset, matching a real monitor remembering the last-used energy
+let chargeFillCount = 0; // rows lit, counting from the bottom (1J) up
+let _chargeTimer = null;
+
+function renderJouleTower() {
+  const tower = document.getElementById('joule-tower');
+  if (defibState === 'idle') { tower.style.display = 'none'; tower.innerHTML = ''; return; }
+  tower.style.display = 'flex';
+  tower.innerHTML = JOULE_LEVELS.map((val, idx) => {
+    const posFromBottom = JOULE_LEVELS.length - idx;
+    const cls = ['joule-row'];
+    if (posFromBottom <= chargeFillCount) cls.push('joule-charged');
+    if (val === selectedJoules) cls.push('joule-selected');
+    return `<div class="${cls.join(' ')}" onclick="selectJoule(${val})">${val}</div>`;
+  }).join('');
+}
+
+function selectJoule(val) {
+  if (defibState !== 'selecting') return; // locked once charging/charged
+  selectedJoules = val;
+  renderJouleTower();
+}
+
+function handleChargeBtn() {
+  if (defibState === 'idle') {
+    defibState = 'selecting';
+    renderJouleTower();
+    updateDefibButtons();
+  } else if (defibState === 'selecting' && selectedJoules) {
+    startCharging();
+  }
+}
+
+function startCharging() {
+  defibState = 'charging';
+  chargeFillCount = 0;
+  updateDefibButtons();
+  const targetPos = JOULE_LEVELS.length - JOULE_LEVELS.indexOf(selectedJoules);
+  clearInterval(_chargeTimer);
+  _chargeTimer = setInterval(() => {
+    chargeFillCount++;
+    renderJouleTower();
+    if (chargeFillCount >= targetPos) {
+      clearInterval(_chargeTimer);
+      defibState = 'charged';
+      updateDefibButtons();
+    }
+  }, CHARGE_STEP_MS);
+}
+
+function updateDefibButtons() {
+  const chargeBtn = document.getElementById('defib-charge-btn');
+  const shockBtn = document.getElementById('defib-shock-btn');
+  const dischargeBtn = document.getElementById('defib-discharge-btn');
+  chargeBtn.disabled = defibState === 'charging' || defibState === 'charged';
+  chargeBtn.textContent = defibState === 'charging' ? 'Charging…' : defibState === 'charged' ? 'Charged' : 'Charge';
+  shockBtn.disabled = defibState !== 'charged';
+  const charged = defibState === 'charged';
+  dischargeBtn.disabled = !charged;
+  dischargeBtn.textContent = charged ? 'Discharge' : '';
+}
+
+// Aborts an armed charge without shocking — no student_queue item is sent,
+// this is purely "stand down".
+function handleDischargeBtn() {
+  if (defibState !== 'charged') return;
+  clearInterval(_chargeTimer);
+  defibState = 'idle';
+  chargeFillCount = 0;
+  renderJouleTower();
+  updateDefibButtons();
+}
+
+async function handleShockBtn() {
+  if (defibState !== 'charged' || !sessionCode) return;
+  const joules = selectedJoules;
+  clearInterval(_chargeTimer);
+  defibState = 'idle';
+  chargeFillCount = 0;
+  renderJouleTower();
+  updateDefibButtons();
+  // Same student_queue path the voice "Give Treatment" flow uses — sim_control.html's
+  // processStudentQueue()/giveTreatment() picks this up like any other typed treatment.
+  try { await queueStudentItem('treatment', `Defibrillation ${joules}J`); } catch (e) { /* best-effort, matches other student_queue sends */ }
+}
+updateDefibButtons();
 
 let _lastTickMs = Date.now();
 function tick() {
