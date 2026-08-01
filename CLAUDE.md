@@ -136,7 +136,15 @@ token, substituted at render time rather than baked in, so colour stays
 dynamic. Two layers on top of that shared data:
 
 - **Build** (fixed per scenario): skin tone from `scenario.patient_meta.skin_colour`
-  (hex swatch, already stored by `generator.html` — see `pickRandomSkinTone()`),
+  (hex swatch, already stored by `generator.html` — see
+  `pickSkinToneForEthnicity()`, weighted by the same `patient.ethnicity` the
+  name pool picked via `SKIN_TONE_LEAN`, one weight table per ethnicity key
+  — a soft lean toward population-typical tones, not a lookup: every
+  ethnicity keeps a nonzero chance at every swatch, verified against 5000
+  draws per ethnicity. Previously generated fully independently of
+  ethnicity "to avoid caricature" — changed because in practice an
+  uncorrelated pick was actively working against the inclusive/
+  representative goal the field exists for, not serving it),
   hair style/colour and eyebrow style all picked deterministically from a hash
   of `scenario_id` (each with a differently-suffixed hash so they don't land
   in lockstep) so they're stable across reconnects rather than re-rolling
@@ -172,6 +180,15 @@ rendered as a literal middle-aged adult:
   the hair pool below teen — a hard filter, unlike the gender lean, since
   there's no equivalent "some variety is good here" case for a toddler
   landing on a middle-aged man's haircut.
+- **`EYE_SCALE`/`FACE_LOWER_OFFSET`**: the classic cartoon "younger = bigger
+  eyes, face sits lower/rounder" cues, layered on top of `AGE_SCALE` since
+  eyes/eyebrows/mouth are already independent groups that can move/scale on
+  their own — `#av-eyes` scales around its own on-screen centre (56,22) so
+  both eyes grow symmetrically rather than spreading apart, while
+  eyes/eyebrows/mouth all shift down as a unit, hair/head outline
+  untouched. Can't make the head bigger *relative to* the body this way
+  (one rigid head+body path, no separate head/body scale without new art)
+  — a real limitation, not fully solved, just improved.
 - **`greyWeight()`**: separately, hair *colour* (not style) softly ramps
   toward grey/silver/white (`GREY_HAIR_COLOURS`) as age climbs from 40 to
   75+ (≈7% grey at 20, ≈47% at 45, ≈83% at 80 — verified against 500
@@ -186,13 +203,16 @@ rendered as a literal middle-aged adult:
   `default`, the plain look) are just flat pupil dots with no sclera
   underneath, and none expose the pupil as independently sizeable. Sclera
   (`av-eye-l/r-sclera`) and pupil (`av-eye-l/r-pupil`) are separate elements
-  instead, sized together via `setEyeOpenness()` for open/droopy/closed —
-  deliberately so pupil size/reactivity can later be driven by clinical
-  state (dilated/pinpoint/unequal — anisocoria, blown pupils) as its own
-  axis, not baked into a fixed shape per eye-openness level. `closed` still
-  reuses the real `AvatarAssets.eyes.closed` asset (a plain eyelid crease,
-  no sclera needed) via the always-present `av-eyes-closed-overlay` group,
-  toggled visible instead of swapped in. Skin tint blended toward
+  instead, deliberately so pupil size/reactivity can later be driven by
+  clinical state (dilated/pinpoint/unequal — anisocoria, blown pupils) as
+  its own axis, not baked into a fixed shape per eye-openness level. Both
+  stay full-size at all times; "droopy" (GCS E2) is a skin-toned eyelid
+  path (`av-eye-l/r-lid`) occluding the top ~70% of each eye instead of
+  shrinking the eyeball — shrinking it used to still read as a small OPEN
+  eye rather than a heavy/half-closed one. `closed` still reuses the real
+  `AvatarAssets.eyes.closed` asset (a plain eyelid crease, no sclera
+  needed) via the always-present `av-eyes-closed-overlay` group, toggled
+  visible instead of swapped in. Skin tint blended toward
   cyanotic/mottled/pale, sweat droplets shown for diaphoretic/clammy, and a
   resting mouth expression
   (neutral/mild/distress/grimace/slack, mapped onto Avataaars' named mouth
@@ -231,13 +251,28 @@ animation reads as a slideshow, not motion), all inside one
   sitting BEHIND `#av-face-group` — at rest the two perfectly overlap so
   the clipped duplicate is invisible, only becoming visible as "shoulder
   rise" once its own transform diverges from the face group's. This is
-  the primary, always-present breathing cue. The *head* itself
-  (`#av-face-group`) barely moves normally — real quiet breathing doesn't
-  bob the head; visible head movement is actually a laboured-breathing
-  sign (accessory muscle use, tripoding) — so its amplitude is scaled by
-  `_wobAmplitude`, set from `SimEngine.getAppearanceState(v).wob` in
-  `updateAvatarFace()`, near-zero for a calm patient and progressively
-  more pronounced toward agonal/severe distress.
+  the primary, always-present breathing cue. The clip's top edge (y=199)
+  matters more than it looks: it's set just past where the path's
+  neck-to-shoulder curve resolves into the flat shoulder taper — set any
+  higher (into the curvy jaw/neck transition) and that curve peeks out as
+  a visible "second chin" whenever the chest offset diverges enough from
+  the face's. The *head* itself (`#av-face-group`) barely moves normally —
+  real quiet breathing doesn't bob the head; visible head movement is
+  actually a laboured-breathing sign (accessory muscle use, tripoding) —
+  so its amplitude is scaled by `_wobAmplitude`, set from
+  `SimEngine.getAppearanceState(v).wob` in `updateAvatarFace()`,
+  near-zero for a calm patient and progressively more pronounced toward
+  agonal/severe distress. Phase is a running angle accumulator
+  (`_breathAngle`, advanced each frame by `(dt/period)*2π`) rather than
+  recomputed fresh from the absolute rAF timestamp — RR can change
+  mid-breath, and recomputing `sin(tsMs/period)` straight from `tsMs` kept
+  the numerator growing while the denominator jumped, causing a visible
+  phase discontinuity on nearly every RR change (read as the breathing
+  "resetting" and looking too fast). Accumulating means a period change
+  only changes the rate of future advancement, not the current position
+  in the cycle — verified by sampling chest-Y across a live RR change:
+  smooth acceleration, no jump. Sway below uses a fixed period so it was
+  never affected.
 - **Idle sway**: a slow ~7s side-to-side on `#av-face-group`'s X, unrelated
   to any vital sign — purely "not a frozen photo". `#av-top` (hair) gets a
   slightly larger version of the same sway on top of inheriting the face

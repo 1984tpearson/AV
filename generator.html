@@ -983,14 +983,36 @@ function randomAustralianPatient(category) {
   return { name: name.full, gender, age, ethnicity: name.ethnicity };
 }
 
-// Skin tone swatch, generated independently of ethnicity (deliberately NOT
-// weighted by the name pool chosen above — real skin tone varies enormously
-// within any population, and correlating the two risks caricature). Just a
-// simple uniform pick across a broad tone range. Not shown anywhere yet —
-// stored for future avatar/visual use.
+// Skin tone swatch (light to dark). Weighted by the ethnicity the name pool
+// above already chose — a soft lean toward population-typical tones, not a
+// rigid ethnicity->tone lookup: every ethnicity keeps a nonzero chance at
+// every swatch, since real skin tone diversity within any population is
+// substantial and a hard mapping would read as a caricature. Previously
+// generated independently of ethnicity entirely; changed because "stored
+// for future avatar/visual use" became true (see sim_patient.html's
+// dynamic avatar) and an uncorrelated pick was actively working against
+// the inclusive/representative goal that field exists for.
 const SKIN_TONE_SWATCHES = ['#F5D5C5', '#EFC3A3', '#E0AC81', '#C68863', '#A96C4A', '#8D5A3B', '#6B4530', '#4A2F20'];
-function pickRandomSkinTone() {
-  return SKIN_TONE_SWATCHES[Math.floor(Math.random() * SKIN_TONE_SWATCHES.length)];
+const SKIN_TONE_LEAN = {
+  anglo:       [6,   5,   3,   1.5, 1,   0.5, 0.3, 0.2],
+  european:    [4,   5,   4,   2,   1,   0.5, 0.3, 0.2],
+  chinese:     [1,   3,   5,   3,   1.5, 0.5, 0.3, 0.2],
+  seast_asian: [0.5, 2,   4,   4,   2.5, 1,   0.5, 0.3],
+  indian:      [0.3, 0.8, 2,   3.5, 4,   3.5, 2,   1],
+  arabic:      [0.5, 1.5, 3,   4,   3,   1.5, 0.8, 0.4],
+  atsi:        [0.2, 0.3, 0.5, 1,   2,   3.5, 4,   3.5],
+  nz_pacific:  [0.3, 0.5, 1,   2,   3,   4,   3.5, 2],
+  african:     [0.2, 0.3, 0.5, 1,   1.5, 3,   4.5, 5]
+};
+function pickSkinToneForEthnicity(ethnicity) {
+  const weights = SKIN_TONE_LEAN[ethnicity] || SKIN_TONE_SWATCHES.map(() => 1);
+  const total = weights.reduce((a, b) => a + b, 0);
+  let r = Math.random() * total;
+  for (let i = 0; i < SKIN_TONE_SWATCHES.length; i++) {
+    r -= weights[i];
+    if (r <= 0) return SKIN_TONE_SWATCHES[i];
+  }
+  return SKIN_TONE_SWATCHES[SKIN_TONE_SWATCHES.length - 1];
 }
 
 // ── CPG CONTEXT + PROMPT + GENERATION ────────────────────────────────────────
@@ -1438,7 +1460,7 @@ ${SCENARIO_JSON_TEMPLATE.replace('CAT', category).replace('SUB', subcategory)}`;
       gender: patient.gender,
       age: patient.age,
       ethnicity: patient.ethnicity,
-      skin_colour: pickRandomSkinTone(),
+      skin_colour: pickSkinToneForEthnicity(patient.ethnicity),
       baseline_cognitive_status: (scenario.baseline_cognitive_status || '').trim() || 'Normal baseline cognition',
       pregnancy_status: (scenario.pregnancy_status || '').trim() || 'Not applicable'
     };

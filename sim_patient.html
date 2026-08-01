@@ -211,7 +211,7 @@ body { display: flex; flex-direction: column; }
     <div id="head-wrap">
       <svg id="av-svg" viewBox="0 0 280 260" width="280" height="260" style="max-width:100%;max-height:100%;object-fit:contain;display:block;" xmlns="http://www.w3.org/2000/svg">
         <defs>
-          <clipPath id="av-chest-clip"><rect x="0" y="175" width="280" height="105"/></clipPath>
+          <clipPath id="av-chest-clip"><rect x="0" y="199" width="280" height="61"/></clipPath>
         </defs>
         <g id="av-scale-group">
           <g id="av-chest-group" transform="translate(8)">
@@ -224,8 +224,10 @@ body { display: flex; flex-direction: column; }
             <g id="av-eyes" transform="translate(76 90)">
               <ellipse id="av-eye-l-sclera" cx="30" cy="22" rx="14" ry="7" fill="#fff"/>
               <circle id="av-eye-l-pupil" cx="30" cy="22" r="5.5" fill="#2b2118"/>
+              <path id="av-eye-l-lid" d="M16 22 A14 7 0 0 1 44 22 L44 25 Q30 29 16 25 Z" fill="#E0AC81" style="display:none;"/>
               <ellipse id="av-eye-r-sclera" cx="82" cy="22" rx="14" ry="7" fill="#fff"/>
               <circle id="av-eye-r-pupil" cx="82" cy="22" r="5.5" fill="#2b2118"/>
+              <path id="av-eye-r-lid" d="M68 22 A14 7 0 0 1 96 22 L96 25 Q82 29 68 25 Z" fill="#E0AC81" style="display:none;"/>
               <g id="av-eyes-closed-overlay" style="display:none;"></g>
             </g>
             <g id="av-eyebrows" transform="translate(76 82)"></g>
@@ -347,6 +349,17 @@ function greyWeight(age) {
 // enough to stop, say, an infant scenario rendering as a literal
 // middle-aged adult, which is what shipped before this existed.
 const AGE_SCALE = { infant: 0.6, toddler: 0.7, child: 0.8, teen: 0.92, adult: 1 };
+// Two more cartoon "younger = bigger eyes, lower/rounder face" cues, layered
+// on top of the uniform AGE_SCALE above — can't make the head bigger
+// RELATIVE to the body (one rigid head+body path, no separate head scale
+// without new art), but the face features are already independent groups,
+// so eyes/eyebrows/mouth CAN move and eyes CAN grow independently of the
+// head outline they sit on. EYE_SCALE scales #av-eyes around its own
+// on-screen centre (56,22) so both eyes grow symmetrically rather than
+// spreading apart. FACE_LOWER_OFFSET shifts eyes/eyebrows/mouth down as a
+// unit, leaving the hair/head outline alone.
+const EYE_SCALE = { infant: 1.45, toddler: 1.3, child: 1.15, teen: 1.05, adult: 1 };
+const FACE_LOWER_OFFSET = { infant: 12, toddler: 9, child: 5, teen: 2, adult: 0 };
 // Hairstyles that read as distinctly adult (structured adult cuts, a
 // receding-hairline-prone crop) — excluded below teen so a pediatric
 // scenario can't land on a look that reads as a grown adult, same
@@ -418,8 +431,14 @@ function buildAvatarBase(seed, skinHex, gender, age) {
 // starts) rather than the viewBox origin, so a smaller figure keeps its
 // head near the same spot instead of shrinking toward the top-left corner.
 function applyAgeScale() {
-  const s = AGE_SCALE[avatarBuild.ageBand] || 1;
+  const band = avatarBuild.ageBand;
+  const s = AGE_SCALE[band] || 1;
   document.getElementById('av-scale-group').setAttribute('transform', `translate(140,36) scale(${s}) translate(-140,-36)`);
+  const dy = FACE_LOWER_OFFSET[band] || 0;
+  const eyeScale = EYE_SCALE[band] || 1;
+  document.getElementById('av-eyebrows').setAttribute('transform', `translate(76 ${82 + dy})`);
+  document.getElementById('av-mouth').setAttribute('transform', `translate(78 ${134 + dy})`);
+  document.getElementById('av-eyes').setAttribute('transform', `translate(76 ${90 + dy}) translate(56,22) scale(${eyeScale}) translate(-56,-22)`);
 }
 
 function renderAvatarBuild() {
@@ -448,6 +467,8 @@ function applySkinTint(state) {
   const fill = tint ? blendHex(avatarBuild.skin, tint.hex, tint.t) : avatarBuild.skin;
   document.getElementById('av-head-path').setAttribute('fill', fill);
   document.getElementById('av-chest-path').setAttribute('fill', fill);
+  document.getElementById('av-eye-l-lid').setAttribute('fill', fill);
+  document.getElementById('av-eye-r-lid').setAttribute('fill', fill);
 }
 
 // Eyes are NOT one of avatar_assets.js's pre-baked variants — several of
@@ -458,18 +479,18 @@ function applySkinTint(state) {
 // (dilated/pinpoint/unequal — anisocoria, blown pupils) rather than being
 // baked into a fixed shape per eye-openness level. 'closed' still reuses
 // the real asset (a plain eyelid crease, no sclera needed) via the
-// av-eyes-closed-overlay group set once in renderAvatarBuild().
+// av-eyes-closed-overlay group set once in renderAvatarBuild(). 'droopy'
+// used to just shrink the sclera/pupil down, which at a glance still read
+// as a small OPEN eye rather than a heavy/half-closed one — an actual
+// skin-toned eyelid (av-eye-l/r-lid) now occludes the top ~70% of each eye
+// instead, sclera/pupil staying full size underneath.
 function setEyeOpenness(level) {
-  const scleraRy = level === 'droopy' ? 3.5 : 7;
-  const pupilR = level === 'droopy' ? 3 : 5.5;
   const showOpen = level !== 'closed';
+  const showLid = level === 'droopy';
   ['l', 'r'].forEach(side => {
-    const sclera = document.getElementById(`av-eye-${side}-sclera`);
-    sclera.setAttribute('ry', scleraRy);
-    sclera.style.display = showOpen ? '' : 'none';
-    const pupil = document.getElementById(`av-eye-${side}-pupil`);
-    pupil.setAttribute('r', pupilR);
-    pupil.style.display = showOpen ? '' : 'none';
+    document.getElementById(`av-eye-${side}-sclera`).style.display = showOpen ? '' : 'none';
+    document.getElementById(`av-eye-${side}-pupil`).style.display = showOpen ? '' : 'none';
+    document.getElementById(`av-eye-${side}-lid`).style.display = showLid ? '' : 'none';
   });
   document.getElementById('av-eyes-closed-overlay').style.display = showOpen ? 'none' : '';
 }
@@ -522,14 +543,34 @@ scheduleNextBlink();
 //
 // Both stop dead at RR<=0 rather than continuing to oscillate — an
 // apnoeic patient shouldn't still look like they're breathing.
+//
+// Breathing phase is a running ANGLE ACCUMULATOR advanced each frame by
+// (elapsed ms / current period) * 2π, not recomputed fresh from the
+// absolute rAF timestamp each frame. RR (and so the period) can change
+// mid-cycle — recomputing sin(tsMs / period) straight from tsMs would keep
+// the numerator growing but rescale the denominator, causing a visible
+// phase JUMP every time RR changes (looked like the breathing "resetting"
+// and reads as too fast, since it happens on almost every 1s tick whenever
+// RR isn't perfectly static). Accumulating instead means a period change
+// only changes the RATE of future advancement — the current position in
+// the cycle carries over smoothly. Sway uses a fixed period so it's immune
+// to this and stays a plain formula.
 let _lastRR = 16;
 let _wobAmplitude = 0; // 0-1, from work-of-breathing severity
 let _swayScale = 1; // 0-1, from consciousness
+let _breathAngle = 0;
+let _lastMotionTs = null;
 function idleMotionLoop(tsMs) {
+  const dt = _lastMotionTs == null ? 0 : tsMs - _lastMotionTs;
+  _lastMotionTs = tsMs;
+  if (_lastRR > 0) {
+    const periodMs = 60000 / _lastRR;
+    _breathAngle = (_breathAngle + (dt / periodMs) * 2 * Math.PI) % (2 * Math.PI);
+  }
   const chestGroup = document.getElementById('av-chest-group');
   const faceGroup = document.getElementById('av-face-group');
   const hairGroup = document.getElementById('av-top');
-  const breathPhase = _lastRR > 0 ? Math.sin((tsMs / (60000 / _lastRR)) * 2 * Math.PI) : 0;
+  const breathPhase = _lastRR > 0 ? Math.sin(_breathAngle) : 0;
   const swayPhase = Math.sin((tsMs / 7000) * 2 * Math.PI) * _swayScale;
   if (chestGroup) {
     const chestY = breathPhase * (3 + _wobAmplitude * 1.5);
