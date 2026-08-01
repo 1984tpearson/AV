@@ -240,3 +240,16 @@ editing.
 - Git flow observed so far: work on a `claude/*` branch, fast-forward merge
   to `main` directly (no PR process used yet) — GitHub Pages redeploys
   automatically on every push to `main`.
+- **`max-height:<percent>` on an element inside a flex column compounds with
+  the container's own flex-shrink, instead of just capping it once.** Bit
+  `sim_patient.html`'s avatar: its containing block (`#head-wrap`, sized
+  by content) has no explicit height, so the percentage resolves against
+  whatever *already-shrunk* height the flex algorithm just gave it — every
+  time something elsewhere in the column grows (e.g. the voice-modal panel
+  taking more vertical space), the avatar shrinks by 45% of an already-
+  reduced box, not 45% of the original one, compounding on every layout
+  pass. `#patient-graphic img { max-width:100%; max-height:100%; object-fit:
+  contain; }` doesn't have this problem — `object-fit:contain` scales
+  exactly once against whatever final box the flex layout settles on. Any
+  new image/SVG dropped into a flex column here should use that pattern,
+  not an ad hoc percentage.
