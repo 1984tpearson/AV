@@ -130,11 +130,10 @@ core, art free for personal/commercial use — see that file's header for the
 full licensing note and extraction method) rather than calling DiceBear at
 runtime: this repo is otherwise all static files, and a live external
 avatar-service call is a new failure mode this training tool doesn't need.
-`window.AvatarAssets = { eyes, eyebrows, mouth, top, headBodyPaths, clothing }`
-— hair (`top`) keeps a `__HAIRCOLOR__` token, the head/body path a
-`__SKINCOLOR__` token, clothing a `__CLOTHESCOLOR__` token, substituted at
-render time rather than baked in, so colour stays dynamic. Two layers on top
-of that shared data:
+`window.AvatarAssets = { eyes, eyebrows, mouth, top, headBodyPaths }` — hair
+(`top`) keeps a `__HAIRCOLOR__` token, the head/body path a `__SKINCOLOR__`
+token, substituted at render time rather than baked in, so colour stays
+dynamic. Two layers on top of that shared data:
 
 - **Build** (fixed per scenario): skin tone from `scenario.patient_meta.skin_colour`
   (hex swatch, already stored by `generator.html` — see
@@ -164,24 +163,25 @@ of that shared data:
   distribution across 300 real-shaped seeds) but worth knowing if ever
   seeding from something more patterned.
 
-  Clothing — the patient's own, not a uniform — is picked the same way:
-  `CLOTHING_STYLES`/`CLOTHES_COLOURS`, unweighted (no gender/age lean; broad
-  enough pools that one isn't needed), verified near-uniform across 500 real
-  seeds. Rendered in two parts, not one graphic: a flat-colour duplicate of
-  `headBodyPaths` (`#av-clothes-static-path`, plus `#av-chest-path` reused
-  from the breathing layer below) clipped at `CLOTHES_FLAT_CLIP_Y` (175) —
+  Clothing colour — the patient's own, not a uniform — is picked the same
+  way: `CLOTHES_COLOURS`, unweighted (no gender/age lean; a pool this broad
+  doesn't need one). Rendered as a flat-colour fill only, no separate
+  neckline/collar graphic: a duplicate of `headBodyPaths` re-filled
+  (`#av-clothes-static-path`, plus `#av-chest-path` reused from the
+  breathing layer below) and clipped at `CLOTHES_FLAT_CLIP_Y` (175) —
   chosen there and not higher because the body path is still near full
   head-width as late as y110 (an ear bump) and doesn't taper to actual neck
-  width until the jaw curve resolves around y150-180; clipping the flat fill
-  any higher reads as fabric wrapping the cheeks. On top of that, for
-  `CLOTHES_GRAPHIC_BANDS` (teen/adult only) `AvatarAssets.clothing` layers
-  one of five DiceBear neckline graphics (`#av-clothes-neckline`,
-  y14-110) for visual variety — deliberately NOT stretched down to meet the
-  flat fill's y175 boundary; the visible gap between them (~y110-175) is
-  just neck, same as a real collar doesn't touch the jaw either. Younger
-  bands skip the graphic entirely and rely on the flat fill alone, because
-  it's a fixed shape sized for an adult head/shoulder ratio — see
-  `HEAD_BULGE` below for why that stops being a safe assumption below teen.
+  width until the jaw curve resolves around y150-180; clipping any higher
+  reads as fabric wrapping the cheeks. Went through a version with DiceBear's
+  own hand-drawn neckline graphics (crew neck, v-neck, hoodie, etc, layered
+  on top for visual variety) first — dropped it: those graphics are
+  positioned for stock Avataaars' own eye/eyebrow placement, which sits
+  higher than ours (`#av-eyes` is at y90-112 here), so every one of them —
+  and especially their decorative details, like the hoodie's drawstrings
+  around y63-110 — ended up crossing the eyes/eyebrows instead of sitting on
+  the shoulders. A flat fill can't be positioned wrong relative to the face
+  since it's just the body's own silhouette re-filled, so that's what
+  shipped instead.
 
 `patient_meta.age` (verbatim `patient.age` from generator.html — a plain
 number of years, a "N months" string, or the literal string "newborn";
@@ -221,11 +221,7 @@ rendered as a literal middle-aged adult:
   (depending on band), safely above the jaw/neck curve, so a bigger radius
   reads as a wider/rounder head+cheeks with no clipping and no seam against
   the body below — avoids the whole "second chin" class of bug by
-  construction, since there's no hard edge to mismatch. Tried a much larger
-  bulge (1.34) first; had to dial it back to 1.2 because the neckline
-  clothing graphic (see above) doesn't scale with it and started reading as
-  fabric overlapping the cheeks — `CLOTHES_GRAPHIC_BANDS`/
-  `CLOTHES_FLAT_CLIP_Y` is the other half of that fix.
+  construction, since there's no hard edge to mismatch.
 - **`greyWeight()`**: separately, hair *colour* (not style) softly ramps
   toward grey/silver/white (`GREY_HAIR_COLOURS`) as age climbs from 40 to
   75+ (≈7% grey at 20, ≈47% at 45, ≈83% at 80 — verified against 500
@@ -234,7 +230,11 @@ rendered as a literal middle-aged adult:
   are NOT recoloured to match — `avatar_assets.js`'s eyebrow paths have
   their fill baked in (`fill="#000"`, no `__COLOR__` token like hair has),
   so this would need SVG surgery on the asset file to add; skipped as
-  out of scope for now.
+  out of scope for now. Excludes `HEADWEAR` (hat, hijab, turban, the four
+  winter hats) — those `top` entries share the same `__HAIRCOLOR__` token
+  for lack of a more specific one, but they're a garment, not hair, so
+  greying them with age makes no sense; an elderly patient in a hijab or
+  turban gets an unweighted colour draw instead of a grey-leaning one.
 - **Live state** (re-derived every tick): eyes are NOT one of
   `avatar_assets.js`'s pre-baked variants — several of those (including
   `default`, the plain look) are just flat pupil dots with no sclera
@@ -278,6 +278,14 @@ earlier version had this backwards (E2 droopy/half-open, E3 closed at rest)
 which read as the patient looking MORE responsive at a lower GCS than a
 higher one — ordering it E4 > E3(droopy, or open mid-interaction) > E2/E1
 (closed) is what actually matches the clinical severity gradient.
+
+Driven by `gcsE` ALONE — deliberately not folded together with
+`app.unresponsive` (`getAppearanceState()`'s overall-GCS-≤8 flag, used
+elsewhere for e.g. resting mouth expression), even though an earlier
+version did exactly that. E is specifically the eye-opening component of
+the scale; a real E4/V1/M1 presentation (eyes open, no other response) is
+rare but clinically possible and should still render open eyes, which
+`app.unresponsive` (4+1+1=6 ≤ 8) would otherwise force closed.
 
 Idle animations run independently of the 1s vitals tick (a 1s-stepped
 animation reads as a slideshow, not motion), all inside one

@@ -45,7 +45,6 @@ button.secondary:hover { background: #475569; }
         <path id="av-head-path" d="M132 36a56 56 0 0 0-56 56v6.17A12 12 0 0 0 66 110v14a12 12 0 0 0 10.3 11.88 56.04 56.04 0 0 0 31.7 44.73v18.4h-4a72 72 0 0 0-72 72v9h200v-9a72 72 0 0 0-72-72h-4v-18.39a56.04 56.04 0 0 0 31.7-44.73A12 12 0 0 0 198 124v-14a12 12 0 0 0-10-11.83V92a56 56 0 0 0-56-56Z" fill="#E0AC81"/>
         <path d="M108 180.61v8a55.79 55.79 0 0 0 24 5.39c8.59 0 16.73-1.93 24-5.39v-8a55.79 55.79 0 0 1-24 5.39 55.79 55.79 0 0 1-24-5.39Z" fill="#000" fill-opacity=".1"/>
         <path id="av-clothes-static-path" d="M132 36a56 56 0 0 0-56 56v6.17A12 12 0 0 0 66 110v14a12 12 0 0 0 10.3 11.88 56.04 56.04 0 0 0 31.7 44.73v18.4h-4a72 72 0 0 0-72 72v9h200v-9a72 72 0 0 0-72-72h-4v-18.39a56.04 56.04 0 0 0 31.7-44.73A12 12 0 0 0 198 124v-14a12 12 0 0 0-10-11.83V92a56 56 0 0 0-56-56Z" fill="#3b6ea5" clip-path="url(#av-clothes-static-clip)"/>
-        <g id="av-clothes-neckline"></g>
         <g id="av-mouth" transform="translate(78 134)"></g>
         <g id="av-eyes" transform="translate(76 90)">
           <ellipse id="av-eye-l-sclera" cx="30" cy="22" rx="14" ry="7" fill="#fff"/>
@@ -110,9 +109,6 @@ button.secondary:hover { background: #475569; }
   <div class="row"><label>Eyebrows</label>
     <select id="sel-brow" onchange="onBuildChange()"></select>
   </div>
-  <div class="row"><label>Clothing</label>
-    <select id="sel-clothing" onchange="onBuildChange()"></select>
-  </div>
   <div class="row"><label>Clothes colour</label>
     <select id="sel-clothescolor" onchange="onBuildChange()"></select>
   </div>
@@ -159,7 +155,7 @@ button.secondary:hover { background: #475569; }
 // --- Verbatim copies of sim_patient.html's avatar functions, restyled to
 // take slider input instead of live session vitals — see CLAUDE.md's
 // "Patient avatar" section. Keep this in sync if the real thing changes.
-let avatarBuild = { skin: '#E0AC81', hairColour: '#3b2b20', hairStyle: 'shortFlat', eyebrowStyle: 'defaultNatural', ageBand: 'adult', clothingStyle: 'shirtCrewNeck', clothesColour: '#3b6ea5' };
+let avatarBuild = { skin: '#E0AC81', hairColour: '#3b2b20', hairStyle: 'shortFlat', eyebrowStyle: 'defaultNatural', ageBand: 'adult', clothesColour: '#3b6ea5' };
 const HAIR_COLOURS = ['#1b1410', '#3b2b20', '#5a3b23', '#8a5a2b', '#c9a227', '#7a2e1d', '#8c8c8c', '#b0b0b0', '#e8e4dc'];
 const GREY_HAIR_COLOURS = new Set(['#8c8c8c', '#b0b0b0', '#e8e4dc']);
 const SKIN_TONE_SWATCHES = ['#F5D5C5', '#EFC3A3', '#E0AC81', '#C68863', '#A96C4A', '#8D5A3B', '#6B4530', '#4A2F20'];
@@ -171,6 +167,7 @@ const HAIR_STYLE_LEAN = {
   shortCurly: 'm', shortFlat: 'm', shortRound: 'm', shortWaved: 'm', sides: 'm', theCaesar: 'm',
   theCaesarAndSidePart: 'm', bigHair: 'f'
 };
+const HEADWEAR = new Set(['hat', 'hijab', 'turban', 'winterHat1', 'winterHat02', 'winterHat03', 'winterHat04']);
 function parseAgeYears(age) {
   if (age == null) return null;
   if (typeof age === 'string') {
@@ -200,10 +197,8 @@ const AGE_SCALE = { infant: 0.78, toddler: 0.85, child: 0.9, teen: 0.95, adult: 
 const EYE_SCALE = { infant: 1.45, toddler: 1.3, child: 1.15, teen: 1.05, adult: 1 };
 const FACE_LOWER_OFFSET = { infant: 12, toddler: 9, child: 5, teen: 2, adult: 0 };
 const HEAD_BULGE = { infant: 1.2, toddler: 1.1, child: 1.05, teen: 1.02, adult: 1 };
-const CLOTHES_GRAPHIC_BANDS = new Set(['teen', 'adult']);
-const CLOTHES_FLAT_CLIP_Y = 175; // see sim_patient.html for why this stays fixed regardless of CLOTHES_GRAPHIC_BANDS
+const CLOTHES_FLAT_CLIP_Y = 175; // see sim_patient.html for the reasoning
 const ADULT_ONLY_HAIR = new Set(['theCaesar', 'theCaesarAndSidePart', 'shavedSides', 'sides']);
-const CLOTHING_STYLES = ['shirtCrewNeck', 'shirtVNeck', 'shirtScoopNeck', 'collarAndSweater', 'hoodie'];
 const CLOTHES_COLOURS = ['#3b6ea5', '#22577a', '#5c4b8a', '#7a2e2e', '#2f6d4f', '#4a4a4a', '#8a5a2b', '#1a1a1a', '#c9a227', '#6b4c9a', '#b0392f', '#3d3d3d'];
 
 function hashStr(s) {
@@ -231,10 +226,9 @@ function buildAvatarBase(seed, skinHex, gender, age) {
   const g = (gender || '').toLowerCase();
   const leanWeights = g === 'male' ? { m: 3, n: 1.5, f: 0.5 } : g === 'female' ? { f: 3, n: 1.5, m: 0.5 } : { m: 1, n: 1, f: 1 };
   avatarBuild.hairStyle = avatarBuild.ageBand === 'infant' ? null : weightedPick(hairKeys, k => leanWeights[HAIR_STYLE_LEAN[k] || 'n'], hashStr(s));
-  const gw = greyWeight(age);
+  const gw = HEADWEAR.has(avatarBuild.hairStyle) ? 0 : greyWeight(age);
   avatarBuild.hairColour = weightedPick(HAIR_COLOURS, c => GREY_HAIR_COLOURS.has(c) ? (0.15 + gw * 10) : 1, hashStr(s + '|hair'));
   avatarBuild.eyebrowStyle = browKeys[hashStr(s + '|brow') % browKeys.length];
-  avatarBuild.clothingStyle = CLOTHING_STYLES[hashStr(s + '|clothes') % CLOTHING_STYLES.length];
   avatarBuild.clothesColour = CLOTHES_COLOURS[hashStr(s + '|clothescolor') % CLOTHES_COLOURS.length];
   renderAvatarBuild();
   syncBuildSelectsToState();
@@ -252,17 +246,13 @@ function applyAgeScale() {
   const bulge = document.getElementById('av-head-bulge');
   bulge.setAttribute('rx', bulgeR.toFixed(1));
   bulge.setAttribute('ry', bulgeR.toFixed(1));
-  const useGraphic = CLOTHES_GRAPHIC_BANDS.has(band);
-  const clipY = CLOTHES_FLAT_CLIP_Y;
-  document.getElementById('av-clothes-static-clip-rect').setAttribute('y', clipY);
-  document.getElementById('av-clothes-static-clip-rect').setAttribute('height', 260 - clipY);
-  document.getElementById('av-clothes-neckline').style.display = useGraphic ? '' : 'none';
+  document.getElementById('av-clothes-static-clip-rect').setAttribute('y', CLOTHES_FLAT_CLIP_Y);
+  document.getElementById('av-clothes-static-clip-rect').setAttribute('height', 260 - CLOTHES_FLAT_CLIP_Y);
 }
 function renderAvatarBuild() {
   document.getElementById('av-top').innerHTML = avatarBuild.hairStyle ? AvatarAssets.top[avatarBuild.hairStyle].replace(/__HAIRCOLOR__/g, avatarBuild.hairColour) : '';
   document.getElementById('av-eyebrows').innerHTML = AvatarAssets.eyebrows[avatarBuild.eyebrowStyle];
   document.getElementById('av-eyes-closed-overlay').innerHTML = AvatarAssets.eyes.closed;
-  document.getElementById('av-clothes-neckline').innerHTML = AvatarAssets.clothing[avatarBuild.clothingStyle].replace(/__CLOTHESCOLOR__/g, avatarBuild.clothesColour);
   document.getElementById('av-clothes-static-path').setAttribute('fill', avatarBuild.clothesColour);
   document.getElementById('av-chest-path').setAttribute('fill', avatarBuild.clothesColour);
   applyAgeScale();
@@ -358,7 +348,7 @@ let _isSpeaking = false;
 function updateAvatarFace(v) {
   const app = SimEngine.getAppearanceState(v);
   let eyeLevel;
-  if (app.unresponsive || app.gcsE <= 2) eyeLevel = 'closed';
+  if (app.gcsE <= 2) eyeLevel = 'closed';
   else if (app.gcsE === 3) eyeLevel = document.getElementById('chk-talking').checked ? 'open' : 'droopy';
   else eyeLevel = 'open';
   _restingEyeLevel = eyeLevel;
@@ -428,7 +418,6 @@ function onBuildChange() {
   avatarBuild.hairStyle = document.getElementById('sel-hair').value || null;
   avatarBuild.hairColour = document.getElementById('sel-haircolor').value;
   avatarBuild.eyebrowStyle = document.getElementById('sel-brow').value;
-  avatarBuild.clothingStyle = document.getElementById('sel-clothing').value;
   avatarBuild.clothesColour = document.getElementById('sel-clothescolor').value;
   renderAvatarBuild();
 }
@@ -450,7 +439,6 @@ function syncBuildSelectsToState() {
   document.getElementById('sel-hair').value = avatarBuild.hairStyle || '';
   document.getElementById('sel-haircolor').value = avatarBuild.hairColour;
   document.getElementById('sel-brow').value = avatarBuild.eyebrowStyle;
-  document.getElementById('sel-clothing').value = avatarBuild.clothingStyle;
   document.getElementById('sel-clothescolor').value = avatarBuild.clothesColour;
   refreshSkinSwatchActive();
 }
@@ -476,8 +464,6 @@ function initSelects() {
   HAIR_COLOURS.forEach(hex => colorSel.appendChild(new Option(hex, hex)));
   const browSel = document.getElementById('sel-brow');
   Object.keys(AvatarAssets.eyebrows).forEach(k => browSel.appendChild(new Option(k, k)));
-  const clothingSel = document.getElementById('sel-clothing');
-  CLOTHING_STYLES.forEach(k => clothingSel.appendChild(new Option(k, k)));
   const clothesColorSel = document.getElementById('sel-clothescolor');
   CLOTHES_COLOURS.forEach(hex => clothesColorSel.appendChild(new Option(hex, hex)));
   const eyesSel = document.getElementById('sel-eyes-browse');

@@ -12,13 +12,16 @@
  * token) — sim_patient.html/avatar_lab.html substitute the scenario's
  * actual skin tone / chosen hair colour at render time, same as before.
  *
- * Public API: window.AvatarAssets = { eyes, eyebrows, mouth, top, headBodyPaths, clothing }
+ * Public API: window.AvatarAssets = { eyes, eyebrows, mouth, top, headBodyPaths }
  *   eyes/eyebrows/mouth: { variantName: '<svg fragment>' }
  *   top (hair): { styleName: '<svg fragment with __HAIRCOLOR__ token>' }
  *   headBodyPaths: '<svg fragment with __SKINCOLOR__ token>'
- *   clothing: { styleName: '<svg fragment with __CLOTHESCOLOR__ token>' } — a
- *     neckline/collar graphic only, y<=110; see sim_patient.html for how the
- *     rest of the torso below that is filled in.
+ *
+ * Clothing (sim_patient.html/avatar_lab.html) is a flat colour fill, not an
+ * asset here — see CLAUDE.md for why the DiceBear neckline graphics that
+ * used to live in this file were dropped (they were hand-positioned for
+ * stock Avataaars' eye/eyebrow placement, which sits higher than ours, and
+ * kept crossing the eyes/eyebrows instead of sitting on the shoulders).
  */
 (function (global) {
   'use strict';
@@ -108,21 +111,5 @@
 
   const headBodyPaths = "<path d=\"M132 36a56 56 0 0 0-56 56v6.17A12 12 0 0 0 66 110v14a12 12 0 0 0 10.3 11.88 56.04 56.04 0 0 0 31.7 44.73v18.4h-4a72 72 0 0 0-72 72v9h200v-9a72 72 0 0 0-72-72h-4v-18.39a56.04 56.04 0 0 0 31.7-44.73A12 12 0 0 0 198 124v-14a12 12 0 0 0-10-11.83V92a56 56 0 0 0-56-56Z\" fill=\"__SKINCOLOR__\"/><path d=\"M108 180.61v8a55.79 55.79 0 0 0 24 5.39c8.59 0 16.73-1.93 24-5.39v-8a55.79 55.79 0 0 1-24 5.39 55.79 55.79 0 0 1-24-5.39Z\" fill=\"#000\" fill-opacity=\".1\"/>";
 
-  // Neckline/collar graphics only (the y<=110 portion DiceBear draws for its
-  // own cropped-avatar view) — our body silhouette extends much further
-  // down (to y280, for the full torso/hip outline other tools in this
-  // collection use), so sim_patient.html/avatar_lab.html pair this with a
-  // separately clipped flat-colour duplicate of headBodyPaths to cover the
-  // rest of the torso, rather than expecting these paths alone to reach the
-  // bottom of frame. Keeps a __CLOTHESCOLOR__ token, substituted at render
-  // time same as hair/skin.
-  const clothing = {
-    "shirtCrewNeck": "<path d=\"M132.5 51.83c18.5 0 33.5-9.62 33.5-21.48 0-.36-.01-.7-.04-1.06A72 72 0 0 1 232 101.04V110H32v-8.95a72 72 0 0 1 67.05-71.83c-.03.37-.05.75-.05 1.13 0 11.86 15 21.48 33.5 21.48Z\" fill=\"__CLOTHESCOLOR__\"/><path d=\"M132.5 58.76c21.89 0 39.63-12.05 39.63-26.91 0-.6-.02-1.2-.08-1.8-2-.33-4.03-.59-6.1-.76.04.35.05.7.05 1.06 0 11.86-15 21.48-33.5 21.48S99 42.2 99 30.35c0-.38.02-.76.05-1.13-2.06.14-4.08.36-6.08.67-.07.65-.1 1.3-.1 1.96 0 14.86 17.74 26.91 39.63 26.91Z\" fill=\"#000\" fill-opacity=\".08\"/>",
-    "shirtVNeck": "<path d=\"M92.68 29.94A72.02 72.02 0 0 0 32 101.05V110h200v-8.95a72.02 72.02 0 0 0-60.68-71.11 23.87 23.87 0 0 1-7.56 13.6l-29.08 26.23a4 4 0 0 1-5.36 0l-29.08-26.23a23.87 23.87 0 0 1-7.56-13.6Z\" fill=\"__CLOTHESCOLOR__\"/>",
-    "shirtScoopNeck": "<path d=\"M132.5 65.83c27.34 0 49.5-13.2 49.5-29.48 0-1.37-.16-2.7-.46-4.02A72.03 72.03 0 0 1 232 101.05V110H32v-8.95A72.03 72.03 0 0 1 83.53 32a18 18 0 0 0-.53 4.35c0 16.28 22.16 29.48 49.5 29.48Z\" fill=\"__CLOTHESCOLOR__\"/>",
-    "collarAndSweater": "<path d=\"M100.37 29.14a27.6 27.6 0 0 1 7.63-7.57v15.3c0 5.83 3.98 10.98 10.08 14.13l-.08.06.9 2.86c3.89 2 8.35 3.13 13.1 3.13s9.21-1.13 13.1-3.13l.9-2.86-.08-.06c6.1-3.15 10.08-8.3 10.08-14.12v-14.6a27.1 27.1 0 0 1 6.6 6.82 72 72 0 0 1 69.4 71.95V110H32v-8.95a72 72 0 0 1 68.37-71.9Z\" fill=\"__CLOTHESCOLOR__\"/><path d=\"M108 21.57c-6.77 4.6-11 11.17-11 18.46 0 7.4 4.36 14.05 11.3 18.66l6.12-4.81 4.58.33-1-3.15.08-.06c-6.1-3.15-10.08-8.3-10.08-14.12v-15.3ZM156 36.88c0 5.82-3.98 10.97-10.08 14.12l.08.06-1 3.15 4.58-.33 5.65 4.45c6.63-4.6 10.77-11.1 10.77-18.3 0-6.92-3.82-13.2-10-17.75v14.6Z\" fill=\"#fff\" fill-opacity=\".75\"/>",
-    "hoodie": "<path d=\"M108 14.7c-15.52 3.68-27.1 10.83-30.77 19.44A72.02 72.02 0 0 0 32 101v9h200v-9a72.02 72.02 0 0 0-45.23-66.86C183.1 25.53 171.52 18.38 156 14.7V32a24 24 0 1 1-48 0V14.7Z\" fill=\"__CLOTHESCOLOR__\"/><path d=\"M102 63.34a67.1 67.1 0 0 1-7-2.82V110h7V63.34ZM162 63.34a67.04 67.04 0 0 0 7-2.82V98.5a3.5 3.5 0 1 1-7 0V63.34Z\" fill=\"#F4F4F4\"/><path d=\"M187.62 34.49a71.79 71.79 0 0 1 10.83 5.63C197.11 55.62 167.87 68 132 68c30.93 0 56-13.43 56-30 0-1.19-.13-2.36-.38-3.51ZM76.38 34.49a16.48 16.48 0 0 0-.38 3.5c0 16.58 25.07 30 56 30-35.87 0-65.1-12.38-66.45-27.88a71.79 71.79 0 0 1 10.83-5.63Z\" fill=\"#000\" fill-opacity=\".16\"/>"
-  };
-
-  global.AvatarAssets = { eyes, eyebrows, mouth, top, headBodyPaths, clothing };
+  global.AvatarAssets = { eyes, eyebrows, mouth, top, headBodyPaths };
 })(typeof window !== 'undefined' ? window : this);
