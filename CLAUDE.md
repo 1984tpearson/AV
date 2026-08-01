@@ -145,10 +145,20 @@ dynamic. Two layers on top of that shared data:
   with 34 real hairstyles available there's no need, so hair selection now
   ignores gender entirely and pulls from the full set for maximum
   per-scenario variety. `buildAvatarBase()` in `sim_patient.html`.
-- **Live state** (re-derived every tick): eyes swapped between discrete
-  open/droopy/closed variants (`AvatarAssets.eyes.default/squint/closed`)
-  from GCS eye score, skin tint blended toward cyanotic/mottled/pale, sweat
-  droplets shown for diaphoretic/clammy, and a resting mouth expression
+- **Live state** (re-derived every tick): eyes are NOT one of
+  `avatar_assets.js`'s pre-baked variants — several of those (including
+  `default`, the plain look) are just flat pupil dots with no sclera
+  underneath, and none expose the pupil as independently sizeable. Sclera
+  (`av-eye-l/r-sclera`) and pupil (`av-eye-l/r-pupil`) are separate elements
+  instead, sized together via `setEyeOpenness()` for open/droopy/closed —
+  deliberately so pupil size/reactivity can later be driven by clinical
+  state (dilated/pinpoint/unequal — anisocoria, blown pupils) as its own
+  axis, not baked into a fixed shape per eye-openness level. `closed` still
+  reuses the real `AvatarAssets.eyes.closed` asset (a plain eyelid crease,
+  no sclera needed) via the always-present `av-eyes-closed-overlay` group,
+  toggled visible instead of swapped in. Skin tint blended toward
+  cyanotic/mottled/pale, sweat droplets shown for diaphoretic/clammy, and a
+  resting mouth expression
   (neutral/mild/distress/grimace/slack, mapped onto Avataaars' named mouth
   shapes — `grimace` for pain is a literal match) from pain score, distress
   level, and consciousness. Driven by `SimEngine.getAppearanceState(v)` — the
