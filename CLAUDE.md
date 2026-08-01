@@ -130,10 +130,11 @@ core, art free for personal/commercial use — see that file's header for the
 full licensing note and extraction method) rather than calling DiceBear at
 runtime: this repo is otherwise all static files, and a live external
 avatar-service call is a new failure mode this training tool doesn't need.
-`window.AvatarAssets = { eyes, eyebrows, mouth, top, headBodyPaths }` — hair
-(`top`) keeps a `__HAIRCOLOR__` token, the head/body path a `__SKINCOLOR__`
-token, substituted at render time rather than baked in, so colour stays
-dynamic. Two layers on top of that shared data:
+`window.AvatarAssets = { eyes, eyebrows, mouth, top, headBodyPaths, clothing }`
+— hair (`top`) keeps a `__HAIRCOLOR__` token, the head/body path a
+`__SKINCOLOR__` token, clothing a `__CLOTHESCOLOR__` token, substituted at
+render time rather than baked in, so colour stays dynamic. Two layers on top
+of that shared data:
 
 - **Build** (fixed per scenario): skin tone from `scenario.patient_meta.skin_colour`
   (hex swatch, already stored by `generator.html` — see
@@ -163,6 +164,25 @@ dynamic. Two layers on top of that shared data:
   distribution across 300 real-shaped seeds) but worth knowing if ever
   seeding from something more patterned.
 
+  Clothing — the patient's own, not a uniform — is picked the same way:
+  `CLOTHING_STYLES`/`CLOTHES_COLOURS`, unweighted (no gender/age lean; broad
+  enough pools that one isn't needed), verified near-uniform across 500 real
+  seeds. Rendered in two parts, not one graphic: a flat-colour duplicate of
+  `headBodyPaths` (`#av-clothes-static-path`, plus `#av-chest-path` reused
+  from the breathing layer below) clipped at `CLOTHES_FLAT_CLIP_Y` (175) —
+  chosen there and not higher because the body path is still near full
+  head-width as late as y110 (an ear bump) and doesn't taper to actual neck
+  width until the jaw curve resolves around y150-180; clipping the flat fill
+  any higher reads as fabric wrapping the cheeks. On top of that, for
+  `CLOTHES_GRAPHIC_BANDS` (teen/adult only) `AvatarAssets.clothing` layers
+  one of five DiceBear neckline graphics (`#av-clothes-neckline`,
+  y14-110) for visual variety — deliberately NOT stretched down to meet the
+  flat fill's y175 boundary; the visible gap between them (~y110-175) is
+  just neck, same as a real collar doesn't touch the jaw either. Younger
+  bands skip the graphic entirely and rely on the flat fill alone, because
+  it's a fixed shape sized for an adult head/shoulder ratio — see
+  `HEAD_BULGE` below for why that stops being a safe assumption below teen.
+
 `patient_meta.age` (verbatim `patient.age` from generator.html — a plain
 number of years, a "N months" string, or the literal string "newborn";
 older scenarios predate the field and fall through to 'adult', not a guess)
@@ -170,25 +190,42 @@ drives two more build-time effects, added after a paediatric scenario
 rendered as a literal middle-aged adult:
 - **`AGE_SCALE`**: the whole figure is scaled (`av-scale-group`, anchored at
   the top of the head at (140,36) so it shrinks toward that point rather
-  than the viewBox origin) — infant 0.6 through teen 0.92, adult 1. A blunt
-  instrument (real toddlers have proportionally *bigger* heads than adults,
-  not just a smaller everything; Avataaars is one adult-proportioned body,
-  there's no separately-scalable head/body split without new art) but
-  enough that a newborn scenario no longer looks like a grown adult.
+  than the viewBox origin) — infant 0.78 through teen 0.95, adult 1. Kept
+  fairly close to 1 (an earlier version went down to 0.6 for infants) —
+  most of the "younger" cue now comes from `HEAD_BULGE` below rather than
+  shrinking the whole figure hard, which read as "a tiny adult" and made
+  infants disappear on screen rather than looking younger.
 - **`ADULT_ONLY_HAIR`**: a small set of structured/receding-hairline-prone
   cuts (theCaesar, theCaesarAndSidePart, shavedSides, sides) excluded from
   the hair pool below teen — a hard filter, unlike the gender lean, since
   there's no equivalent "some variety is good here" case for a toddler
-  landing on a middle-aged man's haircut.
+  landing on a middle-aged man's haircut. Infants skip the hair pool
+  entirely (`avatarBuild.hairStyle = null`, `#av-top` left empty) — real
+  babies are frequently bald or near-bald and nothing in the pool reads as
+  "infant hair," the shortest options are still styled cuts.
 - **`EYE_SCALE`/`FACE_LOWER_OFFSET`**: the classic cartoon "younger = bigger
   eyes, face sits lower/rounder" cues, layered on top of `AGE_SCALE` since
   eyes/eyebrows/mouth are already independent groups that can move/scale on
   their own — `#av-eyes` scales around its own on-screen centre (56,22) so
   both eyes grow symmetrically rather than spreading apart, while
   eyes/eyebrows/mouth all shift down as a unit, hair/head outline
-  untouched. Can't make the head bigger *relative to* the body this way
-  (one rigid head+body path, no separate head/body scale without new art)
-  — a real limitation, not fully solved, just improved.
+  untouched.
+- **`HEAD_BULGE`**: makes the head outline itself read as proportionally
+  bigger for younger bands (infant 1.2 down to adult 1), which `EYE_SCALE`/
+  `FACE_LOWER_OFFSET` alone don't touch — the head/body outline is one
+  rigid path shared with the torso, no separate head/body art to scale
+  independently. Worked around with `#av-head-bulge`, a same-fill circle
+  behind `#av-head-path` centred on the head arc's own centre (cx=132,
+  cy=92, matching the path's own "a56 56" head arc) at a LARGER radius:
+  because it's a circle, it naturally tapers to zero width by y~148-167
+  (depending on band), safely above the jaw/neck curve, so a bigger radius
+  reads as a wider/rounder head+cheeks with no clipping and no seam against
+  the body below — avoids the whole "second chin" class of bug by
+  construction, since there's no hard edge to mismatch. Tried a much larger
+  bulge (1.34) first; had to dial it back to 1.2 because the neckline
+  clothing graphic (see above) doesn't scale with it and started reading as
+  fabric overlapping the cheeks — `CLOTHES_GRAPHIC_BANDS`/
+  `CLOTHES_FLAT_CLIP_Y` is the other half of that fix.
 - **`greyWeight()`**: separately, hair *colour* (not style) softly ramps
   toward grey/silver/white (`GREY_HAIR_COLOURS`) as age climbs from 40 to
   75+ (≈7% grey at 20, ≈47% at 45, ≈83% at 80 — verified against 500
@@ -213,8 +250,10 @@ rendered as a literal middle-aged adult:
   `AvatarAssets.eyes.closed` asset (a plain eyelid crease, no sclera
   needed) via the always-present `av-eyes-closed-overlay` group, toggled
   visible instead of swapped in. Skin tint blended toward
-  cyanotic/mottled/pale, sweat droplets shown for diaphoretic/clammy, and a
-  resting mouth expression
+  cyanotic/mottled/pale (applied to `#av-head-path`/`#av-head-bulge`/eyelids
+  only — clothing is deliberately NOT tinted, since cyanosis/pallor/
+  mottling wouldn't show through fabric), sweat droplets shown for
+  diaphoretic/clammy, and a resting mouth expression
   (neutral/mild/distress/grimace/slack, mapped onto Avataaars' named mouth
   shapes — `grimace` for pain is a literal match) from pain score, distress
   level, and consciousness. Driven by `SimEngine.getAppearanceState(v)` — the
@@ -229,11 +268,16 @@ rendered as a literal middle-aged adult:
   silently freeze vitals/override-sync too, not just the avatar.
 
 GCS eye-opening (E) maps to clinical exam findings, not a linear scale: E4
-open spontaneously, E1 (or overall GCS ≤8, "unresponsive") closed — but
-E3 ("opens to voice") renders CLOSED at rest and only opens while
-`_voiceModalOpen` is true, i.e. a crew member is actively mid-interaction
-via Treat/Assess/Talk. That's the actual voice stimulus being modelled, not
-just cosmetic.
+open spontaneously, E3 ("opens to voice") droopy/half-open at rest and only
+opens fully while `_voiceModalOpen` is true (i.e. a crew member is actively
+mid-interaction via Treat/Assess/Talk — that's the actual voice stimulus
+being modelled, not just cosmetic). E2 ("opens to pain") and E1 ("none")
+both render closed — there's no pain-stimulus interaction modelled here, so
+E2 has nothing to open in response to and stays closed, same as E1. An
+earlier version had this backwards (E2 droopy/half-open, E3 closed at rest)
+which read as the patient looking MORE responsive at a lower GCS than a
+higher one — ordering it E4 > E3(droopy, or open mid-interaction) > E2/E1
+(closed) is what actually matches the clinical severity gradient.
 
 Idle animations run independently of the 1s vitals tick (a 1s-stepped
 animation reads as a slideshow, not motion), all inside one
