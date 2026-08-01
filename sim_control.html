@@ -283,6 +283,19 @@ async function sbFetch(path, opts = {}) {
   return res.status === 204 ? null : res.json();
 }
 
+// Real-world date/time, distinct from the scenario's own simulated clock
+// (elapsed minutes since arrival) — every AI call below reasons about
+// simulated time already, but none of them otherwise know what the actual
+// current date is, which matters for anything genuinely time-sensitive
+// (seasonal presentations, a "recent guideline update" the model might
+// otherwise reason about using its training-cutoff assumptions, etc).
+function currentDateTimeContext() {
+  // NOTE: timeZoneName throws when combined with dateStyle/timeStyle on at
+  // least some Chromium builds ("Invalid option : option") — verified this
+  // the hard way, so deliberately left out rather than reintroduced.
+  return new Date().toLocaleString('en-AU', { dateStyle: 'full', timeStyle: 'short' });
+}
+
 let _cachedAnthropicKey = null;
 async function getAnthropicKey() {
   if (_cachedAnthropicKey) return _cachedAnthropicKey;
@@ -578,7 +591,8 @@ Rules:
 - 'rhythm' is optional and is about what happens AFTER arrival — the patient's presenting rhythm at minute 0 is supplied to you separately and already handled, don't repeat it here. Only include a 'rhythm' entry if the untreated natural course would genuinely change it later (e.g. an unstable rhythm deteriorating into arrest, or a documented arrhythmia spontaneously resolving) — cardiac/respiratory arrest in your vitals ALWAYS needs a matching rhythm entry at the same minute (never leave it ambiguous between asystole/VF/PEA). Same shape and terminology as the vitals overrides: {"label": "<standard clinical rhythm name>", "startMin": <minutes from arrival>}, holding until the next entry (yours or a later one from a treatment/event).
 - This is a training placeholder pending clinical review, not a validated clinical model — use sound general physiological reasoning for the given diagnosis.`;
 
-  const userPrompt = `Scenario: ${scenario.title || ''}
+  const userPrompt = `Current real-world date/time: ${currentDateTimeContext()}
+Scenario: ${scenario.title || ''}
 Provisional diagnosis: ${scenario.provisional || 'unspecified'}
 CPG: ${scenario.cpg || 'unspecified'}
 Category: ${scenario.category || ''} / ${scenario.subcategory || ''}
@@ -2568,7 +2582,8 @@ Your name is ${patientName}. If asked your name, or anything requiring you to re
 ${confused ? '\nThis patient\u2019s GCS Verbal score is 4 (confused conversation) — they are disoriented. Every reply must be rambling, tangential, and only loosely connected to what was actually asked (may drift to an unrelated memory, misidentify the crew, or answer a different question than the one asked) — never a clear, accurate, on-topic answer, no matter what is asked.' : ''}
 
 Return ONLY the spoken reply text — no quotation marks, no stage directions, no prose about the answer.`;
-    const userPrompt = `Scenario: ${currentScenario.title || ''}
+    const userPrompt = `Current real-world date/time: ${currentDateTimeContext()} — use this if the crew asks an orientation question ("do you know what day it is?" etc), otherwise it's just background context.
+Scenario: ${currentScenario.title || ''}
 Patient name: ${patientName}
 Provisional diagnosis (do not reveal): ${currentScenario.provisional || 'unspecified'}
 Key history: ${currentScenario.key_hx || ''}
@@ -2947,7 +2962,8 @@ Example E — a second, related pattern: the same STEMI-plus-adrenaline-toxicity
 
 Apply this same chaining principle to every vital your own reasoning says would keep changing, for however many phases the real clinical picture actually has.`;
 
-  const userPrompt = `Scenario: ${currentScenario.title || ''}
+  const userPrompt = `Current real-world date/time: ${currentDateTimeContext()}
+Scenario: ${currentScenario.title || ''}
 Provisional diagnosis: ${currentScenario.provisional || 'unspecified'}
 CPG: ${currentScenario.cpg || 'unspecified'}
 Key history: ${currentScenario.key_hx || ''}
@@ -3138,7 +3154,8 @@ Example D \u2014 command: "set the patient's BP to 90 over 60". A direct instruc
 
 - Training placeholder pending clinical review, not a validated clinical model.`;
 
-  const userPrompt = `Scenario: ${currentScenario.title || ''}
+  const userPrompt = `Current real-world date/time: ${currentDateTimeContext()}
+Scenario: ${currentScenario.title || ''}
 Provisional diagnosis: ${currentScenario.provisional || 'unspecified'}
 CPG: ${currentScenario.cpg || 'unspecified'}
 Key history: ${currentScenario.key_hx || ''}
