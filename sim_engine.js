@@ -222,6 +222,369 @@
     return current;
   }
 
+  // ---- Defibrillation (shared, deterministic — no AI call) ----------------
+  // Fully hardcoded rather than routed through Sonnet/Haiku like drug
+  // treatments: defib physiology is well-established and predictable enough
+  // not to need per-patient AI reasoning, and — critically — this needs to
+  // run instantly on sim_patient.html the moment the crew hits Shock, not
+  // after a network round trip to an LLM. Lives here (not in sim_control.html
+  // alone) so BOTH pages can compute the identical outcome locally: the
+  // patient device runs it the instant Shock is tapped for a zero-delay
+  // response, then writes the result to the session row for sim_control.html
+  // to pick up on its normal poll (see sim_patient.html's handleShockBtn()
+  // and sim_control.html's applyDefibrillation(), which now just does the
+  // read/write plumbing around a call here).
+  //
+  // Modelled loosely on real defibrillation outcomes (AHA/ILCOR-style
+  // figures): biphasic first-shock termination of VF/pulseless VT is
+  // commonly cited around 60-90% with prompt, adequately-energised shocks,
+  // falling off fast with downtime (survival is often quoted as dropping
+  // roughly 7-10%/min without bystander CPR, ~3-4%/min with it). Termination
+  // of the rhythm on a given shock is NOT the same figure as eventual
+  // survival-to-discharge — a patient can need several shocks before
+  // converting and still survive overall, or convert on the first shock and
+  // still not survive the admission — so this deliberately keeps two related
+  // but separate numbers: a per-patient survivability score
+  // (computeSurvivabilityScore) and a per-shock conversion chance
+  // (computeShockableOutcome) that USES the survivability score as one
+  // input among several, rather than being it.
+
+  const HIGH_RISK_CONDITION_KEYWORDS = [
+    'heart failure', 'chf', 'cardiomyopathy', 'copd', 'emphysema', 'chronic bronchitis',
+    'renal failure', 'dialysis', 'ckd', 'cancer', 'malignancy', 'metastatic',
+    'dementia', 'alzheimer', 'stroke', 'cva', 'diabetes', 'obesity', 'morbidly obese',
+    'ischaemic heart disease', 'ischemic heart disease', 'coronary artery disease', 'cad',
+    'previous mi', 'myocardial infarction', 'atrial fibrillation', 'valve disease',
+    'cirrhosis', 'immunocompromised', 'frailty', 'frail'
+  ];
+
+  // Age/weight aren't structured fields anywhere in the schema (see
+  // CLAUDE.md — only free-text demographics like "45yo Male"), so this
+  // parses the same "[age]yo" convention generator.html always writes into
+  // title/subtitle/dispatch, same spirit as the gender title-sniffing
+  // fallback in sim_patient.html's connectSession(). Weight is similarly
+  // free text ("82 kg") in vitals.Weight. scenarioMeta only needs to carry
+  // whatever subset of these fields the caller has on hand — every lookup
+  // here tolerates a missing field.
+  function parseAgeFromScenario(scenario) {
+    const text = `${scenario.title || ''} ${scenario.subtitle || ''} ${scenario.dispatch || ''}`;
+    const m = text.match(/(\d{1,3})\s*(?:yo\b|y\.?o\.?\b|year[- ]old)/i);
+    return m ? parseInt(m[1], 10) : 55; // unknown — a neutral middle-aged default
+  }
+  function parseWeightKgFromScenario(scenario) {
+    const raw = (scenario.vitals && scenario.vitals.Weight) || '';
+    const m = String(raw).match(/(\d{1,3}(?:\.\d+)?)/);
+    return m ? parseFloat(m[1]) : 80; // unknown — an unremarkable adult default
+  }
+
+  // 0-100. Deliberately NOT the same number as any single shock's conversion
+  // chance — see the comment above this section.
+  function computeSurvivabilityScore(scenario, downtimeMs) {
+    let score = 70; // an average adult, witnessed arrest, prompt care
+    const age = parseAgeFromScenario(scenario);
+    if (age <= 1) score += 10; // infants/neonates are a genuinely different model in reality — out of scope, kept neutral rather than penalised
+    else if (age <= 35) score += 15;
+    else if (age <= 55) score += 5;
+    else if (age <= 70) score -= 5;
+    else if (age <= 85) score -= 15;
+    else score -= 25;
+
+    const weightKg = parseWeightKgFromScenario(scenario);
+    if (weightKg >= 120) score -= 10;
+    else if (weightKg >= 100) score -= 5;
+    else if (age > 15 && weightKg < 45) score -= 5; // frailty/cachexia proxy — only meaningful for an adult-sized patient
+
+    const conditionsText = (scenario.medical_conditions || []).join(' ').toLowerCase();
+    const hits = HIGH_RISK_CONDITION_KEYWORDS.filter(k => conditionsText.includes(k)).length;
+    score -= Math.min(30, hits * 6);
+
+    const downtimeMin = downtimeMs / 60000;
+    score -= downtimeMin * 5; // downtime dominates, per the AHA figures cited above
+
+    return Math.max(2, Math.min(95, Math.round(score)));
+  }
+
+  // Buckets a rhythm label into what matters for a defib decision — NOT the
+  // same bucketing as ecg_engine.js's mapRhythm(), which is purely about
+  // waveform rendering and conflates clinically distinct things (e.g. PEA
+  // and sinus bradycardia both render as its 'sbrad' key, but PEA is
+  // pulseless arrest and sinus brady isn't — defib logic cannot use that
+  // mapping).
+  function classifyRhythmForDefib(label) {
+    const s = (label || '').toLowerCase();
+    if (/torsades|polymorphic|\bvt\b|ventricular tach|\bvf\b|ventricular fib/.test(s)) return 'shockable';
+    if (/asystole|\bpea\b|pulseless electrical/.test(s)) return 'nonshockable-arrest';
+    return 'organized';
+  }
+
+  // Fallback rhythm when nothing's been explicitly scripted on the rhythm
+  // timeline yet (see getRhythmAt above) — the single canonical version
+  // both pages' ECG/defib code call, since (unlike the avatar functions)
+  // this must produce byte-identical results wherever it runs.
+  function deriveRhythmFromHR(hr) {
+    if (hr < 60) return 'sinus bradycardia';
+    if (hr > 100) return 'sinus tachycardia';
+    return 'sinus rhythm';
+  }
+
+  // Walks backwards through the rhythm timeline from a shockable/
+  // nonshockable-arrest entry to find when this arrest actually began (the
+  // start of the contiguous run of arrest-classified entries containing
+  // "now") — downtime for the survivability score above. Returns 0 if the
+  // patient isn't currently in an arrest rhythm at all.
+  function msSinceArrestStart(cfg, nowMs) {
+    const events = ((cfg.overrides && cfg.overrides.rhythm) || []).slice().sort((a, b) => a.startMs - b.startMs);
+    let idx = -1;
+    for (let i = 0; i < events.length; i++) { if (events[i].startMs <= nowMs) idx = i; else break; }
+    if (idx === -1 || classifyRhythmForDefib(events[idx].label) === 'organized') return 0;
+    let arrestStartMs = events[idx].startMs;
+    for (let i = idx - 1; i >= 0; i--) {
+      if (classifyRhythmForDefib(events[i].label) === 'organized') break;
+      arrestStartMs = events[i].startMs;
+    }
+    return Math.max(0, nowMs - arrestStartMs);
+  }
+
+  // Real-world energy dosing is weight-based for paediatrics (2-4 J/kg) but
+  // a fixed protocol dose for adults (typically 120-200J biphasic, with
+  // little added benefit much past that) — NOT weight-based for adults, so
+  // this deliberately branches on age rather than applying one formula to
+  // both.
+  function computeEnergyFactor(joules, age, weightKg) {
+    if (age < 12) {
+      const idealLow = weightKg * 2, idealHigh = weightKg * 4;
+      if (joules < idealLow * 0.5) return 0.3;
+      if (joules < idealLow) return 0.6;
+      if (joules <= idealHigh * 1.5) return 1;
+      return 0.85; // over-energised for a child — likely still works, just not the guideline dose
+    }
+    if (joules < 100) return 0.55;
+    if (joules < 120) return 0.8;
+    return 1;
+  }
+
+  // Per-shock outcome for a genuinely shockable rhythm (VF/pulseless VT/
+  // torsades). Three possible outcomes, not just success/fail — post-shock
+  // asystole is a real, recognised (if less common) outcome, and is more
+  // likely the worse the underlying prognosis.
+  function computeShockableOutcome(survivability, energyFactor, downtimeMs) {
+    const downtimeMin = downtimeMs / 60000;
+    const downtimeDecay = Math.exp(-downtimeMin / 8); // ~50% remaining by ~5.5 min — "every minute counts"
+    const survivabilityFactor = 0.4 + (survivability / 100) * 0.8; // even a low-survivability patient can still convert on any given shock
+    let convertChance = 0.75 * energyFactor * downtimeDecay * survivabilityFactor;
+    convertChance = Math.max(0.03, Math.min(0.92, convertChance));
+
+    let asystoleChance = 0.03 + (1 - survivability / 100) * 0.12;
+    asystoleChance = Math.min(0.35, asystoleChance);
+
+    const r = Math.random();
+    const outcome = r < convertChance ? 'converted' : r < convertChance + asystoleChance ? 'asystole' : 'unchanged';
+    return { outcome, convertChance, asystoleChance };
+  }
+
+  // Shocking a patient who has a pulse (organized rhythm) is never actually
+  // indicated, but the sim allows it — this models the real risk: an
+  // unsynchronised shock landing on a vulnerable point in the cycle can
+  // precipitate VF (the R-on-T mechanism, well known as the reason
+  // cardioversion is normally synchronised), more likely on already-
+  // ischaemic myocardium. Short of that, an unsynchronised shock CAN still
+  // cardiovert a disorganised atrial/re-entry tachyarrhythmia back to sinus
+  // (cruder and riskier than a proper synchronised cardioversion, but not
+  // physiologically impossible) — otherwise it just hurts, with no rhythm
+  // change at all.
+  function computeOrganizedShockOutcome(rhythmLabel, joules) {
+    const s = (rhythmLabel || '').toLowerCase();
+    const isIschaemic = /stemi|nstemi|ischaemia|ischemia/.test(s);
+    const isTachyarrhythmia = /fibrillation|flutter|svt|supraventricular|tachycardia/.test(s);
+    let induceVfChance = isIschaemic ? 0.12 : 0.04;
+    induceVfChance *= Math.max(0.6, Math.min(1.3, joules / 150));
+
+    if (Math.random() < induceVfChance) return { outcome: 'induced-vf', induceVfChance };
+    if (isTachyarrhythmia && Math.random() < 0.35) return { outcome: 'cardioverted', induceVfChance };
+    return { outcome: 'no-change', induceVfChance };
+  }
+
+  // A transient bump (onset -> hold -> fade) that fades back to whatever
+  // this vital would have been doing anyway rather than a flat pre-shock
+  // number — same "evaluate the untouched natural schedule" trick
+  // applyCodedEffect (sim_control.html) uses for wearOffMin. Takes cfg
+  // directly (not a separately-snapshotted overrides object): this is
+  // always called before any splicing happens against cfg, so cfg.overrides
+  // is still exactly the untouched pre-shock schedule.
+  function buildFadeToNaturalChain(cfg, key, bumpTarget, onsetMin, holdMin, fadeMin, givenAtMs) {
+    const holdEndMin = onsetMin + holdMin;
+    const fadeEndMin = holdEndMin + fadeMin;
+    const fadeEndMs = givenAtMs + fadeEndMin * 60000;
+    const naturalAtFadeEnd = getVitalsRaw(cfg, fadeEndMs)[key];
+    return [
+      { targetValue: bumpTarget, startMin: 0, endMin: onsetMin },
+      { targetValue: bumpTarget, startMin: onsetMin, endMin: holdEndMin },
+      { targetValue: naturalAtFadeEnd, startMin: holdEndMin, endMin: fadeEndMin }
+    ];
+  }
+
+  // The main entry point: decides the outcome and builds the override/rhythm
+  // plan, but does NOT splice or persist anything — callers pass the result
+  // to spliceAiOverridePlan/spliceRhythmPlan below and handle their own I/O
+  // (sim_control.html reads/writes the DB directly; sim_patient.html applies
+  // to its local testConfig immediately, then syncs to the DB in the
+  // background). scenarioMeta needs at most { title, subtitle, dispatch,
+  // vitals, medical_conditions } — whatever subset the caller has fetched.
+  function computeDefibrillationEffect(cfg, scenarioMeta, joules, givenAtMs) {
+    const vitalsNow = getVitalsRaw(cfg, givenAtMs);
+    const rhythmLabel = getRhythmAt(cfg, givenAtMs) || deriveRhythmFromHR(vitalsNow.HR);
+    const rhythmClass = classifyRhythmForDefib(rhythmLabel);
+
+    const parsedOverrides = {};
+    const parsedRhythm = [];
+    let note;
+
+    if (rhythmClass === 'shockable') {
+      const downtimeMs = msSinceArrestStart(cfg, givenAtMs);
+      const survivability = computeSurvivabilityScore(scenarioMeta, downtimeMs);
+      const age = parseAgeFromScenario(scenarioMeta);
+      const weightKg = parseWeightKgFromScenario(scenarioMeta);
+      const energyFactor = computeEnergyFactor(joules, age, weightKg);
+      const { outcome, convertChance } = computeShockableOutcome(survivability, energyFactor, downtimeMs);
+
+      if (outcome === 'converted') {
+        const postTachy = Math.random() < 0.65; // catecholamine surge post-ROSC — tachycardia is the more common immediate picture
+        const postLabel = postTachy ? 'sinus tachycardia' : 'sinus rhythm';
+        const postHR = postTachy ? 100 + Math.random() * 30 : 70 + Math.random() * 30;
+        parsedRhythm.push({ label: postLabel, startMin: 0 });
+        // Full cascade — ROSC is as much a state transition as arresting is,
+        // same "every implied vital, together" rule CLAUDE.md documents for
+        // the AI-authored paths.
+        parsedOverrides.HR = [{ targetValue: postHR, startMin: 0, endMin: 0.15 }];
+        parsedOverrides.BPsys = [{ targetValue: 70 + Math.random() * 25, startMin: 0, endMin: 0.3 }]; // post-ROSC hypotension is the norm, not the exception
+        parsedOverrides.BPdia = [{ targetValue: 40 + Math.random() * 20, startMin: 0, endMin: 0.3 }];
+        parsedOverrides.SpO2 = [{ targetValue: 85 + Math.random() * 7, startMin: 0, endMin: 1 }, { targetValue: 93 + Math.random() * 5, startMin: 1, endMin: 5 }];
+        parsedOverrides.EtCO2 = [{ targetValue: 35 + Math.random() * 10, startMin: 0, endMin: 0.15 }]; // the classic abrupt EtCO2 jump taught as a ROSC sign
+        parsedOverrides.RR = [{ targetValue: 4 + Math.random() * 6, startMin: 0, endMin: 0.5 }]; // usually still apnoeic/agonal immediately post-ROSC, needing support
+        parsedOverrides.gcsE = [{ targetValue: 1, startMin: 0, endMin: 0.1 }];
+        parsedOverrides.gcsV = [{ targetValue: 1, startMin: 0, endMin: 0.1 }];
+        parsedOverrides.gcsM = [{ targetValue: 1 + Math.round(Math.random()), startMin: 0, endMin: 0.1 }];
+        parsedOverrides.pain = [{ targetValue: 0, startMin: 0, endMin: 0.1 }];
+        parsedOverrides.nausea = [{ targetValue: 0, startMin: 0, endMin: 0.1 }];
+        note = `Defibrillation ${joules}J: ${rhythmLabel} terminated — ROSC, reverted to ${postLabel}. Survivability score ${survivability}/100, ~${Math.round(convertChance * 100)}% conversion chance modelled for this shock (hardcoded, no AI call).`;
+      } else if (outcome === 'asystole') {
+        parsedRhythm.push({ label: 'asystole', startMin: 0 });
+        parsedOverrides.HR = [{ targetValue: 0, startMin: 0, endMin: 0.1 }];
+        parsedOverrides.BPsys = [{ targetValue: 0, startMin: 0, endMin: 0.2 }];
+        parsedOverrides.BPdia = [{ targetValue: 0, startMin: 0, endMin: 0.2 }];
+        parsedOverrides.SpO2 = [{ targetValue: 0, startMin: 0, endMin: 1 }];
+        parsedOverrides.EtCO2 = [{ targetValue: 5 + Math.random() * 5, startMin: 0, endMin: 0.5 }];
+        parsedOverrides.RR = [{ targetValue: 0, startMin: 0, endMin: 0.1 }];
+        parsedOverrides.gcsE = [{ targetValue: 1, startMin: 0, endMin: 0.1 }];
+        parsedOverrides.gcsV = [{ targetValue: 1, startMin: 0, endMin: 0.1 }];
+        parsedOverrides.gcsM = [{ targetValue: 1, startMin: 0, endMin: 0.1 }];
+        parsedOverrides.pain = [{ targetValue: 0, startMin: 0, endMin: 0.1 }];
+        parsedOverrides.nausea = [{ targetValue: 0, startMin: 0, endMin: 0.1 }];
+        note = `Defibrillation ${joules}J: deteriorated to asystole post-shock. Survivability score ${survivability}/100 (hardcoded, no AI call).`;
+      } else {
+        note = `Defibrillation ${joules}J: no effect — remains in ${rhythmLabel}. Survivability score ${survivability}/100, ~${Math.round(convertChance * 100)}% conversion chance modelled for this shock (hardcoded, no AI call).`;
+      }
+    } else if (rhythmClass === 'nonshockable-arrest') {
+      // Real ACLS teaching point: asystole/PEA are not shockable — there's
+      // no fibrillating myocardium for a shock to terminate. Deliberately a
+      // pure no-op, not a randomised low chance of something.
+      note = `Defibrillation ${joules}J: not indicated for ${rhythmLabel} — no effect (hardcoded, no AI call).`;
+    } else {
+      const conscious = vitalsNow.gcsV >= 4; // same "can this patient perceive/report it" threshold the AI treatment prompt uses for pain/nausea
+      const { outcome, induceVfChance } = computeOrganizedShockOutcome(rhythmLabel, joules);
+
+      if (outcome === 'induced-vf') {
+        parsedRhythm.push({ label: 'ventricular fibrillation', startMin: 0.05 });
+        parsedOverrides.HR = [{ targetValue: 0, startMin: 0.05, endMin: 0.15 }];
+        parsedOverrides.BPsys = [{ targetValue: 0, startMin: 0.05, endMin: 0.25 }];
+        parsedOverrides.BPdia = [{ targetValue: 0, startMin: 0.05, endMin: 0.25 }];
+        parsedOverrides.SpO2 = [{ targetValue: 0, startMin: 0.05, endMin: 1 }];
+        parsedOverrides.EtCO2 = [{ targetValue: 5 + Math.random() * 5, startMin: 0.05, endMin: 0.5 }];
+        parsedOverrides.RR = [{ targetValue: 0, startMin: 0.05, endMin: 0.15 }];
+        parsedOverrides.gcsE = [{ targetValue: 1, startMin: 0.05, endMin: 0.15 }];
+        parsedOverrides.gcsV = [{ targetValue: 1, startMin: 0.05, endMin: 0.15 }];
+        parsedOverrides.gcsM = [{ targetValue: 1, startMin: 0.05, endMin: 0.15 }];
+        parsedOverrides.pain = [{ targetValue: 0, startMin: 0.05, endMin: 0.15 }];
+        parsedOverrides.nausea = [{ targetValue: 0, startMin: 0.05, endMin: 0.15 }];
+        note = `Defibrillation ${joules}J: inappropriate shock on ${rhythmLabel} precipitated ventricular fibrillation (~${Math.round(induceVfChance * 100)}% chance modelled, hardcoded, no AI call).`;
+      } else if (outcome === 'cardioverted') {
+        parsedRhythm.push({ label: 'sinus rhythm', startMin: 0 });
+        parsedOverrides.HR = [{ targetValue: 70 + Math.random() * 25, startMin: 0, endMin: 0.15 }];
+        if (conscious) parsedOverrides.pain = buildFadeToNaturalChain(cfg, 'pain', 8 + Math.random() * 2, 0.05, 0.5, 4, givenAtMs);
+        note = `Defibrillation ${joules}J: ${rhythmLabel} cardioverted to sinus rhythm${conscious ? ' — painful, unsynchronised shock' : ''} (hardcoded, no AI call).`;
+      } else if (conscious) {
+        parsedOverrides.pain = buildFadeToNaturalChain(cfg, 'pain', 8 + Math.random() * 2, 0.05, 0.5, 4, givenAtMs);
+        parsedOverrides.HR = buildFadeToNaturalChain(cfg, 'HR', vitalsNow.HR + 20 + Math.random() * 15, 0.05, 0.5, 3, givenAtMs);
+        note = `Defibrillation ${joules}J: no rhythm change (remains ${rhythmLabel}) — painful stimulus only (hardcoded, no AI call).`;
+      } else {
+        note = `Defibrillation ${joules}J: no rhythm change (remains ${rhythmLabel}); patient unresponsive, no pain response (hardcoded, no AI call).`;
+      }
+    }
+
+    return { parsedOverrides, parsedRhythm, note, vitalsNow };
+  }
+
+  // Splices a computed override plan (AI-authored, or the hardcoded defib
+  // plan above) into the session's existing overrides. For every vital key
+  // the plan actually returned entries for: anything already fully in the
+  // past is kept as accurate history, anything mid-transition right now is
+  // truncated to end exactly at givenAtMs (at its real current value), and
+  // anything still in the future is dropped before the new chain is
+  // appended — otherwise the engine (which always uses whichever override,
+  // in start-time order, contains "now") would let the OLD trajectory keep
+  // winning for its entire remaining duration. A vital the plan didn't
+  // mention is left completely untouched — omission means "keep whatever
+  // was already scheduled", not "erase it with nothing to replace it".
+  // Graph-UI side effects (auto-enabling a series' visibility) are the
+  // caller's responsibility, not this function's — this file has no DOM.
+  function spliceAiOverridePlan(freshOverrides, parsedOverrides, vitalsNow, givenAtMs) {
+    const affectedKeys = new Set(Object.keys(parsedOverrides || {}).filter(k => Array.isArray(parsedOverrides[k]) && parsedOverrides[k].length));
+    Object.keys(freshOverrides).forEach(key => {
+      if (!affectedKeys.has(key)) return;
+      const arr = freshOverrides[key] || [];
+      const kept = [];
+      arr.forEach(ov => {
+        if (ov.endMs <= givenAtMs) {
+          kept.push(ov);
+        } else if (ov.startMs < givenAtMs) {
+          kept.push({ startMs: ov.startMs, endMs: givenAtMs, targetValue: vitalsNow[key] });
+        }
+        // else: startMs >= givenAtMs — superseded future plan, drop (this vital IS being replaced below)
+      });
+      freshOverrides[key] = kept;
+    });
+    Object.entries(parsedOverrides || {}).forEach(([key, arr]) => {
+      if (!Array.isArray(arr) || !arr.length) return;
+      const cleanArr = arr
+        .filter(ov => typeof ov.targetValue === 'number' && typeof ov.startMin === 'number' && typeof ov.endMin === 'number')
+        .map(ov => ({
+          targetValue: ov.targetValue,
+          startMs: givenAtMs + Math.min(60, Math.max(0, ov.startMin)) * 60000,
+          endMs: givenAtMs + Math.min(60, Math.max(0, ov.endMin)) * 60000
+        }));
+      if (!freshOverrides[key]) freshOverrides[key] = [];
+      freshOverrides[key] = freshOverrides[key].concat(cleanArr);
+    });
+    return freshOverrides;
+  }
+
+  // Splices a computed rhythm plan into freshOverrides.rhythm — a separate,
+  // much simpler mechanism from spliceAiOverridePlan because a rhythm is a
+  // discrete step-change list (see getRhythmAt above), not an interpolated
+  // curve: no in-progress truncation is needed, just drop anything scheduled
+  // at/after givenAtMs (a superseded future plan) and append the new
+  // entries. If the plan didn't return a rhythm array at all, the existing
+  // schedule — including its future — is left completely alone, same
+  // "omission means don't touch it" rule as vitals.
+  function spliceRhythmPlan(freshOverrides, parsedRhythm, givenAtMs) {
+    if (!Array.isArray(parsedRhythm) || !parsedRhythm.length) return;
+    const existing = ((freshOverrides.rhythm || [])).filter(ev => ev.startMs < givenAtMs);
+    const clean = parsedRhythm
+      .filter(ev => typeof ev.label === 'string' && ev.label.trim() && typeof ev.startMin === 'number')
+      .map(ev => ({ label: ev.label.trim(), startMs: givenAtMs + Math.min(60, Math.max(0, ev.startMin)) * 60000 }));
+    freshOverrides.rhythm = existing.concat(clean);
+  }
+
   // ---- Live appearance state (derived from vitals, no AI) -----------------
   // Same severity bands sim_control.html's assessor-facing Appearance tab
   // uses, kept here as the one shared source so sim_patient.html's avatar
@@ -293,6 +656,9 @@
     return { unresponsive, distressLevel, skinColour, moisture, wob, gcsE, pain };
   }
 
-  global.SimEngine = { ACTION_DURATIONS, getActionDurationSec, getVitals, getVitalsRaw, getSimNow, getStaticVitalAt, getRhythmAt, getAppearanceState };
+  global.SimEngine = {
+    ACTION_DURATIONS, getActionDurationSec, getVitals, getVitalsRaw, getSimNow, getStaticVitalAt, getRhythmAt, getAppearanceState,
+    deriveRhythmFromHR, classifyRhythmForDefib, computeSurvivabilityScore, computeDefibrillationEffect, spliceAiOverridePlan, spliceRhythmPlan
+  };
 })(typeof window !== 'undefined' ? window : this);
 
