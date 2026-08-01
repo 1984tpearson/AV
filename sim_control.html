@@ -961,7 +961,7 @@ async function updateInstantMode() {
 // same overrides mechanism, so they all sample the same way — no more
 // special-case step-path branch.
 const GRAPH_SERIES = [
-  { key: 'HR',      label: 'HR',     color: '#dc1114', unit: 'bpm',     min: 0,  max: 250, get: v => v.HR },
+  { key: 'HR',      label: 'HR',     color: '#dc1114', unit: 'bpm',     min: 0,  max: 300, get: v => v.HR },
   { key: 'BPsys',   label: 'BP Sys', color: '#65b440', unit: 'mmHg',    min: 0,  max: 260, get: v => v.BPsys },
   { key: 'BPdia',   label: 'BP Dia', color: '#8bbf2c', unit: 'mmHg',    min: 0,  max: 220, get: v => v.BPdia },
   { key: 'SpO2',    label: 'SpO\u2082', color: '#2980c5', unit: '%',    min: 0,  max: 100, get: v => v.SpO2 },
