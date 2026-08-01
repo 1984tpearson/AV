@@ -188,15 +188,42 @@ E3 ("opens to voice") renders CLOSED at rest and only opens while
 via Treat/Assess/Talk. That's the actual voice stimulus being modelled, not
 just cosmetic.
 
-Two idle animations run independently of the 1s vitals tick (a 1s-stepped
-animation reads as a slideshow, not motion): a blink every ~2.5–6s
-(`scheduleNextBlink()`/`doBlink()`, only from a fully-open resting state —
-skipped for droopy/closed, restores to whatever `_restingEyeLevel` is AT
-RESTORE time so a vitals change mid-blink isn't clobbered back open), and a
-whole-head breathing bob via `requestAnimationFrame` (`breathingLoop()`)
-whose period is driven by live RR — stops dead at RR≤0 rather than
-continuing to oscillate, since an apnoeic patient shouldn't still look like
-they're breathing.
+Idle animations run independently of the 1s vitals tick (a 1s-stepped
+animation reads as a slideshow, not motion), all inside one
+`requestAnimationFrame` loop (`idleMotionLoop()`):
+
+- **Blink** every ~2.5–6s (`scheduleNextBlink()`/`doBlink()`, only from a
+  fully-open resting state — skipped for droopy/closed, restores to
+  whatever `_restingEyeLevel` is AT RESTORE time so a vitals change
+  mid-blink isn't clobbered back open).
+- **Breathing** is two independently-driven layers, both period-matched to
+  live RR and stopping dead at RR≤0 (an apnoeic patient shouldn't still
+  look like they're breathing): `#av-chest-group` is a same-shape
+  duplicate of the head/body path, clipped to just the shoulder region
+  (`av-chest-clip`, a `<rect>` over the lower part of the shape) and
+  sitting BEHIND `#av-face-group` — at rest the two perfectly overlap so
+  the clipped duplicate is invisible, only becoming visible as "shoulder
+  rise" once its own transform diverges from the face group's. This is
+  the primary, always-present breathing cue. The *head* itself
+  (`#av-face-group`) barely moves normally — real quiet breathing doesn't
+  bob the head; visible head movement is actually a laboured-breathing
+  sign (accessory muscle use, tripoding) — so its amplitude is scaled by
+  `_wobAmplitude`, set from `SimEngine.getAppearanceState(v).wob` in
+  `updateAvatarFace()`, near-zero for a calm patient and progressively
+  more pronounced toward agonal/severe distress.
+- **Idle sway**: a slow ~7s side-to-side on `#av-face-group`'s X, unrelated
+  to any vital sign — purely "not a frozen photo". `#av-top` (hair) gets a
+  slightly larger version of the same sway on top of inheriting the face
+  group's, a cheap parallax cue (nearer layer moves more) rather than the
+  whole head reading as one flat sticker. Scaled by `_swayScale` — derived
+  from total GCS in `updateAvatarFace()`, tapering to zero as GCS drops
+  toward the unresponsive threshold, since an unconscious patient idly
+  looking around would be the wrong signal.
+
+Mouth also flaps between a talking frame and the current resting expression
+while patient TTS is actually speaking (`utter.onstart`/`onend` in
+`checkForPatientReply()` drive `startTalkAnimation()`/`stopTalkAnimation()`)
+— so a distressed patient still looks distressed mid-sentence, not neutral.
 
 Mouth also flaps between a talking frame and the current resting expression
 while patient TTS is actually speaking (`utter.onstart`/`onend` in

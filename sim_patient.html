@@ -209,16 +209,22 @@ body { display: flex; flex-direction: column; }
   <div id="info-col">
     <div class="panel" id="patient-graphic" style="flex-direction:column;gap:8px;">
     <div id="head-wrap">
-      <svg id="av-svg" viewBox="0 0 280 220" width="280" height="220" style="max-width:100%;max-height:100%;object-fit:contain;display:block;" xmlns="http://www.w3.org/2000/svg">
+      <svg id="av-svg" viewBox="0 0 280 260" width="280" height="260" style="max-width:100%;max-height:100%;object-fit:contain;display:block;" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <clipPath id="av-chest-clip"><rect x="0" y="175" width="280" height="105"/></clipPath>
+        </defs>
+        <g id="av-chest-group" transform="translate(8)">
+          <path id="av-chest-path" d="M132 36a56 56 0 0 0-56 56v6.17A12 12 0 0 0 66 110v14a12 12 0 0 0 10.3 11.88 56.04 56.04 0 0 0 31.7 44.73v18.4h-4a72 72 0 0 0-72 72v9h200v-9a72 72 0 0 0-72-72h-4v-18.39a56.04 56.04 0 0 0 31.7-44.73A12 12 0 0 0 198 124v-14a12 12 0 0 0-10-11.83V92a56 56 0 0 0-56-56Z" fill="#E0AC81" clip-path="url(#av-chest-clip)"/>
+        </g>
         <g id="av-face-group" transform="translate(8)">
           <path id="av-head-path" d="M132 36a56 56 0 0 0-56 56v6.17A12 12 0 0 0 66 110v14a12 12 0 0 0 10.3 11.88 56.04 56.04 0 0 0 31.7 44.73v18.4h-4a72 72 0 0 0-72 72v9h200v-9a72 72 0 0 0-72-72h-4v-18.39a56.04 56.04 0 0 0 31.7-44.73A12 12 0 0 0 198 124v-14a12 12 0 0 0-10-11.83V92a56 56 0 0 0-56-56Z" fill="#E0AC81"/>
           <path d="M108 180.61v8a55.79 55.79 0 0 0 24 5.39c8.59 0 16.73-1.93 24-5.39v-8a55.79 55.79 0 0 1-24 5.39 55.79 55.79 0 0 1-24-5.39Z" fill="#000" fill-opacity=".1"/>
           <g id="av-mouth" transform="translate(78 134)"></g>
           <g id="av-eyes" transform="translate(76 90)">
-            <ellipse id="av-eye-l-sclera" cx="30" cy="22" rx="13" ry="12" fill="#fff"/>
-            <circle id="av-eye-l-pupil" cx="30" cy="22" r="6" fill="#2b2118"/>
-            <ellipse id="av-eye-r-sclera" cx="82" cy="22" rx="13" ry="12" fill="#fff"/>
-            <circle id="av-eye-r-pupil" cx="82" cy="22" r="6" fill="#2b2118"/>
+            <ellipse id="av-eye-l-sclera" cx="30" cy="22" rx="14" ry="7" fill="#fff"/>
+            <circle id="av-eye-l-pupil" cx="30" cy="22" r="5.5" fill="#2b2118"/>
+            <ellipse id="av-eye-r-sclera" cx="82" cy="22" rx="14" ry="7" fill="#fff"/>
+            <circle id="av-eye-r-pupil" cx="82" cy="22" r="5.5" fill="#2b2118"/>
             <g id="av-eyes-closed-overlay" style="display:none;"></g>
           </g>
           <g id="av-eyebrows" transform="translate(76 82)"></g>
@@ -368,6 +374,7 @@ function applySkinTint(state) {
   const tint = SKIN_TINTS[state];
   const fill = tint ? blendHex(avatarBuild.skin, tint.hex, tint.t) : avatarBuild.skin;
   document.getElementById('av-head-path').setAttribute('fill', fill);
+  document.getElementById('av-chest-path').setAttribute('fill', fill);
 }
 
 // Eyes are NOT one of avatar_assets.js's pre-baked variants — several of
@@ -380,8 +387,8 @@ function applySkinTint(state) {
 // the real asset (a plain eyelid crease, no sclera needed) via the
 // av-eyes-closed-overlay group set once in renderAvatarBuild().
 function setEyeOpenness(level) {
-  const scleraRy = level === 'droopy' ? 5 : 12;
-  const pupilR = level === 'droopy' ? 4 : 6;
+  const scleraRy = level === 'droopy' ? 3.5 : 7;
+  const pupilR = level === 'droopy' ? 3 : 5.5;
   const showOpen = level !== 'closed';
   ['l', 'r'].forEach(side => {
     const sclera = document.getElementById(`av-eye-${side}-sclera`);
@@ -415,27 +422,58 @@ function doBlink() {
 }
 scheduleNextBlink();
 
-// Idle breathing — a subtle whole-head bob, period matched to live RR so it
-// visibly speeds up/slows down with the patient's actual respiratory rate.
-// Stops dead (translate back to 0) at RR<=0 rather than continuing to
-// oscillate — an apnoeic patient shouldn't still look like they're
-// breathing. Runs continuously via rAF, independent of the 1s vitals tick,
-// since a 1s-stepped animation would look like a slideshow, not a bob.
+// Idle motion — breathing (chest + head) and a slow idle sway, all in one
+// rAF loop rather than 1s-stepped ticks (which would read as a slideshow,
+// not motion). Two independently-driven layers:
+//
+// Chest (av-chest-group): a same-shape duplicate of the head/body path,
+// clipped to just the shoulder region (av-chest-clip) and sitting BEHIND
+// av-face-group — at rest the two perfectly overlap so the clipped chest
+// is invisible, only becoming visible as "shoulder rise" once its own
+// transform diverges from the face group's. This is the PRIMARY visible
+// breathing cue and always present at some amplitude when RR>0, same as
+// real quiet breathing.
+//
+// Head (av-face-group): real chest breathing barely moves the head at
+// all — visible head bobbing is actually a sign of laboured breathing
+// (accessory muscle use, tripoding), so its amplitude is tied to
+// SimEngine.getAppearanceState(v).wob via _wobAmplitude (set in
+// updateAvatarFace) rather than being constant: near-still for a calm
+// patient, progressively more pronounced toward agonal/severe distress.
+//
+// Sway (av-face-group X, plus av-top with a slightly different amplitude
+// for a touch of parallax depth): a slow ~7s side-to-side, unrelated to
+// any vital sign — purely "not a frozen photo". Scaled by _swayScale
+// (consciousness, set in updateAvatarFace) toward zero as GCS drops;
+// an unconscious patient idly looking around would be the wrong signal.
+//
+// Both stop dead at RR<=0 rather than continuing to oscillate — an
+// apnoeic patient shouldn't still look like they're breathing.
 let _lastRR = 16;
-function breathingLoop(tsMs) {
-  const group = document.getElementById('av-face-group');
-  if (group) {
-    if (_lastRR > 0) {
-      const periodMs = 60000 / _lastRR;
-      const y = Math.sin((tsMs / periodMs) * 2 * Math.PI) * 1.6;
-      group.setAttribute('transform', `translate(0, ${y.toFixed(2)})`);
-    } else {
-      group.setAttribute('transform', 'translate(0, 0)');
-    }
+let _wobAmplitude = 0; // 0-1, from work-of-breathing severity
+let _swayScale = 1; // 0-1, from consciousness
+function idleMotionLoop(tsMs) {
+  const chestGroup = document.getElementById('av-chest-group');
+  const faceGroup = document.getElementById('av-face-group');
+  const hairGroup = document.getElementById('av-top');
+  const breathPhase = _lastRR > 0 ? Math.sin((tsMs / (60000 / _lastRR)) * 2 * Math.PI) : 0;
+  const swayPhase = Math.sin((tsMs / 7000) * 2 * Math.PI) * _swayScale;
+  if (chestGroup) {
+    const chestY = breathPhase * (3 + _wobAmplitude * 1.5);
+    chestGroup.setAttribute('transform', `translate(8, ${chestY.toFixed(2)})`);
   }
-  requestAnimationFrame(breathingLoop);
+  if (faceGroup) {
+    const headY = breathPhase * (0.4 + _wobAmplitude * 1.6);
+    const headX = swayPhase * 2.5;
+    faceGroup.setAttribute('transform', `translate(${(8 + headX).toFixed(2)}, ${headY.toFixed(2)})`);
+  }
+  if (hairGroup) {
+    const hairX = -1 + swayPhase * 1.2; // slightly more than the face's own sway — cheap parallax
+    hairGroup.setAttribute('transform', `translate(${hairX.toFixed(2)}, 0)`);
+  }
+  requestAnimationFrame(idleMotionLoop);
 }
-requestAnimationFrame(breathingLoop);
+requestAnimationFrame(idleMotionLoop);
 
 function setSweat(visible) {
   document.getElementById('av-sweat').style.display = visible ? '' : 'none';
@@ -470,6 +508,9 @@ function updateAvatarFace(v) {
   _restingEyeLevel = eyeLevel;
   setEyeOpenness(eyeLevel);
   _lastRR = Number.isFinite(v.RR) ? v.RR : _lastRR;
+  _wobAmplitude = Math.min(1, (typeof app.wob === 'number' ? app.wob : 4) / 4);
+  const totalGCS = (v.gcsE || 0) + (v.gcsV || 0) + (v.gcsM || 0);
+  _swayScale = Math.max(0, Math.min(1, (totalGCS - 8) / 7));
   applySkinTint(app.skinColour);
   setSweat(app.moisture === 'diaphoretic' || app.moisture === 'clammy');
   let mouthState;
