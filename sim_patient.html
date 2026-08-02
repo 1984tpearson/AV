@@ -363,7 +363,7 @@ function extendedVitalsNow() {
 // tint/sweat) is re-derived every tick from SimEngine.getAppearanceState(),
 // the same severity bands sim_control.html's assessor-facing Appearance tab
 // uses — see sim_engine.js.
-let avatarBuild = { skin: '#E0AC81', hairColour: '#3b2b20', hairStyle: 'shortFlat', eyebrowStyle: 'defaultNatural', ageBand: 'adult', ageYears: null, clothesColour: '#3b6ea5' };
+let avatarBuild = { skin: '#E0AC81', hairColour: '#3b2b20', hairStyle: 'shortFlat', eyebrowStyle: 'defaultNatural', ageBand: 'adult', ageYears: null, clothesColour: '#3b6ea5', voiceSeed: null };
 // Last three are grey/silver/white — see GREY_HAIR_COLOURS and greyWeight()
 // below. Kept in the same flat array (not a separate palette) so an unset
 // age still lets a young-reading grey/premature-grey/platinum tone turn up
@@ -592,6 +592,7 @@ function buildAvatarBase(seed, skinHex, gender, age) {
   avatarBuild.ageBand = ageBandFromMeta(age);
   avatarBuild.ageYears = parseAgeYears(age); // exact years (or null) — drives the continuous ageRamp() scaling in applyAgeScale(), separate from the discrete band above
   const s = String(seed || sessionCode || 'default');
+  avatarBuild.voiceSeed = s; // same per-scenario seed as the hair/eyebrow picks below, reused by piperVoiceIdFor() so a patient's voice is stable across reconnects too
   const allowAdultHair = avatarBuild.ageBand === 'teen' || avatarBuild.ageBand === 'adult';
   const hairKeys = Object.keys(AvatarAssets.top).filter(k =>
     (allowAdultHair || !ADULT_ONLY_HAIR.has(k)) && (allowAdultHair || !FACE_FRAMING_HEADWEAR.has(k))
@@ -1876,16 +1877,47 @@ function pickVoice() {
 // and depends on WASM/OPFS support, so any failure anywhere in this path
 // (module load, OPFS unsupported, network, inference) falls straight back
 // to the existing speechSynthesis flow — see speakPatientReply() below.
-// No en-AU Piper voices exist upstream, so en_GB is the closest match.
+// No en-AU Piper voices exist upstream, so en_GB/en_US are the closest
+// match. Piper's public voice set has no genuinely child-trained voice
+// (TTS needs a lot of clean single-speaker recordings, and there's no
+// ethically-sourced children's-speech dataset in general circulation) —
+// paediatric patients get an adult voice pitched/sped up via
+// youthVoiceRate() instead, a real approximation rather than a true
+// child voice, same tradeoff already accepted for it.
 const HQ_VOICE_LS_KEY = 'av_hq_voice_enabled';
 const PIPER_MODULE_URL = 'https://cdn.jsdelivr.net/npm/@diffusionstudio/vits-web@1/+esm';
-const PIPER_VOICE_IDS = { male: 'en_GB-alan-medium', female: 'en_GB-jenny_dioco-medium' };
+// A few voices per gender rather than one fixed pick — same "medium" quality
+// tier throughout (a reasonable size/quality balance; "low" sounds worse,
+// "high" isn't worth the extra download for a training tool), spanning a
+// couple of English accents/timbres for real variety between patients.
+const PIPER_VOICE_POOL = {
+  male: ['en_GB-alan-medium', 'en_US-ryan-medium', 'en_GB-northern_english_male-medium'],
+  female: ['en_GB-jenny_dioco-medium', 'en_US-amy-medium', 'en_GB-alba-medium'],
+};
 let hqVoiceEnabled = localStorage.getItem(HQ_VOICE_LS_KEY) === '1';
 let _piperModulePromise = null;
 let _piperModuleFailedOnce = false;
 
+// Picks from the pool using the same per-scenario seed (and same hashStr()
+// mechanism) buildAvatarBase() already uses for hair/eyebrow style, with its
+// own suffix so the voice pick doesn't land in lockstep with those — stable
+// across reconnects for a given patient, not re-rolled every page load.
 function piperVoiceIdFor(gender) {
-  return PIPER_VOICE_IDS[gender] || PIPER_VOICE_IDS.male;
+  const pool = PIPER_VOICE_POOL[gender] || PIPER_VOICE_POOL.male;
+  const seed = avatarBuild.voiceSeed || sessionCode || 'default';
+  return pool[hashStr(seed + ':voice') % pool.length];
+}
+
+// Approximates a younger-sounding voice by speeding up/pitching up an adult
+// voice — real vocal pitch does run meaningfully higher in young children,
+// so this isn't pure fabrication, but it's still a coarse trick (Piper
+// output sped up, not a real child voice) and reads as a bit synthetic at
+// the low end. Same ageRamp() shape as every other age-scaled constant in
+// this file (0 at newborn ramping linearly to 1.0/no-change by 18).
+// 1.22 is a deliberately moderate pick — enough to read as younger without
+// tipping into "chipmunk".
+function youthVoiceRate(years) {
+  return ageRamp(years, 1.22, 1.0);
 }
 
 // A failed dynamic import() is cached by the browser against its exact URL
@@ -2036,6 +2068,15 @@ async function speakPatientReply(text, resumeIfConversing, isConversation) {
         // got enabled without the voice modal ever having been opened yet).
         const audio = _piperAudioEl || new Audio();
         audio.src = URL.createObjectURL(wav);
+        // preservesPitch defaults to true (browsers auto-correct pitch when
+        // playbackRate changes) — turning it off is what makes the rate
+        // change actually sound like a pitch shift, the classic tape-speed
+        // effect, rather than just talking faster at the same pitch.
+        const rate = youthVoiceRate(avatarBuild.ageYears);
+        audio.playbackRate = rate;
+        audio.preservesPitch = rate === 1;
+        audio.mozPreservesPitch = rate === 1;
+        audio.webkitPreservesPitch = rate === 1;
         audio.onplay = startTalkAnimation;
         audio.onended = () => { stopTalkAnimation(); resumeIfConversing(); };
         audio.onerror = () => { stopTalkAnimation(); resumeIfConversing(); };
@@ -2055,6 +2096,7 @@ async function speakPatientReply(text, resumeIfConversing, isConversation) {
       const voice = pickVoice();
       if (voice) utter.voice = voice;
       utter.lang = 'en-AU';
+      utter.pitch = youthVoiceRate(avatarBuild.ageYears); // same paediatric approximation as the Piper path, via the API's native pitch control instead of a playbackRate trick
       utter.onstart = startTalkAnimation;
       utter.onend = () => { stopTalkAnimation(); resumeIfConversing(); };
       utter.onerror = () => { stopTalkAnimation(); resumeIfConversing(); };
