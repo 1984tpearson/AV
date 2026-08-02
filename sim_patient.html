@@ -99,6 +99,11 @@ body { display: flex; flex-direction: column; }
    red icon, invisible unless actively listening (toggled via .listening,
    same mechanism as before — just relocated and restyled). */
 #head-wrap { position: relative; display: inline-block; line-height: 0; min-width: 50px; min-height: 50px; overflow: hidden; }
+/* Skin tint eases rather than snapping so the once-a-second tick lines up
+   visually with the continuously-drifting vitals underneath it (see
+   applySkinTint()) instead of reading as a hard colour cut every tick. */
+#av-head-path, #av-head-bulge, #av-eye-l-lid, #av-eye-r-lid { transition: fill 1.1s ease; }
+#av-sweat path { transition: opacity 1.1s ease, transform 1.1s ease; transform-box: fill-box; transform-origin: center; }
 #voice-mic-indicator { display: none; position: absolute; top: -8px; right: -8px; width: 22px; height: 22px; align-items: center; justify-content: center; background: #fff; border-radius: 50%; box-shadow: 0 1px 4px rgba(0,0,0,0.3); }
 #voice-mic-indicator svg { width: 13px; height: 13px; fill: #dc2626; }
 #voice-mic-indicator.listening { display: flex; animation: micBlink 1s steps(1) infinite; }
@@ -235,8 +240,9 @@ body { display: flex; flex-direction: column; }
             <g id="av-eyebrows" transform="translate(76 82)"></g>
             <g id="av-top" transform="translate(-1)"></g>
             <g id="av-sweat" style="display:none;">
-              <path d="M62 60 q7 10 0 17 q-7 -2 -7 -9 q0 -6 7 -8z" fill="#7ec8e3"/>
-              <path d="M206 56 q7 10 0 17 q-7 -2 -7 -9 q0 -6 7 -8z" fill="#7ec8e3"/>
+              <path id="av-sweat-l" d="M62 60 q7 10 0 17 q-7 -2 -7 -9 q0 -6 7 -8z" fill="#7ec8e3"/>
+              <path id="av-sweat-r" d="M206 56 q7 10 0 17 q-7 -2 -7 -9 q0 -6 7 -8z" fill="#7ec8e3"/>
+              <path id="av-sweat-c" d="M132 48 q6 9 0 15 q-6 -2 -6 -8 q0 -5 6 -7z" fill="#7ec8e3"/>
             </g>
           </g>
         </g>
@@ -530,11 +536,16 @@ function blendHex(baseHex, targetHex, t) {
 }
 // Tint targets are blended toward, not swapped to — keeps each patient's own
 // base skin tone visible under the clinical tint instead of flattening
-// everyone to the same "cyanotic blue"/"pale grey".
-const SKIN_TINTS = { cyanotic: { hex: '#4f6f92', t: 0.55 }, mottled: { hex: '#8a7590', t: 0.4 }, pale: { hex: '#e4dcd2', t: 0.5 }, normal: null };
-function applySkinTint(state) {
-  const tint = SKIN_TINTS[state];
-  const fill = tint ? blendHex(avatarBuild.skin, tint.hex, tint.t) : avatarBuild.skin;
+// everyone to the same "cyanotic blue"/"pale grey". amount (0-1) comes from
+// SimEngine.getAppearanceState()'s skinTintAmount — graduated within the
+// category (e.g. deepening as SpO2 keeps dropping) rather than a fixed blend
+// the instant the category is entered, so together with the CSS transition
+// on these elements (see #av-head-path rule) the colour reads as easing
+// toward "sicker" instead of snapping to it.
+const SKIN_TINTS = { cyanotic: '#4f6f92', mottled: '#8a7590', pale: '#e4dcd2', normal: null };
+function applySkinTint(state, amount) {
+  const hex = SKIN_TINTS[state];
+  const fill = hex ? blendHex(avatarBuild.skin, hex, amount == null ? 0.5 : amount) : avatarBuild.skin;
   document.getElementById('av-head-path').setAttribute('fill', fill);
   document.getElementById('av-head-bulge').setAttribute('fill', fill);
   document.getElementById('av-eye-l-lid').setAttribute('fill', fill);
@@ -659,8 +670,28 @@ function idleMotionLoop(tsMs) {
 }
 requestAnimationFrame(idleMotionLoop);
 
-function setSweat(visible) {
-  document.getElementById('av-sweat').style.display = visible ? '' : 'none';
+// Two temple drops read as a faint, low-opacity sheen for 'clammy' (skin
+// getting damp but not yet properly sweating), joined by a third forehead
+// drop and fuller opacity/size once genuinely 'diaphoretic' — frac (0-1,
+// from getAppearanceState().moistureFrac) grades intensity continuously
+// within each tier instead of the whole group snapping fully on/off the
+// instant moisture crosses out of 'dry'.
+function setSweat(moistureState, frac) {
+  const group = document.getElementById('av-sweat');
+  if (moistureState === 'dry') { group.style.display = 'none'; return; }
+  group.style.display = '';
+  const f = Math.max(0, Math.min(1, frac || 0));
+  const diaphoretic = moistureState === 'diaphoretic';
+  const opacity = diaphoretic ? 0.75 + f * 0.25 : 0.3 + f * 0.35;
+  const scale = diaphoretic ? 1 + f * 0.25 : 0.7 + f * 0.2;
+  ['av-sweat-l', 'av-sweat-r'].forEach(id => {
+    const el = document.getElementById(id);
+    el.style.opacity = opacity.toFixed(2);
+    el.style.transform = `scale(${scale.toFixed(2)})`;
+  });
+  const centre = document.getElementById('av-sweat-c');
+  centre.style.opacity = diaphoretic ? opacity.toFixed(2) : '0';
+  centre.style.transform = `scale(${scale.toFixed(2)})`;
 }
 
 // Maps this page's clinical mouth states onto Avataaars' named expressions
@@ -702,8 +733,8 @@ function updateAvatarFace(v) {
   _wobAmplitude = Math.min(1, (typeof app.wob === 'number' ? app.wob : 4) / 4);
   const totalGCS = (v.gcsE || 0) + (v.gcsV || 0) + (v.gcsM || 0);
   _swayScale = Math.max(0, Math.min(1, (totalGCS - 8) / 7));
-  applySkinTint(app.skinColour);
-  setSweat(app.moisture === 'diaphoretic' || app.moisture === 'clammy');
+  applySkinTint(app.skinColour, app.skinTintAmount);
+  setSweat(app.moisture, app.moistureFrac);
   let mouthState;
   if (app.unresponsive) mouthState = 'slack';
   else if (app.pain >= 7) mouthState = 'grimace';

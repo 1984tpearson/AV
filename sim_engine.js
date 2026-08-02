@@ -658,6 +658,33 @@
   function numOr(x, fallback) {
     return Number.isFinite(x) ? x : fallback;
   }
+  function clamp01(x) { return Math.max(0, Math.min(1, x)); }
+  // Continuous 0-1 counterparts to the discrete severity bands above — same
+  // clinical thresholds (e.g. spo2Abnormality reaches 1 right where
+  // spo2Severity would hit its top band), but smoothly graduated instead of
+  // stepped. These exist purely to drive how DEEP a live appearance effect
+  // (skin tint blend, sweat amount) reads, not to change which clinical
+  // category applies — the discrete severity()/skinColour/moisture logic
+  // below is untouched, so nothing that read those band labels changes
+  // behaviour. Without this, applySkinTint()/setSweat() had only an on/off
+  // (or fixed-blend) signal to work with, so the avatar's skin tint and
+  // diaphoresis snapped straight to a fixed intensity the instant a
+  // threshold ticked over, rather than deepening as the vital drifted
+  // further past it.
+  function hrAbnormality(hr) {
+    if (hr <= 0) return 1;
+    return Math.max(clamp01((60 - hr) / 60), clamp01((hr - 100) / 100));
+  }
+  function bpSysAbnormality(sys) {
+    if (sys <= 0) return 1;
+    return clamp01((100 - sys) / 60);
+  }
+  function spo2Abnormality(spo2) {
+    return clamp01((95 - spo2) / 20);
+  }
+  function painAbnormality(pain) {
+    return clamp01(pain / 10);
+  }
   function getAppearanceState(v) {
     v = v || {};
     const hr = numOr(v.HR, 80), rr = numOr(v.RR, 16), spo2 = numOr(v.SpO2, 98),
@@ -667,15 +694,30 @@
     const hypoxia = spo2Severity(spo2);
     const perfusion = Math.max(hrSeverity(hr), bpSysSeverity(bpSys));
     const distressLevel = Math.max(hrSeverity(hr), rrSeverity(rr), hypoxia, painSeverity(pain));
+    const hypoxiaFrac = spo2Abnormality(spo2);
+    const perfusionFrac = Math.max(hrAbnormality(hr), bpSysAbnormality(bpSys));
     let skinColour;
     if (hypoxia >= 3) skinColour = 'cyanotic';
     else if (perfusion >= 3) skinColour = 'mottled';
     else if (perfusion >= 1 || hypoxia >= 1) skinColour = 'pale';
     else skinColour = 'normal';
+    // How strongly to blend toward that category's tint hex — graduated
+    // within the category (deeper hypoxia/perfusion = deeper tint) rather
+    // than a fixed amount, so e.g. SpO2 easing from 84 down to 75 keeps
+    // visibly darkening instead of looking identical the whole way down.
+    let skinTintAmount = 0;
+    if (skinColour === 'cyanotic') skinTintAmount = 0.3 + hypoxiaFrac * 0.4;
+    else if (skinColour === 'mottled') skinTintAmount = 0.25 + perfusionFrac * 0.35;
+    else if (skinColour === 'pale') skinTintAmount = 0.12 + Math.max(hypoxiaFrac, perfusionFrac) * 0.3;
     const moistureLvl = Math.max(perfusion, painSeverity(pain));
     const moisture = moistureLvl >= 2 ? 'diaphoretic' : moistureLvl >= 1 ? 'clammy' : 'dry';
+    // Continuous 0-1 sweat amount — same clammy/diaphoretic categories drive
+    // which visual tier shows, but this lets drop size/opacity/count ramp
+    // smoothly with severity instead of the sweat graphic just snapping
+    // fully on the moment moisture crosses into "clammy".
+    const moistureFrac = Math.max(perfusionFrac, painAbnormality(pain));
     const wob = rr <= 0 ? 'apnoeic' : rr <= 4 ? 'agonal' : Math.max(rrSeverity(rr), hypoxia);
-    return { unresponsive, distressLevel, skinColour, moisture, wob, gcsE, pain };
+    return { unresponsive, distressLevel, skinColour, skinTintAmount, moisture, moistureFrac, wob, gcsE, pain };
   }
 
   global.SimEngine = {
