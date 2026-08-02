@@ -2127,11 +2127,11 @@ async function playPiperChunks(tts, chunks, voiceId, audio, statusEl, priorStatu
   return true;
 }
 
-async function speakPatientReply(text, resumeIfConversing, isConversation) {
+async function speakPatientReply(text, resumeIfConversing, isConversation, useHqVoice) {
   const replyId = _lastShownReplyId;
   const stillCurrent = () => replyId === _lastShownReplyId;
   stopAnyPatientAudio();
-  if (hqVoiceEnabled) {
+  if (useHqVoice) {
     try {
       await runWithStallWatchdog(async (bump, aborted) => {
         const tts = await loadPiperModule();
@@ -2419,7 +2419,11 @@ function checkForPatientReply(reply) {
   };
 
   if (reply.speak !== false) {
-    speakPatientReply(reply.text, resumeIfConversing, isConversation);
+    // Exam findings ("Assess") always read in the plain standard voice, even
+    // with HQ Voice on — it's assessment feedback, not the patient speaking
+    // in character, and should sound distinct from the patient's own
+    // dialogue rather than sharing the same (possibly HQ) voice.
+    speakPatientReply(reply.text, resumeIfConversing, isConversation, hqVoiceEnabled && !isExam);
   } else if (isConversation) {
     // No speech at all (e.g. GCS-gated "no verbal response") — pause briefly
     // so the text is readable, then resume listening for the next question.
