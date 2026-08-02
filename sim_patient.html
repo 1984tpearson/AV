@@ -221,6 +221,17 @@ body { display: flex; flex-direction: column; }
             <path id="av-chest-path" d="M132 36a56 56 0 0 0-56 56v6.17A12 12 0 0 0 66 110v14a12 12 0 0 0 10.3 11.88 56.04 56.04 0 0 0 31.7 44.73v18.4h-4a72 72 0 0 0-72 72v9h200v-9a72 72 0 0 0-72-72h-4v-18.39a56.04 56.04 0 0 0 31.7-44.73A12 12 0 0 0 198 124v-14a12 12 0 0 0-10-11.83V92a56 56 0 0 0-56-56Z" fill="#3b6ea5" clip-path="url(#av-chest-clip)"/>
           </g>
           <g id="av-face-group" transform="translate(8)">
+            <!-- Tried making this an actual scaled duplicate of #av-head-path
+                 (matching the real jaw/cheek contour instead of a circle),
+                 masked to fade out toward the neck — looked worse, not
+                 better: the real path doesn't taper geometrically the way a
+                 circle does, so fading its OPACITY where it pokes out past
+                 #av-head-path's own edge (cheeks/ears) just revealed the
+                 page background blending through, a visible dark gradient
+                 "shadow" at the sides. The circle avoids this by construction
+                 — it's already narrow enough by the time it nears the
+                 neck/shoulder line that it never needs fading, only its own
+                 shrinking radius. Kept as an ellipse for that reason. -->
             <ellipse id="av-head-bulge" cx="132" cy="92" rx="56" ry="56" fill="#E0AC81"/>
             <path id="av-head-path" d="M132 36a56 56 0 0 0-56 56v6.17A12 12 0 0 0 66 110v14a12 12 0 0 0 10.3 11.88 56.04 56.04 0 0 0 31.7 44.73v18.4h-4a72 72 0 0 0-72 72v9h200v-9a72 72 0 0 0-72-72h-4v-18.39a56.04 56.04 0 0 0 31.7-44.73A12 12 0 0 0 198 124v-14a12 12 0 0 0-10-11.83V92a56 56 0 0 0-56-56Z" fill="#E0AC81"/>
             <path d="M108 180.61v8a55.79 55.79 0 0 0 24 5.39c8.59 0 16.73-1.93 24-5.39v-8a55.79 55.79 0 0 1-24 5.39 55.79 55.79 0 0 1-24-5.39Z" fill="#000" fill-opacity=".1"/>
@@ -575,18 +586,16 @@ function applyAgeScale() {
   document.getElementById('av-mouth').setAttribute('transform', `translate(78 ${134 + mouthDy})`);
   document.getElementById('av-lip-cyanosis').setAttribute('transform', `translate(78 ${134 + mouthDy})`);
   document.getElementById('av-eyes').setAttribute('transform', `translate(76 ${90 + dy}) translate(56,22) scale(${eyeScaleX},${eyeScaleY}) translate(-56,-22)`);
-  const bulgeR = 56 * ageRamp(years, HEAD_BULGE_AT_ZERO, 1);
+  const bulgeScale = ageRamp(years, HEAD_BULGE_AT_ZERO, 1);
+  const bulgeR = 56 * bulgeScale;
   const bulge = document.getElementById('av-head-bulge');
   bulge.setAttribute('rx', bulgeR.toFixed(1));
   bulge.setAttribute('ry', bulgeR.toFixed(1));
   // Hair (and headwear — hat/hijab/turban/winter hats are all `top`
-  // variants too) didn't scale with the enlarged head bulge above, so a
-  // younger patient's hair sat at its normal size on top of a visibly
-  // bigger head — same ratio the bulge itself grew by, anchored on the
-  // bulge's own centre (132,92) so it grows outward from the head rather
-  // than drifting off it.
-  const hairScale = bulgeR / 56;
-  document.getElementById('av-top').setAttribute('transform', `translate(132,92) scale(${hairScale.toFixed(3)}) translate(-132,-92) translate(-1,0)`);
+  // variants too) needs the same ratio the head bulge above just scaled by,
+  // anchored on the same centre (132,92), so it aligns against the bigger
+  // head rather than sitting at normal size on top of it.
+  document.getElementById('av-top').setAttribute('transform', `translate(132,92) scale(${bulgeScale.toFixed(3)}) translate(-132,-92) translate(-1,0)`);
 }
 
 function renderAvatarBuild() {
