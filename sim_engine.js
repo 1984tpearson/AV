@@ -694,30 +694,49 @@
     const hypoxia = spo2Severity(spo2);
     const perfusion = Math.max(hrSeverity(hr), bpSysSeverity(bpSys));
     const distressLevel = Math.max(hrSeverity(hr), rrSeverity(rr), hypoxia, painSeverity(pain));
-    const hypoxiaFrac = spo2Abnormality(spo2);
+    // perfusionFrac (direction-agnostic — used for moisture/mottled depth,
+    // where it's "how badly is perfusion failing", not which way HR/BP is
+    // off) vs the directional fractions below (pallor/flush specifically
+    // care WHICH way a vital is abnormal — a fast HR doesn't cause pallor,
+    // only a slow one does, and only a high BP flushes).
     const perfusionFrac = Math.max(hrAbnormality(hr), bpSysAbnormality(bpSys));
+    const hrLowFrac = hr <= 0 ? 1 : clamp01((60 - hr) / 60);
+    const bpHighFrac = clamp01((bpSys - 140) / 60);
+    const pallorFrac = Math.max(hrLowFrac, bpSysAbnormality(bpSys));
+    const flushFrac = bpHighFrac;
+    // Cyanosis is deliberately split into two independent depths: lips pick
+    // it up first, from mild hypoxia (ramping as SpO2 drops below 95%);
+    // general skin only joins in once truly critical (below ~80%). A real
+    // patient's lips/nail beds turn blue well before the rest of them does.
+    const lipCyanosisFrac = clamp01((95 - spo2) / 15);
+    const skinCyanosisFrac = clamp01((80 - spo2) / 20);
     let skinColour;
-    if (hypoxia >= 3) skinColour = 'cyanotic';
+    if (skinCyanosisFrac > 0) skinColour = 'cyanotic';
     else if (perfusion >= 3) skinColour = 'mottled';
-    else if (perfusion >= 1 || hypoxia >= 1) skinColour = 'pale';
+    else if (pallorFrac > 0) skinColour = 'pale';
+    else if (flushFrac > 0) skinColour = 'flushed';
     else skinColour = 'normal';
-    // How strongly to blend toward that category's tint hex — graduated
-    // within the category (deeper hypoxia/perfusion = deeper tint) rather
-    // than a fixed amount, so e.g. SpO2 easing from 84 down to 75 keeps
-    // visibly darkening instead of looking identical the whole way down.
+    // Only meaningful for 'mottled' now (a genuinely blotchy discolouration,
+    // rendered as a plain colour blend) — pallor/flush/cyanosis are HSL
+    // hue/saturation adjustments computed client-side straight from the
+    // frac fields above, not a blend toward a fixed hex, so a patient's own
+    // base skin tone stays visible under them instead of flattening
+    // everyone toward the same fixed "pale grey"/"cyanotic blue".
     let skinTintAmount = 0;
-    if (skinColour === 'cyanotic') skinTintAmount = 0.3 + hypoxiaFrac * 0.4;
-    else if (skinColour === 'mottled') skinTintAmount = 0.25 + perfusionFrac * 0.35;
-    else if (skinColour === 'pale') skinTintAmount = 0.12 + Math.max(hypoxiaFrac, perfusionFrac) * 0.3;
+    if (skinColour === 'mottled') skinTintAmount = 0.25 + perfusionFrac * 0.35;
     const moistureLvl = Math.max(perfusion, painSeverity(pain));
     const moisture = moistureLvl >= 2 ? 'diaphoretic' : moistureLvl >= 1 ? 'clammy' : 'dry';
-    // Continuous 0-1 sweat amount — same clammy/diaphoretic categories drive
-    // which visual tier shows, but this lets drop size/opacity/count ramp
-    // smoothly with severity instead of the sweat graphic just snapping
-    // fully on the moment moisture crosses into "clammy".
+    // Continuous 0-1 sweat amount — drives a graduated 1-to-3-drop escalation
+    // (see setSweat() in sim_patient.html) instead of a flat on/off, so
+    // "barely clammy" and "drenched" read as visibly different amounts of
+    // sweat rather than the same drops just changing opacity.
     const moistureFrac = Math.max(perfusionFrac, painAbnormality(pain));
     const wob = rr <= 0 ? 'apnoeic' : rr <= 4 ? 'agonal' : Math.max(rrSeverity(rr), hypoxia);
-    return { unresponsive, distressLevel, skinColour, skinTintAmount, moisture, moistureFrac, wob, gcsE, pain };
+    return {
+      unresponsive, distressLevel, skinColour, skinTintAmount,
+      pallorFrac, flushFrac, lipCyanosisFrac, skinCyanosisFrac,
+      moisture, moistureFrac, wob, gcsE, pain
+    };
   }
 
   global.SimEngine = {
