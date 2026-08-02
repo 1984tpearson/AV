@@ -968,7 +968,14 @@ function applySessionRow(row) {
   processStudentQueue(row); // fire-and-forget — auto-applies any new voice-queued items from sim_patient.html (see below)
   processDefibFollowUps(row); // fire-and-forget — re-projects the trajectory after a ROSC/cardioversion shock (see below)
   liveConfig.treatments = row.treatments || [];
-  liveConfig.overrides = row.overrides || {};
+  // A real session's overrides object always carries at least a seeded
+  // 'rhythm' key (see createSession) — it is never legitimately null/absent
+  // once a session exists. A payload with overrides missing means the
+  // update that produced it didn't touch that column (most PATCHes here
+  // only touch treatments/instant_mode/patient_actions/etc), not that
+  // overrides were actually cleared — keep the last-known-good value rather
+  // than flattening the whole graph to baseline until the next real update.
+  if (row.overrides) liveConfig.overrides = row.overrides;
   liveConfig.instantMode = row.instant_mode;
   liveConfig.hasStarted = row.has_started;
   liveConfig.isPaused = row.is_paused;

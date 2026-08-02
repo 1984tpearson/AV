@@ -1116,7 +1116,14 @@ function applySessionRow(row) {
   // Skipped once right after a local defib shock: that write is already
   // reflected locally and is mid-flight to the server, so an update landing
   // in that window would otherwise briefly clobber it with a stale copy.
-  if (!_skipNextOverridesPoll) testConfig.overrides = row.overrides || {};
+  // Also skipped whenever the payload's overrides is missing/null — a real
+  // session's overrides always carries at least a seeded 'rhythm' key (see
+  // createSession in sim_control.html), so a falsy value here means this
+  // particular update didn't touch that column, not that overrides were
+  // actually cleared. Keeping the last-known-good value avoids a brief
+  // rhythm-fallback flash (deriveRhythmFromHR) whenever an unrelated field
+  // (patient_actions, instant_mode, etc) changes.
+  if (!_skipNextOverridesPoll && row.overrides) testConfig.overrides = row.overrides;
   testConfig.instantMode = row.instant_mode;
   testConfig.hasStarted = row.has_started;
   testConfig.isPaused = row.is_paused;
