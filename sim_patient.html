@@ -494,6 +494,16 @@ const HEADWEAR = new Set(['hat', 'hijab', 'turban', 'winterHat1', 'winterHat02',
 // often (~1 in 7 patients) purely because they shared the same 'n' lean
 // tag and per-item weight as actual hairstyles.
 const CASUAL_HEADWEAR = new Set(['hat', 'winterHat1', 'winterHat02', 'winterHat03', 'winterHat04']);
+// hijab/turban drape down around the neck/shoulders, not just the top of
+// the head like hat/winterHat — that drape is drawn (and scaled, see
+// applyAgeScale()'s hairScale) purely off the enlarged head-bulge ratio,
+// with no matching adjustment to how far down it reaches, so on a younger
+// patient's proportionally bigger head it either doesn't reach the
+// shoulders or visibly gapes at the neck/back of the head. Excluded below
+// teen for that reason — same cutoff as ADULT_ONLY_HAIR — rather than
+// trying to make the drape itself elastic, which the source art has no
+// hook for.
+const FACE_FRAMING_HEADWEAR = new Set(['hijab', 'turban']);
 
 function hashStr(s) {
   let h = 0;
@@ -530,7 +540,9 @@ function buildAvatarBase(seed, skinHex, gender, age) {
   avatarBuild.ageYears = parseAgeYears(age); // exact years (or null) — drives the continuous ageRamp() scaling in applyAgeScale(), separate from the discrete band above
   const s = String(seed || sessionCode || 'default');
   const allowAdultHair = avatarBuild.ageBand === 'teen' || avatarBuild.ageBand === 'adult';
-  const hairKeys = Object.keys(AvatarAssets.top).filter(k => allowAdultHair || !ADULT_ONLY_HAIR.has(k));
+  const hairKeys = Object.keys(AvatarAssets.top).filter(k =>
+    (allowAdultHair || !ADULT_ONLY_HAIR.has(k)) && (allowAdultHair || !FACE_FRAMING_HEADWEAR.has(k))
+  );
   const browKeys = Object.keys(AvatarAssets.eyebrows);
   const g = (gender || '').toLowerCase();
   const leanWeights = g === 'male' ? { m: 3, n: 1.5, f: 0.5 } : g === 'female' ? { f: 3, n: 1.5, m: 0.5 } : { m: 1, n: 1, f: 1 };

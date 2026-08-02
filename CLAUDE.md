@@ -239,6 +239,16 @@ rendered as a literal middle-aged adult:
   entirely (`avatarBuild.hairStyle = null`, `#av-top` left empty) — real
   babies are frequently bald or near-bald and nothing in the pool reads as
   "infant hair," the shortest options are still styled cuts.
+- **`FACE_FRAMING_HEADWEAR`** (hijab, turban): also excluded below teen,
+  same cutoff as `ADULT_ONLY_HAIR` but for a different reason — these drape
+  down around the neck/shoulders, and that drape is a fixed part of the
+  artwork, scaled only by the same ratio the head bulge grew by (see
+  `applyAgeScale()`'s `hairScale`) with no adjustment to how far down it
+  reaches. On a younger patient's proportionally bigger head this either
+  fell short of the shoulders or gaped visibly at the neck/back of the
+  head. `hat`/the four winter hats don't have this problem (they only
+  cover the top of the head, no neck drape) so stay in the pool at every
+  age.
 - **`EYE_SCALE_X_AT_ZERO`/`EYE_SCALE_Y_AT_ZERO`/`FACE_LOWER_OFFSET_AT_ZERO`**:
   the classic cartoon "younger = bigger eyes, face sits lower/rounder" cues,
   layered on top of the whole-figure scale since eyes/eyebrows/mouth are
