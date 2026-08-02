@@ -2186,7 +2186,13 @@ async function speakPatientReply(text, resumeIfConversing, isConversation, useHq
   if (!stillCurrent()) return;
   if ('speechSynthesis' in window) {
     try {
-      window.speechSynthesis.cancel(); // clear anything stuck in the queue (e.g. the priming utterance) first
+      // No cancel() here — stopAnyPatientAudio() already did that at the top
+      // of this function. Calling cancel() a second time immediately before
+      // speak() (both synchronous, same tick) hits a known Chrome bug where
+      // the queued utterance silently never plays — no error, just nothing.
+      // This mattered little for chat/treatment replies (HQ Voice normally
+      // took the Piper path instead), but exam replies always land here now,
+      // so this double-cancel was reliably eating exam audio entirely.
       const utter = new SpeechSynthesisUtterance(text);
       const voice = pickVoice();
       if (voice) utter.voice = voice;
