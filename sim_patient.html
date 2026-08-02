@@ -2040,9 +2040,35 @@ function runWithStallWatchdog(taskFn, stallMs) {
 // against a reply that's no longer current by the time async
 // loading/inference finishes (student closed the modal, or a newer reply
 // already arrived).
+// A new reply always interrupts whatever's still playing from a previous
+// one — same "cancel, don't queue" rule the speechSynthesis path already
+// had via speechSynthesis.cancel(), extended to cover the Piper <audio>
+// element too now that it's a reused singleton (see unlockPiperAudio()).
+// Without this, a reply whose Piper synthesis/playback was still running
+// when the next reply started speaking would get its src swapped and
+// play() called again out from under the still-playing audio — the two
+// overlap on the same element instead of one cleanly cutting off the
+// other, which is what "talking over himself" actually was.
+function stopAnyPatientAudio() {
+  if (_piperAudioEl) { try { _piperAudioEl.pause(); } catch (e) {} }
+  if ('speechSynthesis' in window) { try { window.speechSynthesis.cancel(); } catch (e) {} }
+}
+
+// Piper's phonemizer doesn't reliably produce a pause for an ellipsis
+// ("…" or "...") — it reads through with little to no gap. Commas are far
+// more consistently represented in TTS training data and reliably do
+// produce a short pause, so ellipses are swapped for one before Piper
+// synthesis specifically. Doesn't touch the text used for the
+// speechSynthesis fallback, which already handles ellipses fine on its
+// own via the browser engine's own text normalization.
+function normalizeForPiperPacing(text) {
+  return text.replace(/…|\.{2,}/g, ', ');
+}
+
 async function speakPatientReply(text, resumeIfConversing, isConversation) {
   const replyId = _lastShownReplyId;
   const stillCurrent = () => replyId === _lastShownReplyId;
+  stopAnyPatientAudio();
   if (hqVoiceEnabled) {
     try {
       await runWithStallWatchdog(async (bump, aborted) => {
@@ -2052,7 +2078,7 @@ async function speakPatientReply(text, resumeIfConversing, isConversation) {
         const voiceId = piperVoiceIdFor(patientGender);
         const statusEl = document.getElementById('voice-modal-status');
         const priorStatus = statusEl.textContent;
-        const wav = await tts.predict({ text, voiceId }, progress => {
+        const wav = await tts.predict({ text: normalizeForPiperPacing(text), voiceId }, progress => {
           bump();
           if (!stillCurrent() || !progress.total) return;
           statusEl.textContent = `Loading voice… ${Math.round(progress.loaded * 100 / progress.total)}%`;
