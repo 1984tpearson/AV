@@ -157,12 +157,25 @@ body { display: flex; flex-direction: column; }
     <div id="gate-error" style="color:#b91c1c;font-size:11px;margin-top:8px;"></div>
   </div>
 </div>
+<div id="hq-voice-prompt" style="position:fixed;inset:0;background:rgba(20,30,45,0.92);z-index:110;display:none;align-items:center;justify-content:center;">
+  <div class="panel" style="width:300px;text-align:center;">
+    <h2 style="margin-bottom:10px;">Patient Voice Quality</h2>
+    <div style="font-size:12px;color:#33475a;margin-bottom:14px;line-height:1.5;">
+      Use a higher-quality AI voice for the patient? It sounds more natural
+      than the device's built-in voice, but downloads a voice model
+      (~30&ndash;60MB, once) the first time it's needed. You can change this
+      later with the HQ Voice tickbox.
+    </div>
+    <button style="width:100%;padding:8px;font-size:13px;font-weight:700;color:#fff;background:#0369a1;border:none;border-radius:6px;cursor:pointer;" onclick="chooseHqVoicePrompt(true)">Use High-Quality Voice</button>
+    <button style="width:100%;padding:7px;font-size:11px;font-weight:700;color:#33475a;background:#e2e8f0;border:none;border-radius:6px;cursor:pointer;margin-top:6px;" onclick="chooseHqVoicePrompt(false)">Use Standard Voice</button>
+  </div>
+</div>
 <div class="panel" id="patient-info" style="margin:10px 10px 0;">
   <div id="patient-info-normal">
     <h2>Patient / Scene Info</h2>
-    <div class="row" id="pi-demographics">45yo Male</div>
-    <div class="row" id="pi-dispatch">Dispatch: Chest pain, 2 hrs onset</div>
-    <div class="row" id="pi-complaint">C/O: Central chest pain radiating to left arm, diaphoretic</div>
+    <div class="row" id="pi-demographics">&mdash;</div>
+    <div class="row" id="pi-dispatch">&mdash;</div>
+    <div class="row" id="pi-complaint">&mdash;</div>
   </div>
   <div id="patient-info-voice">
     <div id="patient-info-voice-text">
@@ -368,6 +381,28 @@ function parseAgeYears(age) {
     return Number.isFinite(n) ? n : null;
   }
   return Number.isFinite(age) ? age : null;
+}
+
+// Populates the "Patient / Scene Info" panel from the live scenario row
+// instead of the placeholder text it shipped with. `scen.dispatch` and
+// `hx.nature` are both written by generator.html to be diagnosis-free (the
+// dispatch prompt explicitly forbids revealing the diagnosis) — this is the
+// same pre-arrival/on-scene information a real crew would already have, not
+// an answer key. Falls back to '—' per row when a scenario predates a field
+// rather than fabricating something.
+function renderPatientInfoPanel(scen, meta, gender, age) {
+  const genderLabel = gender === 'male' ? 'Male' : gender === 'female' ? 'Female' : null;
+  let ageLabel = null;
+  if (typeof age === 'number' && Number.isFinite(age)) ageLabel = `${age}yo`;
+  else if (typeof age === 'string' && age.trim()) ageLabel = /newborn/i.test(age) ? 'Newborn' : age.trim();
+  const demographics = [ageLabel, genderLabel].filter(Boolean).join(' ') || scen.title || '—';
+  document.getElementById('pi-demographics').textContent = demographics;
+  document.getElementById('pi-dispatch').textContent = `Dispatch: ${scen.dispatch || '—'}`;
+  const hx = scen.hx || {};
+  const subtitle = scen.subtitle || '';
+  const subtitleComplaint = subtitle.includes('—') ? subtitle.slice(subtitle.indexOf('—') + 1).trim() : '';
+  const complaint = hx.nature || subtitleComplaint || '';
+  document.getElementById('pi-complaint').textContent = `C/O: ${complaint || '—'}`;
 }
 // Older scenarios predate patient_meta.age entirely (years === null), which
 // deliberately falls through to 'adult' — the avatar's pre-existing default
@@ -1020,7 +1055,7 @@ async function connectSession(code) {
       // comorbidity parsing all read from this same scenarioMeta) — see
       // CLAUDE.md on why this device otherwise deliberately has no scenario
       // context beyond the avatar build.
-      sbGet(`scenarios?id=eq.${encodeURIComponent(row.scenario_id)}&select=title,subtitle,dispatch,vitals,medical_conditions,patient_meta`)
+      sbGet(`scenarios?id=eq.${encodeURIComponent(row.scenario_id)}&select=title,subtitle,dispatch,hx,vitals,medical_conditions,patient_meta`)
         .then(rows2 => {
           const scen = rows2[0] || {};
           scenarioMeta = scen;
@@ -1036,6 +1071,7 @@ async function connectSession(code) {
           const age = meta.age != null ? meta.age : SimEngine.parseAgeFromScenario(scen);
           patientMood = SimEngine.parseScenarioMood(meta.mood);
           buildAvatarBase(row.scenario_id, meta.skin_colour, gender, age);
+          renderPatientInfoPanel(scen, meta, gender, age);
         })
         .catch(() => {});
     }
@@ -1691,6 +1727,9 @@ function tick() {
 
 window.addEventListener('DOMContentLoaded', () => {
   document.getElementById('hq-voice-checkbox').checked = hqVoiceEnabled;
+  if (localStorage.getItem(HQ_VOICE_LS_KEY) === null) {
+    document.getElementById('hq-voice-prompt').style.display = 'flex';
+  }
   const params = new URLSearchParams(window.location.search);
   const code = params.get('code');
   if (code && /^\d{6}$/.test(code)) {
@@ -1833,7 +1872,18 @@ function warmPiperVoice() {
 function setHqVoiceEnabled(enabled) {
   hqVoiceEnabled = !!enabled;
   localStorage.setItem(HQ_VOICE_LS_KEY, hqVoiceEnabled ? '1' : '0');
+  document.getElementById('hq-voice-checkbox').checked = hqVoiceEnabled;
   if (hqVoiceEnabled) warmPiperVoice();
+}
+
+// First-load-only prompt — localStorage having no key at all (as opposed to
+// '0', an explicit prior "no") is what "first load" means here, so a student
+// who already chose isn't asked again on every visit. Answering either way
+// funnels through the same setHqVoiceEnabled() the tickbox uses, so both
+// stay in sync.
+function chooseHqVoicePrompt(enabled) {
+  setHqVoiceEnabled(enabled);
+  document.getElementById('hq-voice-prompt').style.display = 'none';
 }
 
 // Tries the Piper WASM voice (if enabled) first, falling back to the
