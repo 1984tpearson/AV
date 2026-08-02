@@ -1819,6 +1819,31 @@ function unlockSpeechSynthesis() {
   } catch (e) { /* best-effort unlock only */ }
 }
 
+// Same problem as unlockSpeechSynthesis() above, for the separate <audio>
+// element the Piper voice plays through: iOS Safari (this tool's primary
+// device) refuses audio.play() unless it's called synchronously inside a
+// genuine user gesture — and the real Piper audio only becomes available
+// later, from an async poll callback, same as the speech-synthesis reply
+// always has been. Unlocking speechSynthesis does NOT also unlock this;
+// they're separate APIs with separate gesture requirements. The trick:
+// play (and keep) ONE real <audio> element inside the tap itself, using a
+// short but non-empty silent WAV (an effectively-zero-length one doesn't
+// reliably count as "played" for the unlock to stick) — Safari treats
+// later src changes + play() calls on that SAME already-activated element
+// as still covered by the original gesture, unlike a freshly-constructed
+// Audio() later.
+const SILENT_WAV_DATA_URI = 'data:audio/wav;base64,UklGRmQGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YUAGAACAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICA';
+let _piperAudioEl = null;
+let _piperAudioUnlocked = false;
+function unlockPiperAudio() {
+  if (_piperAudioUnlocked) return;
+  _piperAudioUnlocked = true;
+  try {
+    _piperAudioEl = new Audio(SILENT_WAV_DATA_URI);
+    _piperAudioEl.play().catch(() => {}); // best-effort — a rejection here just means the real reply falls back to speechSynthesis later, same as any other Piper failure
+  } catch (e) { /* best-effort unlock only */ }
+}
+
 // Voice name substrings the Web Speech API doesn't expose a real "gender"
 // attribute for, so this is a heuristic over voice.name (which varies by
 // OS/browser — e.g. "Google UK English Male", "Microsoft David", "Samantha").
@@ -2003,7 +2028,14 @@ async function speakPatientReply(text, resumeIfConversing, isConversation) {
         bump();
         if (!stillCurrent() || aborted()) return;
         if (statusEl.textContent !== priorStatus) statusEl.textContent = priorStatus; // restore label if we clobbered it with download progress
-        const audio = new Audio(URL.createObjectURL(wav));
+        // Reuses the element unlockPiperAudio() already played inside a real
+        // tap, rather than constructing a fresh Audio() here — a new element
+        // built from this async/poll-driven callback wouldn't count as
+        // gesture-initiated on iOS Safari and play() would be rejected. Falls
+        // back to a fresh element only if the unlock never ran (e.g. HQ Voice
+        // got enabled without the voice modal ever having been opened yet).
+        const audio = _piperAudioEl || new Audio();
+        audio.src = URL.createObjectURL(wav);
         audio.onplay = startTalkAnimation;
         audio.onended = () => { stopTalkAnimation(); resumeIfConversing(); };
         audio.onerror = () => { stopTalkAnimation(); resumeIfConversing(); };
@@ -2051,6 +2083,7 @@ const VOICE_MODE_REPLY_LABELS = { exam: 'Finding:', chat: 'Patient replied:' };
 
 function openVoiceModal(mode) {
   unlockSpeechSynthesis(); // must happen here, inside the tap handler, to count as a user gesture
+  unlockPiperAudio(); // same requirement, separate API — see unlockPiperAudio()'s comment
   _voiceMode = mode;
   document.getElementById('voice-modal-title').textContent = VOICE_MODE_LABELS[mode] || mode;
   document.getElementById('voice-modal-transcript').textContent = '';
