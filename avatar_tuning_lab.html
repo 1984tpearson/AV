@@ -234,7 +234,14 @@ function ageRamp(years, atZero, atEighteen) {
 // also moving the head-bulge circle.
 const AGE_DEFAULTS = {
   AGE_SCALE:          { zero: 0.78,  eighteen: 1, min: 0.3, max: 1.5, step: 0.01 },
-  HEAD_BULGE:         { zero: 1.445, eighteen: 1, min: 1,   max: 2.5, step: 0.01 },
+  HEAD_BULGE_RX:      { zero: 1.445, eighteen: 1, min: 1,   max: 2.5, step: 0.01 },
+  // RY independent from RX (the shipped version ties both to one HEAD_BULGE
+  // ratio, i.e. a perfect circle) — stretching RY taller lets the bulge
+  // extend further down toward the jaw/chin without also over-widening the
+  // cheeks/temples. The bulge still tapers to zero on its own (no clip/mask
+  // needed, same safe mechanism as before), so a taller ellipse is just as
+  // seam-free as the circle was — it just reaches further before doing so.
+  HEAD_BULGE_RY:      { zero: 1.445, eighteen: 1, min: 1,   max: 3.5, step: 0.01 },
   EYE_SCALE_X:        { zero: 1.1,   eighteen: 1, min: 0.8, max: 2,   step: 0.01 },
   EYE_SCALE_Y:        { zero: 1.6,   eighteen: 1, min: 0.8, max: 2.5, step: 0.01 },
   FACE_LOWER_OFFSET:  { zero: 12,    eighteen: 0, min: -20, max: 30,  step: 0.5 },
@@ -244,7 +251,7 @@ const AGE_DEFAULTS = {
   HAIR_OFFSET_Y:      { zero: 0,     eighteen: 0, min: -40, max: 40,  step: 0.5 },
 };
 const AGE_LABELS = {
-  AGE_SCALE: 'Whole figure scale', HEAD_BULGE: 'Head bulge (radius ×)', EYE_SCALE_X: 'Eye scale X',
+  AGE_SCALE: 'Whole figure scale', HEAD_BULGE_RX: 'Head bulge width ×', HEAD_BULGE_RY: 'Head bulge height ×', EYE_SCALE_X: 'Eye scale X',
   EYE_SCALE_Y: 'Eye scale Y', FACE_LOWER_OFFSET: 'Eyes/brows Y offset', MOUTH_LOWER_OFFSET: 'Mouth Y offset',
   HAIR_SCALE: 'Hair scale', HAIR_OFFSET_X: 'Hair X offset', HAIR_OFFSET_Y: 'Hair Y offset'
 };
@@ -338,11 +345,11 @@ function applyAgeScale() {
   document.getElementById('av-mouth').setAttribute('transform', `translate(78 ${134 + mouthDy})`);
   document.getElementById('av-lip-cyanosis').setAttribute('transform', `translate(78 ${134 + mouthDy})`);
   document.getElementById('av-eyes').setAttribute('transform', `translate(76 ${90 + dy}) translate(56,22) scale(${eyeScaleX},${eyeScaleY}) translate(-56,-22)`);
-  const bulgeScale = ageRamp(years, AGE_TUNE.HEAD_BULGE.zero, AGE_TUNE.HEAD_BULGE.eighteen);
-  const bulgeR = 56 * bulgeScale;
+  const bulgeScaleX = ageRamp(years, AGE_TUNE.HEAD_BULGE_RX.zero, AGE_TUNE.HEAD_BULGE_RX.eighteen);
+  const bulgeScaleY = ageRamp(years, AGE_TUNE.HEAD_BULGE_RY.zero, AGE_TUNE.HEAD_BULGE_RY.eighteen);
   const bulge = document.getElementById('av-head-bulge');
-  bulge.setAttribute('rx', bulgeR.toFixed(1));
-  bulge.setAttribute('ry', bulgeR.toFixed(1));
+  bulge.setAttribute('rx', (56 * bulgeScaleX).toFixed(1));
+  bulge.setAttribute('ry', (56 * bulgeScaleY).toFixed(1));
   // Hair scale/offset are INDEPENDENT of the head bulge here (unlike the
   // shipped version, which ties hair 1:1 to the bulge ratio) so they can be
   // tuned separately — export will show HAIR_SCALE_AT_ZERO etc as new
