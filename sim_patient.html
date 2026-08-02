@@ -174,7 +174,6 @@ body { display: flex; flex-direction: column; }
       <div id="patient-reply-display"></div>
     </div>
     <div id="voice-modal-actions">
-      <button class="voice-btn voice-btn-secondary" onclick="restartVoiceCapture()">Try Again</button>
       <button class="voice-btn voice-btn-secondary" onclick="closeVoiceModal()">Cancel</button>
     </div>
   </div>
@@ -1793,11 +1792,11 @@ function handleFabRelease(ev) {
 
 // Single entry point for "start waiting on the next question/answer" —
 // starts the mic in speech mode, or just clears/focuses the text field in
-// typed mode. Used on open (via handleFabPress) and on Try Again. The Talk
-// to Patient continuous-conversation loop does NOT call this in speech mode
-// once a reply is done — see resumeIfConversing() in checkForPatientReply —
-// since auto-starting the mic without the student holding the button down
-// would break the press-to-talk/release-to-stop contract.
+// typed mode. Called on open, via handleFabPress. The Talk to Patient
+// continuous-conversation loop does NOT call this in speech mode once a
+// reply is done — see resumeIfConversing() in checkForPatientReply — since
+// auto-starting the mic without the student holding the button down would
+// break the press-to-talk/release-to-stop contract.
 function beginCapture() {
   document.getElementById('patient-reply-display').style.display = 'none';
   if (_inputMode === 'type') {
@@ -1846,21 +1845,17 @@ function startVoiceCapture() {
   };
   _recognition.onerror = (ev) => {
     micEl.classList.remove('listening');
-    statusEl.textContent = ev.error === 'no-speech' ? 'Didn\u2019t catch anything \u2014 tap Try Again.' : `Speech recognition error: ${ev.error}`;
+    statusEl.textContent = ev.error === 'no-speech' ? 'Didn\u2019t catch anything \u2014 hold the button and try again.' : `Speech recognition error: ${ev.error}`;
   };
   _recognition.onend = () => {
     micEl.classList.remove('listening');
     if (_voiceFinalText) {
       sendCapturedText(_voiceFinalText);
     } else {
-      statusEl.textContent = 'Didn\u2019t catch anything \u2014 tap Try Again.';
+      statusEl.textContent = 'Didn\u2019t catch anything \u2014 hold the button and try again.';
     }
   };
   try { _recognition.start(); } catch (e) { micEl.classList.remove('listening'); statusEl.textContent = 'Could not start the microphone.'; }
-}
-
-function restartVoiceCapture() {
-  beginCapture();
 }
 
 function closeVoiceModal() {
