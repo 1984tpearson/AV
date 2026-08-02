@@ -2054,15 +2054,77 @@ function stopAnyPatientAudio() {
   if ('speechSynthesis' in window) { try { window.speechSynthesis.cancel(); } catch (e) {} }
 }
 
-// Piper's phonemizer doesn't reliably produce a pause for an ellipsis
-// ("…" or "...") — it reads through with little to no gap. Commas are far
-// more consistently represented in TTS training data and reliably do
-// produce a short pause, so ellipses are swapped for one before Piper
-// synthesis specifically. Doesn't touch the text used for the
-// speechSynthesis fallback, which already handles ellipses fine on its
-// own via the browser engine's own text normalization.
-function normalizeForPiperPacing(text) {
-  return text.replace(/…|\.{2,}/g, ', ');
+// Splits a reply into sentence/clause-sized chunks at sentence-ending
+// punctuation and ellipses, each synthesized and played as its own separate
+// Piper call rather than one predict() over the whole reply. Two problems
+// this fixes at once, both traced back to the same cause — Piper's small
+// VITS-family model can lose its place ("attention collapse", a known
+// failure mode for this model family) on longer, clause-heavy input, which
+// is exactly what an AI-written rambling/confused patient produces: it
+// reads as the ellipsis pause being ignored (comma-substitution didn't
+// actually fix this — the model was garbling regardless of punctuation,
+// not skipping past it), AND as the later, longer replies coming out
+// jumbled ("talking over himself"/slurred, not overlapping audio — that
+// was a separate, already-fixed bug). Keeping each chunk to one clause
+// keeps it well inside what these models handle reliably, and splitting on
+// punctuation also hands back the real, controllable inter-chunk pause
+// (see playPiperChunks()) an ellipsis was supposed to produce in the first
+// place, instead of hoping the phonemizer honours it.
+function splitIntoPiperChunks(text) {
+  const chunks = [];
+  const re = /[.!?…]+/g;
+  let lastIndex = 0;
+  let match;
+  while ((match = re.exec(text))) {
+    const punct = match[0];
+    const end = match.index + punct.length;
+    const chunkText = text.slice(lastIndex, end).trim();
+    lastIndex = end;
+    if (!chunkText) continue;
+    const isEllipsis = punct.includes('…') || punct.length >= 3; // "…" or "..." reads as a longer, trailing-off pause than a plain "." "!" "?"
+    chunks.push({ text: chunkText, pauseAfterMs: isEllipsis ? 550 : 220 });
+  }
+  const rest = text.slice(lastIndex).trim();
+  if (rest) chunks.push({ text: rest, pauseAfterMs: 0 });
+  if (!chunks.length) chunks.push({ text: text.trim(), pauseAfterMs: 0 });
+  return chunks;
+}
+
+// Synthesizes and plays each chunk in order on the given (already-unlocked,
+// see unlockPiperAudio()) audio element, with a real setTimeout silence
+// between chunks instead of relying on Piper to produce one. bump()/
+// stillCurrent()/aborted() thread through to runWithStallWatchdog and the
+// reply-staleness guard exactly as the single-call version did. Returns
+// whether every chunk played to completion — false on an early bailout
+// (stale reply / watchdog abort), so the caller knows NOT to treat this as
+// a finished reply (stopTalkAnimation/resumeIfConversing belong to
+// whichever reply actually finishes, not one that got superseded
+// mid-playback).
+async function playPiperChunks(tts, chunks, voiceId, audio, statusEl, priorStatus, bump, stillCurrent, aborted) {
+  for (let i = 0; i < chunks.length; i++) {
+    if (!stillCurrent() || aborted()) return false;
+    const wav = await tts.predict({ text: chunks[i].text, voiceId }, progress => {
+      bump();
+      if (!stillCurrent() || !progress.total) return;
+      statusEl.textContent = `Loading voice… ${Math.round(progress.loaded * 100 / progress.total)}%`;
+    });
+    bump();
+    if (!stillCurrent() || aborted()) return false;
+    if (statusEl.textContent !== priorStatus) statusEl.textContent = priorStatus;
+    audio.src = URL.createObjectURL(wav);
+    await new Promise((resolve, reject) => {
+      audio.onended = resolve;
+      audio.onerror = () => reject(new Error('audio playback error'));
+      audio.play().then(startTalkAnimation).catch(reject);
+    });
+    bump();
+    if (i < chunks.length - 1) {
+      if (!stillCurrent() || aborted()) return false;
+      await new Promise(r => setTimeout(r, chunks[i].pauseAfterMs));
+      bump();
+    }
+  }
+  return true;
 }
 
 async function speakPatientReply(text, resumeIfConversing, isConversation) {
@@ -2078,14 +2140,6 @@ async function speakPatientReply(text, resumeIfConversing, isConversation) {
         const voiceId = piperVoiceIdFor(patientGender);
         const statusEl = document.getElementById('voice-modal-status');
         const priorStatus = statusEl.textContent;
-        const wav = await tts.predict({ text: normalizeForPiperPacing(text), voiceId }, progress => {
-          bump();
-          if (!stillCurrent() || !progress.total) return;
-          statusEl.textContent = `Loading voice… ${Math.round(progress.loaded * 100 / progress.total)}%`;
-        });
-        bump();
-        if (!stillCurrent() || aborted()) return;
-        if (statusEl.textContent !== priorStatus) statusEl.textContent = priorStatus; // restore label if we clobbered it with download progress
         // Reuses the element unlockPiperAudio() already played inside a real
         // tap, rather than constructing a fresh Audio() here — a new element
         // built from this async/poll-driven callback wouldn't count as
@@ -2093,7 +2147,6 @@ async function speakPatientReply(text, resumeIfConversing, isConversation) {
         // back to a fresh element only if the unlock never ran (e.g. HQ Voice
         // got enabled without the voice modal ever having been opened yet).
         const audio = _piperAudioEl || new Audio();
-        audio.src = URL.createObjectURL(wav);
         // preservesPitch defaults to true (browsers auto-correct pitch when
         // playbackRate changes) — turning it off is what makes the rate
         // change actually sound like a pitch shift, the classic tape-speed
@@ -2103,10 +2156,9 @@ async function speakPatientReply(text, resumeIfConversing, isConversation) {
         audio.preservesPitch = rate === 1;
         audio.mozPreservesPitch = rate === 1;
         audio.webkitPreservesPitch = rate === 1;
-        audio.onplay = startTalkAnimation;
-        audio.onended = () => { stopTalkAnimation(); resumeIfConversing(); };
-        audio.onerror = () => { stopTalkAnimation(); resumeIfConversing(); };
-        await audio.play();
+        const chunks = splitIntoPiperChunks(text);
+        const finished = await playPiperChunks(tts, chunks, voiceId, audio, statusEl, priorStatus, bump, stillCurrent, aborted);
+        if (finished) { stopTalkAnimation(); resumeIfConversing(); }
       }, 25000); // see warmPiperVoice()'s comment on why this needs real slack, not just enough for the network fetch
       setHqVoiceStatus('Ready', 'ready');
       return;
@@ -2115,6 +2167,16 @@ async function speakPatientReply(text, resumeIfConversing, isConversation) {
       setHqVoiceStatus('Unavailable — using standard voice', 'error', e.message);
     }
   }
+  // A reply that's no longer current shouldn't fall back to speaking here
+  // either — this matters more than it looks: stopAnyPatientAudio() pausing
+  // a still-in-flight Piper attempt (because a NEWER reply just started)
+  // makes that attempt's audio.play() reject with an AbortError, which
+  // lands in the catch above and, without this guard, would fall through
+  // to speaking the now-superseded text via the standard voice anyway —
+  // the same reply effectively speaking twice, once cut off mid-Piper and
+  // once via the fallback, and wrongly resuming the conversation loop for
+  // text that's already been replaced.
+  if (!stillCurrent()) return;
   if ('speechSynthesis' in window) {
     try {
       window.speechSynthesis.cancel(); // clear anything stuck in the queue (e.g. the priming utterance) first
