@@ -13,6 +13,9 @@ body { display: flex; flex-direction: column; }
 #topbar-right { display: flex; align-items: center; gap: 14px; }
 #instant-mode-label { font-size: 10px; display: flex; align-items: center; gap: 4px; color: #33475a; cursor: pointer; user-select: none; }
 #hq-voice-label { font-size: 10px; display: flex; align-items: center; gap: 4px; color: #33475a; cursor: pointer; user-select: none; }
+#hq-voice-status { font-size: 9px; font-style: italic; color: #6b8299; max-width: 110px; }
+#hq-voice-status.hq-voice-status-ready { color: #15803d; font-style: normal; }
+#hq-voice-status.hq-voice-status-error { color: #b91c1c; font-style: normal; }
 #scenario-timer { font-size: 13px; font-weight: 700; color: #15803d; }
 #patient-info { flex-shrink: 0; }
 #main { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 10px; padding: 10px; overflow: hidden; }
@@ -145,6 +148,7 @@ body { display: flex; flex-direction: column; }
     <label id="hq-voice-label" title="Higher-quality patient voice (downloads a voice model on first use)">
       <input type="checkbox" id="hq-voice-checkbox" onchange="setHqVoiceEnabled(this.checked)">HQ Voice
     </label>
+    <span id="hq-voice-status"></span>
     <div id="scenario-timer">00:00</div>
   </div>
 </div>
@@ -1731,6 +1735,8 @@ window.addEventListener('DOMContentLoaded', () => {
   document.getElementById('hq-voice-checkbox').checked = hqVoiceEnabled;
   if (localStorage.getItem(HQ_VOICE_LS_KEY) === null) {
     document.getElementById('hq-voice-prompt').style.display = 'flex';
+  } else if (hqVoiceEnabled) {
+    warmPiperVoice(); // gives status feedback immediately, without waiting on a session to connect
   }
   const params = new URLSearchParams(window.location.search);
   const code = params.get('code');
@@ -1851,24 +1857,64 @@ const PIPER_MODULE_URL = 'https://cdn.jsdelivr.net/npm/@diffusionstudio/vits-web
 const PIPER_VOICE_IDS = { male: 'en_GB-alan-medium', female: 'en_GB-jenny_dioco-medium' };
 let hqVoiceEnabled = localStorage.getItem(HQ_VOICE_LS_KEY) === '1';
 let _piperModulePromise = null;
+let _piperModuleFailedOnce = false;
 
 function piperVoiceIdFor(gender) {
   return PIPER_VOICE_IDS[gender] || PIPER_VOICE_IDS.male;
 }
 
+// A failed dynamic import() is cached by the browser against its exact URL
+// string for the rest of the page's lifetime — resetting _piperModulePromise
+// alone does NOT let a later attempt retry, it just replays the same
+// rejection forever. Appending a cache-busting query param after the first
+// failure gives retries (a new patient reply, warmPiperVoice() firing again,
+// re-checking the tickbox) a genuinely fresh URL to fetch instead of being
+// permanently wedged by one transient network blip.
 function loadPiperModule() {
   if (!_piperModulePromise) {
-    _piperModulePromise = import(PIPER_MODULE_URL).catch(e => { _piperModulePromise = null; throw e; });
+    const url = _piperModuleFailedOnce ? `${PIPER_MODULE_URL}?retry=${Date.now()}` : PIPER_MODULE_URL;
+    _piperModulePromise = import(url).catch(e => {
+      _piperModulePromise = null;
+      _piperModuleFailedOnce = true;
+      throw e;
+    });
   }
   return _piperModulePromise;
 }
 
+// Visible readout next to the tickbox — without this there was no way to
+// tell "using the good voice" from "silently fell back to the standard
+// one", short of opening devtools. `detail` (kept out of the on-screen
+// text, sits in the title tooltip and console) is the actual error/stall
+// reason, for when a student needs to describe what happened.
+function setHqVoiceStatus(text, kind, detail) {
+  const el = document.getElementById('hq-voice-status');
+  el.textContent = text;
+  el.className = kind ? `hq-voice-status-${kind}` : '';
+  el.title = detail || '';
+  if (kind === 'error' && detail) console.warn('HQ Voice unavailable:', detail);
+}
+
 // Best-effort prefetch so the model is hopefully already cached in OPFS by
-// the time the first patient reply needs it — failures are silent, predict()
-// will just download it inline (with a status message) if this didn't finish.
+// the time the first patient reply needs it. Also doubles as the only way
+// a student finds out ahead of time whether HQ Voice is actually going to
+// work on this device/network, via setHqVoiceStatus — previously this was
+// silent, so a failure here just looked identical to it never having been
+// tried.
 function warmPiperVoice() {
   if (!hqVoiceEnabled) return;
-  loadPiperModule().then(tts => tts.download(piperVoiceIdFor(patientGender))).catch(() => {});
+  setHqVoiceStatus('Checking…');
+  runWithStallWatchdog(async bump => {
+    const tts = await loadPiperModule();
+    bump();
+    await tts.download(piperVoiceIdFor(patientGender), progress => {
+      bump();
+      if (!progress.total) return;
+      setHqVoiceStatus(`Downloading… ${Math.round(progress.loaded * 100 / progress.total)}%`);
+    });
+  }, 15000)
+    .then(() => setHqVoiceStatus('Ready', 'ready'))
+    .catch(e => setHqVoiceStatus('Unavailable — using standard voice', 'error', e.message));
 }
 
 function setHqVoiceEnabled(enabled) {
@@ -1876,6 +1922,7 @@ function setHqVoiceEnabled(enabled) {
   localStorage.setItem(HQ_VOICE_LS_KEY, hqVoiceEnabled ? '1' : '0');
   document.getElementById('hq-voice-checkbox').checked = hqVoiceEnabled;
   if (hqVoiceEnabled) warmPiperVoice();
+  else setHqVoiceStatus('');
 }
 
 // First-load-only prompt — localStorage having no key at all (as opposed to
@@ -1949,9 +1996,11 @@ async function speakPatientReply(text, resumeIfConversing, isConversation) {
         audio.onerror = () => { stopTalkAnimation(); resumeIfConversing(); };
         await audio.play();
       }, 15000);
+      setHqVoiceStatus('Ready', 'ready');
       return;
     } catch (e) {
       // Piper best-effort only (stalled or errored) — fall through to Web Speech below.
+      setHqVoiceStatus('Unavailable — using standard voice', 'error', e.message);
     }
   }
   if ('speechSynthesis' in window) {
