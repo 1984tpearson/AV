@@ -1050,6 +1050,14 @@ body.flag-mode-active .flaggable.has-correction:hover { outline: 2px solid var(-
 .correction-badge .cb-icon { font-size: 10px; }
 #correction-popover { display: none; position: fixed; z-index: 500; background: white; border: 2px solid var(--red); border-radius: 12px; box-shadow: 0 8px 32px rgba(0,0,0,0.22); width: 340px; max-width: calc(100vw - 32px); padding: 0; overflow: hidden; }
 #correction-popover.open { display: block; }
+#scenario-link-popover { display: none; position: fixed; z-index: 600; background: white; border: 1px solid var(--border); border-radius: 12px; box-shadow: 0 8px 28px rgba(0,0,0,0.28); width: 230px; max-width: calc(100vw - 24px); overflow: hidden; }
+#scenario-link-popover.open { display: block; }
+#scenario-link-popover .slp-title { padding: 10px 12px 7px; font-size: 10.5px; font-weight: 700; color: var(--grey); text-transform: uppercase; letter-spacing: 0.5px; }
+#scenario-link-popover .slp-option { display: flex; align-items: center; gap: 10px; padding: 11px 12px; cursor: pointer; border-top: 1px solid var(--border); }
+#scenario-link-popover .slp-option:hover, #scenario-link-popover .slp-option:active { background: var(--light); }
+#scenario-link-popover .slp-icon { font-size: 19px; flex-shrink: 0; }
+#scenario-link-popover .slp-option-label { font-size: 13px; font-weight: 700; color: var(--text); }
+#scenario-link-popover .slp-option-sub { font-size: 10.5px; font-weight: 400; color: var(--grey); margin-top: 1px; }
 .cp-header { background: var(--red); color: white; padding: 10px 14px; display: flex; justify-content: space-between; align-items: center; }
 .cp-header h4 { font-size: 13px; font-weight: 700; margin: 0; }
 .cp-close { background: none; border: none; color: white; font-size: 18px; cursor: pointer; line-height: 1; padding: 0 2px; opacity: 0.85; }
@@ -1401,6 +1409,19 @@ body.flag-mode-active .flaggable.has-correction:hover { outline: 2px solid var(-
 <div id="keyhx-panel">
   <div id="keyhx-panel-header">📋 Key Info</div>
   <div id="keyhx-panel-body"></div>
+</div>
+
+<!-- Scenario Link Popover -->
+<div id="scenario-link-popover">
+  <div class="slp-title">Open scenario as…</div>
+  <div class="slp-option" onclick="chooseScenarioLinkMode('verbal')">
+    <span class="slp-icon">📋</span>
+    <span><div class="slp-option-label">Verbal Scenario</div><div class="slp-option-sub">Assessment view, this tab</div></span>
+  </div>
+  <div class="slp-option" onclick="chooseScenarioLinkMode('live')">
+    <span class="slp-icon">📡</span>
+    <span><div class="slp-option-label">Live Scenario</div><div class="slp-option-sub">Real-time sim, new tab</div></span>
+  </div>
 </div>
 
 <!-- Correction Popover -->
@@ -2543,7 +2564,7 @@ function renderFeaturedCase(container, s, icon, dot, blurb) {
     <div class="fc-desc">${blurb}</div>
     ${buildFcVssChips(s.vitals)}
     <div class="fc-cta">Open this case →</div>`;
-  container.onclick = () => loadScenario(s.id);
+  container.onclick = (e) => scenarioLinkClick(e, s.id);
 }
 
 // Calls the generate-featured-blurb Edge Function, which writes the blurb
@@ -2853,7 +2874,7 @@ function buildHomePanels() {
       const dot = CAT_COLORS[s.category] || 'var(--grey)';
       const badge = (!s.ai_generated && !s.is_builtin) ? '<span class="hp-badge custom">Custom</span>' : '';
       const sub = fcPresentationLabel(s);
-      return `<div class="hp-item" onclick="loadScenario('${s.id}')">
+      return `<div class="hp-item" onclick="scenarioLinkClick(event,'${s.id}')">
         <div class="hp-dot" style="background:${dot}"></div>
         <div class="hp-title">${s.title || 'Untitled'}</div>
         <div class="hp-sub">${sub}</div>
@@ -3003,7 +3024,7 @@ function renderMostPopularCaseContent(container, s, dot, blurb) {
     ${blurb ? `<div class="fc-desc">${blurb}</div>` : ''}
     ${buildFcVssChips(s.vitals)}
     <div class="fc-cta">Open this case →</div>`;
-  container.onclick = () => loadScenario(s.id);
+  container.onclick = (e) => scenarioLinkClick(e, s.id);
 }
 
 async function requestPopularScenarioGeneration(scenarioId, imageOnly, customPrompt) {
@@ -3047,7 +3068,7 @@ function handleHomeSearchInput(value) {
   panel.innerHTML = matches.length ? matches.map(s => {
     const dot = CAT_COLORS[s.category] || 'var(--grey)';
     const sub = fcPresentationLabel(s);
-    return `<div class="hp-item" onclick="loadScenario('${s.id}')">
+    return `<div class="hp-item" onclick="scenarioLinkClick(event,'${s.id}')">
       <div class="hp-dot" style="background:${dot}"></div>
       <div class="hp-title">${s.title || 'Untitled'}</div>
       <div class="hp-sub">${sub}</div>
@@ -3267,7 +3288,7 @@ function openSubcategoryScreen(categoryKey, subcategoryKey) {
     const aiBadge = s.ai_generated ? '<span class="si-badge ai">AI</span>' : '';
     const customBadge = (!s.is_builtin && !s.ai_generated) ? '<span class="si-badge custom">Custom</span>' : '';
     const nameBadge = (s.creator_name && !s.is_builtin) ? `<span class="si-badge" style="background:#EBF5FB;color:var(--blue);border:1px solid #AED6F1">${s.creator_name}</span>` : '';
-    return `<div class="subcat-scenario-item" onclick="loadScenario('${s.id}')">
+    return `<div class="subcat-scenario-item" onclick="scenarioLinkClick(event,'${s.id}')">
       <div class="ssi-title">${s.title || 'Untitled'}</div>
       <div class="ssi-sub">${s.subtitle || s.cpg || ''}</div>
       <div class="ssi-badges">${aiBadge}${customBadge}${nameBadge}</div>
@@ -3318,7 +3339,7 @@ function openCategoryScreenFiltered(categoryKey, subcategoryKey, scenarioType) {
         const aiBadge    = s.ai_generated ? '<span class="si-badge ai">AI</span>' : '';
         const customBadge = (!s.is_builtin && !s.ai_generated) ? '<span class="si-badge custom">Custom</span>' : '';
         const nameBadge  = (s.creator_name && !s.is_builtin) ? `<span class="si-badge" style="background:#EBF5FB;color:var(--blue);border:1px solid #AED6F1">${s.creator_name}</span>` : '';
-        return `<div class="subcat-scenario-item" onclick="loadScenario('${s.id}')">
+        return `<div class="subcat-scenario-item" onclick="scenarioLinkClick(event,'${s.id}')">
           <div class="ssi-title">${s.title || 'Untitled'}</div>
           <div class="ssi-sub">${s.subtitle || s.cpg || ''}</div>
           <div class="ssi-badges">${aiBadge}${customBadge}${nameBadge}</div>
@@ -3509,7 +3530,7 @@ function buildSidebar(scenarios) {
             <span>${sub}</span><span class="cat-count">${items.length}</span>
           </div>
           <div class="sidebar-subcat-items">
-            ${items.map(s => `<div class="scenario-item" id="si-${s.id}" onclick="loadScenario('${s.id}');closeSidebar()">
+            ${items.map(s => `<div class="scenario-item" id="si-${s.id}" onclick="scenarioLinkClick(event,'${s.id}',closeSidebar)">
               <div class="si-title">${s.title}</div>
               <div class="si-sub">${s.subtitle||''}</div>
               <div class="si-cpg">${s.cpg||''}</div>
@@ -3614,6 +3635,58 @@ function loadScenario(id) {
 
   window.scrollTo(0, 0);
 }
+
+// ============================================================
+// SCENARIO LINK POPOVER — verbal (this tab) vs live (sim_control.html, new tab)
+// ============================================================
+let _scenarioLinkPending = null; // { id, afterChoice }
+
+// Call from a scenario link's onclick instead of loadScenario() directly.
+// afterChoice (optional) runs once a mode is picked, regardless of which —
+// e.g. the sidebar closing itself after the assessor's chosen action.
+function scenarioLinkClick(event, id, afterChoice) {
+  event.preventDefault();
+  event.stopPropagation(); // otherwise the outside-click listener below sees this same click and closes the popover it just opened
+  _scenarioLinkPending = { id, afterChoice };
+  const pop = document.getElementById('scenario-link-popover');
+  pop.classList.add('open');
+  const popW = 230, popH = 122; // approximate — matches CSS width + rendered content height
+  let left = event.clientX;
+  let top = event.clientY;
+  if (left + popW > window.innerWidth - 12) left = window.innerWidth - popW - 12;
+  if (top + popH > window.innerHeight - 12) top = window.innerHeight - popH - 12;
+  left = Math.max(8, left);
+  top = Math.max(8, top);
+  pop.style.left = left + 'px';
+  pop.style.top = top + 'px';
+}
+
+function closeScenarioLinkPopover() {
+  document.getElementById('scenario-link-popover').classList.remove('open');
+  _scenarioLinkPending = null;
+}
+
+function chooseScenarioLinkMode(mode) {
+  const pending = _scenarioLinkPending;
+  closeScenarioLinkPopover();
+  if (!pending) return;
+  if (mode === 'verbal') {
+    loadScenario(pending.id);
+  } else if (mode === 'live') {
+    window.open(`sim_control.html?scenario=${encodeURIComponent(pending.id)}`, '_blank');
+  }
+  if (pending.afterChoice) pending.afterChoice();
+}
+
+document.addEventListener('click', (e) => {
+  const pop = document.getElementById('scenario-link-popover');
+  if (pop && pop.classList.contains('open') && !pop.contains(e.target)) {
+    closeScenarioLinkPopover();
+  }
+});
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') closeScenarioLinkPopover();
+});
 
 // ============================================================
 // FAVOURITES — server-backed (scenario_favourites table)
