@@ -229,7 +229,7 @@ const EYE_SCALE_X_AT_ZERO = 1.1;
 const EYE_SCALE_Y_AT_ZERO = 1.6;
 const FACE_LOWER_OFFSET_AT_ZERO = 12;
 const MOUTH_LOWER_OFFSET_AT_ZERO = 4;
-const HEAD_BULGE_AT_ZERO = 1.7;
+const HEAD_BULGE_AT_ZERO = 1.445; // 1.7 shrunk 15% per feedback: newborn head still big but not "ridiculous"
 const ADULT_ONLY_HAIR = new Set(['theCaesar', 'theCaesarAndSidePart', 'shavedSides', 'sides']);
 const CLOTHES_COLOURS = ['#3b6ea5', '#22577a', '#5c4b8a', '#7a2e2e', '#2f6d4f', '#4a4a4a', '#8a5a2b', '#1a1a1a', '#c9a227', '#6b4c9a', '#b0392f', '#3d3d3d'];
 
@@ -285,6 +285,9 @@ function applyAgeScale() {
   const bulge = document.getElementById('av-head-bulge');
   bulge.setAttribute('rx', bulgeR.toFixed(1));
   bulge.setAttribute('ry', bulgeR.toFixed(1));
+  // Hair/headwear scales with the head bulge — see sim_patient.html's copy.
+  const hairScale = bulgeR / 56;
+  document.getElementById('av-top').setAttribute('transform', `translate(132,92) scale(${hairScale.toFixed(3)}) translate(-132,-92) translate(-1,0)`);
 }
 function renderAvatarBuild() {
   document.getElementById('av-top').innerHTML = avatarBuild.hairStyle ? AvatarAssets.top[avatarBuild.hairStyle].replace(/__HAIRCOLOR__/g, avatarBuild.hairColour) : '';

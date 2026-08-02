@@ -254,18 +254,18 @@ rendered as a literal middle-aged adult:
   The mouth uses its own, smaller `MOUTH_LOWER_OFFSET_AT_ZERO` (4, not 12)
   rather than sharing the eyes/eyebrows offset — at the shared value,
   newborn mouths sat too low (too close to the chin/jaw curve).
-- **`HEAD_BULGE_AT_ZERO` (1.7)**: makes the head outline itself read as
+- **`HEAD_BULGE_AT_ZERO` (1.445)**: makes the head outline itself read as
   proportionally bigger for younger ages (ramping down to 1, no bulge, at
   18), which `EYE_SCALE`/`FACE_LOWER_OFFSET` alone don't touch — the
   head/body outline is one rigid path shared with the torso, no separate
-  head/body art to scale independently. Sized so a newborn's bulge diameter
-  (2 × 56 × 1.7 ≈ 190px) approaches `headBodyPaths`' own widest point (the
+  head/body art to scale independently. Started at 1.7 (bulge diameter
+  ~190px), picked to approach `headBodyPaths`' own widest point (the
   ~200px hem at the bottom of the body shape — the only "torso width"
-  reference this art actually has in the right ballpark) — a real
-  newborn's head circumference is roughly equal to their chest
-  circumference, so the head should read as close to as wide as the body,
-  not just "a bit bigger than usual". The previous banded value capped at
-  1.2 (bulgeR 67), which barely read as bigger than an adult's. Worked
+  reference this art actually has in the right ballpark) on the reasoning
+  that a real newborn's head circumference is roughly equal to their chest
+  circumference — but read as too large once actually rendered ("ridiculous"),
+  so dialled back 15%. Still well above the old banded value (1.2, bulgeR
+  67, which barely read as bigger than an adult's). Worked
   around with `#av-head-bulge`, a same-fill circle
   behind `#av-head-path` centred on the head arc's own centre (cx=132,
   cy=92, matching the path's own "a56 56" head arc) at a LARGER radius:

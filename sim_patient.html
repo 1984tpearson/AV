@@ -410,15 +410,14 @@ const AGE_SCALE_AT_ZERO = 0.78;
 // below — no risk of the "second chin" class of bug from a mismatched hard
 // edge, because there isn't one.
 //
-// HEAD_BULGE_AT_ZERO (1.7, i.e. a bulge diameter of ~190px) is picked to
-// approach this rig's own torso silhouette width (headBodyPaths' widest
-// point — the ~200px hem at the bottom of the body shape, the only "torso
-// width" reference in this art that's actually in the right ballpark for a
-// head-bulge diameter) — a real newborn's head circumference is roughly
-// equal to their chest circumference, so the head should read as close to
-// as wide as the body, not just "a bit bigger than usual". The previous
-// banded value capped at 1.2 (bulgeR 67), which barely read as bigger than
-// an adult's.
+// HEAD_BULGE_AT_ZERO started at 1.7 (bulge diameter ~190px, close to
+// headBodyPaths' own ~200px hem width — the closest thing this rig has to
+// a "torso width" reference, picked since a real newborn's head
+// circumference is roughly equal to their chest circumference) but read as
+// too large in practice ("ridiculous" — ended up closer to the hem width
+// than intended once actually rendered); dialled back 15% to 1.445. Still
+// well above the old banded value (1.2, bulgeR 67, which barely read as
+// bigger than an adult's).
 //
 // Eye scale is deliberately non-uniform (X and Y scaled separately, not one
 // EYE_SCALE for both) — scaling around the shared two-eye centre (56,22)
@@ -434,7 +433,7 @@ const FACE_LOWER_OFFSET_AT_ZERO = 12;
 // — a smaller max keeps the mouth closer to its normal position while
 // eyes/eyebrows keep their existing (larger) drop.
 const MOUTH_LOWER_OFFSET_AT_ZERO = 4;
-const HEAD_BULGE_AT_ZERO = 1.7;
+const HEAD_BULGE_AT_ZERO = 1.445; // 1.7 shrunk 15% per feedback: newborn head still big but not "ridiculous"
 // Clothing is a flat-colour fill only — no separate neckline graphic.
 // DiceBear ships nicely contoured collar shapes (crew neck, v-neck, etc)
 // but they're hand-positioned for stock Avataaars' own eye/eyebrow
@@ -568,6 +567,14 @@ function applyAgeScale() {
   const bulge = document.getElementById('av-head-bulge');
   bulge.setAttribute('rx', bulgeR.toFixed(1));
   bulge.setAttribute('ry', bulgeR.toFixed(1));
+  // Hair (and headwear — hat/hijab/turban/winter hats are all `top`
+  // variants too) didn't scale with the enlarged head bulge above, so a
+  // younger patient's hair sat at its normal size on top of a visibly
+  // bigger head — same ratio the bulge itself grew by, anchored on the
+  // bulge's own centre (132,92) so it grows outward from the head rather
+  // than drifting off it.
+  const hairScale = bulgeR / 56;
+  document.getElementById('av-top').setAttribute('transform', `translate(132,92) scale(${hairScale.toFixed(3)}) translate(-132,-92) translate(-1,0)`);
 }
 
 function renderAvatarBuild() {
