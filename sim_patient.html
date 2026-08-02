@@ -47,7 +47,6 @@ body { display: flex; flex-direction: column; }
 .v-hr   .vlabel { color: #ffffff; } .v-hr   .vvalue { color: #ffffff; }
 .v-bp   .vlabel { color: #7fff00; } .v-bp   .vvalue { color: #7fff00; }
 .v-spo2 .vlabel { color: #4fc3f7; } .v-spo2 .vvalue { color: #4fc3f7; }
-.v-rr   .vlabel { color: #ffd54f; } .v-rr   .vvalue { color: #ffd54f; }
 .v-etco2 .vlabel { color: #ff8a65; } .v-etco2 .vvalue { color: #ff8a65; }
 #bp-timer { font-size: 7px; color: #4a6a8a; }
 .apply-btn { font-size: 8px; background: none; border: 1px solid currentColor; border-radius: 3px; padding: 2px 5px; cursor: pointer; color: inherit; font-family: inherit; }
@@ -87,13 +86,15 @@ body { display: flex; flex-direction: column; }
 
 /* Voice capture — Give Treatment / Talk to Patient ------------------------ */
 #voice-fab-strip { display: flex; flex-direction: row; gap: 6px; flex-shrink: 0; width: 100%; max-width: 240px; }
-.voice-fab { flex: 1; min-height: 26px; display: flex; align-items: center; justify-content: center; gap: 4px; border-radius: 7px; border: none; background: #0369a1; color: #fff; font-family: 'Courier New', monospace; font-weight: 700; font-size: 10px; letter-spacing: 0.3px; cursor: pointer; padding: 4px 6px; -webkit-tap-highlight-color: rgba(255,255,255,0.2); }
+.voice-fab { flex: 1; min-height: 26px; display: flex; align-items: center; justify-content: center; gap: 4px; border-radius: 7px; border: none; background: #0369a1; color: #fff; font-family: 'Courier New', monospace; font-weight: 700; font-size: 10px; letter-spacing: 0.3px; cursor: pointer; padding: 4px 6px; -webkit-tap-highlight-color: rgba(255,255,255,0.2); touch-action: none; user-select: none; }
 .voice-fab svg { width: 11px; height: 11px; flex-shrink: 0; fill: currentColor; }
-.voice-fab:active { background: #075985; }
+.voice-fab:active, .voice-fab.holding { background: #075985; }
 #voice-fab-chat { background: #15803d; }
-#voice-fab-chat:active { background: #14532d; }
+#voice-fab-chat:active, #voice-fab-chat.holding { background: #14532d; }
 #voice-fab-exam { background: #7c3aed; }
-#voice-fab-exam:active { background: #5b21b6; }
+#voice-fab-exam:active, #voice-fab-exam.holding { background: #5b21b6; }
+#voice-input-mode-btn { width: 100%; max-width: 240px; min-height: 22px; margin-top: 2px; border-radius: 7px; border: 1px solid #d7dee6; background: #f7fafc; color: #33475a; font-family: 'Courier New', monospace; font-weight: 700; font-size: 9px; letter-spacing: 0.3px; cursor: pointer; padding: 3px 6px; -webkit-tap-highlight-color: rgba(255,255,255,0.2); }
+#voice-input-mode-btn.active { background: #0369a1; color: #fff; border-color: #0369a1; }
 
 /* Floating head + mic badge — mic sits just above/right of the gif, flat
    red icon, invisible unless actively listening (toggled via .listening,
@@ -120,9 +121,6 @@ body { display: flex; flex-direction: column; }
 #patient-info-voice-text { flex: 1; min-width: 0; }
 #voice-modal-title-row { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
 #voice-modal-title { font-size: 11px; font-weight: 900; letter-spacing: 1px; text-transform: uppercase; color: #0369a1; }
-#input-mode-toggle { margin-left: auto; display: flex; gap: 4px; flex-shrink: 0; }
-.mode-pill { font-family: 'Courier New', monospace; font-size: 9px; font-weight: 700; padding: 3px 7px; border-radius: 20px; border: 1px solid #d7dee6; background: #f7fafc; color: #33475a; cursor: pointer; white-space: nowrap; }
-.mode-pill.active { background: #0369a1; color: #fff; border-color: #0369a1; }
 #voice-modal-status { font-size: 11px; color: #33475a; margin-bottom: 4px; min-height: 14px; }
 #voice-modal-transcript { min-height: 20px; border: 1px solid #d7dee6; border-radius: 6px; padding: 6px 8px; font-size: 13px; color: #1e2a36; margin-bottom: 4px; background: #f7fafc; }
 #type-input-row { display: none; gap: 6px; margin-bottom: 4px; }
@@ -165,10 +163,6 @@ body { display: flex; flex-direction: column; }
     <div id="patient-info-voice-text">
       <div id="voice-modal-title-row">
         <span id="voice-modal-title">Give Treatment</span>
-        <span id="input-mode-toggle">
-          <button type="button" class="mode-pill" id="mode-pill-speech" onclick="setInputMode('speech')">&#127908; Speech</button>
-          <button type="button" class="mode-pill" id="mode-pill-type" onclick="setInputMode('type')">&#8996; Type</button>
-        </span>
       </div>
       <div id="voice-modal-status">Listening&hellip;</div>
       <div id="voice-modal-transcript"></div>
@@ -250,10 +244,11 @@ body { display: flex; flex-direction: column; }
       <span id="voice-mic-indicator" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 15a3.5 3.5 0 0 0 3.5-3.5v-6a3.5 3.5 0 0 0-7 0v6A3.5 3.5 0 0 0 12 15zm5.5-3.5a5.5 5.5 0 0 1-11 0H5a7 7 0 0 0 6 6.93V21h2v-2.57a7 7 0 0 0 6-6.93h-1.5z"/></svg></span>
     </div>
     <div id="voice-fab-strip">
-      <button class="voice-fab" id="voice-fab-treatment" onclick="openVoiceModal('treatment')"><svg viewBox="0 0 24 24"><path d="M4 4h16a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H9l-5 4v-4H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"/></svg>Treat</button>
-      <button class="voice-fab" id="voice-fab-exam" onclick="openVoiceModal('exam')"><svg viewBox="0 0 24 24"><path d="M4 4h16a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H9l-5 4v-4H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"/></svg>Assess</button>
-      <button class="voice-fab" id="voice-fab-chat" onclick="openVoiceModal('chat')"><svg viewBox="0 0 24 24"><path d="M4 4h16a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H9l-5 4v-4H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"/></svg>Talk</button>
+      <button class="voice-fab" id="voice-fab-treatment" onpointerdown="handleFabPress('treatment', event)" onpointerup="handleFabRelease(event)" onpointercancel="handleFabRelease(event)" oncontextmenu="return false;"><svg viewBox="0 0 24 24"><path d="M4 4h16a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H9l-5 4v-4H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"/></svg>Treat</button>
+      <button class="voice-fab" id="voice-fab-exam" onpointerdown="handleFabPress('exam', event)" onpointerup="handleFabRelease(event)" onpointercancel="handleFabRelease(event)" oncontextmenu="return false;"><svg viewBox="0 0 24 24"><path d="M4 4h16a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H9l-5 4v-4H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"/></svg>Assess</button>
+      <button class="voice-fab" id="voice-fab-chat" onpointerdown="handleFabPress('chat', event)" onpointerup="handleFabRelease(event)" onpointercancel="handleFabRelease(event)" oncontextmenu="return false;"><svg viewBox="0 0 24 24"><path d="M4 4h16a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H9l-5 4v-4H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"/></svg>Talk</button>
     </div>
+    <button type="button" id="voice-input-mode-btn" onclick="toggleInputMode()">&#8996; Switch to Text</button>
     <img src="https://1984tpearson.github.io/AV/Body_map.jpg" alt="Patient body map">
   </div>
   </div>
@@ -905,7 +900,7 @@ function applySessionRow(row) {
 const MAX_CONCURRENT = 2;
 let actionQueue = [];
 const actionState = {};
-['ecg','ecg12lead','rr','spo2','etco2','bp','temp','gcs','bgl','ketones','pain'].forEach(k => {
+['ecg','ecg12lead','spo2','etco2','bp','temp','gcs','bgl','ketones','pain'].forEach(k => {
   actionState[k] = { status: 'idle' };
 });
 
@@ -920,7 +915,7 @@ const oneOffDefs = {
 // Human-readable labels for every actionState key — used when pushing state
 // to Supabase for sim_control.html's Actions tab (see pushActionState()).
 const ACTION_LABELS = {
-  ecg: 'ECG (Lead II)', ecg12lead: '12-Lead ECG', rr: 'Resp Rate', spo2: 'SpO\u2082',
+  ecg: 'ECG (Lead II)', ecg12lead: '12-Lead ECG', spo2: 'SpO\u2082',
   etco2: 'EtCO\u2082', bp: 'Blood Pressure', temp: 'Temperature', gcs: 'GCS',
   bgl: 'BGL', ketones: 'Ketones', pain: 'Pain Score'
 };
@@ -1298,7 +1293,6 @@ function renderMonitor(v, now) {
   const box = document.getElementById('monitor-box');
   const ecgDone = actionState.ecg.status === 'done';
   const hrCell = ecgDone ? `${v.HR}<span class="vunit">bpm</span>` : cellFor('ecg');
-  const rrCell = actionState.rr.status === 'done' ? `${v.RR}<span class="vunit">/min</span>` : cellFor('rr');
   const spo2Cell = actionState.spo2.status === 'done' ? `${v.SpO2}<span class="vunit">%</span>` : cellFor('spo2');
   const etco2Cell = actionState.etco2.status === 'done' ? `${v.EtCO2}<span class="vunit">mmHg</span>` : cellFor('etco2');
   const bpCell = renderBPCell(now);
@@ -1307,7 +1301,6 @@ function renderMonitor(v, now) {
     <div class="vblock v-hr" onclick="handleVitalTap('ecg')"><div class="vlabel">HR</div><div class="vvalue">${hrCell}</div></div>
     <div class="vblock v-bp" onclick="handleBPTap()"><div class="vlabel">NIBP</div><div class="vvalue">${bpCell}</div></div>
     <div class="vblock v-spo2" onclick="handleVitalTap('spo2')"><div class="vlabel">SpO\u2082</div><div class="vvalue">${spo2Cell}</div></div>
-    <div class="vblock v-rr" onclick="handleVitalTap('rr')"><div class="vlabel">Resp</div><div class="vvalue">${rrCell}</div></div>
     <div class="vblock v-etco2" onclick="handleVitalTap('etco2')"><div class="vlabel">EtCO\u2082</div><div class="vvalue">${etco2Cell}</div></div>
   `;
 }
@@ -1637,16 +1630,22 @@ function openVoiceModal(mode) {
   beginCapture();
 }
 
-// Speech vs typed toggle — persists across button opens (a device/session
+// Speech vs typed toggle — one button below the three hold buttons, applies
+// to all of them at once. Persists across button opens (a device/session
 // preference more than a per-question choice) rather than resetting each
 // time. Defaults to speech.
 let _inputMode = 'speech'; // 'speech' | 'type'
 
 function syncInputModeUI() {
-  document.getElementById('mode-pill-speech').classList.toggle('active', _inputMode === 'speech');
-  document.getElementById('mode-pill-type').classList.toggle('active', _inputMode === 'type');
   document.getElementById('type-input-row').style.display = _inputMode === 'type' ? 'flex' : 'none';
   document.getElementById('voice-modal-transcript').style.display = _inputMode === 'type' ? 'none' : 'block';
+  const modeBtn = document.getElementById('voice-input-mode-btn');
+  modeBtn.textContent = _inputMode === 'speech' ? '⌨ Switch to Text' : '🎤 Switch to Speech';
+  modeBtn.classList.toggle('active', _inputMode === 'type');
+}
+
+function toggleInputMode() {
+  setInputMode(_inputMode === 'speech' ? 'type' : 'speech');
 }
 
 function setInputMode(mode) {
@@ -1657,11 +1656,38 @@ function setInputMode(mode) {
   syncInputModeUI();
   if (_voiceModalOpen) beginCapture();
 }
+syncInputModeUI(); // reflect the default mode on the toggle button before any button is ever pressed
+
+// Press-and-hold handlers for the three fab buttons (Treat/Assess/Talk).
+// In speech mode, pointerdown opens the panel and starts listening,
+// pointerup/pointercancel stops it (an explicit stop still runs onresult's
+// final pass before onend, same as a natural silence-timeout stop — see
+// startVoiceCapture). In type mode there's nothing to hold: pointerdown just
+// opens the panel (openVoiceModal already focuses the text field via
+// beginCapture), and release is a no-op. setPointerCapture keeps the release
+// tied to the same button even if the finger slides off it mid-hold.
+function handleFabPress(mode, ev) {
+  if (ev.pointerType === 'mouse' && ev.button !== 0) return; // ignore right/middle click
+  ev.preventDefault(); // avoid text-selection/long-press callouts on touch
+  const btn = ev.currentTarget;
+  try { btn.setPointerCapture(ev.pointerId); } catch (e) {}
+  if (_inputMode === 'speech') btn.classList.add('holding');
+  openVoiceModal(mode);
+}
+
+function handleFabRelease(ev) {
+  ev.currentTarget.classList.remove('holding');
+  if (_inputMode !== 'speech') return; // type mode already did everything it needs to on press
+  if (_recognition) { try { _recognition.stop(); } catch (e) {} }
+}
 
 // Single entry point for "start waiting on the next question/answer" —
 // starts the mic in speech mode, or just clears/focuses the text field in
-// typed mode. Used on open, on Try Again, and by the Talk to Patient
-// continuous-conversation loop once a reply is done.
+// typed mode. Used on open (via handleFabPress) and on Try Again. The Talk
+// to Patient continuous-conversation loop does NOT call this in speech mode
+// once a reply is done — see resumeIfConversing() in checkForPatientReply —
+// since auto-starting the mic without the student holding the button down
+// would break the press-to-talk/release-to-stop contract.
 function beginCapture() {
   document.getElementById('patient-reply-display').style.display = 'none';
   if (_inputMode === 'type') {
@@ -1782,14 +1808,22 @@ function checkForPatientReply(reply) {
   document.getElementById('voice-modal-status').textContent = VOICE_MODE_REPLY_LABELS[mode] || 'Reply:';
   _lastChatSentId = null;
 
-  // Resumes listening once the reply is done — the continuous-conversation
-  // loop for "Talk to Patient". Guarded by _voiceModalOpen so a reply that
-  // arrives after the student has already closed the modal doesn't restart
-  // the mic in the background; the student stops the loop simply by tapping
-  // Cancel (closeVoiceModal sets that flag false and also stops any
-  // in-progress speech).
+  // Once the reply is done, in type mode we can safely auto-focus the text
+  // field again (no gesture required to type). In speech mode the mic is
+  // now hold-to-talk (see handleFabPress/handleFabRelease), so auto-starting
+  // it here without the student physically holding Talk would open the mic
+  // in the background — instead just prompt them to hold Talk for their
+  // next line. Guarded by _voiceModalOpen so a reply that arrives after the
+  // student has already closed the modal does nothing.
   const resumeIfConversing = () => {
-    if (isConversation && _voiceModalOpen) beginCapture();
+    if (!isConversation || !_voiceModalOpen) return;
+    if (_inputMode === 'type') {
+      beginCapture();
+    } else {
+      document.getElementById('patient-reply-display').style.display = 'none';
+      document.getElementById('voice-modal-status').textContent = 'Hold Talk to reply…';
+      document.getElementById('voice-modal-transcript').textContent = '';
+    }
   };
 
   if (reply.speak !== false && 'speechSynthesis' in window) {
