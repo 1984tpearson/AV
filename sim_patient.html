@@ -12,6 +12,7 @@ body { display: flex; flex-direction: column; }
 #topbar .title { font-size: 12px; font-weight: 900; letter-spacing: 1px; color: #0369a1; text-transform: uppercase; }
 #topbar-right { display: flex; align-items: center; gap: 14px; }
 #instant-mode-label { font-size: 10px; display: flex; align-items: center; gap: 4px; color: #33475a; cursor: pointer; user-select: none; }
+#hq-voice-label { font-size: 10px; display: flex; align-items: center; gap: 4px; color: #33475a; cursor: pointer; user-select: none; }
 #scenario-timer { font-size: 13px; font-weight: 700; color: #15803d; }
 #patient-info { flex-shrink: 0; }
 #main { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 10px; padding: 10px; overflow: hidden; }
@@ -141,6 +142,9 @@ body { display: flex; flex-direction: column; }
   <div id="topbar-right">
     <span id="pause-indicator" style="font-size:11px;font-weight:700;color:#b45309;display:none;">&#9208; PAUSED</span>
     <span id="instant-mode-indicator" style="font-size:10px;color:#33475a;display:none;">Instant Mode: ON</span>
+    <label id="hq-voice-label" title="Higher-quality patient voice (downloads a voice model on first use)">
+      <input type="checkbox" id="hq-voice-checkbox" onchange="setHqVoiceEnabled(this.checked)">HQ Voice
+    </label>
     <div id="scenario-timer">00:00</div>
   </div>
 </div>
@@ -1028,6 +1032,7 @@ async function connectSession(code) {
             else if (/\bmale\b/i.test(title)) gender = 'male';
           }
           if (gender === 'male' || gender === 'female') patientGender = gender;
+          warmPiperVoice(); // best-effort — no-op if HQ Voice isn't enabled
           const age = meta.age != null ? meta.age : SimEngine.parseAgeFromScenario(scen);
           patientMood = SimEngine.parseScenarioMood(meta.mood);
           buildAvatarBase(row.scenario_id, meta.skin_colour, gender, age);
@@ -1685,6 +1690,7 @@ function tick() {
 }
 
 window.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('hq-voice-checkbox').checked = hqVoiceEnabled;
   const params = new URLSearchParams(window.location.search);
   const code = params.get('code');
   if (code && /^\d{6}$/.test(code)) {
@@ -1788,6 +1794,98 @@ function pickVoice() {
     if (hinted) return hinted;
   }
   return pool.find(v => v.lang === 'en-AU') || pool[0] || null;
+}
+
+// Opt-in higher-quality patient voice — Piper neural TTS running client-side
+// via WebAssembly (@diffusionstudio/vits-web), loaded lazily from a CDN only
+// once the student enables it. This deliberately stays a fully optional
+// upgrade layered on top of the Web Speech path above, not a replacement:
+// it downloads a real ~30-60MB model file (cached in OPFS after first use)
+// and depends on WASM/OPFS support, so any failure anywhere in this path
+// (module load, OPFS unsupported, network, inference) falls straight back
+// to the existing speechSynthesis flow — see speakPatientReply() below.
+// No en-AU Piper voices exist upstream, so en_GB is the closest match.
+const HQ_VOICE_LS_KEY = 'av_hq_voice_enabled';
+const PIPER_MODULE_URL = 'https://cdn.jsdelivr.net/npm/@diffusionstudio/vits-web@1/+esm';
+const PIPER_VOICE_IDS = { male: 'en_GB-alan-medium', female: 'en_GB-jenny_dioco-medium' };
+let hqVoiceEnabled = localStorage.getItem(HQ_VOICE_LS_KEY) === '1';
+let _piperModulePromise = null;
+
+function piperVoiceIdFor(gender) {
+  return PIPER_VOICE_IDS[gender] || PIPER_VOICE_IDS.male;
+}
+
+function loadPiperModule() {
+  if (!_piperModulePromise) {
+    _piperModulePromise = import(PIPER_MODULE_URL).catch(e => { _piperModulePromise = null; throw e; });
+  }
+  return _piperModulePromise;
+}
+
+// Best-effort prefetch so the model is hopefully already cached in OPFS by
+// the time the first patient reply needs it — failures are silent, predict()
+// will just download it inline (with a status message) if this didn't finish.
+function warmPiperVoice() {
+  if (!hqVoiceEnabled) return;
+  loadPiperModule().then(tts => tts.download(piperVoiceIdFor(patientGender))).catch(() => {});
+}
+
+function setHqVoiceEnabled(enabled) {
+  hqVoiceEnabled = !!enabled;
+  localStorage.setItem(HQ_VOICE_LS_KEY, hqVoiceEnabled ? '1' : '0');
+  if (hqVoiceEnabled) warmPiperVoice();
+}
+
+// Tries the Piper WASM voice (if enabled) first, falling back to the
+// existing Web Speech path on any failure — including partway through
+// (module load ok, inference fails, etc). replyId guards against a reply
+// that's no longer current by the time async loading/inference finishes
+// (student closed the modal, or a newer reply already arrived).
+async function speakPatientReply(text, resumeIfConversing, isConversation) {
+  const replyId = _lastShownReplyId;
+  const stillCurrent = () => replyId === _lastShownReplyId;
+  if (hqVoiceEnabled) {
+    try {
+      const tts = await loadPiperModule();
+      if (!stillCurrent()) return;
+      const voiceId = piperVoiceIdFor(patientGender);
+      const statusEl = document.getElementById('voice-modal-status');
+      const priorStatus = statusEl.textContent;
+      const wav = await tts.predict({ text, voiceId }, progress => {
+        if (!stillCurrent() || !progress.total) return;
+        statusEl.textContent = `Loading voice… ${Math.round(progress.loaded * 100 / progress.total)}%`;
+      });
+      if (!stillCurrent()) return;
+      if (statusEl.textContent !== priorStatus) statusEl.textContent = priorStatus; // restore label if we clobbered it with download progress
+      const audio = new Audio(URL.createObjectURL(wav));
+      audio.onplay = startTalkAnimation;
+      audio.onended = () => { stopTalkAnimation(); resumeIfConversing(); };
+      audio.onerror = () => { stopTalkAnimation(); resumeIfConversing(); };
+      await audio.play();
+      return;
+    } catch (e) {
+      // Piper best-effort only — fall through to Web Speech below.
+    }
+  }
+  if ('speechSynthesis' in window) {
+    try {
+      window.speechSynthesis.cancel(); // clear anything stuck in the queue (e.g. the priming utterance) first
+      const utter = new SpeechSynthesisUtterance(text);
+      const voice = pickVoice();
+      if (voice) utter.voice = voice;
+      utter.lang = 'en-AU';
+      utter.onstart = startTalkAnimation;
+      utter.onend = () => { stopTalkAnimation(); resumeIfConversing(); };
+      utter.onerror = () => { stopTalkAnimation(); resumeIfConversing(); };
+      window.speechSynthesis.speak(utter);
+    } catch (e) {
+      // TTS best-effort only — the text is already shown on screen. Still
+      // resume the loop after a short pause so a conversation doesn't stall.
+      if (isConversation) setTimeout(resumeIfConversing, 1200);
+    }
+  } else if (isConversation) {
+    setTimeout(resumeIfConversing, 1200);
+  }
 }
 
 async function queueStudentItem(type, text) {
@@ -2008,22 +2106,8 @@ function checkForPatientReply(reply) {
     }
   };
 
-  if (reply.speak !== false && 'speechSynthesis' in window) {
-    try {
-      window.speechSynthesis.cancel(); // clear anything stuck in the queue (e.g. the priming utterance) first
-      const utter = new SpeechSynthesisUtterance(reply.text);
-      const voice = pickVoice();
-      if (voice) utter.voice = voice;
-      utter.lang = 'en-AU';
-      utter.onstart = startTalkAnimation;
-      utter.onend = () => { stopTalkAnimation(); resumeIfConversing(); };
-      utter.onerror = () => { stopTalkAnimation(); resumeIfConversing(); };
-      window.speechSynthesis.speak(utter);
-    } catch (e) {
-      // TTS best-effort only — the text is already shown on screen. Still
-      // resume the loop after a short pause so a conversation doesn't stall.
-      if (isConversation) setTimeout(resumeIfConversing, 1200);
-    }
+  if (reply.speak !== false) {
+    speakPatientReply(reply.text, resumeIfConversing, isConversation);
   } else if (isConversation) {
     // No speech at all (e.g. GCS-gated "no verbal response") — pause briefly
     // so the text is readable, then resume listening for the next question.
