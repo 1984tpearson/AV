@@ -260,10 +260,25 @@ select, input[type=number], input[type=text] { font-family: 'Courier New', monos
 
 
 <script src="https://cdn.jsdelivr.net/npm/qrcode@1.4.4/build/qrcode.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="https://1984tpearson.github.io/AV/sim_engine.js"></script>
 <script>
 const SUPABASE_URL = 'https://befsjenbaruxqrntuhpn.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJlZnNqZW5iYXJ1eHFybnR1aHBuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI2MjA5MjAsImV4cCI6MjA4ODE5NjkyMH0.hOFFbIvd1wAgu-QyghupQ-7ttSpg7sxz_UsJbXyXztA';
+// Realtime client, used alongside (not instead of) the REST poll below —
+// postgres_changes pushes the session row the moment sim_patient.html
+// writes it, instead of waiting for the next 1.5s poll tick. The poll
+// stays as a fallback: if the socket drops/reconnects there's no gap
+// where control silently stops seeing updates.
+const sbRealtime = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+let _rtChannel = null;
+function subscribeSessionRealtime(code) {
+  if (_rtChannel) { sbRealtime.removeChannel(_rtChannel); _rtChannel = null; }
+  _rtChannel = sbRealtime.channel(`sim_session_ctrl_${code}`)
+    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'sim_sessions', filter: `session_code=eq.${code}` },
+      payload => { if (payload.new) applySessionRow(payload.new); })
+    .subscribe();
+}
 
 async function sbFetch(path, opts = {}) {
   const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
@@ -740,6 +755,7 @@ async function createSession() {
         })
       });
       sessionCode = code;
+      subscribeSessionRealtime(code);
       currentScenario = scenario;
       switchInfoTab('dispatch');
       renderScenarioInfoPanel();
@@ -783,7 +799,7 @@ async function createSession() {
       renderPendingActionsStack();
       tickVitals();
       setInterval(tickVitals, 1000);
-      setInterval(pollSession, 3000);
+      setInterval(pollSession, 1500); // fallback poll — realtime (subscribeSessionRealtime) covers the common case
       return;
     } catch (e) {
       attempts++; // session_code collision (rare) — retry with a new code
@@ -928,33 +944,41 @@ async function pollSession() {
   try {
     const rows = await sbFetch(`sim_sessions?session_code=eq.${sessionCode}&select=treatments,overrides,instant_mode,has_started,is_paused,paused_at_ms,total_paused_ms,patient_connected,patient_actions,action_controls,student_queue,student_queue_ack_id`, { method: 'GET' });
     if (!rows.length) return;
-    const row = rows[0];
-    processStudentQueue(row); // fire-and-forget — auto-applies any new voice-queued items from sim_patient.html (see below)
-    processDefibFollowUps(row); // fire-and-forget — re-projects the trajectory after a ROSC/cardioversion shock (see below)
-    liveConfig.treatments = row.treatments || [];
-    liveConfig.overrides = row.overrides || {};
-    liveConfig.instantMode = row.instant_mode;
-    liveConfig.hasStarted = row.has_started;
-    liveConfig.isPaused = row.is_paused;
-    liveConfig.pausedAtMs = row.paused_at_ms;
-    liveConfig.totalPausedMs = row.total_paused_ms;
-    const wasConnected = liveConfig.patientConnected;
-    liveConfig.patientConnected = row.patient_connected;
-    if (!wasConnected && liveConfig.patientConnected) {
-      _joinInfoManuallyShown = false; // fresh (re)connect — collapse the join panel again
-    }
-    instantMode = row.instant_mode;
-    treatments = liveConfig.treatments;
-    const newPatientActions = row.patient_actions || {};
-    detectActionLogTransitions(newPatientActions);
-    patientActions = newPatientActions;
-    actionControls = row.action_controls || {};
-    document.getElementById('instant-toggle').checked = instantMode;
-    renderRunControls();
-    updatePatientStatus();
-    renderLog();
-    renderPendingActionsStack();
+    applySessionRow(rows[0]);
   } catch (e) { /* transient network hiccup — try again next poll */ }
+}
+
+// Shared by the REST poll above and the realtime subscription (see
+// subscribeSessionRealtime) so both paths update liveConfig identically —
+// realtime gets it here first in the common case, the poll is just the
+// fallback that guarantees we never silently stop syncing.
+function applySessionRow(row) {
+  if (!liveConfig) return;
+  processStudentQueue(row); // fire-and-forget — auto-applies any new voice-queued items from sim_patient.html (see below)
+  processDefibFollowUps(row); // fire-and-forget — re-projects the trajectory after a ROSC/cardioversion shock (see below)
+  liveConfig.treatments = row.treatments || [];
+  liveConfig.overrides = row.overrides || {};
+  liveConfig.instantMode = row.instant_mode;
+  liveConfig.hasStarted = row.has_started;
+  liveConfig.isPaused = row.is_paused;
+  liveConfig.pausedAtMs = row.paused_at_ms;
+  liveConfig.totalPausedMs = row.total_paused_ms;
+  const wasConnected = liveConfig.patientConnected;
+  liveConfig.patientConnected = row.patient_connected;
+  if (!wasConnected && liveConfig.patientConnected) {
+    _joinInfoManuallyShown = false; // fresh (re)connect — collapse the join panel again
+  }
+  instantMode = row.instant_mode;
+  treatments = liveConfig.treatments;
+  const newPatientActions = row.patient_actions || {};
+  detectActionLogTransitions(newPatientActions);
+  patientActions = newPatientActions;
+  actionControls = row.action_controls || {};
+  document.getElementById('instant-toggle').checked = instantMode;
+  renderRunControls();
+  updatePatientStatus();
+  renderLog();
+  renderPendingActionsStack();
 }
 
 async function updateInstantMode() {

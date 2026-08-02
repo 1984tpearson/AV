@@ -262,10 +262,22 @@ body { display: flex; flex-direction: column; }
 <script src="https://1984tpearson.github.io/AV/ecg_engine.js"></script>
 <script src="https://1984tpearson.github.io/AV/sim_engine.js"></script>
 <script src="https://1984tpearson.github.io/AV/avatar_assets.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script>
 // --- Supabase session sync ------------------------------------------------
 const SUPABASE_URL = 'https://befsjenbaruxqrntuhpn.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJlZnNqZW5iYXJ1eHFybnR1aHBuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI2MjA5MjAsImV4cCI6MjA4ODE5NjkyMH0.hOFFbIvd1wAgu-QyghupQ-7ttSpg7sxz_UsJbXyXztA';
+// Realtime client, alongside (not instead of) the REST poll below — see
+// sim_control.html's identical setup for why the poll stays as a fallback.
+const sbRealtime = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+let _rtChannel = null;
+function subscribeSessionRealtime(code) {
+  if (_rtChannel) { sbRealtime.removeChannel(_rtChannel); _rtChannel = null; }
+  _rtChannel = sbRealtime.channel(`sim_session_patient_${code}`)
+    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'sim_sessions', filter: `session_code=eq.${code}` },
+      payload => { if (payload.new) applySessionRow(payload.new); })
+    .subscribe();
+}
 
 async function sbGet(path) {
   const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
@@ -803,6 +815,7 @@ async function connectSession(code) {
     instantMode = row.instant_mode;
     actionControls = row.action_controls || {};
     sessionCode = code;
+    subscribeSessionRealtime(code);
     document.getElementById('session-gate').style.display = 'none';
     requestMicPermissionEarly();
     buildAvatarBase(row.scenario_id, null); // sensible defaults up front; refined below once scenario meta arrives
@@ -842,7 +855,7 @@ async function connectSession(code) {
     }
     tick();
     setInterval(tick, 1000);
-    setInterval(pollSession, 3000);
+    setInterval(pollSession, 1500); // fallback poll — realtime (subscribeSessionRealtime) covers the common case
   } catch (e) {
     errEl.textContent = 'Could not reach the session — check the code and try again.';
   }
@@ -862,21 +875,27 @@ async function pollSession() {
   try {
     const rows = await sbGet(`sim_sessions?session_code=eq.${encodeURIComponent(sessionCode)}&select=treatments,overrides,instant_mode,has_started,is_paused,paused_at_ms,total_paused_ms,action_controls,patient_reply`);
     if (!rows.length) return;
-    const row = rows[0];
-    testConfig.treatments = row.treatments || [];
-    // Skipped once right after a local defib shock: that write is already
-    // reflected locally and is mid-flight to the server, so a poll landing
-    // in that window would otherwise briefly clobber it with a stale copy.
-    if (!_skipNextOverridesPoll) testConfig.overrides = row.overrides || {};
-    testConfig.instantMode = row.instant_mode;
-    testConfig.hasStarted = row.has_started;
-    testConfig.isPaused = row.is_paused;
-    testConfig.pausedAtMs = row.paused_at_ms;
-    testConfig.totalPausedMs = row.total_paused_ms;
-    instantMode = row.instant_mode;
-    actionControls = row.action_controls || {};
-    checkForPatientReply(row.patient_reply);
+    applySessionRow(rows[0]);
   } catch (e) { /* transient network hiccup — try again next poll */ }
+}
+
+// Shared by the REST poll above and the realtime subscription (see
+// subscribeSessionRealtime) so both paths update testConfig identically.
+function applySessionRow(row) {
+  if (!testConfig) return;
+  testConfig.treatments = row.treatments || [];
+  // Skipped once right after a local defib shock: that write is already
+  // reflected locally and is mid-flight to the server, so an update landing
+  // in that window would otherwise briefly clobber it with a stale copy.
+  if (!_skipNextOverridesPoll) testConfig.overrides = row.overrides || {};
+  testConfig.instantMode = row.instant_mode;
+  testConfig.hasStarted = row.has_started;
+  testConfig.isPaused = row.is_paused;
+  testConfig.pausedAtMs = row.paused_at_ms;
+  testConfig.totalPausedMs = row.total_paused_ms;
+  instantMode = row.instant_mode;
+  actionControls = row.action_controls || {};
+  checkForPatientReply(row.patient_reply);
 }
 
 // --- Action delay/reveal system, with a 2-crew concurrency limit ---------
