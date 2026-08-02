@@ -307,6 +307,12 @@ async function sbPatch(path, body) {
 
 let testConfig = null; // populated once a session is joined — see connectSession()
 let scenarioMeta = null; // title/subtitle/dispatch/vitals/medical_conditions — see connectSession(); feeds handleShockBtn()'s local defib computation
+// Fuzzy-mapped once when scenarioMeta arrives (see connectSession()), not
+// re-parsed every tick — the scenario's authored mood doesn't change
+// mid-session. Drives the avatar's live eyebrow/mouth expression in
+// updateAvatarFace(), gated off entirely whenever the patient is too
+// unresponsive to plausibly express it.
+let patientMood = 'calm';
 let _skipNextOverridesPoll = false; // guards against pollSession() clobbering an in-flight local defib write with a stale server copy — see handleShockBtn()
 let instantMode = false; // synced from the session row; assessor-controlled, not editable here
 // Temp/BGL/Ketones/Pain/GCS now go through the same overrides mechanism as
@@ -325,7 +331,7 @@ function extendedVitalsNow() {
 // tint/sweat) is re-derived every tick from SimEngine.getAppearanceState(),
 // the same severity bands sim_control.html's assessor-facing Appearance tab
 // uses — see sim_engine.js.
-let avatarBuild = { skin: '#E0AC81', hairColour: '#3b2b20', hairStyle: 'shortFlat', eyebrowStyle: 'defaultNatural', ageBand: 'adult', clothesColour: '#3b6ea5' };
+let avatarBuild = { skin: '#E0AC81', hairColour: '#3b2b20', hairStyle: 'shortFlat', eyebrowStyle: 'defaultNatural', ageBand: 'adult', ageYears: null, clothesColour: '#3b6ea5' };
 // Last three are grey/silver/white — see GREY_HAIR_COLOURS and greyWeight()
 // below. Kept in the same flat array (not a separate palette) so an unset
 // age still lets a young-reading grey/premature-grey/platinum tone turn up
@@ -368,27 +374,51 @@ function greyWeight(age) {
   if (years == null) return 0;
   return Math.max(0, Math.min(1, (years - 40) / 35));
 }
-// Uniform scale of the whole figure per age band. Kept fairly close to 1 —
-// most of the "younger = smaller" cue now comes from AGE_SCALE combined
-// with HEAD_BULGE below (proportionally bigger head) rather than shrinking
-// the whole figure hard, which was reading as "just a tiny adult" and
-// making infants disappear on screen rather than looking younger.
-const AGE_SCALE = { infant: 0.78, toddler: 0.85, child: 0.9, teen: 0.95, adult: 1 };
-// Three cartoon "younger = bigger head/eyes, lower/rounder face" cues,
-// layered on top of the uniform AGE_SCALE above. The face features
-// (eyes/eyebrows/mouth) are independent groups, so they can move and eyes
-// can grow independently of the head outline they sit on — #av-eyes scales
-// around its own on-screen centre (56,22), FACE_LOWER_OFFSET shifts
-// eyes/eyebrows/mouth down as a unit. The head OUTLINE itself is a single
-// rigid path shared with the torso (no separate head/body art to scale
-// independently) — HEAD_BULGE works around that with #av-head-bulge, a
-// same-fill circle sitting behind #av-head-path or centred on the head
-// (cx=132,cy=92 — the head arc's own centre, radius 56 to match the path's
-// own "a56 56" head arc) at a LARGER radius: it naturally tapers to zero
-// width by y~166, well above the jaw/neck curve, so a bigger radius reads
-// as a wider/rounder head+cheeks without any clipping or seam against the
-// body below — no risk of the "second chin" class of bug from a mismatched
-// hard edge, because there isn't one.
+// Continuous function of EXACT age in years (not the 5 discrete ageBand
+// buckets used elsewhere for hair-pool/grey-weighting decisions) — every
+// age-scaling property below reaches its normal/adult value exactly AT age
+// 18, easing linearly from its newborn (age 0) extreme, rather than jumping
+// between fixed band values. The old banded version meant e.g. a same-day
+// jump from "toddler" to "child" at the age-5 boundary instead of a smooth
+// progression, and capped out at the 'teen' band's value for anyone up to
+// 17 rather than actually reaching 18.
+function ageRamp(years, atZero, atEighteen) {
+  if (years == null) return atEighteen; // unknown age -> adult default, matches ageBandFromMeta()'s own fallback
+  const t = Math.max(0, Math.min(1, years / 18));
+  return atZero + (atEighteen - atZero) * t;
+}
+// Uniform scale of the whole figure. Kept fairly close to 1 — most of the
+// "younger = smaller" cue comes from HEAD_BULGE below (proportionally
+// bigger head) rather than shrinking the whole figure hard, which was
+// reading as "just a tiny adult" and making infants disappear on screen
+// rather than looking younger.
+const AGE_SCALE_AT_ZERO = 0.78;
+// Cartoon "younger = bigger head/eyes, lower/rounder face" cues, layered on
+// top of the uniform scale above. The face features (eyes/eyebrows/mouth)
+// are independent groups, so they can move and eyes can grow independently
+// of the head outline they sit on — #av-eyes scales around its own
+// on-screen centre (56,22), FACE_LOWER_OFFSET_AT_ZERO shifts eyes/eyebrows
+// down as a unit (MOUTH_LOWER_OFFSET_AT_ZERO is a separate, smaller value —
+// see below). The head OUTLINE itself is a single rigid path shared with
+// the torso (no separate head/body art to scale independently) —
+// HEAD_BULGE works around that with #av-head-bulge, a same-fill circle
+// sitting behind #av-head-path or centred on the head (cx=132,cy=92 — the
+// head arc's own centre, radius 56 to match the path's own "a56 56" head
+// arc) at a LARGER radius: it naturally tapers to zero width by y~166,
+// well above the jaw/neck curve, so a bigger radius reads as a
+// wider/rounder head+cheeks without any clipping or seam against the body
+// below — no risk of the "second chin" class of bug from a mismatched hard
+// edge, because there isn't one.
+//
+// HEAD_BULGE_AT_ZERO (1.7, i.e. a bulge diameter of ~190px) is picked to
+// approach this rig's own torso silhouette width (headBodyPaths' widest
+// point — the ~200px hem at the bottom of the body shape, the only "torso
+// width" reference in this art that's actually in the right ballpark for a
+// head-bulge diameter) — a real newborn's head circumference is roughly
+// equal to their chest circumference, so the head should read as close to
+// as wide as the body, not just "a bit bigger than usual". The previous
+// banded value capped at 1.2 (bulgeR 67), which barely read as bigger than
+// an adult's.
 //
 // Eye scale is deliberately non-uniform (X and Y scaled separately, not one
 // EYE_SCALE for both) — scaling around the shared two-eye centre (56,22)
@@ -397,10 +427,14 @@ const AGE_SCALE = { infant: 0.78, toddler: 0.85, child: 0.9, teen: 0.95, adult: 
 // as wall-eyed/alien on infants rather than "big eyed". Keeping X close to
 // 1 while Y does most of the work gives bigger, rounder eyes without much
 // added horizontal separation.
-const EYE_SCALE_X = { infant: 1.1, toddler: 1.08, child: 1.05, teen: 1.02, adult: 1 };
-const EYE_SCALE_Y = { infant: 1.6, toddler: 1.4, child: 1.2, teen: 1.08, adult: 1 };
-const FACE_LOWER_OFFSET = { infant: 12, toddler: 9, child: 5, teen: 2, adult: 0 };
-const HEAD_BULGE = { infant: 1.2, toddler: 1.1, child: 1.05, teen: 1.02, adult: 1 };
+const EYE_SCALE_X_AT_ZERO = 1.1;
+const EYE_SCALE_Y_AT_ZERO = 1.6;
+const FACE_LOWER_OFFSET_AT_ZERO = 12;
+// Mouths were sitting too low on newborns at the same drop as eyes/eyebrows
+// — a smaller max keeps the mouth closer to its normal position while
+// eyes/eyebrows keep their existing (larger) drop.
+const MOUTH_LOWER_OFFSET_AT_ZERO = 4;
+const HEAD_BULGE_AT_ZERO = 1.7;
 // Clothing is a flat-colour fill only — no separate neckline graphic.
 // DiceBear ships nicely contoured collar shapes (crew neck, v-neck, etc)
 // but they're hand-positioned for stock Avataaars' own eye/eyebrow
@@ -494,6 +528,7 @@ function weightedPick(keys, weightOf, h) {
 function buildAvatarBase(seed, skinHex, gender, age) {
   avatarBuild.skin = skinHex || avatarBuild.skin;
   avatarBuild.ageBand = ageBandFromMeta(age);
+  avatarBuild.ageYears = parseAgeYears(age); // exact years (or null) — drives the continuous ageRamp() scaling in applyAgeScale(), separate from the discrete band above
   const s = String(seed || sessionCode || 'default');
   const allowAdultHair = avatarBuild.ageBand === 'teen' || avatarBuild.ageBand === 'adult';
   const hairKeys = Object.keys(AvatarAssets.top).filter(k => allowAdultHair || !ADULT_ONLY_HAIR.has(k));
@@ -518,17 +553,18 @@ function buildAvatarBase(seed, skinHex, gender, age) {
 // starts) rather than the viewBox origin, so a smaller figure keeps its
 // head near the same spot instead of shrinking toward the top-left corner.
 function applyAgeScale() {
-  const band = avatarBuild.ageBand;
-  const s = AGE_SCALE[band] || 1;
+  const years = avatarBuild.ageYears;
+  const s = ageRamp(years, AGE_SCALE_AT_ZERO, 1);
   document.getElementById('av-scale-group').setAttribute('transform', `translate(140,36) scale(${s}) translate(-140,-36)`);
-  const dy = FACE_LOWER_OFFSET[band] || 0;
-  const eyeScaleX = EYE_SCALE_X[band] || 1;
-  const eyeScaleY = EYE_SCALE_Y[band] || 1;
+  const dy = ageRamp(years, FACE_LOWER_OFFSET_AT_ZERO, 0);
+  const mouthDy = ageRamp(years, MOUTH_LOWER_OFFSET_AT_ZERO, 0);
+  const eyeScaleX = ageRamp(years, EYE_SCALE_X_AT_ZERO, 1);
+  const eyeScaleY = ageRamp(years, EYE_SCALE_Y_AT_ZERO, 1);
   document.getElementById('av-eyebrows').setAttribute('transform', `translate(76 ${82 + dy})`);
-  document.getElementById('av-mouth').setAttribute('transform', `translate(78 ${134 + dy})`);
-  document.getElementById('av-lip-cyanosis').setAttribute('transform', `translate(78 ${134 + dy})`);
+  document.getElementById('av-mouth').setAttribute('transform', `translate(78 ${134 + mouthDy})`);
+  document.getElementById('av-lip-cyanosis').setAttribute('transform', `translate(78 ${134 + mouthDy})`);
   document.getElementById('av-eyes').setAttribute('transform', `translate(76 ${90 + dy}) translate(56,22) scale(${eyeScaleX},${eyeScaleY}) translate(-56,-22)`);
-  const bulgeR = 56 * (HEAD_BULGE[band] || 1);
+  const bulgeR = 56 * ageRamp(years, HEAD_BULGE_AT_ZERO, 1);
   const bulge = document.getElementById('av-head-bulge');
   bulge.setAttribute('rx', bulgeR.toFixed(1));
   bulge.setAttribute('ry', bulgeR.toFixed(1));
@@ -536,7 +572,7 @@ function applyAgeScale() {
 
 function renderAvatarBuild() {
   document.getElementById('av-top').innerHTML = avatarBuild.hairStyle ? AvatarAssets.top[avatarBuild.hairStyle].replace(/__HAIRCOLOR__/g, avatarBuild.hairColour) : '';
-  document.getElementById('av-eyebrows').innerHTML = AvatarAssets.eyebrows[avatarBuild.eyebrowStyle];
+  setEyebrows(); // this patient's own neutral pick, until the first live tick applies mood
   document.getElementById('av-eyes-closed-overlay').innerHTML = AvatarAssets.eyes.closed; // static, set once
   document.getElementById('av-clothes-static-path').setAttribute('fill', avatarBuild.clothesColour);
   document.getElementById('av-chest-path').setAttribute('fill', avatarBuild.clothesColour);
@@ -713,9 +749,9 @@ function doBlink() {
 }
 scheduleNextBlink();
 
-// Idle motion — breathing (chest + head) and a slow idle sway, all in one
-// rAF loop rather than 1s-stepped ticks (which would read as a slideshow,
-// not motion). Two independently-driven layers:
+// Idle motion — breathing (chest + head), in one rAF loop rather than
+// 1s-stepped ticks (which would read as a slideshow, not motion). Two
+// independently-driven layers:
 //
 // Chest (av-chest-group): a same-shape duplicate of the head/body path,
 // clipped to just the shoulder region (av-chest-clip) and sitting BEHIND
@@ -732,13 +768,12 @@ scheduleNextBlink();
 // updateAvatarFace) rather than being constant: near-still for a calm
 // patient, progressively more pronounced toward agonal/severe distress.
 //
-// Sway (av-face-group X, plus av-top with a slightly different amplitude
-// for a touch of parallax depth): a slow ~7s side-to-side, unrelated to
-// any vital sign — purely "not a frozen photo". Scaled by _swayScale
-// (consciousness, set in updateAvatarFace) toward zero as GCS drops;
-// an unconscious patient idly looking around would be the wrong signal.
+// There used to be a slow idle side-to-side sway here too (av-face-group X,
+// plus av-top) — removed, since its horizontal motion made the chest/head
+// breathing rise (the actual RR cue) harder to read at a glance rather than
+// adding a useful "not a frozen photo" touch.
 //
-// Both stop dead at RR<=0 rather than continuing to oscillate — an
+// Breathing stops dead at RR<=0 rather than continuing to oscillate — an
 // apnoeic patient shouldn't still look like they're breathing.
 //
 // Breathing phase is a running ANGLE ACCUMULATOR advanced each frame by
@@ -750,11 +785,9 @@ scheduleNextBlink();
 // and reads as too fast, since it happens on almost every 1s tick whenever
 // RR isn't perfectly static). Accumulating instead means a period change
 // only changes the RATE of future advancement — the current position in
-// the cycle carries over smoothly. Sway uses a fixed period so it's immune
-// to this and stays a plain formula.
+// the cycle carries over smoothly.
 let _lastRR = 16;
 let _wobAmplitude = 0; // 0-1, from work-of-breathing severity
-let _swayScale = 1; // 0-1, from consciousness
 let _breathAngle = 0;
 let _lastMotionTs = null;
 function idleMotionLoop(tsMs) {
@@ -766,21 +799,14 @@ function idleMotionLoop(tsMs) {
   }
   const chestGroup = document.getElementById('av-chest-group');
   const faceGroup = document.getElementById('av-face-group');
-  const hairGroup = document.getElementById('av-top');
   const breathPhase = _lastRR > 0 ? Math.sin(_breathAngle) : 0;
-  const swayPhase = Math.sin((tsMs / 7000) * 2 * Math.PI) * _swayScale;
   if (chestGroup) {
     const chestY = breathPhase * (3 + _wobAmplitude * 1.5);
     chestGroup.setAttribute('transform', `translate(8, ${chestY.toFixed(2)})`);
   }
   if (faceGroup) {
     const headY = breathPhase * (0.4 + _wobAmplitude * 1.6);
-    const headX = swayPhase * 2.5;
-    faceGroup.setAttribute('transform', `translate(${(8 + headX).toFixed(2)}, ${headY.toFixed(2)})`);
-  }
-  if (hairGroup) {
-    const hairX = -1 + swayPhase * 1.2; // slightly more than the face's own sway — cheap parallax
-    hairGroup.setAttribute('transform', `translate(${hairX.toFixed(2)}, 0)`);
+    faceGroup.setAttribute('transform', `translate(8, ${headY.toFixed(2)})`);
   }
   requestAnimationFrame(idleMotionLoop);
 }
@@ -809,15 +835,30 @@ function setSweat(moistureState, frac) {
   setDrop('av-sweat-c', f >= 0.65);  // third (forehead) drop only once heavily diaphoretic
 }
 
-// Maps this page's clinical mouth states onto Avataaars' named expressions
-// — 'grimace' is a literal match, the rest are the closest visual fit.
+// Maps this page's clinical mouth states onto Avataaars' named expressions.
 // talkOpen is the "mouth open" frame the TTS-driven talking animation
 // alternates with (see startTalkAnimation()); every other state is a
-// resting expression driven by pain/distress/consciousness.
-const MOUTH_VARIANT = { neutral: 'default', mild: 'serious', distress: 'concerned', grimace: 'grimace', slack: 'sad', talkOpen: 'screamOpen' };
+// resting expression driven by pain/distress/consciousness/mood.
+// NOTE: avatar_assets.js's extraction only kept 10 of DiceBear's 12 named
+// mouth variants — 'Grimace' and 'Serious' (the original literal matches
+// for pain/mild-distress) aren't present, so those two map to the closest
+// visual fits actually available ('vomit' — a scrunched, pained-looking
+// shape — and 'default') rather than silently rendering nothing.
+const MOUTH_VARIANT = { neutral: 'default', mild: 'default', distress: 'concerned', grimace: 'vomit', slack: 'sad', talkOpen: 'screamOpen',
+  angry: 'default', agitated: 'concerned', tearful: 'sad', anxious: 'concerned', confused: 'disbelief' };
 function setMouth(stateKey) {
   const variant = MOUTH_VARIANT[stateKey] || MOUTH_VARIANT.neutral;
   document.getElementById('av-mouth').innerHTML = AvatarAssets.mouth[variant];
+}
+
+// Mood-driven eyebrow shape — 'calm' (the default/unset case) intentionally
+// has no entry here, since it means "use this patient's own per-scenario
+// neutral eyebrow pick" (avatarBuild.eyebrowStyle, chosen once for variety —
+// see buildAvatarBase()) rather than forcing every calm patient onto the
+// same identical shape.
+const MOOD_EYEBROW = { angry: 'angryNatural', agitated: 'frownNatural', tearful: 'sadConcernedNatural', anxious: 'sadConcernedNatural', confused: 'upDownNatural' };
+function setEyebrows(styleKey) {
+  document.getElementById('av-eyebrows').innerHTML = AvatarAssets.eyebrows[styleKey || avatarBuild.eyebrowStyle];
 }
 
 // Live per-tick state — resting expression is computed regardless of whether
@@ -846,15 +887,22 @@ function updateAvatarFace(v) {
   setEyeOpenness(eyeLevel);
   _lastRR = Number.isFinite(v.RR) ? v.RR : _lastRR;
   _wobAmplitude = Math.min(1, (typeof app.wob === 'number' ? app.wob : 4) / 4);
-  const totalGCS = (v.gcsE || 0) + (v.gcsV || 0) + (v.gcsM || 0);
-  _swayScale = Math.max(0, Math.min(1, (totalGCS - 8) / 7));
   applySkinTint(app);
   setLipCyanosis(app.lipCyanosisFrac);
   setSweat(app.moisture, app.moistureFrac);
+  // Mood (scenario-authored — see patientMood/parseScenarioMood) drives
+  // eyebrows and, when physiology is otherwise unremarkable, the resting
+  // mouth too — but vitals still win: an unresponsive patient shows a
+  // neutral/relaxed expression regardless of mood ("if GCS 3, it doesn't
+  // matter if they're angry"), and severe pain/physiological distress still
+  // grimace/look-distressed through an angry or anxious mood, not around it.
+  const moodActive = !app.unresponsive && patientMood !== 'calm';
+  setEyebrows(moodActive ? MOOD_EYEBROW[patientMood] : null);
   let mouthState;
   if (app.unresponsive) mouthState = 'slack';
   else if (app.pain >= 7) mouthState = 'grimace';
   else if (app.distressLevel >= 2) mouthState = 'distress';
+  else if (moodActive) mouthState = patientMood;
   else if (app.distressLevel === 1 || app.pain >= 1) mouthState = 'mild';
   else mouthState = 'neutral';
   _restingMouthState = mouthState;
@@ -953,6 +1001,7 @@ async function connectSession(code) {
           }
           if (gender === 'male' || gender === 'female') patientGender = gender;
           const age = meta.age != null ? meta.age : SimEngine.parseAgeFromScenario(scen);
+          patientMood = SimEngine.parseScenarioMood(meta.mood);
           buildAvatarBase(row.scenario_id, meta.skin_colour, gender, age);
         })
         .catch(() => {});

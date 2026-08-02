@@ -99,6 +99,17 @@ button.secondary:hover { background: #475569; }
   <div class="row"><label>SpO2</label><input type="range" id="r-SpO2" min="0" max="100" value="98" oninput="onSlider()"><span class="val" id="v-SpO2">98</span></div>
   <div class="row"><label>BP sys</label><input type="range" id="r-BPsys" min="-10" max="250" value="120" oninput="onSlider()"><span class="val" id="v-BPsys">120</span></div>
   <div class="row"><label>Pain</label><input type="range" id="r-pain" min="0" max="10" value="0" oninput="onSlider()"><span class="val" id="v-pain">0</span></div>
+  <div class="row"><label>Mood</label>
+    <select id="sel-mood" onchange="onSlider()">
+      <option value="calm">calm</option>
+      <option value="anxious">anxious</option>
+      <option value="tearful">tearful</option>
+      <option value="agitated">agitated</option>
+      <option value="angry">angry</option>
+      <option value="confused">confused</option>
+    </select>
+    <span style="font-size:10px;color:#94a3b8;">scenario-authored; suppressed when unresponsive</span>
+  </div>
 
   <h2>GCS (drives eyes + mouth)</h2>
   <div class="row"><label>Eye (E)</label><input type="range" id="r-gcsE" min="1" max="4" value="4" oninput="onSlider()"><span class="val" id="v-gcsE">4</span></div>
@@ -165,7 +176,7 @@ button.secondary:hover { background: #475569; }
 // --- Verbatim copies of sim_patient.html's avatar functions, restyled to
 // take slider input instead of live session vitals — see CLAUDE.md's
 // "Patient avatar" section. Keep this in sync if the real thing changes.
-let avatarBuild = { skin: '#E0AC81', hairColour: '#3b2b20', hairStyle: 'shortFlat', eyebrowStyle: 'defaultNatural', ageBand: 'adult', clothesColour: '#3b6ea5' };
+let avatarBuild = { skin: '#E0AC81', hairColour: '#3b2b20', hairStyle: 'shortFlat', eyebrowStyle: 'defaultNatural', ageBand: 'adult', ageYears: null, clothesColour: '#3b6ea5' };
 const HAIR_COLOURS = ['#1b1410', '#3b2b20', '#5a3b23', '#8a5a2b', '#c9a227', '#7a2e1d', '#8c8c8c', '#b0b0b0', '#e8e4dc'];
 const GREY_HAIR_COLOURS = new Set(['#8c8c8c', '#b0b0b0', '#e8e4dc']);
 const SKIN_TONE_SWATCHES = ['#F5D5C5', '#EFC3A3', '#E0AC81', '#C68863', '#A96C4A', '#8D5A3B', '#6B4530', '#4A2F20'];
@@ -204,11 +215,21 @@ function greyWeight(age) {
   if (years == null) return 0;
   return Math.max(0, Math.min(1, (years - 40) / 35));
 }
-const AGE_SCALE = { infant: 0.78, toddler: 0.85, child: 0.9, teen: 0.95, adult: 1 };
-const EYE_SCALE_X = { infant: 1.1, toddler: 1.08, child: 1.05, teen: 1.02, adult: 1 };
-const EYE_SCALE_Y = { infant: 1.6, toddler: 1.4, child: 1.2, teen: 1.08, adult: 1 };
-const FACE_LOWER_OFFSET = { infant: 12, toddler: 9, child: 5, teen: 2, adult: 0 };
-const HEAD_BULGE = { infant: 1.2, toddler: 1.1, child: 1.05, teen: 1.02, adult: 1 };
+// Continuous function of exact age in years — see sim_patient.html's copy
+// for the full rationale (reaches adult value exactly at 18, no more
+// banded jumps; HEAD_BULGE_AT_ZERO sized so a newborn's head reads close to
+// as wide as the body's own torso silhouette).
+function ageRamp(years, atZero, atEighteen) {
+  if (years == null) return atEighteen;
+  const t = Math.max(0, Math.min(1, years / 18));
+  return atZero + (atEighteen - atZero) * t;
+}
+const AGE_SCALE_AT_ZERO = 0.78;
+const EYE_SCALE_X_AT_ZERO = 1.1;
+const EYE_SCALE_Y_AT_ZERO = 1.6;
+const FACE_LOWER_OFFSET_AT_ZERO = 12;
+const MOUTH_LOWER_OFFSET_AT_ZERO = 4;
+const HEAD_BULGE_AT_ZERO = 1.7;
 const ADULT_ONLY_HAIR = new Set(['theCaesar', 'theCaesarAndSidePart', 'shavedSides', 'sides']);
 const CLOTHES_COLOURS = ['#3b6ea5', '#22577a', '#5c4b8a', '#7a2e2e', '#2f6d4f', '#4a4a4a', '#8a5a2b', '#1a1a1a', '#c9a227', '#6b4c9a', '#b0392f', '#3d3d3d'];
 
@@ -230,6 +251,7 @@ function weightedPick(keys, weightOf, h) {
 function buildAvatarBase(seed, skinHex, gender, age) {
   avatarBuild.skin = skinHex || avatarBuild.skin;
   avatarBuild.ageBand = ageBandFromMeta(age);
+  avatarBuild.ageYears = parseAgeYears(age);
   const s = String(seed || 'default');
   const allowAdultHair = avatarBuild.ageBand === 'teen' || avatarBuild.ageBand === 'adult';
   const hairKeys = Object.keys(AvatarAssets.top).filter(k => allowAdultHair || !ADULT_ONLY_HAIR.has(k));
@@ -248,24 +270,25 @@ function buildAvatarBase(seed, skinHex, gender, age) {
   syncBuildSelectsToState();
 }
 function applyAgeScale() {
-  const band = avatarBuild.ageBand;
-  const s = AGE_SCALE[band] || 1;
+  const years = avatarBuild.ageYears;
+  const s = ageRamp(years, AGE_SCALE_AT_ZERO, 1);
   document.getElementById('av-scale-group').setAttribute('transform', `translate(140,36) scale(${s}) translate(-140,-36)`);
-  const dy = FACE_LOWER_OFFSET[band] || 0;
-  const eyeScaleX = EYE_SCALE_X[band] || 1;
-  const eyeScaleY = EYE_SCALE_Y[band] || 1;
+  const dy = ageRamp(years, FACE_LOWER_OFFSET_AT_ZERO, 0);
+  const mouthDy = ageRamp(years, MOUTH_LOWER_OFFSET_AT_ZERO, 0);
+  const eyeScaleX = ageRamp(years, EYE_SCALE_X_AT_ZERO, 1);
+  const eyeScaleY = ageRamp(years, EYE_SCALE_Y_AT_ZERO, 1);
   document.getElementById('av-eyebrows').setAttribute('transform', `translate(76 ${82 + dy})`);
-  document.getElementById('av-mouth').setAttribute('transform', `translate(78 ${134 + dy})`);
-  document.getElementById('av-lip-cyanosis').setAttribute('transform', `translate(78 ${134 + dy})`);
+  document.getElementById('av-mouth').setAttribute('transform', `translate(78 ${134 + mouthDy})`);
+  document.getElementById('av-lip-cyanosis').setAttribute('transform', `translate(78 ${134 + mouthDy})`);
   document.getElementById('av-eyes').setAttribute('transform', `translate(76 ${90 + dy}) translate(56,22) scale(${eyeScaleX},${eyeScaleY}) translate(-56,-22)`);
-  const bulgeR = 56 * (HEAD_BULGE[band] || 1);
+  const bulgeR = 56 * ageRamp(years, HEAD_BULGE_AT_ZERO, 1);
   const bulge = document.getElementById('av-head-bulge');
   bulge.setAttribute('rx', bulgeR.toFixed(1));
   bulge.setAttribute('ry', bulgeR.toFixed(1));
 }
 function renderAvatarBuild() {
   document.getElementById('av-top').innerHTML = avatarBuild.hairStyle ? AvatarAssets.top[avatarBuild.hairStyle].replace(/__HAIRCOLOR__/g, avatarBuild.hairColour) : '';
-  document.getElementById('av-eyebrows').innerHTML = AvatarAssets.eyebrows[avatarBuild.eyebrowStyle];
+  setEyebrows();
   document.getElementById('av-eyes-closed-overlay').innerHTML = AvatarAssets.eyes.closed;
   document.getElementById('av-clothes-static-path').setAttribute('fill', avatarBuild.clothesColour);
   document.getElementById('av-chest-path').setAttribute('fill', avatarBuild.clothesColour);
@@ -387,7 +410,6 @@ scheduleNextBlink();
 
 let _lastRR = 16;
 let _wobAmplitude = 0;
-let _swayScale = 1;
 let _breathAngle = 0;
 let _lastMotionTs = null;
 function idleMotionLoop(tsMs) {
@@ -399,21 +421,14 @@ function idleMotionLoop(tsMs) {
   }
   const chestGroup = document.getElementById('av-chest-group');
   const faceGroup = document.getElementById('av-face-group');
-  const hairGroup = document.getElementById('av-top');
   const breathPhase = _lastRR > 0 ? Math.sin(_breathAngle) : 0;
-  const swayPhase = Math.sin((tsMs / 7000) * 2 * Math.PI) * _swayScale;
   if (chestGroup) {
     const chestY = breathPhase * (3 + _wobAmplitude * 1.5);
     chestGroup.setAttribute('transform', `translate(8, ${chestY.toFixed(2)})`);
   }
   if (faceGroup) {
     const headY = breathPhase * (0.4 + _wobAmplitude * 1.6);
-    const headX = swayPhase * 2.5;
-    faceGroup.setAttribute('transform', `translate(${(8 + headX).toFixed(2)}, ${headY.toFixed(2)})`);
-  }
-  if (hairGroup) {
-    const hairX = -1 + swayPhase * 1.2;
-    hairGroup.setAttribute('transform', `translate(${hairX.toFixed(2)}, 0)`);
+    faceGroup.setAttribute('transform', `translate(8, ${headY.toFixed(2)})`);
   }
   requestAnimationFrame(idleMotionLoop);
 }
@@ -435,11 +450,19 @@ function setSweat(moistureState, frac) {
   setDrop('av-sweat-l', f >= 0.35);
   setDrop('av-sweat-c', f >= 0.65);
 }
-const MOUTH_VARIANT = { neutral: 'default', mild: 'serious', distress: 'concerned', grimace: 'grimace', slack: 'sad', talkOpen: 'screamOpen' };
+// See sim_patient.html's copy for why 'mild'/'grimace' map to 'default'/'vomit'
+// rather than the nonexistent 'serious'/'grimace' asset keys.
+const MOUTH_VARIANT = { neutral: 'default', mild: 'default', distress: 'concerned', grimace: 'vomit', slack: 'sad', talkOpen: 'screamOpen',
+  angry: 'default', agitated: 'concerned', tearful: 'sad', anxious: 'concerned', confused: 'disbelief' };
 function setMouth(stateKey) {
   const variant = MOUTH_VARIANT[stateKey] || MOUTH_VARIANT.neutral;
   document.getElementById('av-mouth').innerHTML = AvatarAssets.mouth[variant];
 }
+const MOOD_EYEBROW = { angry: 'angryNatural', agitated: 'frownNatural', tearful: 'sadConcernedNatural', anxious: 'sadConcernedNatural', confused: 'upDownNatural' };
+function setEyebrows(styleKey) {
+  document.getElementById('av-eyebrows').innerHTML = AvatarAssets.eyebrows[styleKey || avatarBuild.eyebrowStyle];
+}
+let patientMood = 'calm';
 let _restingMouthState = 'neutral';
 let _isSpeaking = false;
 function updateAvatarFace(v) {
@@ -452,15 +475,16 @@ function updateAvatarFace(v) {
   setEyeOpenness(eyeLevel);
   _lastRR = Number.isFinite(v.RR) ? v.RR : _lastRR;
   _wobAmplitude = Math.min(1, (typeof app.wob === 'number' ? app.wob : 4) / 4);
-  const totalGCS = (v.gcsE || 0) + (v.gcsV || 0) + (v.gcsM || 0);
-  _swayScale = Math.max(0, Math.min(1, (totalGCS - 8) / 7));
   applySkinTint(app);
   setLipCyanosis(app.lipCyanosisFrac);
   setSweat(app.moisture, app.moistureFrac);
+  const moodActive = !app.unresponsive && patientMood !== 'calm';
+  setEyebrows(moodActive ? MOOD_EYEBROW[patientMood] : null);
   let mouthState;
   if (app.unresponsive) mouthState = 'slack';
   else if (app.pain >= 7) mouthState = 'grimace';
   else if (app.distressLevel >= 2) mouthState = 'distress';
+  else if (moodActive) mouthState = patientMood;
   else if (app.distressLevel === 1 || app.pain >= 1) mouthState = 'mild';
   else mouthState = 'neutral';
   _restingMouthState = mouthState;
@@ -490,6 +514,7 @@ function onSlider() {
   ['HR','RR','SpO2','BPsys','pain','gcsE','gcsV','gcsM'].forEach(k => {
     document.getElementById('v-' + k).textContent = document.getElementById('r-' + k).value;
   });
+  patientMood = document.getElementById('sel-mood').value;
   const v = readVitals();
   document.getElementById('v-gcsTotal').textContent = v.gcsE + v.gcsV + v.gcsM;
   updateAvatarFace(v);

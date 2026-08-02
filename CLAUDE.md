@@ -212,13 +212,25 @@ number of years, a "N months" string, or the literal string "newborn";
 older scenarios predate the field and fall through to 'adult', not a guess)
 drives two more build-time effects, added after a paediatric scenario
 rendered as a literal middle-aged adult:
-- **`AGE_SCALE`**: the whole figure is scaled (`av-scale-group`, anchored at
-  the top of the head at (140,36) so it shrinks toward that point rather
-  than the viewBox origin) — infant 0.78 through teen 0.95, adult 1. Kept
+- **`ageRamp(years, atZero, atEighteen)`**: every age-scaling property below
+  is a continuous function of `avatarBuild.ageYears` (exact age in years,
+  separate from the discrete `ageBand` string used for hair-pool/grey-weight
+  decisions), linearly interpolating from its `atZero` (newborn) value to
+  its `atEighteen` (adult/normal) value — reaching "normal" exactly at 18,
+  not at a banded cutoff. Previously these were keyed by the 5 discrete
+  `ageBand` buckets (infant/toddler/child/teen/adult), which both capped out
+  at the 'teen' value for anyone up to 17 (never actually reaching the adult
+  look until crossing into the 'adult' band at 18) and jumped
+  discontinuously at each band boundary (e.g. age 4.99 vs 5.0) instead of
+  scaling smoothly. Unknown age (`years == null`) returns the adult value,
+  matching `ageBandFromMeta()`'s own fallback.
+- **`AGE_SCALE_AT_ZERO` (0.78)**: the whole figure is scaled (`av-scale-group`,
+  anchored at the top of the head at (140,36) so it shrinks toward that
+  point rather than the viewBox origin), reaching 1 (no shrink) at 18. Kept
   fairly close to 1 (an earlier version went down to 0.6 for infants) —
-  most of the "younger" cue now comes from `HEAD_BULGE` below rather than
-  shrinking the whole figure hard, which read as "a tiny adult" and made
-  infants disappear on screen rather than looking younger.
+  most of the "younger" cue comes from `HEAD_BULGE_AT_ZERO` below rather
+  than shrinking the whole figure hard, which read as "a tiny adult" and
+  made infants disappear on screen rather than looking younger.
 - **`ADULT_ONLY_HAIR`**: a small set of structured/receding-hairline-prone
   cuts (theCaesar, theCaesarAndSidePart, shavedSides, sides) excluded from
   the hair pool below teen — a hard filter, unlike the gender lean, since
@@ -227,27 +239,38 @@ rendered as a literal middle-aged adult:
   entirely (`avatarBuild.hairStyle = null`, `#av-top` left empty) — real
   babies are frequently bald or near-bald and nothing in the pool reads as
   "infant hair," the shortest options are still styled cuts.
-- **`EYE_SCALE_X`/`EYE_SCALE_Y`/`FACE_LOWER_OFFSET`**: the classic cartoon
-  "younger = bigger eyes, face sits lower/rounder" cues, layered on top of
-  `AGE_SCALE` since eyes/eyebrows/mouth are already independent groups that
-  can move/scale on their own — `#av-eyes` scales around its own on-screen
-  centre (56,22), while eyes/eyebrows/mouth all shift down as a unit,
-  hair/head outline untouched. X and Y scale separately rather than one
-  shared factor: scaling around the two-eye centre moves each eye away from
-  it by the same factor it grows them, so an earlier single `EYE_SCALE` of
-  1.45 for infants also pushed the two eyes 45% further apart — read as
-  wall-eyed/alien rather than "big eyed". Y still does most of the work
-  (infant 1.6) for the bigger/rounder look; X stays close to 1 (infant 1.1)
-  so eyes grow without spreading far apart.
-- **`HEAD_BULGE`**: makes the head outline itself read as proportionally
-  bigger for younger bands (infant 1.2 down to adult 1), which `EYE_SCALE`/
-  `FACE_LOWER_OFFSET` alone don't touch — the head/body outline is one
-  rigid path shared with the torso, no separate head/body art to scale
-  independently. Worked around with `#av-head-bulge`, a same-fill circle
+- **`EYE_SCALE_X_AT_ZERO`/`EYE_SCALE_Y_AT_ZERO`/`FACE_LOWER_OFFSET_AT_ZERO`**:
+  the classic cartoon "younger = bigger eyes, face sits lower/rounder" cues,
+  layered on top of the whole-figure scale since eyes/eyebrows/mouth are
+  already independent groups that can move/scale on their own — `#av-eyes`
+  scales around its own on-screen centre (56,22), while eyes/eyebrows shift
+  down as a unit by `FACE_LOWER_OFFSET_AT_ZERO`'s ramp. X and Y scale
+  separately rather than one shared factor: scaling around the two-eye
+  centre moves each eye away from it by the same factor it grows them, so
+  an earlier single `EYE_SCALE` of 1.45 for infants also pushed the two eyes
+  45% further apart — read as wall-eyed/alien rather than "big eyed". Y
+  still does most of the work (1.6 at age 0) for the bigger/rounder look; X
+  stays close to 1 (1.1 at age 0) so eyes grow without spreading far apart.
+  The mouth uses its own, smaller `MOUTH_LOWER_OFFSET_AT_ZERO` (4, not 12)
+  rather than sharing the eyes/eyebrows offset — at the shared value,
+  newborn mouths sat too low (too close to the chin/jaw curve).
+- **`HEAD_BULGE_AT_ZERO` (1.7)**: makes the head outline itself read as
+  proportionally bigger for younger ages (ramping down to 1, no bulge, at
+  18), which `EYE_SCALE`/`FACE_LOWER_OFFSET` alone don't touch — the
+  head/body outline is one rigid path shared with the torso, no separate
+  head/body art to scale independently. Sized so a newborn's bulge diameter
+  (2 × 56 × 1.7 ≈ 190px) approaches `headBodyPaths`' own widest point (the
+  ~200px hem at the bottom of the body shape — the only "torso width"
+  reference this art actually has in the right ballpark) — a real
+  newborn's head circumference is roughly equal to their chest
+  circumference, so the head should read as close to as wide as the body,
+  not just "a bit bigger than usual". The previous banded value capped at
+  1.2 (bulgeR 67), which barely read as bigger than an adult's. Worked
+  around with `#av-head-bulge`, a same-fill circle
   behind `#av-head-path` centred on the head arc's own centre (cx=132,
   cy=92, matching the path's own "a56 56" head arc) at a LARGER radius:
   because it's a circle, it naturally tapers to zero width by y~148-167
-  (depending on band), safely above the jaw/neck curve, so a bigger radius
+  (depending on age), safely above the jaw/neck curve, so a bigger radius
   reads as a wider/rounder head+cheeks with no clipping and no seam against
   the body below — avoids the whole "second chin" class of bug by
   construction, since there's no hard edge to mismatch.
@@ -278,23 +301,55 @@ rendered as a literal middle-aged adult:
   eye rather than a heavy/half-closed one. `closed` still reuses the real
   `AvatarAssets.eyes.closed` asset (a plain eyelid crease, no sclera
   needed) via the always-present `av-eyes-closed-overlay` group, toggled
-  visible instead of swapped in. Skin tint blended toward
-  cyanotic/mottled/pale (applied to `#av-head-path`/`#av-head-bulge`/eyelids
-  only — clothing is deliberately NOT tinted, since cyanosis/pallor/
-  mottling wouldn't show through fabric), sweat droplets shown for
-  diaphoretic/clammy, and a resting mouth expression
-  (neutral/mild/distress/grimace/slack, mapped onto Avataaars' named mouth
-  shapes — `grimace` for pain is a literal match) from pain score, distress
-  level, and consciousness. Driven by `SimEngine.getAppearanceState(v)` — the
-  same severity bands (`hrSeverity`/`rrSeverity`/`spo2Severity`/
-  `painSeverity`/`bpSysSeverity`) `sim_control.html`'s assessor-facing
-  Appearance tab computes independently, kept in `sim_engine.js` as the one
-  shared source rather than two threshold tables drifting apart.
+  visible instead of swapped in. Skin appearance (pallor/flush/cyanosis,
+  applied to `#av-head-path`/`#av-head-bulge`/eyelids only — clothing is
+  deliberately NOT tinted, since these wouldn't show through fabric) and
+  diaphoresis are covered in their own section below. Resting mouth
+  expression (neutral/mild/distress/grimace/slack, plus mood states —
+  mapped onto Avataaars' named mouth shapes; `avatar_assets.js`'s
+  extraction only kept 10 of DiceBear's 12 mouth variants, so 'mild' and
+  'grimace' map to 'default'/'vomit' rather than the nonexistent
+  'serious'/'grimace' keys, which would otherwise silently render nothing)
+  comes from pain score, distress level, consciousness, and mood (see
+  below).
+  Driven by `SimEngine.getAppearanceState(v)` — the same severity bands
+  (`hrSeverity`/`rrSeverity`/`spo2Severity`/`painSeverity`/`bpSysSeverity`)
+  `sim_control.html`'s assessor-facing Appearance tab computes
+  independently, kept in `sim_engine.js` as the one shared source rather
+  than two threshold tables drifting apart.
   `updateAvatarFace()`, called from `tick()` — always as the LAST thing
   tick() does, wrapped in try/catch (see Gotchas): tick() runs once
   synchronously before the setInterval(tick,...) that keeps the page live
   even gets registered, so a throw anywhere earlier in the avatar path would
   silently freeze vitals/override-sync too, not just the avatar.
+
+### Mood (eyebrows, and mouth when physiology is otherwise unremarkable)
+
+`patient_meta.mood` is scenario-authored free text (generator.html's AI
+prompt, e.g. "Anxious and tearful", "Agitated and uncooperative" — same
+free-text-plus-fuzzy-match pattern as `vitals.Rhythm`), fuzzy-mapped once
+per session (not every tick — it can't change mid-scenario) by
+`SimEngine.parseScenarioMood()` into one of calm/anxious/tearful/agitated/
+angry/confused, stored in `patientMood`. `calm` (the default/unset case)
+deliberately has no eyebrow-shape entry in `MOOD_EYEBROW` — it means "use
+this patient's own per-scenario neutral eyebrow pick"
+(`avatarBuild.eyebrowStyle`, chosen once for variety, same as hair/eyebrow
+style always were) rather than forcing every calm patient onto one
+identical shape. Eyebrows were previously fixed at build time only (picked
+once, never touched again) — mood is what makes them a live, tick-driven
+element like the mouth already was (`setEyebrows()`, called from
+`updateAvatarFace()` alongside `setMouth()`).
+
+Vitals still win over mood, deliberately: `updateAvatarFace()` only applies
+mood (`moodActive = !app.unresponsive && patientMood !== 'calm'`) when the
+patient isn't unresponsive — an angry patient at GCS 3 shows the same
+neutral/relaxed expression as any other unresponsive patient, not angry
+eyebrows on a slack face. Within mood-active states, physiological findings
+still take priority for the MOUTH specifically (severe pain still grimaces,
+significant physiological distress still looks distressed) — mood only
+supplies the mouth when physiology is otherwise in the unremarkable range,
+though it always drives eyebrows whenever active, since there's no
+physiological eyebrow signal to compete with.
 
 GCS eye-opening (E) maps to clinical exam findings, not a linear scale: E4
 open spontaneously, E3 ("opens to voice") droopy/half-open at rest and only
@@ -352,21 +407,15 @@ animation reads as a slideshow, not motion), all inside one
   "resetting" and looking too fast). Accumulating means a period change
   only changes the rate of future advancement, not the current position
   in the cycle — verified by sampling chest-Y across a live RR change:
-  smooth acceleration, no jump. Sway below uses a fixed period so it was
-  never affected.
-- **Idle sway**: a slow ~7s side-to-side on `#av-face-group`'s X, unrelated
-  to any vital sign — purely "not a frozen photo". `#av-top` (hair) gets a
-  slightly larger version of the same sway on top of inheriting the face
-  group's, a cheap parallax cue (nearer layer moves more) rather than the
-  whole head reading as one flat sticker. Scaled by `_swayScale` — derived
-  from total GCS in `updateAvatarFace()`, tapering to zero as GCS drops
-  toward the unresponsive threshold, since an unconscious patient idly
-  looking around would be the wrong signal.
+  smooth acceleration, no jump.
 
-Mouth also flaps between a talking frame and the current resting expression
-while patient TTS is actually speaking (`utter.onstart`/`onend` in
-`checkForPatientReply()` drive `startTalkAnimation()`/`stopTalkAnimation()`)
-— so a distressed patient still looks distressed mid-sentence, not neutral.
+There used to be a slow ~7s idle side-to-side sway here too (`#av-face-group`
+X, plus a parallax version on `#av-top`), purely "not a frozen photo" and
+unrelated to any vital sign. Removed — its horizontal motion competed with
+the chest/head breathing rise (the actual RR cue) for attention, making
+respiratory rate harder to read at a glance than it should be. If a "not a
+frozen photo" idle cue is wanted again, it should avoid moving anything on
+the same axis the breathing animation uses.
 
 Mouth also flaps between a talking frame and the current resting expression
 while patient TTS is actually speaking (`utter.onstart`/`onend` in

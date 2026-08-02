@@ -1185,7 +1185,7 @@ async function classifyCPGFromText(freeText) {
   }
 }
 
-const SCENARIO_JSON_TEMPLATE = `{"title":"","subtitle":"","category":"CAT","subcategory":"SUB","type":"","cpg":"","additional_cpgs":[],"level":"C/D","dispatch":"","vitals":{"GCS":{"E":0,"V":0,"M":0,"total":0,"description":""},"SpO2":"","RR":"","HR":"","BP":"","Temp":"","BGL":"","Rhythm":"","Weight":"","Ketones":"","EtCO2":"","PainScore":0,"NauseaScore":0},"caller_hx":"","arrival_hx":"","hx":{"timeline":"","nature":"","prodromal":"","aggreliev":"","assoc":"","similar":""},"medical_conditions":["","",""],"medications":["","",""],"allergies":"","flags":{"red":[],"yellow":[]},"ddx":["","","",""],"provisional":"","ra":{"wob":"","skin":""},"ps_exposure":"","social":"","rsa":{"appearance":"","speech":"","breath_sounds":"","rhythm":"","wob":""},"secondary_survey":{},"life_threats":["",""],"baseline_cognitive_status":"","pregnancy_status":"","kq":[{"q":"","max":2,"answer":"","cpgCode":""},{"q":"","max":2,"answer":"","cpgCode":""},{"q":"","max":1,"answer":"","cpgCode":""}]}`;
+const SCENARIO_JSON_TEMPLATE = `{"title":"","subtitle":"","category":"CAT","subcategory":"SUB","type":"","cpg":"","additional_cpgs":[],"level":"C/D","dispatch":"","vitals":{"GCS":{"E":0,"V":0,"M":0,"total":0,"description":""},"SpO2":"","RR":"","HR":"","BP":"","Temp":"","BGL":"","Rhythm":"","Weight":"","Ketones":"","EtCO2":"","PainScore":0,"NauseaScore":0},"caller_hx":"","arrival_hx":"","hx":{"timeline":"","nature":"","prodromal":"","aggreliev":"","assoc":"","similar":""},"medical_conditions":["","",""],"medications":["","",""],"allergies":"","flags":{"red":[],"yellow":[]},"ddx":["","","",""],"provisional":"","ra":{"wob":"","skin":""},"ps_exposure":"","social":"","rsa":{"appearance":"","speech":"","breath_sounds":"","rhythm":"","wob":""},"secondary_survey":{},"life_threats":["",""],"baseline_cognitive_status":"","pregnancy_status":"","mood":"","kq":[{"q":"","max":2,"answer":"","cpgCode":""},{"q":"","max":2,"answer":"","cpgCode":""},{"q":"","max":1,"answer":"","cpgCode":""}]}`;
 // Note: medical_conditions = short list e.g. ["Asthma (previous ICU admission)", "Type 2 Diabetes", "Hypertension"]
 // medications = short list e.g. ["Metoprolol 50mg daily", "Aspirin 100mg", "Candesartan 8mg"]
 // key_hx = legacy field kept for backwards compat with built-in scenarios; new scenarios use caller_hx + arrival_hx
@@ -1367,6 +1367,7 @@ For vitals.PainScore: an integer 0–10 (numeric pain score, not a string). Use 
 For vitals.NauseaScore: an integer 0–10 (numeric nausea severity, not a string), independent of PainScore — a patient can have significant nausea with little/no pain (e.g. gastroenteritis, vestibular causes, DKA) or significant pain with little/no nausea (e.g. an isolated limb fracture). Use 0 if nausea is not a relevant feature of this presentation. If relevant, give a realistic score consistent with the presentation (e.g. persistent vomiting presentations should score highly, 7-9).
 For "baseline_cognitive_status": a short phrase describing the patient's NORMAL baseline mental state when well — default "Normal baseline cognition" for the great majority of scenarios. Only deviate from this if medical_conditions includes a condition that would genuinely alter baseline presentation (e.g. dementia, intellectual disability, acquired brain injury) — in that case, describe it briefly (e.g. "Baseline mild dementia — usually oriented to person only, lives with family support"). This exists so an assessor doesn't mistake a patient's normal baseline for acute deterioration.
 For "pregnancy_status": for any female patient of reproductive age (roughly teens to 50s), state pregnancy status even if not clinically relevant to the presenting complaint — either "Not pregnant" or "Pregnant, approximately N weeks gestation" (choose a clinically sensible gestation if pregnant). Use "Not applicable" for male, paediatric, or clearly post-menopausal patients.
+For "mood": the patient's emotional demeanour/affect during this encounter (distinct from their physical distress level, which is derived separately from vitals) — free text, e.g. "Calm and cooperative", "Anxious and tearful", "Agitated and uncooperative", "Angry, hostile to crew", "Confused and disoriented". Base it on what the presentation and context would plausibly produce — a frightening acute event (chest pain, breathlessness, trauma) often reads as anxious; hypoxia, a head injury, intoxication, or a psychiatric presentation can produce agitation or aggression; a long-running frustrating complaint might read as irritable. Default to "Calm and cooperative" if nothing about the presentation suggests otherwise. This drives the patient avatar's live facial expression (eyebrows especially) — but note the avatar will override it with a neutral/unresponsive look whenever the patient's GCS is too low to plausibly express mood, so don't feel obliged to make an unconscious/critically unwell patient's mood dramatic.
 For the "ra" field (Rapid Assessment — what is seen at a glance on approach):
 - ra.wob: brief visual impression of breathing effort — one of: "Adequate" | "Increased effort" | "Decreased effort" | "Agonal" | "Not breathing" | "Laboured" | "Shallow"
 - ra.skin: brief visual impression of skin on approach — concise phrase describing colour, moisture, and temperature (e.g. "Warm, pink, dry" | "Pale, diaphoretic" | "Cyanosed, mottled" | "Flushed, warm" | "Cold, pale, mottled" | "Jaundiced" | "Urticarial rash"). Match to patient's clinical state and ethnicity where relevant.
@@ -1447,14 +1448,17 @@ ${SCENARIO_JSON_TEMPLATE.replace('CAT', category).replace('SUB', subcategory)}`;
     }
     // Patient metadata — name/gender/age/ethnicity/skin_colour come from the
     // code-generated `patient` object (never the AI), so the exact name fed
-    // into the prompt is guaranteed to match what's stored. baseline_cognitive_status
-    // and pregnancy_status ARE AI-authored (context-dependent) — pulled off the
+    // into the prompt is guaranteed to match what's stored. baseline_cognitive_status,
+    // pregnancy_status, and mood ARE AI-authored (context-dependent) — pulled off the
     // top-level response and folded in here, then removed as top-level keys.
     // gender/age/skin_colour/hair are what sim_patient.html's dynamic avatar
     // builds its base look from — see CLAUDE.md. age is patient.age verbatim
     // (a plain number of years, a "N months" string, or the literal string
     // "newborn" — see randomAustralianPatient()), not reformatted here so
     // the avatar's own age-banding logic is the one place that parses it.
+    // mood is free text, fuzzy-matched by SimEngine.parseScenarioMood() into
+    // a small canonical set that drives the avatar's live eyebrow/mouth
+    // expression — see sim_patient.html.
     scenario.patient_meta = {
       name: patient.name,
       gender: patient.gender,
@@ -1462,9 +1466,11 @@ ${SCENARIO_JSON_TEMPLATE.replace('CAT', category).replace('SUB', subcategory)}`;
       ethnicity: patient.ethnicity,
       skin_colour: pickSkinToneForEthnicity(patient.ethnicity),
       baseline_cognitive_status: (scenario.baseline_cognitive_status || '').trim() || 'Normal baseline cognition',
-      pregnancy_status: (scenario.pregnancy_status || '').trim() || 'Not applicable'
+      pregnancy_status: (scenario.pregnancy_status || '').trim() || 'Not applicable',
+      mood: (scenario.mood || '').trim() || 'Calm and cooperative'
     };
     delete scenario.baseline_cognitive_status;
+    delete scenario.mood;
     delete scenario.pregnancy_status;
     // Validate and normalise flags object (red/yellow per CPG A0108)
     if (Array.isArray(scenario.flags)) {

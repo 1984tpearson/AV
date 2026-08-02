@@ -739,10 +739,33 @@
     };
   }
 
+  // Fuzzy-maps the scenario's free-text patient_meta.mood (e.g. "Anxious and
+  // tearful", authored by generator.html's AI prompt) into a small canonical
+  // set the avatar's live eyebrow/mouth expression can actually render —
+  // same style as ecg_engine.js's mapRhythm(). Order matters: checked
+  // top-to-bottom, first match wins. Falls back to 'calm' for unset/
+  // unrecognised text rather than guessing, since "not sure" should read as
+  // an unremarkable resting expression, not an arbitrary mood.
+  const MOOD_MAP = [
+    [/angry|hostile|aggressive|combative|furious|irate/, 'angry'],
+    [/agitat|restless|irritable|uncooperative|on edge/, 'agitated'],
+    [/tearful|crying|weeping|sobbing/, 'tearful'],
+    [/anxious|worried|frightened|scared|fearful|panick/, 'anxious'],
+    [/confus|disorient|vague|bewildered/, 'confused']
+  ];
+  function parseScenarioMood(text) {
+    const s = String(text || '').toLowerCase().trim();
+    if (!s) return 'calm';
+    for (let i = 0; i < MOOD_MAP.length; i++) {
+      if (MOOD_MAP[i][0].test(s)) return MOOD_MAP[i][1];
+    }
+    return 'calm';
+  }
+
   global.SimEngine = {
     ACTION_DURATIONS, getActionDurationSec, getVitals, getVitalsRaw, getSimNow, getStaticVitalAt, getRhythmAt, getAppearanceState,
     deriveRhythmFromHR, classifyRhythmForDefib, computeSurvivabilityScore, computeDefibrillationEffect, spliceAiOverridePlan, spliceRhythmPlan,
-    parseAgeFromScenario
+    parseAgeFromScenario, parseScenarioMood
   };
 })(typeof window !== 'undefined' ? window : this);
 
