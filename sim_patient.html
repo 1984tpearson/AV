@@ -15,7 +15,7 @@ body { display: flex; flex-direction: column; }
 #hq-voice-label { font-size: 10px; display: flex; align-items: center; gap: 4px; color: #33475a; cursor: pointer; user-select: none; }
 #hq-voice-status { font-size: 9px; font-style: italic; color: #6b8299; max-width: 110px; }
 #hq-voice-status.hq-voice-status-ready { color: #15803d; font-style: normal; }
-#hq-voice-status.hq-voice-status-error { color: #b91c1c; font-style: normal; }
+#hq-voice-status.hq-voice-status-error { color: #b91c1c; font-style: normal; cursor: pointer; text-decoration: underline dotted; }
 #scenario-timer { font-size: 13px; font-weight: 700; color: #15803d; }
 #patient-info { flex-shrink: 0; }
 #main { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 10px; padding: 10px; overflow: hidden; }
@@ -1884,14 +1884,17 @@ function loadPiperModule() {
 
 // Visible readout next to the tickbox — without this there was no way to
 // tell "using the good voice" from "silently fell back to the standard
-// one", short of opening devtools. `detail` (kept out of the on-screen
-// text, sits in the title tooltip and console) is the actual error/stall
-// reason, for when a student needs to describe what happened.
+// one", short of opening devtools. `detail` is the actual error/stall
+// reason — sits in the title tooltip and console for a desktop browser,
+// but this is an iPad-first tool and there's no hover/devtools there, so
+// on error the status is also made tappable (alert()) as the only way a
+// student on a tablet can actually read and relay what went wrong.
 function setHqVoiceStatus(text, kind, detail) {
   const el = document.getElementById('hq-voice-status');
   el.textContent = text;
   el.className = kind ? `hq-voice-status-${kind}` : '';
   el.title = detail || '';
+  el.onclick = (kind === 'error' && detail) ? () => alert('HQ Voice error:\n\n' + detail) : null;
   if (kind === 'error' && detail) console.warn('HQ Voice unavailable:', detail);
 }
 
