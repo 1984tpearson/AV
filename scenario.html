@@ -3644,9 +3644,17 @@ let _scenarioLinkPending = null; // { id, afterChoice }
 // Call from a scenario link's onclick instead of loadScenario() directly.
 // afterChoice (optional) runs once a mode is picked, regardless of which —
 // e.g. the sidebar closing itself after the assessor's chosen action.
+// Live Scenario is admin-only for now — non-admins have nothing to choose
+// between, so skip the popover entirely and go straight to the verbal view
+// (matches the pre-popover behaviour exactly for them).
 function scenarioLinkClick(event, id, afterChoice) {
   event.preventDefault();
   event.stopPropagation(); // otherwise the outside-click listener below sees this same click and closes the popover it just opened
+  if (!isAdmin()) {
+    loadScenario(id);
+    if (afterChoice) afterChoice();
+    return;
+  }
   _scenarioLinkPending = { id, afterChoice };
   const pop = document.getElementById('scenario-link-popover');
   pop.classList.add('open');
@@ -3672,7 +3680,7 @@ function chooseScenarioLinkMode(mode) {
   if (!pending) return;
   if (mode === 'verbal') {
     loadScenario(pending.id);
-  } else if (mode === 'live') {
+  } else if (mode === 'live' && isAdmin()) {
     window.open(`sim_control.html?scenario=${encodeURIComponent(pending.id)}`, '_blank');
   }
   if (pending.afterChoice) pending.afterChoice();
