@@ -1901,6 +1901,16 @@ function setHqVoiceStatus(text, kind, detail) {
 // work on this device/network, via setHqVoiceStatus — previously this was
 // silent, so a failure here just looked identical to it never having been
 // tried.
+//
+// 60s stall window, not 15s: the progress callback only covers the network
+// fetch — the tail end (writing the ~30-60MB model into OPFS, verifying its
+// md5 digest) reports no progress at all, so on a slower device that gap
+// alone can exceed a tight stall window and get mistaken for a hang even
+// though the download genuinely succeeded (reported as "downloaded, then
+// Unavailable"). This is a background prefetch nothing else is waiting on,
+// so there's no cost to being patient here — unlike the live per-reply
+// path below, which still needs to bail promptly so a real conversation
+// doesn't sit in silence.
 function warmPiperVoice() {
   if (!hqVoiceEnabled) return;
   setHqVoiceStatus('Checking…');
@@ -1912,7 +1922,7 @@ function warmPiperVoice() {
       if (!progress.total) return;
       setHqVoiceStatus(`Downloading… ${Math.round(progress.loaded * 100 / progress.total)}%`);
     });
-  }, 15000)
+  }, 60000)
     .then(() => setHqVoiceStatus('Ready', 'ready'))
     .catch(e => setHqVoiceStatus('Unavailable — using standard voice', 'error', e.message));
 }
@@ -1995,7 +2005,7 @@ async function speakPatientReply(text, resumeIfConversing, isConversation) {
         audio.onended = () => { stopTalkAnimation(); resumeIfConversing(); };
         audio.onerror = () => { stopTalkAnimation(); resumeIfConversing(); };
         await audio.play();
-      }, 15000);
+      }, 25000); // see warmPiperVoice()'s comment on why this needs real slack, not just enough for the network fetch
       setHqVoiceStatus('Ready', 'ready');
       return;
     } catch (e) {
