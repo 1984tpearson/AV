@@ -541,13 +541,24 @@ function parseScenarioVitals(scenario) {
   const num = (s) => { const m = String(s == null ? '' : s).match(/-?\d+(\.\d+)?/); return m ? parseFloat(m[0]) : null; };
   const bpMatch = String(v.BP || '').match(/(\d+)\s*\/\s*(\d+)/);
   const gcs = v.GCS || {};
+  const hrParsed = num(v.HR);
+  // A patient already pulseless at arrival (a literal "0" in the scenario's
+  // own authored HR) can't have a real BP or SpO2 reading — zero perfusion
+  // means unrecordable, not a healthy adult's numbers. Scenarios documenting
+  // that as text ("Unrecordable", "Nil") have no digits for bpMatch/num() to
+  // find, so without this they'd silently fall back to the healthy-adult
+  // defaults below instead of 0 — handing generateSimTimeline() a starting
+  // snapshot that's already physiologically contradictory (HR 0 but BP
+  // 120/80), which it can then only "fix" by inventing a slow decline over
+  // the first several minutes instead of starting flat like HR/RR do.
+  const arrestedAtArrival = hrParsed === 0;
   return {
-    HR: num(v.HR) ?? 90,
+    HR: hrParsed ?? 90,
     RR: num(v.RR) ?? 18,
-    SpO2: num(v.SpO2) ?? 97,
-    EtCO2: num(v.EtCO2) ?? 38,
-    BPsys: bpMatch ? parseInt(bpMatch[1], 10) : 120,
-    BPdia: bpMatch ? parseInt(bpMatch[2], 10) : 80,
+    SpO2: num(v.SpO2) ?? (arrestedAtArrival ? 0 : 97),
+    EtCO2: num(v.EtCO2) ?? (arrestedAtArrival ? 0 : 38),
+    BPsys: bpMatch ? parseInt(bpMatch[1], 10) : (arrestedAtArrival ? 0 : 120),
+    BPdia: bpMatch ? parseInt(bpMatch[2], 10) : (arrestedAtArrival ? 0 : 80),
     temp: num(v.Temp) ?? 36.8,
     bgl: num(v.BGL) ?? 5.5,
     ketones: num(v.Ketones) ?? 0.1,
