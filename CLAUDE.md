@@ -443,6 +443,20 @@ functions (`updateAvatarFace()` etc — not shared via a script include) since
 the two have different plumbing around them (real session state vs. slider
 state).
 
+`avatar_tuning_lab.html` is a companion tool, not a replacement for
+avatar_lab.html — it exposes every age-scale constant (whole-figure scale,
+head bulge, eye scale X/Y, eyes/brows and mouth Y offset, plus hair
+scale/X/Y which aren't independently adjustable in the shipped code, only
+tied 1:1 to the head bulge ratio) and every skin-severity constant
+(cyanosis/pallor/flush/mottled thresholds, blend amounts, and colours) as
+live sliders, each showing the value actually applied at a separately
+adjustable "preview age" — for dialling in numbers visually instead of
+describing adjustments back and forth in chat. An "Export current values"
+panel lists only the constants that differ from shipped defaults, as
+paste-ready `const` lines. Values tuned here need to be manually applied to
+sim_patient.html/avatar_lab.html afterward — this tool doesn't write to
+them directly.
+
 ### Graph rendering
 
 `renderGraph()` in `sim_control.html` is hand-rolled SVG (no charting
