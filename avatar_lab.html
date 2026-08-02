@@ -220,19 +220,21 @@ function greyWeight(age) {
 }
 // Continuous function of exact age in years — see sim_patient.html's copy
 // for the full rationale (reaches adult value exactly at 18, no more
-// banded jumps; HEAD_BULGE_AT_ZERO sized so a newborn's head reads close to
-// as wide as the body's own torso silhouette).
+// banded jumps).
 function ageRamp(years, atZero, atEighteen) {
   if (years == null) return atEighteen;
   const t = Math.max(0, Math.min(1, years / 18));
   return atZero + (atEighteen - atZero) * t;
 }
-const AGE_SCALE_AT_ZERO = 0.78;
+const AGE_SCALE_AT_ZERO = 0.94;
 const EYE_SCALE_X_AT_ZERO = 1.1;
 const EYE_SCALE_Y_AT_ZERO = 1.6;
 const FACE_LOWER_OFFSET_AT_ZERO = 12;
-const MOUTH_LOWER_OFFSET_AT_ZERO = 4;
-const HEAD_BULGE_AT_ZERO = 1.445; // 1.7 shrunk 15% per feedback: newborn head still big but not "ridiculous"
+const MOUTH_LOWER_OFFSET_AT_ZERO = 6.5;
+const HEAD_BULGE_RX_AT_ZERO = 1.16;
+const HEAD_BULGE_RY_AT_ZERO = 1.19;
+const HAIR_SCALE_AT_ZERO = 1;
+const HAIR_OFFSET_Y_AT_ZERO = -2;
 const ADULT_ONLY_HAIR = new Set(['theCaesar', 'theCaesarAndSidePart', 'shavedSides', 'sides']);
 const CLOTHES_COLOURS = ['#3b6ea5', '#22577a', '#5c4b8a', '#7a2e2e', '#2f6d4f', '#4a4a4a', '#8a5a2b', '#1a1a1a', '#c9a227', '#6b4c9a', '#b0392f', '#3d3d3d'];
 
@@ -286,12 +288,12 @@ function applyAgeScale() {
   document.getElementById('av-mouth').setAttribute('transform', `translate(78 ${134 + mouthDy})`);
   document.getElementById('av-lip-cyanosis').setAttribute('transform', `translate(78 ${134 + mouthDy})`);
   document.getElementById('av-eyes').setAttribute('transform', `translate(76 ${90 + dy}) translate(56,22) scale(${eyeScaleX},${eyeScaleY}) translate(-56,-22)`);
-  const bulgeScale = ageRamp(years, HEAD_BULGE_AT_ZERO, 1);
-  const bulgeR = 56 * bulgeScale;
   const bulge = document.getElementById('av-head-bulge');
-  bulge.setAttribute('rx', bulgeR.toFixed(1));
-  bulge.setAttribute('ry', bulgeR.toFixed(1));
-  document.getElementById('av-top').setAttribute('transform', `translate(132,92) scale(${bulgeScale.toFixed(3)}) translate(-132,-92) translate(-1,0)`);
+  bulge.setAttribute('rx', (56 * ageRamp(years, HEAD_BULGE_RX_AT_ZERO, 1)).toFixed(1));
+  bulge.setAttribute('ry', (56 * ageRamp(years, HEAD_BULGE_RY_AT_ZERO, 1)).toFixed(1));
+  const hairScale = ageRamp(years, HAIR_SCALE_AT_ZERO, 1);
+  const hairOffsetY = ageRamp(years, HAIR_OFFSET_Y_AT_ZERO, 0);
+  document.getElementById('av-top').setAttribute('transform', `translate(132,92) scale(${hairScale.toFixed(3)}) translate(-132,-92) translate(-1,${hairOffsetY.toFixed(1)})`);
 }
 function renderAvatarBuild() {
   document.getElementById('av-top').innerHTML = avatarBuild.hairStyle ? AvatarAssets.top[avatarBuild.hairStyle].replace(/__HAIRCOLOR__/g, avatarBuild.hairColour) : '';
@@ -370,8 +372,8 @@ function computeSkinFill(app) {
     // blend toward a genuinely blue target.
     const f = app.skinCyanosisFrac;
     [h, s, l] = rgbToHsl([r, g, b]);
-    s *= (1 - f * 0.65);
-    l = Math.max(0, l - f * 0.06);
+    s *= (1 - f * 0.03);
+    l = Math.max(0, l - f * 0);
     [r, g, b] = hslToRgb([h, s, l]);
     const [tr, tg, tb] = hexToRgb('#2f5f9e');
     const t = f * 0.6;

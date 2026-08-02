@@ -437,37 +437,33 @@ function ageRamp(years, atZero, atEighteen) {
   const t = Math.max(0, Math.min(1, years / 18));
   return atZero + (atEighteen - atZero) * t;
 }
-// Uniform scale of the whole figure. Kept fairly close to 1 — most of the
-// "younger = smaller" cue comes from HEAD_BULGE below (proportionally
-// bigger head) rather than shrinking the whole figure hard, which was
-// reading as "just a tiny adult" and making infants disappear on screen
-// rather than looking younger.
-const AGE_SCALE_AT_ZERO = 0.78;
+// Uniform scale of the whole figure. Tuned visually via avatar_tuning_lab.html
+// — most of the "younger = smaller" cue comes from HEAD_BULGE below
+// (proportionally bigger head) rather than shrinking the whole figure hard.
+const AGE_SCALE_AT_ZERO = 0.94;
 // Cartoon "younger = bigger head/eyes, lower/rounder face" cues, layered on
 // top of the uniform scale above. The face features (eyes/eyebrows/mouth)
 // are independent groups, so they can move and eyes can grow independently
 // of the head outline they sit on — #av-eyes scales around its own
 // on-screen centre (56,22), FACE_LOWER_OFFSET_AT_ZERO shifts eyes/eyebrows
-// down as a unit (MOUTH_LOWER_OFFSET_AT_ZERO is a separate, smaller value —
-// see below). The head OUTLINE itself is a single rigid path shared with
-// the torso (no separate head/body art to scale independently) —
-// HEAD_BULGE works around that with #av-head-bulge, a same-fill circle
-// sitting behind #av-head-path or centred on the head (cx=132,cy=92 — the
-// head arc's own centre, radius 56 to match the path's own "a56 56" head
-// arc) at a LARGER radius: it naturally tapers to zero width by y~166,
-// well above the jaw/neck curve, so a bigger radius reads as a
-// wider/rounder head+cheeks without any clipping or seam against the body
-// below — no risk of the "second chin" class of bug from a mismatched hard
-// edge, because there isn't one.
+// down as a unit (MOUTH_LOWER_OFFSET_AT_ZERO is a separate value — see
+// below). The head OUTLINE itself is a single rigid path shared with the
+// torso (no separate head/body art to scale independently) — HEAD_BULGE
+// works around that with #av-head-bulge, a same-fill ellipse sitting
+// behind #av-head-path, centred on the head (cx=132,cy=92 — the head arc's
+// own centre, radius 56 to match the path's own "a56 56" head arc) at a
+// LARGER radius: it naturally tapers to zero width well above the
+// jaw/neck curve, so a bigger radius reads as a wider/rounder head+cheeks
+// without any clipping or seam against the body below — no risk of the
+// "second chin" class of bug from a mismatched hard edge, because there
+// isn't one.
 //
-// HEAD_BULGE_AT_ZERO started at 1.7 (bulge diameter ~190px, close to
-// headBodyPaths' own ~200px hem width — the closest thing this rig has to
-// a "torso width" reference, picked since a real newborn's head
-// circumference is roughly equal to their chest circumference) but read as
-// too large in practice ("ridiculous" — ended up closer to the hem width
-// than intended once actually rendered); dialled back 15% to 1.445. Still
-// well above the old banded value (1.2, bulgeR 67, which barely read as
-// bigger than an adult's).
+// RX and RY are independently tunable (not tied to one shared radius) —
+// the only way to make the bulge reach further down toward the jaw/chin
+// (RY taller) without also over-widening the cheeks/temples (RX). All
+// four AT_ZERO values here (this pair, mouth offset, hair) were dialled in
+// visually via avatar_tuning_lab.html rather than computed from any
+// specific target measurement.
 //
 // Eye scale is deliberately non-uniform (X and Y scaled separately, not one
 // EYE_SCALE for both) — scaling around the shared two-eye centre (56,22)
@@ -480,10 +476,13 @@ const EYE_SCALE_X_AT_ZERO = 1.1;
 const EYE_SCALE_Y_AT_ZERO = 1.6;
 const FACE_LOWER_OFFSET_AT_ZERO = 12;
 // Mouths were sitting too low on newborns at the same drop as eyes/eyebrows
-// — a smaller max keeps the mouth closer to its normal position while
+// — a smaller value keeps the mouth closer to its normal position while
 // eyes/eyebrows keep their existing (larger) drop.
-const MOUTH_LOWER_OFFSET_AT_ZERO = 4;
-const HEAD_BULGE_AT_ZERO = 1.445; // 1.7 shrunk 15% per feedback: newborn head still big but not "ridiculous"
+const MOUTH_LOWER_OFFSET_AT_ZERO = 6.5;
+const HEAD_BULGE_RX_AT_ZERO = 1.16;
+const HEAD_BULGE_RY_AT_ZERO = 1.19;
+const HAIR_SCALE_AT_ZERO = 1;
+const HAIR_OFFSET_Y_AT_ZERO = -2;
 // Clothing is a flat-colour fill only — no separate neckline graphic.
 // DiceBear ships nicely contoured collar shapes (crew neck, v-neck, etc)
 // but they're hand-positioned for stock Avataaars' own eye/eyebrow
@@ -625,16 +624,16 @@ function applyAgeScale() {
   document.getElementById('av-mouth').setAttribute('transform', `translate(78 ${134 + mouthDy})`);
   document.getElementById('av-lip-cyanosis').setAttribute('transform', `translate(78 ${134 + mouthDy})`);
   document.getElementById('av-eyes').setAttribute('transform', `translate(76 ${90 + dy}) translate(56,22) scale(${eyeScaleX},${eyeScaleY}) translate(-56,-22)`);
-  const bulgeScale = ageRamp(years, HEAD_BULGE_AT_ZERO, 1);
-  const bulgeR = 56 * bulgeScale;
   const bulge = document.getElementById('av-head-bulge');
-  bulge.setAttribute('rx', bulgeR.toFixed(1));
-  bulge.setAttribute('ry', bulgeR.toFixed(1));
-  // Hair (and headwear — hat/hijab/turban/winter hats are all `top`
-  // variants too) needs the same ratio the head bulge above just scaled by,
-  // anchored on the same centre (132,92), so it aligns against the bigger
-  // head rather than sitting at normal size on top of it.
-  document.getElementById('av-top').setAttribute('transform', `translate(132,92) scale(${bulgeScale.toFixed(3)}) translate(-132,-92) translate(-1,0)`);
+  bulge.setAttribute('rx', (56 * ageRamp(years, HEAD_BULGE_RX_AT_ZERO, 1)).toFixed(1));
+  bulge.setAttribute('ry', (56 * ageRamp(years, HEAD_BULGE_RY_AT_ZERO, 1)).toFixed(1));
+  // Hair scale/offset are tuned independently of the head bulge (not tied
+  // 1:1 to its ratio) — HAIR_SCALE_AT_ZERO landed at 1 (no scaling at all)
+  // once the bulge itself was dialled back, with just a small upward
+  // HAIR_OFFSET_Y nudge at younger ages instead.
+  const hairScale = ageRamp(years, HAIR_SCALE_AT_ZERO, 1);
+  const hairOffsetY = ageRamp(years, HAIR_OFFSET_Y_AT_ZERO, 0);
+  document.getElementById('av-top').setAttribute('transform', `translate(132,92) scale(${hairScale.toFixed(3)}) translate(-132,-92) translate(-1,${hairOffsetY.toFixed(1)})`);
 }
 
 function renderAvatarBuild() {
@@ -735,14 +734,17 @@ function computeSkinFill(app) {
     // the way, which briefly looked pink/green at partial severity instead
     // of ever reading as "trending blue". Muting the base tone's own
     // saturation first, THEN blending toward a genuinely blue target,
-    // sidesteps that: by the time blue is introduced there's much less
-    // competing orange saturation for it to muddy against, so it reads as
-    // a dusky blue-grey rather than a flat grey (the original complaint)
-    // or a wrong in-between hue.
+    // sidesteps that. Desaturate/lighten amounts were tuned down close to 0
+    // visually (avatar_tuning_lab.html) — combined with the much wider
+    // SpO2 85->0 threshold range in getAppearanceState() (deepening slowly
+    // the whole way to arrest instead of maxing out by 60%), a heavy
+    // desaturation step read as unnecessary once the blend itself was this
+    // gradual; kept as a (near-zero) knob rather than removed, since it's
+    // one of the tuning lab's sliders.
     const f = app.skinCyanosisFrac;
     [h, s, l] = rgbToHsl([r, g, b]);
-    s *= (1 - f * 0.65);
-    l = Math.max(0, l - f * 0.06);
+    s *= (1 - f * 0.03);
+    l = Math.max(0, l - f * 0);
     [r, g, b] = hslToRgb([h, s, l]);
     const [tr, tg, tb] = hexToRgb('#2f5f9e');
     const t = f * 0.6;

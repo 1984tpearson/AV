@@ -706,10 +706,11 @@
     const flushFrac = bpHighFrac;
     // Cyanosis is deliberately split into two independent depths: lips pick
     // it up first, from mild hypoxia (ramping as SpO2 drops below 95%);
-    // general skin only joins in once truly critical (below ~80%). A real
-    // patient's lips/nail beds turn blue well before the rest of them does.
+    // general skin only joins in once truly critical (below ~85%), then
+    // deepens gradually the whole way down to 0% rather than plateauing at
+    // some "fully cyanotic" SpO2 — tuned visually via avatar_tuning_lab.html.
     const lipCyanosisFrac = clamp01((95 - spo2) / 15);
-    const skinCyanosisFrac = clamp01((80 - spo2) / 20);
+    const skinCyanosisFrac = clamp01((85 - spo2) / 85);
     let skinColour;
     if (skinCyanosisFrac > 0) skinColour = 'cyanotic';
     else if (perfusion >= 3) skinColour = 'mottled';

@@ -224,11 +224,12 @@ rendered as a literal middle-aged adult:
   discontinuously at each band boundary (e.g. age 4.99 vs 5.0) instead of
   scaling smoothly. Unknown age (`years == null`) returns the adult value,
   matching `ageBandFromMeta()`'s own fallback.
-- **`AGE_SCALE_AT_ZERO` (0.78)**: the whole figure is scaled (`av-scale-group`,
-  anchored at the top of the head at (140,36) so it shrinks toward that
-  point rather than the viewBox origin), reaching 1 (no shrink) at 18. Kept
-  fairly close to 1 (an earlier version went down to 0.6 for infants) —
-  most of the "younger" cue comes from `HEAD_BULGE_AT_ZERO` below rather
+- **`AGE_SCALE_AT_ZERO` (0.94, tuned via `avatar_tuning_lab.html`)**: the
+  whole figure is scaled (`av-scale-group`, anchored at the top of the head
+  at (140,36) so it shrinks toward that point rather than the viewBox
+  origin), reaching 1 (no shrink) at 18. Kept close to 1 (an earlier version
+  went down to 0.6, then 0.78, for infants) — most of the "younger" cue
+  comes from `HEAD_BULGE_RX_AT_ZERO`/`HEAD_BULGE_RY_AT_ZERO` below rather
   than shrinking the whole figure hard, which read as "a tiny adult" and
   made infants disappear on screen rather than looking younger.
 - **`ADULT_ONLY_HAIR`**: a small set of structured/receding-hairline-prone
@@ -241,14 +242,15 @@ rendered as a literal middle-aged adult:
   "infant hair," the shortest options are still styled cuts.
 - **`FACE_FRAMING_HEADWEAR`** (hijab, turban): also excluded below teen,
   same cutoff as `ADULT_ONLY_HAIR` but for a different reason — these drape
-  down around the neck/shoulders, and that drape is a fixed part of the
-  artwork, scaled only by the same ratio the head bulge grew by (see
-  `applyAgeScale()`'s `hairScale`) with no adjustment to how far down it
-  reaches. On a younger patient's proportionally bigger head this either
-  fell short of the shoulders or gaped visibly at the neck/back of the
-  head. `hat`/the four winter hats don't have this problem (they only
-  cover the top of the head, no neck drape) so stay in the pool at every
-  age.
+  down around the neck/shoulders, a fixed part of the artwork that a hair
+  scale/offset tuned for the head alone can't correctly stretch to match.
+  On a younger patient's proportionally bigger head this either fell short
+  of the shoulders or gaped visibly at the neck/back of the head. `hat`/the
+  four winter hats don't have this problem (they only cover the top of the
+  head, no neck drape) so stay in the pool at every age. (Hair itself is no
+  longer scaled with age at all — see `HAIR_SCALE_AT_ZERO` below — so this
+  mismatch is specific to hijab/turban's drape, not a general hair-scaling
+  problem.)
 - **`EYE_SCALE_X_AT_ZERO`/`EYE_SCALE_Y_AT_ZERO`/`FACE_LOWER_OFFSET_AT_ZERO`**:
   the classic cartoon "younger = bigger eyes, face sits lower/rounder" cues,
   layered on top of the whole-figure scale since eyes/eyebrows/mouth are
@@ -261,29 +263,48 @@ rendered as a literal middle-aged adult:
   45% further apart — read as wall-eyed/alien rather than "big eyed". Y
   still does most of the work (1.6 at age 0) for the bigger/rounder look; X
   stays close to 1 (1.1 at age 0) so eyes grow without spreading far apart.
-  The mouth uses its own, smaller `MOUTH_LOWER_OFFSET_AT_ZERO` (4, not 12)
-  rather than sharing the eyes/eyebrows offset — at the shared value,
-  newborn mouths sat too low (too close to the chin/jaw curve).
-- **`HEAD_BULGE_AT_ZERO` (1.445)**: makes the head outline itself read as
+  The mouth uses its own `MOUTH_LOWER_OFFSET_AT_ZERO` (6.5, not 12) rather
+  than sharing the eyes/eyebrows offset — at the shared value, newborn
+  mouths sat too low (too close to the chin/jaw curve); 6.5 was tuned
+  visually via `avatar_tuning_lab.html` (an earlier pass had landed on 4,
+  before the head-bulge/figure-scale retune below shifted where "too low"
+  actually was).
+- **`HEAD_BULGE_RX_AT_ZERO`/`HEAD_BULGE_RY_AT_ZERO`** (1.16/1.19, tuned via
+  `avatar_tuning_lab.html`): makes the head outline itself read as
   proportionally bigger for younger ages (ramping down to 1, no bulge, at
   18), which `EYE_SCALE`/`FACE_LOWER_OFFSET` alone don't touch — the
   head/body outline is one rigid path shared with the torso, no separate
-  head/body art to scale independently. Started at 1.7 (bulge diameter
-  ~190px), picked to approach `headBodyPaths`' own widest point (the
-  ~200px hem at the bottom of the body shape — the only "torso width"
-  reference this art actually has in the right ballpark) on the reasoning
-  that a real newborn's head circumference is roughly equal to their chest
-  circumference — but read as too large once actually rendered ("ridiculous"),
-  so dialled back 15%. Still well above the old banded value (1.2, bulgeR
-  67, which barely read as bigger than an adult's). Worked
-  around with `#av-head-bulge`, a same-fill circle
+  head/body art to scale independently. RX and RY are independently
+  tunable (not one shared radius) specifically so the bulge can be
+  stretched TALLER to reach further down toward the jaw/chin without also
+  over-widening the cheeks/temples — added after noticing there was no way
+  to affect the jaw/chin/neck contour at all (it's part of the same rigid
+  head+torso path, untouched by anything else here). Went through two
+  prior single-radius (`HEAD_BULGE_AT_ZERO`) values before the RX/RY split:
+  1.7 (bulge diameter ~190px, aimed at matching `headBodyPaths`' own
+  ~200px hem width on the reasoning that a newborn's head circumference is
+  roughly equal to their chest circumference) read as "ridiculous" once
+  rendered; 1.445 (1.7 dialled back 15%) was themselves not the final
+  answer — visual tuning landed on the current, smaller RX/RY pair instead
+  once independent width/height was available. Worked around with
+  `#av-head-bulge`, a same-fill ellipse
   behind `#av-head-path` centred on the head arc's own centre (cx=132,
   cy=92, matching the path's own "a56 56" head arc) at a LARGER radius:
-  because it's a circle, it naturally tapers to zero width by y~148-167
-  (depending on age), safely above the jaw/neck curve, so a bigger radius
-  reads as a wider/rounder head+cheeks with no clipping and no seam against
-  the body below — avoids the whole "second chin" class of bug by
+  because it's an ellipse, it naturally tapers to zero width well above
+  the jaw/neck curve, so a bigger radius reads as a wider/rounder
+  head+cheeks with no clipping and no seam against the body below —
+  avoids the whole "second chin" class of bug by
   construction, since there's no hard edge to mismatch.
+- **`HAIR_SCALE_AT_ZERO`/`HAIR_OFFSET_Y_AT_ZERO`** (1 / -2): hair used to be
+  tied 1:1 to the head bulge's own ratio, growing by the same amount —
+  once RX/RY landed on smaller, more modest values (see above) that no
+  longer needed matching, so hair now just holds its normal size at every
+  age (`HAIR_SCALE_AT_ZERO = 1`, i.e. a no-op) with a small upward
+  `HAIR_OFFSET_Y_AT_ZERO` nudge at younger ages instead, ramping back to 0
+  by 18. Kept as independent constants (not deleted along with the 1:1
+  tie) since `avatar_tuning_lab.html` exposes them as their own sliders —
+  a future retune of the head bulge doesn't have to also mean retuning
+  hair.
 - **`greyWeight()`**: separately, hair *colour* (not style) softly ramps
   toward grey/silver/white (`GREY_HAIR_COLOURS`) as age climbs from 40 to
   75+ (≈7% grey at 20, ≈47% at 45, ≈83% at 80 — verified against 500
