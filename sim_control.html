@@ -2462,18 +2462,37 @@ async function noteForMatchedItem(item, givenAtMs) {
 // polls every few seconds and holds currentScenario/liveConfig/the key)
 // picks new items up and actions them. student_queue_ack_id is persisted
 // server-side (not just in memory) so a control-page reload doesn't
-// re-process old items. _studentQueueBusy guards against a slow item still
-// being processed when the next poll tick fires.
+// re-process old items. _studentQueueBusy only guards THIS tab against its
+// own overlapping poll ticks — it does nothing for a second control-panel
+// instance open on the same session (a co-facilitator's tab, a stray
+// reloaded tab left running): both would read student_queue_ack_id before
+// either writes it, both see the same item as pending, and both
+// independently call the AI for it — the same question gets two different
+// generated replies logged back to back. Each item's ack write is now an
+// atomic claim (conditioned on student_queue_ack_id still matching what
+// this poll last read) made BEFORE processing, not after — so only one
+// instance's claim can win; the loser sees 0 rows back and stops rather
+// than also processing the item.
 let _studentQueueBusy = false;
 async function processStudentQueue(row) {
   if (_studentQueueBusy) return;
   const queue = row.student_queue || [];
-  const ackId = row.student_queue_ack_id || 0;
-  const pending = queue.filter(item => item.id > ackId).sort((a, b) => a.id - b.id);
+  let expectedAckId = row.student_queue_ack_id || 0;
+  const pending = queue.filter(item => item.id > expectedAckId).sort((a, b) => a.id - b.id);
   if (!pending.length) return;
   _studentQueueBusy = true;
   try {
     for (const item of pending) {
+      let claimed;
+      try {
+        claimed = await sbFetch(`sim_sessions?session_code=eq.${sessionCode}&student_queue_ack_id=eq.${expectedAckId}`, {
+          method: 'PATCH', prefer: 'return=representation',
+          body: JSON.stringify({ student_queue_ack_id: item.id, updated_at: new Date().toISOString() })
+        });
+      } catch (e) { console.error('student_queue claim failed — this item will be retried next poll:', e); break; }
+      if (!claimed || !claimed.length) break; // another instance already claimed this (or a later) item — stop and re-read fresh state next poll
+      expectedAckId = item.id;
+
       if (item.type === 'treatment' && item.text) {
         await giveTreatment(item.text, { silent: true, source: 'patient_device' });
       } else if (item.type === 'chat' && item.text) {
@@ -2481,12 +2500,6 @@ async function processStudentQueue(row) {
       } else if (item.type === 'exam' && item.text) {
         await answerExamFinding(item.text, item.id);
       }
-      try {
-        await sbFetch(`sim_sessions?session_code=eq.${sessionCode}`, {
-          method: 'PATCH', prefer: 'return=minimal',
-          body: JSON.stringify({ student_queue_ack_id: item.id, updated_at: new Date().toISOString() })
-        });
-      } catch (e) { console.error('student_queue ack failed — this item will be reprocessed next poll:', e); }
     }
   } finally {
     _studentQueueBusy = false;
