@@ -1888,35 +1888,70 @@ function chooseHqVoicePrompt(enabled) {
   document.getElementById('hq-voice-prompt').style.display = 'none';
 }
 
+// Runs an async task that periodically signals activity via the `bump`
+// function it's handed; if STALL_MS elapses with no bump (network stall,
+// a WASM/OPFS step that never settles, etc — anything short of a clean
+// reject), the returned promise rejects on its own so callers always get
+// *some* outcome instead of hanging forever. `aborted()` lets the task
+// check, after each resumption, whether the watchdog already gave up on
+// it — needed since the underlying task keeps running in the background
+// even after this races it away (there's no way to truly cancel a fetch
+// or WASM call), so it must stop short of side effects like playing audio.
+function runWithStallWatchdog(taskFn, stallMs) {
+  let lastActivity = Date.now();
+  let timedOut = false;
+  const bump = () => { lastActivity = Date.now(); };
+  const aborted = () => timedOut;
+  let watchdogTimer;
+  const watchdog = new Promise((_, reject) => {
+    watchdogTimer = setInterval(() => {
+      if (Date.now() - lastActivity > stallMs) {
+        timedOut = true;
+        clearInterval(watchdogTimer);
+        reject(new Error('stalled — no activity for ' + stallMs + 'ms'));
+      }
+    }, 1000);
+  });
+  return Promise.race([taskFn(bump, aborted), watchdog]).finally(() => clearInterval(watchdogTimer));
+}
+
 // Tries the Piper WASM voice (if enabled) first, falling back to the
 // existing Web Speech path on any failure — including partway through
-// (module load ok, inference fails, etc). replyId guards against a reply
-// that's no longer current by the time async loading/inference finishes
-// (student closed the modal, or a newer reply already arrived).
+// (module load ok, inference fails, etc) AND including a stall (see
+// runWithStallWatchdog — a hung Piper attempt used to mean total silence,
+// since nothing ever reached the fallback below it). replyId guards
+// against a reply that's no longer current by the time async
+// loading/inference finishes (student closed the modal, or a newer reply
+// already arrived).
 async function speakPatientReply(text, resumeIfConversing, isConversation) {
   const replyId = _lastShownReplyId;
   const stillCurrent = () => replyId === _lastShownReplyId;
   if (hqVoiceEnabled) {
     try {
-      const tts = await loadPiperModule();
-      if (!stillCurrent()) return;
-      const voiceId = piperVoiceIdFor(patientGender);
-      const statusEl = document.getElementById('voice-modal-status');
-      const priorStatus = statusEl.textContent;
-      const wav = await tts.predict({ text, voiceId }, progress => {
-        if (!stillCurrent() || !progress.total) return;
-        statusEl.textContent = `Loading voice… ${Math.round(progress.loaded * 100 / progress.total)}%`;
-      });
-      if (!stillCurrent()) return;
-      if (statusEl.textContent !== priorStatus) statusEl.textContent = priorStatus; // restore label if we clobbered it with download progress
-      const audio = new Audio(URL.createObjectURL(wav));
-      audio.onplay = startTalkAnimation;
-      audio.onended = () => { stopTalkAnimation(); resumeIfConversing(); };
-      audio.onerror = () => { stopTalkAnimation(); resumeIfConversing(); };
-      await audio.play();
+      await runWithStallWatchdog(async (bump, aborted) => {
+        const tts = await loadPiperModule();
+        bump();
+        if (!stillCurrent() || aborted()) return;
+        const voiceId = piperVoiceIdFor(patientGender);
+        const statusEl = document.getElementById('voice-modal-status');
+        const priorStatus = statusEl.textContent;
+        const wav = await tts.predict({ text, voiceId }, progress => {
+          bump();
+          if (!stillCurrent() || !progress.total) return;
+          statusEl.textContent = `Loading voice… ${Math.round(progress.loaded * 100 / progress.total)}%`;
+        });
+        bump();
+        if (!stillCurrent() || aborted()) return;
+        if (statusEl.textContent !== priorStatus) statusEl.textContent = priorStatus; // restore label if we clobbered it with download progress
+        const audio = new Audio(URL.createObjectURL(wav));
+        audio.onplay = startTalkAnimation;
+        audio.onended = () => { stopTalkAnimation(); resumeIfConversing(); };
+        audio.onerror = () => { stopTalkAnimation(); resumeIfConversing(); };
+        await audio.play();
+      }, 15000);
       return;
     } catch (e) {
-      // Piper best-effort only — fall through to Web Speech below.
+      // Piper best-effort only (stalled or errored) — fall through to Web Speech below.
     }
   }
   if ('speechSynthesis' in window) {
