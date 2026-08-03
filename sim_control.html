@@ -921,6 +921,7 @@ async function createSession() {
       _joinInfoManuallyShown = false;
       treatments = [];
       undoStack = [];
+      _rewindFrontierMs = null;
       patientActions = {};
       actionControls = {};
       expandedActionKey = null;
@@ -972,7 +973,13 @@ async function toggleRun() {
   const nowRaw = Date.now();
   let patch;
   if (!liveConfig.hasStarted) {
-    patch = { has_started: true, is_paused: false, paused_at_ms: null };
+    // createSession() seeds every session already paused (isPaused:true,
+    // pausedAtMs:creation time) specifically so the clock sits frozen at 0
+    // until Start is clicked — however long that takes needs folding into
+    // total_paused_ms here exactly like an ordinary resume, or simNow()
+    // jumps straight to real elapsed wall-clock time the instant this runs.
+    const addPaused = nowRaw - liveConfig.pausedAtMs;
+    patch = { has_started: true, is_paused: false, paused_at_ms: null, total_paused_ms: liveConfig.totalPausedMs + addPaused };
   } else if (liveConfig.isPaused) {
     const addPaused = nowRaw - liveConfig.pausedAtMs;
     patch = { is_paused: false, paused_at_ms: null, total_paused_ms: liveConfig.totalPausedMs + addPaused };
@@ -988,6 +995,7 @@ async function toggleRun() {
     liveConfig.isPaused = patch.is_paused;
     liveConfig.pausedAtMs = patch.paused_at_ms;
     if (patch.total_paused_ms !== undefined) liveConfig.totalPausedMs = patch.total_paused_ms;
+    if (!patch.is_paused) _rewindFrontierMs = null; // resumed running — next pause captures a fresh rewind frontier
     renderRunControls();
   } catch (e) {
     alert('Could not update the run state — check the connection and try again.');
@@ -1220,6 +1228,16 @@ let _inspectPointerId = null;
 let pendingRewindMs = null; // absolute ms target while dragging the playhead — null when not actively rewinding
 let _rewindPointerId = null;
 let _rewindUpperBoundMs = null; // can't drag forward past "now" as of when this drag gesture started
+// The real frontier — simNow() as it was the moment THIS pause session
+// began, captured once and reused across every re-grab until the scenario
+// actually resumes. Re-deriving it fresh from simNow() on every grab (the
+// original approach) breaks the moment you're already paused: simNow()
+// while paused just returns whatever's currently frozen, which after even
+// one rewind commit is the rewound point itself, not the true frontier —
+// collapsing the forward bound to wherever you already are and making
+// forward dragging a no-op. Reset to null on Resume so the next pause
+// captures a fresh one.
+let _rewindFrontierMs = null;
 
 function toggleGraphSeries(key, on) {
   graphSeriesOn[key] = on;
@@ -1561,15 +1579,22 @@ function startInspect(evt) {
 // relative to. Optimistic local update, same pattern as every other
 // session-state write here — the drag itself doesn't wait on this PATCH.
 function ensurePausedForRewind() {
-  if (liveConfig.isPaused) return;
-  const nowRaw = Date.now();
-  liveConfig.isPaused = true;
-  liveConfig.pausedAtMs = nowRaw;
-  renderRunControls();
-  sbFetch(`sim_sessions?session_code=eq.${sessionCode}`, {
-    method: 'PATCH', prefer: 'return=minimal',
-    body: JSON.stringify({ is_paused: true, paused_at_ms: nowRaw, updated_at: new Date().toISOString() })
-  }).catch(() => {}); // best-effort — commitPlayheadRewind() writes total_paused_ms against this same local pausedAtMs regardless
+  if (!liveConfig.isPaused) {
+    const nowRaw = Date.now();
+    _rewindFrontierMs = simNow(); // true frontier — captured before anything else changes
+    liveConfig.isPaused = true;
+    liveConfig.pausedAtMs = nowRaw;
+    renderRunControls();
+    sbFetch(`sim_sessions?session_code=eq.${sessionCode}`, {
+      method: 'PATCH', prefer: 'return=minimal',
+      body: JSON.stringify({ is_paused: true, paused_at_ms: nowRaw, updated_at: new Date().toISOString() })
+    }).catch(() => {}); // best-effort — commitPlayheadRewind() writes total_paused_ms against this same local pausedAtMs regardless
+  } else if (_rewindFrontierMs === null) {
+    // Already paused when the playhead was grabbed (a manual Pause, or a
+    // reload while paused) and nothing's rewound yet this session — simNow()
+    // is still a valid frontier here, just not once a rewind has run.
+    _rewindFrontierMs = simNow();
+  }
 }
 
 // Grabbing the dashed "now" line — live rewind, not just a preview: on
@@ -1586,8 +1611,8 @@ function startPlayheadDrag(evt) {
   cancelPendingDrag();
   _inspectPointerId = null;
   inspectMin = null;
-  _rewindUpperBoundMs = simNow();
   ensurePausedForRewind();
+  _rewindUpperBoundMs = _rewindFrontierMs;
   pendingRewindMs = _rewindUpperBoundMs;
   _rewindPointerId = evt.pointerId;
   renderGraph();
@@ -1613,7 +1638,8 @@ async function commitPlayheadRewind() {
     });
     liveConfig.totalPausedMs = newTotalPaused;
   } catch (e) {
-    alert('Could not rewind — check the connection and try again.');
+    console.error('Rewind commit failed:', e);
+    alert('Could not rewind: ' + e.message);
   }
   renderGraph();
   renderLog();
