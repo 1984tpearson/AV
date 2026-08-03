@@ -136,6 +136,18 @@ body { display: flex; flex-direction: column; }
 #voice-mic-indicator.listening { display: flex; animation: micBlink 1s steps(1) infinite; }
 @keyframes micBlink { 0%, 49% { opacity: 1; } 50%, 100% { opacity: 0; } }
 
+/* Trend arrows next to the avatar — see updateTrendIndicator(). A plain
+   flex column (top-to-bottom in DOM order); which end pulses first is
+   controlled entirely by animation-delay (see trendArrowMarkup()), not by
+   reversing the DOM order, so the same markup works for both directions. */
+#avatar-row { display: flex; flex-direction: row; align-items: center; gap: 4px; min-height: 0; }
+#trend-indicator { display: none; flex-direction: column; gap: 1px; flex-shrink: 0; }
+#trend-indicator svg { width: 16px; height: 16px; display: block; }
+#trend-indicator.up svg { fill: #16a34a; }
+#trend-indicator.down svg { fill: #dc2626; }
+#trend-indicator .trend-arrow { animation: trendPulse 1.3s ease-in-out infinite; }
+@keyframes trendPulse { 0%, 100% { opacity: 0.35; transform: scale(0.85); } 40% { opacity: 1; transform: scale(1.08); } }
+
 /* Voice UI takes over the "Patient / Scene Info" panel while active (a
    speech-bubble sits right above the patient graphic anyway), instead of a
    dark modal overlay — the rest of the page (monitor, vitals, one-offs)
@@ -269,6 +281,7 @@ body { display: flex; flex-direction: column; }
   </div>
   <div id="info-col">
     <div class="panel" id="patient-graphic" style="flex-direction:column;gap:8px;">
+    <div id="avatar-row">
     <div id="head-wrap">
       <svg id="av-svg" viewBox="0 0 280 260" width="280" height="260" style="max-width:100%;max-height:100%;object-fit:contain;display:block;" xmlns="http://www.w3.org/2000/svg">
         <defs>
@@ -326,6 +339,8 @@ body { display: flex; flex-direction: column; }
         </g>
       </svg>
       <span id="voice-mic-indicator" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 15a3.5 3.5 0 0 0 3.5-3.5v-6a3.5 3.5 0 0 0-7 0v6A3.5 3.5 0 0 0 12 15zm5.5-3.5a5.5 5.5 0 0 1-11 0H5a7 7 0 0 0 6 6.93V21h2v-2.57a7 7 0 0 0 6-6.93h-1.5z"/></svg></span>
+    </div>
+    <div id="trend-indicator" aria-hidden="true"></div>
     </div>
     <div id="voice-fab-strip">
       <button class="voice-fab" id="voice-fab-treatment" onpointerdown="handleFabPress('treatment', event)" onpointerup="handleFabRelease(event)" onpointercancel="handleFabRelease(event)" oncontextmenu="return false;"><svg viewBox="0 0 24 24"><path d="M4 4h16a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H9l-5 4v-4H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"/></svg>Treat</button>
@@ -502,6 +517,81 @@ let instantMode = false; // synced from the session row; assessor-controlled, no
 // HR/BP/etc — read the current projected value straight from the engine.
 function extendedVitalsNow() {
   return SimEngine.getVitalsRaw(testConfig, SimEngine.getSimNow(testConfig, Date.now()));
+}
+
+// --- Improving/declining trend arrows (next to the avatar) -----------------
+// Built on SimEngine.getSmoothedHealthLevel() — the same trailing-window
+// average that underlies sim_control.html's Health graph line
+// (SimEngine.getHealthScore), but WITHOUT that function's instability floor
+// or confirmed-arrest floor. Those two exist to correct a single instant's
+// absolute reading and deliberately don't care which direction a vital is
+// moving — but a trend is nothing BUT direction, and during an actively
+// fast-moving recovery both floors would suppress "now" and "a few minutes
+// ago" almost equally, cancelling out into "no trend" right when the
+// patient is improving fastest. The smoothed level alone still damps the
+// same step-noise/normal-crossing wobbles that motivated those floors (see
+// getHealthScore()'s own comment), just without erasing genuine direction.
+//
+// A real-time reading, not a projection — this page can only ever know the
+// past. delta = level now minus level TREND_WINDOW_MS ago; sign gives
+// direction, magnitude gives arrow count.
+const TREND_WINDOW_MS = 180000; // 3 minutes
+// Points changed (0-100 scale) over TREND_WINDOW_MS needed for 1/2/3 arrows
+// — tuned by eye, not from a clinical reference; adjust if arrows appear
+// too eagerly or too reluctantly in practice.
+const TREND_THRESHOLDS = [3, 10, 20];
+
+function computeHealthTrend(cfg, nowMs) {
+  const lookbackMs = Math.max(cfg.startTimeMs, nowMs - TREND_WINDOW_MS);
+  // Less than half the window's worth of history to look back on — too
+  // little to call a trend yet, rather than comparing against an
+  // arbitrarily short baseline right at scenario start.
+  if (nowMs - lookbackMs < TREND_WINDOW_MS * 0.5) return 0;
+  return SimEngine.getSmoothedHealthLevel(cfg, nowMs) - SimEngine.getSmoothedHealthLevel(cfg, lookbackMs);
+}
+
+function trendArrowCount(delta) {
+  const mag = Math.abs(delta);
+  for (let i = TREND_THRESHOLDS.length - 1; i >= 0; i--) {
+    if (mag >= TREND_THRESHOLDS[i]) return i + 1;
+  }
+  return 0;
+}
+
+// Arrows always stack top-to-bottom in DOM order; only animation-delay
+// differs by direction, not the markup itself. Improving (up) pulses
+// bottom-to-top — the arrow nearest the avatar fires first and the pulse
+// "climbs" the stack. Declining (down) pulses top-to-bottom — fires first
+// at the top and "falls" down the stack.
+const TREND_STAGGER_MS = 180;
+function trendArrowMarkup(count, isUp) {
+  const points = isUp ? '12,5 20,17 4,17' : '12,19 20,7 4,7';
+  let out = '';
+  for (let i = 0; i < count; i++) {
+    const delayIndex = isUp ? (count - 1 - i) : i;
+    out += `<svg class="trend-arrow" style="animation-delay:${delayIndex * TREND_STAGGER_MS}ms;" viewBox="0 0 24 24"><polygon points="${points}"/></svg>`;
+  }
+  return out;
+}
+
+// Only rebuilds the DOM when the arrow count/direction actually changes —
+// rewriting innerHTML every tick (~1/sec) would restart each arrow's CSS
+// animation from frame 0 every time, turning a smooth continuous pulse
+// into a visible stutter.
+let _lastTrendKey = null;
+function updateTrendIndicator(cfg, nowMs) {
+  const el = document.getElementById('trend-indicator');
+  if (!el) return;
+  const delta = computeHealthTrend(cfg, nowMs);
+  const count = trendArrowCount(delta);
+  const isUp = delta > 0;
+  const key = count === 0 ? 'none' : (isUp ? 'up' : 'down') + count;
+  if (key === _lastTrendKey) return;
+  _lastTrendKey = key;
+  if (count === 0) { el.style.display = 'none'; el.innerHTML = ''; el.className = ''; return; }
+  el.className = isUp ? 'up' : 'down';
+  el.style.display = 'flex';
+  el.innerHTML = trendArrowMarkup(count, isUp);
 }
 
 // --- Dynamic patient avatar -------------------------------------------------
@@ -1958,6 +2048,7 @@ function tick() {
     updateAvatarFace(av);
     maybeSaySpontaneousLine(av);
   } catch (e) { console.error('avatar render failed:', e); }
+  try { updateTrendIndicator(testConfig, simNow); } catch (e) { console.error('trend indicator render failed:', e); }
   // Also fault-isolated, and deliberately after the avatar: re-arms the
   // wake-word mic if anything left it stopped (see startWakeListening —
   // it's fully guarded, so this is a no-op whenever it's already running or

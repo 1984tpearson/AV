@@ -864,6 +864,141 @@
     };
   }
 
+  // ---- Composite "Health" score (0-100, "dead" at 0, "normal" at 100) -----
+  // Shared by sim_control.html's Health graph line and sim_patient.html's
+  // improving/deteriorating trend arrows — kept here, not duplicated in
+  // either caller, since both need the exact same number for their
+  // respective indicators to agree with each other.
+
+  // Instantaneous 0-100 "how normal right now" reading — a weighted average
+  // of the severity bands above across HR, RR, SpO2, BP sys, GCS and pain.
+  // 100 = every input fully normal; 0 = every input simultaneously at its
+  // worst band, which is reachable in practice — the AI's cardiac-arrest
+  // cascade rule (see CLAUDE.md) writes HR/RR/SpO2/BP/GCS overrides
+  // together, not just one of them.
+  //
+  // Pain is self-reported, so it only means something while the patient is
+  // conscious enough to report it. painWeight fades from 1 down to 0 as GCS
+  // falls from 15 toward 8 (the same threshold getAppearanceState() above
+  // gates unresponsive on) rather than snapping off at that line — a hard
+  // cutoff would put a visible kink in the score at the exact instant
+  // consciousness is lost, while everything else is still transitioning
+  // smoothly. Below GCS 8, pain carries no weight at all: cascade-scripted
+  // arrests correctly cut pain to 0 alongside LOC, which would otherwise
+  // read as "0 abnormality" — an improvement — at exactly the moment the
+  // patient is at their worst. BPdia/EtCO2/temp/bgl/ketones/nausea are left
+  // out entirely, for lack of an existing calibrated severity band for them.
+  //
+  // Deliberately a function of a single vitals snapshot, nothing else —
+  // this is the "raw" reading getHealthScore() below is built on top of,
+  // not what either caller actually plots/reads.
+  function healthLevel(v) {
+    const gcsTotal = (v.gcsE || 0) + (v.gcsV || 0) + (v.gcsM || 0);
+    const gcsAbnormality = Math.min(1, Math.max(0, (15 - gcsTotal) / 12));
+    const painWeight = Math.min(1, Math.max(0, (gcsTotal - 8) / 7));
+    const weighted = [
+      { sub: hrSeverity(v.HR) / 4, w: 1 },
+      { sub: rrSeverity(v.RR) / 4, w: 1 },
+      { sub: spo2Severity(v.SpO2) / 4, w: 1 },
+      { sub: bpSysSeverity(v.BPsys) / 4, w: 1 },
+      { sub: gcsAbnormality, w: 1 },
+      { sub: painSeverity(v.pain) / 3, w: painWeight }
+    ];
+    const totalWeight = weighted.reduce((a, x) => a + x.w, 0);
+    const avgAbnormality = weighted.reduce((a, x) => a + x.sub * x.w, 0) / totalWeight;
+    return 100 * (1 - avgAbnormality);
+  }
+
+  // Trailing window shared by both fixes in getHealthScore() below — one
+  // consistent amount of "lag" rather than two competing time constants.
+  // Admin-configurable (see sim_config_schema.js's 'timers' section) like
+  // the other tunables above, via _cfg/applyConfigOverrides.
+  _cfg.HEALTH_WINDOW_MS = 90000;
+  _cfg.HEALTH_SAMPLES = 4; // evenly spaced across the window, including "now"
+
+  // How far a vital needs to swing (peak-to-trough) within HEALTH_WINDOW_MS
+  // before it's treated as fully "unstable" — tuned by eye, not from a
+  // clinical reference; adjust if the Health line/arrows read too jumpy or
+  // too sluggish in practice.
+  _cfg.HEALTH_INSTABILITY_SWING = { HR: 40, RR: 8, SpO2: 15, BPsys: 30 };
+
+  // Composite 0-100 score actually consumed by both callers. Backward-
+  // looking only (never reads overrides scheduled after nowMs) — kept
+  // causal even on sim_control.html's graph, which technically has the
+  // whole future available, so both callers behave identically and
+  // sim_patient.html's real-time trend arrows (which can only ever know the
+  // past) never disagree with what the graph would show at the same point.
+  //
+  // Built on healthLevel() above, fixing two things a single instantaneous
+  // reading gets wrong:
+  //
+  // 1. "Crashing through normal" — healthLevel() only looks at the CURRENT
+  //    value, so a HR sliding from tachycardic through the 60-100 normal
+  //    band on its way to arrest reads as briefly perfectly healthy,
+  //    producing a false uptick right as the patient is actually
+  //    collapsing. Fixed by an instability term: the peak-to-trough SWING
+  //    of HR/RR/SpO2/BPsys's raw values over the trailing window (not their
+  //    severity band, their magnitude of movement) floors how good the
+  //    score is allowed to look. Overrides ramp linearly (see
+  //    applyOverrides() above), so a vital mid-crossing is moving just as
+  //    fast at the exact "normal" instant as right before/after it — the
+  //    swing stays large right through the crossing, unlike the severity
+  //    band, which briefly reads 0. Deliberately magnitude-only, not
+  //    direction-aware: telling apart "fast genuine recovery" from "fast
+  //    overshoot in progress" isn't possible without seeing the future,
+  //    which this function deliberately doesn't do — a vital that's still
+  //    swinging, either way, isn't settled yet.
+  //
+  // 2. Step noise from small-range vitals — pain/GCS/nausea have few
+  //    severity bands covering a small numeric range, so a routine
+  //    authored change crosses a whole band (a visible step) much sooner
+  //    than the same clinical magnitude of change would for HR/BP. Fixed
+  //    by averaging healthLevel() across the same trailing window rather
+  //    than reading it at one instant — a brief step blends with its
+  //    neighbours instead of standing out as its own spike.
+  //
+  // 3. Confirmed cardiac arrest — once HR (and therefore perfusion) has
+  //    been at 0 for the whole trailing window, the score hard-floors at 0
+  //    no matter what anything else reads. With no cardiac output, a
+  //    GCS/pain/nausea reading isn't clinically meaningful, AND this
+  //    doubles as a safety net against any vital whose authored override
+  //    tail doesn't hold perfectly flat all the way to the end of a
+  //    scenario — a stray wobble there can no longer leak into the score
+  //    once arrest is this well-established.
+  //
+  // Mechanism 2 alone is broken out as getSmoothedHealthLevel() below,
+  // for sim_patient.html's trend arrows to use instead of this function —
+  // see that one's own comment for why.
+  function getSmoothedHealthLevel(cfg, nowMs) {
+    let sum = 0;
+    for (let i = 0; i < _cfg.HEALTH_SAMPLES; i++) {
+      const tMs = nowMs - _cfg.HEALTH_WINDOW_MS * (i / (_cfg.HEALTH_SAMPLES - 1));
+      sum += healthLevel(getVitalsRaw(cfg, tMs));
+    }
+    return sum / _cfg.HEALTH_SAMPLES;
+  }
+
+  function getHealthScore(cfg, nowMs) {
+    const samples = [];
+    for (let i = 0; i < _cfg.HEALTH_SAMPLES; i++) {
+      const tMs = nowMs - _cfg.HEALTH_WINDOW_MS * (i / (_cfg.HEALTH_SAMPLES - 1));
+      samples.push(getVitalsRaw(cfg, tMs));
+    }
+    if (samples.every(v => v.HR <= 0)) return 0;
+
+    const smoothedAbnormality = 1 - getSmoothedHealthLevel(cfg, nowMs) / 100;
+
+    let instability = 0;
+    Object.keys(_cfg.HEALTH_INSTABILITY_SWING).forEach(key => {
+      const vals = samples.map(v => v[key]);
+      const swing = Math.max(...vals) - Math.min(...vals);
+      instability = Math.max(instability, Math.min(1, swing / _cfg.HEALTH_INSTABILITY_SWING[key]));
+    });
+
+    const finalAbnormality = Math.max(smoothedAbnormality, instability);
+    return 100 * (1 - finalAbnormality);
+  }
+
   // Fuzzy-maps the scenario's free-text patient_meta.mood (e.g. "Anxious and
   // tearful", authored by generator.html's AI prompt) into a small canonical
   // set the avatar's live eyebrow/mouth expression can actually render —
@@ -943,6 +1078,7 @@
     get GCS_V3_WORDS() { return _cfg.GCS_V3_WORDS; },
     get GENERIC_SPONTANEOUS_LINES() { return _cfg.GENERIC_SPONTANEOUS_LINES; },
     getActionDurationSec, getVitals, getVitalsRaw, getSimNow, getStaticVitalAt, getRhythmAt, getAppearanceState,
+    getHealthScore, getSmoothedHealthLevel,
     deriveRhythmFromHR, classifyRhythmForDefib, computeSurvivabilityScore, computeDefibrillationEffect, spliceAiOverridePlan, spliceRhythmPlan, clearFutureFromFork,
     parseAgeFromScenario, parseScenarioMood, cleanSpontaneousLines,
     hrSeverity, rrSeverity, spo2Severity, painSeverity, bpSysSeverity,
