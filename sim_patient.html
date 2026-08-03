@@ -411,6 +411,11 @@ async function loadSimConfig() {
     VOICE_MODE_LABELS = pick(field('voice', 'VOICE_MODE_LABELS'), VOICE_MODE_LABELS);
     VOICE_MODE_REPLY_LABELS = pick(field('voice', 'VOICE_MODE_REPLY_LABELS'), VOICE_MODE_REPLY_LABELS);
     PIPER_MODULE_URL = pick(field('voice', 'PIPER_MODULE_URL'), PIPER_MODULE_URL);
+    ELLIPSIS_PAUSE_MS = pick(field('voice', 'ELLIPSIS_PAUSE_MS'), ELLIPSIS_PAUSE_MS);
+    SENTENCE_PAUSE_MS = pick(field('voice', 'SENTENCE_PAUSE_MS'), SENTENCE_PAUSE_MS);
+    YOUTH_VOICE_RATE_AT_ZERO = pick(field('voice', 'YOUTH_VOICE_RATE_AT_ZERO'), YOUTH_VOICE_RATE_AT_ZERO);
+    PIPER_WARM_STALL_MS = pick(field('voice', 'PIPER_WARM_STALL_MS'), PIPER_WARM_STALL_MS);
+    PIPER_REPLY_STALL_MS = pick(field('voice', 'PIPER_REPLY_STALL_MS'), PIPER_REPLY_STALL_MS);
 
     // SimEngine-owned fields — same shape/merge logic as sim_control.html's
     // loadSimConfig(), see its comments for why. Must stay in sync by hand.
@@ -2059,6 +2064,11 @@ function pickVoice() {
 // child voice, same tradeoff already accepted for it.
 const HQ_VOICE_LS_KEY = 'av_hq_voice_enabled';
 let PIPER_MODULE_URL = 'https://cdn.jsdelivr.net/npm/@diffusionstudio/vits-web@1/+esm';
+let ELLIPSIS_PAUSE_MS = 550;
+let SENTENCE_PAUSE_MS = 220;
+let YOUTH_VOICE_RATE_AT_ZERO = 1.22;
+let PIPER_WARM_STALL_MS = 60000;
+let PIPER_REPLY_STALL_MS = 25000;
 // A few voices per gender rather than one fixed pick — same "medium" quality
 // tier throughout (a reasonable size/quality balance; "low" sounds worse,
 // "high" isn't worth the extra download for a training tool), spanning a
@@ -2090,7 +2100,7 @@ function piperVoiceIdFor(gender) {
 // 1.22 is a deliberately moderate pick — enough to read as younger without
 // tipping into "chipmunk".
 function youthVoiceRate(years) {
-  return ageRamp(years, 1.22, 1.0);
+  return ageRamp(years, YOUTH_VOICE_RATE_AT_ZERO, 1.0);
 }
 
 // A failed dynamic import() is cached by the browser against its exact URL
@@ -2155,7 +2165,7 @@ function warmPiperVoice() {
       if (!progress.total) return;
       setHqVoiceStatus(`Downloading… ${Math.round(progress.loaded * 100 / progress.total)}%`);
     });
-  }, 60000)
+  }, PIPER_WARM_STALL_MS)
     .then(() => setHqVoiceStatus('Ready', 'ready'))
     .catch(e => setHqVoiceStatus('Unavailable — using standard voice', 'error', e.message));
 }
@@ -2255,7 +2265,7 @@ function splitIntoPiperChunks(text) {
     lastIndex = end;
     if (!chunkText) continue;
     const isEllipsis = punct.includes('…') || punct.length >= 3; // "…" or "..." reads as a longer, trailing-off pause than a plain "." "!" "?"
-    chunks.push({ text: chunkText, pauseAfterMs: isEllipsis ? 550 : 220 });
+    chunks.push({ text: chunkText, pauseAfterMs: isEllipsis ? ELLIPSIS_PAUSE_MS : SENTENCE_PAUSE_MS });
   }
   const rest = text.slice(lastIndex).trim();
   if (rest) chunks.push({ text: rest, pauseAfterMs: 0 });
@@ -2332,7 +2342,7 @@ async function speakPatientReply(text, resumeIfConversing, isConversation, useHq
         const chunks = splitIntoPiperChunks(text);
         const finished = await playPiperChunks(tts, chunks, voiceId, audio, statusEl, priorStatus, bump, stillCurrent, aborted);
         if (finished) { stopTalkAnimation(); resumeIfConversing(); }
-      }, 25000); // see warmPiperVoice()'s comment on why this needs real slack, not just enough for the network fetch
+      }, PIPER_REPLY_STALL_MS); // see warmPiperVoice()'s comment on why this needs real slack, not just enough for the network fetch
       setHqVoiceStatus('Ready', 'ready');
       return;
     } catch (e) {
