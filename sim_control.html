@@ -55,6 +55,8 @@ body { display: flex; flex-direction: column; }
 .log-item { font-size: 12px; padding: 7px 4px; border-bottom: 1px solid #eef2f6; }
 .log-item.log-treatment { cursor: pointer; }
 .log-item.log-treatment:active { background: #f3f6fa; }
+.log-item.log-future { opacity: 0.5; }
+.log-item .log-future-tag { color: #b45309; font-weight: 700; }
 .log-item .log-head { display: flex; justify-content: space-between; align-items: center; gap: 6px; }
 .log-item .log-chevron { color: #9db1c2; font-size: 9px; margin-left: 4px; }
 .log-item .log-assumptions { font-size: 10px; color: #6b8299; margin-top: 5px; }
@@ -1215,6 +1217,9 @@ let _dragPointerId = null;
 let _lastLayout = null; // cached from the last renderGraph() call, used to invert screen coords -> (min, value)
 let inspectMin = null; // default-mode scrub position (minutes), null when not actively inspecting
 let _inspectPointerId = null;
+let pendingRewindMs = null; // absolute ms target while dragging the playhead — null when not actively rewinding
+let _rewindPointerId = null;
+let _rewindUpperBoundMs = null; // can't drag forward past "now" as of when this drag gesture started
 
 function toggleGraphSeries(key, on) {
   graphSeriesOn[key] = on;
@@ -1549,6 +1554,72 @@ function startInspect(evt) {
   renderGraph();
 }
 
+// Auto-pauses if needed the instant the playhead is grabbed — rewinding
+// reuses the pause-aware clock (getSimNow in sim_engine.js: while paused,
+// simNow = pausedAtMs - totalPausedMs, a value fixed regardless of real
+// wall-clock time), so there has to be a frozen pausedAtMs to rewind
+// relative to. Optimistic local update, same pattern as every other
+// session-state write here — the drag itself doesn't wait on this PATCH.
+function ensurePausedForRewind() {
+  if (liveConfig.isPaused) return;
+  const nowRaw = Date.now();
+  liveConfig.isPaused = true;
+  liveConfig.pausedAtMs = nowRaw;
+  renderRunControls();
+  sbFetch(`sim_sessions?session_code=eq.${sessionCode}`, {
+    method: 'PATCH', prefer: 'return=minimal',
+    body: JSON.stringify({ is_paused: true, paused_at_ms: nowRaw, updated_at: new Date().toISOString() })
+  }).catch(() => {}); // best-effort — commitPlayheadRewind() writes total_paused_ms against this same local pausedAtMs regardless
+}
+
+// Grabbing the dashed "now" line — live rewind, not just a preview: on
+// release this actually moves the shared session's current time backward
+// (or forward, back toward where it started), which the patient device
+// picks up on its next poll exactly like any other synced field. Bounded to
+// [scenario start, wherever "now" was when the drag began] — dragging
+// forward can only return you to real "now" as of grab time, never into
+// time that hasn't actually elapsed yet.
+function startPlayheadDrag(evt) {
+  if (!liveConfig || !liveConfig.hasStarted || !_lastLayout || !sessionCode) return;
+  evt.preventDefault();
+  evt.stopPropagation();
+  cancelPendingDrag();
+  _inspectPointerId = null;
+  inspectMin = null;
+  _rewindUpperBoundMs = simNow();
+  ensurePausedForRewind();
+  pendingRewindMs = _rewindUpperBoundMs;
+  _rewindPointerId = evt.pointerId;
+  renderGraph();
+}
+
+// Writes the rewound time as a bigger/smaller total_paused_ms — the ONLY
+// field this touches. Overrides/treatments are never rewritten by a rewind
+// itself: they're keyed by absolute startMs, so moving "now" earlier just
+// makes not-yet-reached overrides inactive again, no data mutation needed.
+// (Divergence — giving a NEW action before reaching an old one's time — is
+// handled separately, by appendTreatmentEntry() pruning the superseded log
+// entries at the point a new action is actually given, not here.)
+async function commitPlayheadRewind() {
+  _rewindPointerId = null;
+  if (pendingRewindMs === null || !sessionCode) { pendingRewindMs = null; renderGraph(); return; }
+  const targetMs = pendingRewindMs;
+  pendingRewindMs = null;
+  const newTotalPaused = liveConfig.pausedAtMs - targetMs;
+  try {
+    await sbFetch(`sim_sessions?session_code=eq.${sessionCode}`, {
+      method: 'PATCH', prefer: 'return=minimal',
+      body: JSON.stringify({ total_paused_ms: newTotalPaused, updated_at: new Date().toISOString() })
+    });
+    liveConfig.totalPausedMs = newTotalPaused;
+  } catch (e) {
+    alert('Could not rewind — check the connection and try again.');
+  }
+  renderGraph();
+  renderLog();
+  tickVitals();
+}
+
 // Where the NEXT new point on this series should chain from: the end of
 // whatever's already scheduled in the future (so entries run end-to-end
 // with no gaps, like continuing a path), or "now" if nothing's scheduled
@@ -1639,6 +1710,16 @@ function startAddAt(coords, pointerId) {
 }
 
 function onDragPointerMove(evt) {
+  if (_rewindPointerId !== null && evt.pointerId === _rewindPointerId) {
+    evt.preventDefault();
+    if (!_lastLayout) return;
+    const coords = svgCoordFromEvent(evt);
+    if (!coords) return;
+    const targetMs = liveConfig.startTimeMs + minForX(coords.x) * 60000;
+    pendingRewindMs = Math.min(_rewindUpperBoundMs, Math.max(liveConfig.startTimeMs, targetMs));
+    scheduleGraphRender();
+    return;
+  }
   if (_inspectPointerId !== null && evt.pointerId === _inspectPointerId) {
     evt.preventDefault();
     const coords = svgCoordFromEvent(evt);
@@ -1669,6 +1750,11 @@ function onDragPointerMove(evt) {
 }
 
 function onDragPointerUp(evt) {
+  if (_rewindPointerId !== null && evt.pointerId === _rewindPointerId) {
+    evt.preventDefault();
+    commitPlayheadRewind();
+    return;
+  }
   if (_inspectPointerId !== null && evt.pointerId === _inspectPointerId) {
     _inspectPointerId = null;
     inspectMin = null;
@@ -2009,19 +2095,30 @@ function renderGraph() {
   });
 
   let playhead = '';
-  if (liveConfig.hasStarted && elapsedMin >= viewStart && elapsedMin <= viewEnd) {
-    const x = xForMin(elapsedMin);
-    playhead = `<line x1="${x}" y1="${padT}" x2="${x}" y2="${padT + plotH}" stroke="#0369a1" stroke-width="2" stroke-dasharray="4,3" />`;
+  const isRewinding = pendingRewindMs !== null;
+  // While actively dragging, the playhead tracks the drag target instead of
+  // true "now" — the underlying series paths are NOT recomputed against it
+  // (still the live config), only this marker + its per-series dots, which
+  // is enough to preview what releasing here would jump to.
+  const dispMin = isRewinding ? (pendingRewindMs - liveConfig.startTimeMs) / 60000 : elapsedMin;
+  if (liveConfig.hasStarted && (isRewinding || (dispMin >= viewStart && dispMin <= viewEnd))) {
+    const x = Math.max(padL, Math.min(padL + plotW, xForMin(dispMin)));
+    const phColor = isRewinding ? '#b45309' : '#0369a1';
+    playhead = `<line x1="${x}" y1="${padT}" x2="${x}" y2="${padT + plotH}" stroke="${phColor}" stroke-width="${isRewinding ? 3 : 2}" stroke-dasharray="4,3" />`;
     // A coloured dot per visible series marking exactly where its line
-    // crosses "now" — colour matches the line, so it only shows for
-    // whichever vitals are currently toggled on.
+    // crosses "now" (or the drag target while rewinding) — colour matches
+    // the line, so it only shows for whichever vitals are currently toggled
+    // on.
     GRAPH_SERIES.forEach(s => {
       if (!graphSeriesOn[s.key]) return;
-      const tMs = liveConfig.startTimeMs + elapsedMin * 60000;
+      const tMs = liveConfig.startTimeMs + dispMin * 60000;
       const val = s.get(SimEngine.getVitalsRaw(liveConfig, tMs), liveConfig, tMs);
       const y = yFor(s, val);
       playhead += `<circle cx="${x}" cy="${y}" r="4.5" fill="${s.color}" style="pointer-events:none;" />`;
     });
+    if (isRewinding) {
+      playhead += `<text x="${x}" y="${padT - 2}" font-size="9" font-weight="700" fill="${phColor}" text-anchor="middle">t+${dispMin.toFixed(1)}m — release to jump</text>`;
+    }
   }
 
   let pendingUI = '';
@@ -2127,6 +2224,16 @@ function renderGraph() {
   const inspectCatcher = armedTileKey ? '' :
     `<rect x="${padL}" y="${padT}" width="${plotW}" height="${plotH}" fill="transparent" style="touch-action:none;cursor:crosshair;" onpointerdown="startInspect(event)" />`;
 
+  // Narrow strip around the playhead's own x — kept topmost (after every
+  // other catcher above) so grabbing the "now" line for a rewind always
+  // wins over whatever edit-mode/inspect catcher would otherwise be
+  // underneath it, regardless of arm state.
+  let rewindCatcher = '';
+  if (liveConfig.hasStarted && !isRewinding && elapsedMin >= viewStart && elapsedMin <= viewEnd) {
+    const px = xForMin(elapsedMin);
+    rewindCatcher = `<rect x="${px - 16}" y="${padT}" width="32" height="${plotH}" fill="transparent" style="touch-action:none;cursor:ew-resize;" onpointerdown="startPlayheadDrag(event)" />`;
+  }
+
   // Rhythm markers — the ECG waveform itself only lives on the patient
   // device, so this is the assessor's one view into what rhythm is (or
   // will be) showing there: a vertical dashed line + label at each
@@ -2173,7 +2280,7 @@ function renderGraph() {
     rhythmUI += `<text x="${padL + badgeW / 2}" y="${padT + 9.5}" font-size="9" fill="#e9d5ff" font-weight="900" text-anchor="middle">${escapeHtml(badgeLabel)}</text>`;
   }
 
-  wrap.innerHTML = `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" style="width:100%;height:100%;display:block;touch-action:none;">${grid}${rhythmUI}${ghostPaths}${paths}${hitPaths}${overrideMarkers}${playhead}${pendingUI}${edgeReadouts}${inspectUI}${inspectCatcher}</svg>`;
+  wrap.innerHTML = `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" style="width:100%;height:100%;display:block;touch-action:none;">${grid}${rhythmUI}${ghostPaths}${paths}${hitPaths}${overrideMarkers}${playhead}${pendingUI}${edgeReadouts}${inspectUI}${inspectCatcher}${rewindCatcher}</svg>`;
 }
 
 let VITAL_DEFS = [
@@ -2438,6 +2545,7 @@ function tickVitals() {
   }).join('');
   if (Object.keys(patientActions).some(k => patientActions[k].status === 'pending')) renderPendingActionsStack(); // live countdown while anything's mid-timer
   renderGraph();
+  renderLog(); // keeps the log's "not yet" greying (see renderLog) live as replay after a rewind naturally passes each entry's original timestamp again
 }
 
 // Friendlier wording for the Log's completed-action lines than the raw
@@ -2464,17 +2572,24 @@ function renderLog() {
     list.innerHTML = '<p class="muted" style="margin-top:8px;">Nothing logged yet.</p>';
     return;
   }
+  // After a rewind, "now" sits earlier than some already-logged entries \u2014
+  // those haven't happened yet from here, so they're greyed rather than
+  // removed: resuming with no new action replays them for real when time
+  // reaches their timestamp again, same as the first time through.
+  const nowMin = liveConfig.hasStarted ? (simNow() - liveConfig.startTimeMs) / 60000 : Infinity;
   list.innerHTML = entries.map(e => {
     const timeStr = `t+${e.atMin.toFixed(1)} min`;
+    const isFuture = e.atMin > nowMin + 1e-9;
+    const futureTag = isFuture ? ` <span class="log-future-tag">not yet</span>` : '';
     if (e.kind === 'action') {
-      return `<div class="log-item"><div class="log-head"><span>${escapeHtml(e.text)}</span><span class="muted">${timeStr}</span></div></div>`;
+      return `<div class="log-item${isFuture ? ' log-future' : ''}"><div class="log-head"><span>${escapeHtml(e.text)}</span><span class="muted">${timeStr}${futureTag}</span></div></div>`;
     }
     const hasAssumptions = e.assumptions && e.assumptions.length;
     const isExpanded = expandedTreatmentIdx === e.idx;
     const chevron = hasAssumptions ? `<span class="log-chevron">${isExpanded ? '\u25b2' : '\u25bc'}</span>` : '';
-    const rowAttrs = hasAssumptions ? `class="log-item log-treatment" onclick="toggleTreatmentExpanded(${e.idx})"` : `class="log-item"`;
+    const rowAttrs = hasAssumptions ? `class="log-item log-treatment${isFuture ? ' log-future' : ''}" onclick="toggleTreatmentExpanded(${e.idx})"` : `class="log-item${isFuture ? ' log-future' : ''}"`;
     const body = (hasAssumptions && isExpanded) ? `<div class="log-assumptions">${e.assumptions.map(a => '\u26A0 ' + escapeHtml(a)).join('<br>')}</div>` : '';
-    return `<div ${rowAttrs}><div class="log-head"><span>${escapeHtml(e.text)}</span><span class="muted">${timeStr}${chevron}</span></div>${body}</div>`;
+    return `<div ${rowAttrs}><div class="log-head"><span>${escapeHtml(e.text)}</span><span class="muted">${timeStr}${futureTag}${chevron}</span></div>${body}</div>`;
   }).join('');
 }
 
@@ -3124,6 +3239,17 @@ async function applyDefibrillation(joules, givenAtMs) {
   return note;
 }
 
+// Appends a new log entry, dropping any later entries this one supersedes —
+// relevant after a rewind: if givenAtMin is earlier than something already
+// logged (that entry sits in the "future" relative to this point, from a
+// branch that no longer happened), it's discarded rather than kept dangling.
+// A no-op in the ordinary forward-time case, since every existing entry's
+// givenAtMin is already <= a newly-given one there.
+function appendTreatmentEntry(entry) {
+  treatments = treatments.filter(t => t.givenAtMin <= entry.givenAtMin).concat([entry]);
+  liveConfig.treatments = treatments;
+}
+
 async function giveTreatment(providedText, opts) {
   opts = opts || {};
   if (!sessionCode) return;
@@ -3137,8 +3263,8 @@ async function giveTreatment(providedText, opts) {
   const givenAtMin = (givenAtMs - liveConfig.startTimeMs) / 60000;
   const newEntry = { action, givenAtMin };
   if (opts.source) newEntry.source = opts.source;
-  treatments = [...treatments, newEntry];
-  liveConfig.treatments = treatments;
+  const preEntryTreatments = treatments;
+  appendTreatmentEntry(newEntry);
   try {
     await sbFetch(`sim_sessions?session_code=eq.${sessionCode}`, {
       method: 'PATCH', prefer: 'return=minimal',
@@ -3147,7 +3273,7 @@ async function giveTreatment(providedText, opts) {
     renderLog();
     document.getElementById('action-input').value = '';
   } catch (e) {
-    treatments.pop();
+    treatments = preEntryTreatments;
     liveConfig.treatments = treatments;
     alert('Could not log the treatment — check the connection and try again.');
     return;
@@ -3452,8 +3578,8 @@ async function runAssessorCommand(providedText) {
   const givenAtMs = simNow();
   const givenAtMin = (givenAtMs - liveConfig.startTimeMs) / 60000;
   const newEntry = { action: command, givenAtMin, source: 'assessor_command' };
-  treatments = [...treatments, newEntry];
-  liveConfig.treatments = treatments;
+  const preEntryTreatments = treatments;
+  appendTreatmentEntry(newEntry);
   try {
     await sbFetch(`sim_sessions?session_code=eq.${sessionCode}`, {
       method: 'PATCH', prefer: 'return=minimal',
@@ -3462,7 +3588,7 @@ async function runAssessorCommand(providedText) {
     renderLog();
     inputEl.value = '';
   } catch (e) {
-    treatments.pop();
+    treatments = preEntryTreatments;
     liveConfig.treatments = treatments;
     alert('Could not log the event \u2014 check the connection and try again.');
     return;
