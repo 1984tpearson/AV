@@ -528,14 +528,21 @@ function extendedVitalsNow() {
 }
 
 // --- Improving/declining trend arrows (next to the avatar) -----------------
-// Built on SimEngine.getHealthTrendLevel() — the rhythm-aware, worst-of-
-// trailing-window reading on the CONTINUOUS abnormality basis (see that
-// function and healthLevelContinuous() in sim_engine.js for why it's a
-// separate function from the graph's own getHealthScore()). Rhythm
-// awareness matters here specifically: VF/pulseless VT/asystole/PEA all
-// mean zero perfusion regardless of what the monitor numbers still read,
-// and a naive numbers-only trend could otherwise read as "improving" for
-// several minutes straight through a lethal rhythm, before the numbers
+// Built on SimEngine.getDisplayHealthTrendLevel() — the SAME smoothed
+// number sim_control.html's Health graph line plots (see that function and
+// getHealthTrendLevel()/healthLevelContinuous() in sim_engine.js for the
+// full chain: rhythm-aware, worst-of-trailing-window on the continuous
+// abnormality basis, then a display-only moving-average pass on top to
+// iron out small ripples — e.g. pain's contribution briefly spiking as its
+// severity crosses a band while its consciousness-based weight is
+// simultaneously fading). Using the smoothed number here too means the
+// arrows react to the same picture the graph shows, not a jagged
+// unsmoothed one the assessor never sees.
+//
+// Rhythm awareness matters here specifically: VF/pulseless VT/asystole/PEA
+// all mean zero perfusion regardless of what the monitor numbers still
+// read, and a naive numbers-only trend could otherwise read as "improving"
+// for several minutes straight through a lethal rhythm, before the numbers
 // themselves caught up — this happened in practice, verified against a
 // real recorded session.
 //
@@ -554,7 +561,7 @@ function computeHealthTrend(cfg, nowMs) {
   // little to call a trend yet, rather than comparing against an
   // arbitrarily short baseline right at scenario start.
   if (nowMs - lookbackMs < TREND_WINDOW_MS * 0.5) return 0;
-  return SimEngine.getHealthTrendLevel(cfg, nowMs) - SimEngine.getHealthTrendLevel(cfg, lookbackMs);
+  return SimEngine.getDisplayHealthTrendLevel(cfg, nowMs) - SimEngine.getDisplayHealthTrendLevel(cfg, lookbackMs);
 }
 
 function trendArrowCount(delta) {

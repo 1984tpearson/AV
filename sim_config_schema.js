@@ -257,6 +257,18 @@
             help: 'Samples spread evenly across the trailing window, including "now".',
             default: 4
           },
+          HEALTH_DISPLAY_SMOOTHING_MS: {
+            type: 'number',
+            label: 'Health display smoothing window (ms)',
+            help: 'Display-only moving average on top of getHealthScore()/getHealthTrendLevel(), purely to flatten small visual ripples (e.g. from pain’s severity crossing a band while its consciousness-based weight is fading) — does not change the underlying score.',
+            default: 120000
+          },
+          HEALTH_DISPLAY_SMOOTHING_SAMPLES: {
+            type: 'number',
+            label: 'Health display smoothing sample count',
+            help: 'Samples spread evenly across the display-smoothing window, including "now" — needs to be reasonably high (not just 3-5) or the smoothing pass creates its own coarse staircase during a sharp transition like a rhythm collapse into arrest.',
+            default: 20
+          },
           GRAPH_ZOOM_LEVELS: {
             type: 'number_list',
             label: 'Graph zoom levels (minutes)',

@@ -1024,6 +1024,42 @@
     return worst;
   }
 
+  // ---- Display smoothing (visual only — doesn't change what
+  // getHealthScore()/getHealthTrendLevel() themselves consider correct) -----
+  // A composite built on discrete severity bands is inherently a staircase,
+  // and different vitals cross their own band boundaries at slightly
+  // different times — e.g. pain's contribution can briefly spike right as
+  // its severity crosses a band, then fade back down as its own
+  // consciousness-based weight keeps shrinking underneath it (see
+  // healthLevelDiscrete/painWeight above), producing small sawtoothed
+  // ripples in an otherwise clearly-declining trend. The Health line is a
+  // visual trend indicator, not a hard clinical reading, so ironing those
+  // out after the fact is fine — this is a trailing moving average of the
+  // ALREADY-COMPUTED score/trend-level, layered on top rather than folded
+  // into the scoring itself, so rhythm-awareness/worst-of-window/confirmed-
+  // arrest all still work exactly as before underneath it.
+  _cfg.HEALTH_DISPLAY_SMOOTHING_MS = 120000;
+  _cfg.HEALTH_DISPLAY_SMOOTHING_SAMPLES = 20;
+  function smoothOverTrailingWindow(fn, cfg, nowMs) {
+    let sum = 0;
+    for (let i = 0; i < _cfg.HEALTH_DISPLAY_SMOOTHING_SAMPLES; i++) {
+      const tMs = nowMs - _cfg.HEALTH_DISPLAY_SMOOTHING_MS * (i / (_cfg.HEALTH_DISPLAY_SMOOTHING_SAMPLES - 1));
+      sum += fn(cfg, tMs);
+    }
+    return sum / _cfg.HEALTH_DISPLAY_SMOOTHING_SAMPLES;
+  }
+  // Used by sim_control.html's Health graph line/tile instead of
+  // getHealthScore() directly.
+  function getDisplayHealthScore(cfg, nowMs) {
+    return smoothOverTrailingWindow(getHealthScore, cfg, nowMs);
+  }
+  // Used by sim_patient.html's trend arrows instead of getHealthTrendLevel()
+  // directly, so the arrows react to the same smoothed picture the graph
+  // shows rather than the raw ripples.
+  function getDisplayHealthTrendLevel(cfg, nowMs) {
+    return smoothOverTrailingWindow(getHealthTrendLevel, cfg, nowMs);
+  }
+
   // Fuzzy-maps the scenario's free-text patient_meta.mood (e.g. "Anxious and
   // tearful", authored by generator.html's AI prompt) into a small canonical
   // set the avatar's live eyebrow/mouth expression can actually render —
@@ -1103,7 +1139,7 @@
     get GCS_V3_WORDS() { return _cfg.GCS_V3_WORDS; },
     get GENERIC_SPONTANEOUS_LINES() { return _cfg.GENERIC_SPONTANEOUS_LINES; },
     getActionDurationSec, getVitals, getVitalsRaw, getSimNow, getStaticVitalAt, getRhythmAt, getAppearanceState,
-    getHealthScore, getHealthTrendLevel,
+    getHealthScore, getHealthTrendLevel, getDisplayHealthScore, getDisplayHealthTrendLevel,
     deriveRhythmFromHR, classifyRhythmForDefib, computeSurvivabilityScore, computeDefibrillationEffect, spliceAiOverridePlan, spliceRhythmPlan, clearFutureFromFork,
     parseAgeFromScenario, parseScenarioMood, cleanSpontaneousLines,
     hrSeverity, rrSeverity, spo2Severity, painSeverity, bpSysSeverity,

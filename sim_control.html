@@ -415,7 +415,9 @@ async function loadSimConfig() {
       SURVIVABILITY: survivabilityMerged,
       ENERGY_FACTOR: field('defib', 'ENERGY_FACTOR_TABLE'),
       HEALTH_WINDOW_MS: field('timers', 'HEALTH_WINDOW_MS'),
-      HEALTH_SAMPLES: field('timers', 'HEALTH_SAMPLES')
+      HEALTH_SAMPLES: field('timers', 'HEALTH_SAMPLES'),
+      HEALTH_DISPLAY_SMOOTHING_MS: field('timers', 'HEALTH_DISPLAY_SMOOTHING_MS'),
+      HEALTH_DISPLAY_SMOOTHING_SAMPLES: field('timers', 'HEALTH_DISPLAY_SMOOTHING_SAMPLES')
     });
   } catch (e) {
     console.warn('sim_config load failed — using built-in defaults', e); // never fatal, see comment above
@@ -1182,13 +1184,13 @@ let GRAPH_SERIES = [
   { key: 'gcs',     label: 'GCS',     color: '#d02e8b', unit: '/15',    min: 3,  max: 15, plotMax: 18, get: v => v.gcsE + v.gcsV + v.gcsM },
   { key: 'pain',    label: 'Pain',    color: '#dd9806', unit: '/10',    min: 0,  max: 10, get: v => v.pain },
   { key: 'nausea',  label: 'Nausea',  color: '#14b8a6', unit: '/10',    min: 0,  max: 10, get: v => v.nausea },
-  // Composite, not a real vital — see SimEngine.getHealthScore() for how it's derived.
+  // Composite, not a real vital — see SimEngine.getDisplayHealthScore() (and getHealthScore() underneath it) for how it's derived.
   // plotMax (double the real max) is what pins "normal" (100) at the
   // vertical MIDDLE of the chart rather than the top, leaving "dead" (0) at
   // the very bottom — same plotMax headroom trick GCS/SpO2 use above, just
   // pushed further since this one needs an entire extra half-chart of
   // headroom rather than a small margin.
-  { key: 'health',  label: 'Health',  color: '#000000', unit: '',       min: 0,  max: 100, plotMax: 200, get: (v, cfg, tMs) => SimEngine.getHealthScore(cfg, tMs) }
+  { key: 'health',  label: 'Health',  color: '#000000', unit: '',       min: 0,  max: 100, plotMax: 200, get: (v, cfg, tMs) => SimEngine.getDisplayHealthScore(cfg, tMs) }
 ];
 let GRAPH_DEFAULT_ON = { HR: true, BPsys: true, BPdia: true, SpO2: true, RR: true, EtCO2: true, temp: false, bgl: false, ketones: false, gcs: false, pain: false, nausea: false, health: false };
 let graphSeriesOn = { ...GRAPH_DEFAULT_ON };
@@ -2349,12 +2351,14 @@ let VITALS_TICK_MS = 1000;
 let DB_POLL_MS = 1500;
 
 // The Health line's scoring (rhythm-aware instant level, worst-of-trailing-
-// window) lives in SimEngine.getHealthScore(cfg, nowMs) — including its own
-// HEALTH_WINDOW_MS/HEALTH_SAMPLES tunables, admin-configurable via the same
-// SimEngine.applyConfigOverrides() call below that the other SimEngine-owned
-// fields go through (see loadSimConfig()) — so sim_patient.html's trend
-// arrows share the exact same number rather than drifting from a second
-// copy. See sim_engine.js for the full rationale.
+// window, plus a display-only smoothing pass on top — see
+// SimEngine.getDisplayHealthScore()) lives in sim_engine.js — including its
+// HEALTH_WINDOW_MS/HEALTH_SAMPLES/HEALTH_DISPLAY_SMOOTHING_* tunables,
+// admin-configurable via the same SimEngine.applyConfigOverrides() call
+// below that the other SimEngine-owned fields go through (see
+// loadSimConfig()) — so sim_patient.html's trend arrows share the exact
+// same number rather than drifting from a second copy. See sim_engine.js
+// for the full rationale.
 
 // Consciousness gate — ONLY used for Appearance/Speech (things that require
 // a working brain to express). Skin and Work of Breathing are physical
@@ -2436,7 +2440,7 @@ function tickVitals() {
     let val;
     if (def.key === 'BP') val = `${Math.round(v.BPsys)}/${Math.round(v.BPdia)}`;
     else if (def.isGCS) val = Math.round(v.gcsE + v.gcsV + v.gcsM);
-    else if (def.isHealth) val = Math.round(SimEngine.getHealthScore(liveConfig, simNow()));
+    else if (def.isHealth) val = Math.round(SimEngine.getDisplayHealthScore(liveConfig, simNow()));
     else if (['Temp', 'BGL', 'Ketones'].includes(def.key)) val = v[def.overrideKeys[0]].toFixed(1);
     else val = Math.round(v[def.overrideKeys[0]]);
     const armedStyle = (vitalsEditMode && armedTileKey === def.key) ? 'border-color:#0369a1;box-shadow:0 0 0 2px #bae0fd inset;' : '';
