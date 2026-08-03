@@ -2620,12 +2620,21 @@ let _wakeRecognition = null;
 // window is taken as that phrase's content, without needing it repeated.
 let _wakeArmedUntil = 0;
 let _wakeArmedMode = null;
+let _wakeArmedGreeting = false;
 const WAKE_FOLLOWUP_MS = 7000;
 // Synchronous guard against a second wake trigger firing while the first
 // send is still in flight — matters most for 'treatment', which (unlike
 // 'chat'/'exam') never sets _lastChatSentId, so nothing else would block a
 // near-simultaneous second detection during the await below.
 let _wakeSendInFlight = false;
+// Bootstrap-only chat triggers ("hello"/"hey"/"hi there") for before the
+// crew knows the patient's name yet — e.g. "hello, my name is Tim, what's
+// your name?" One-shot: the first time any of these actually fires a wake
+// item, this flips false for the rest of the session (see sendWakeItem) and
+// stays off, since "hey"/"hello" are common enough in ordinary crew/student
+// chatter that leaving them live all scenario would misfire constantly once
+// they're no longer needed to break the ice.
+let _greetingWakeWordsActive = true;
 
 // Each entry's phrase triggers that entry's mode ('chat'/'exam'/'treatment'
 // — same three types student_queue items already carry, see
@@ -2640,12 +2649,24 @@ let _wakeSendInFlight = false;
 // than the chat trigger, same tradeoff already noted for the chat wake word:
 // no better signal is available without an AI classification call this page
 // has no Anthropic key to make (see CLAUDE.md's sim architecture notes).
+// Order matters: checked top-to-bottom, first match wins, so a longer/more
+// specific phrase must come before a shorter one it contains (e.g. 'hey
+// patient' before the bare 'hey') or the shorter one would win and leave
+// the specific one's tail ("patient") sitting in the extracted query text.
 function getWakeWords() {
   const name = scenarioMeta && scenarioMeta.patient_meta && scenarioMeta.patient_meta.name;
-  const words = [{ phrase: 'hey patient', mode: 'chat' }, { phrase: 'excuse me', mode: 'chat' }];
+  const words = [];
   if (name) {
     const first = String(name).trim().split(/\s+/)[0].toLowerCase();
-    if (first) words.unshift({ phrase: first, mode: 'chat' });
+    if (first) words.push({ phrase: first, mode: 'chat' });
+  }
+  words.push({ phrase: 'hey patient', mode: 'chat' }, { phrase: 'excuse me', mode: 'chat' });
+  if (_greetingWakeWordsActive) {
+    words.push(
+      { phrase: 'hi there', mode: 'chat', greeting: true },
+      { phrase: 'hello', mode: 'chat', greeting: true },
+      { phrase: 'hey', mode: 'chat', greeting: true }
+    );
   }
   words.push({ phrase: 'assessment', mode: 'exam' }, { phrase: 'assessing', mode: 'exam' });
   words.push({ phrase: 'treatment', mode: 'treatment' }, { phrase: 'administering', mode: 'treatment' });
@@ -2702,24 +2723,32 @@ function handleWakeResult(ev) {
     if (!ev.results[i].isFinal) continue;
     const transcript = ev.results[i][0].transcript || '';
     const lower = transcript.toLowerCase();
-    let query = null, mode = null;
+    let query = null, mode = null, isGreeting = false;
     if (Date.now() < _wakeArmedUntil) {
       query = transcript.trim();
       mode = _wakeArmedMode;
+      isGreeting = _wakeArmedGreeting;
     } else {
       for (const w of getWakeWords()) {
         const idx = lower.indexOf(w.phrase);
         if (idx === -1) continue;
         query = transcript.slice(idx + w.phrase.length).trim();
         mode = w.mode;
+        isGreeting = !!w.greeting;
         break;
       }
     }
     _wakeArmedUntil = 0;
     _wakeArmedMode = null;
+    _wakeArmedGreeting = false;
     if (query === null) continue; // no wake phrase heard in this utterance — ordinary crosstalk, ignored
-    if (!query) { _wakeArmedUntil = Date.now() + WAKE_FOLLOWUP_MS; _wakeArmedMode = mode; continue; } // phrase said alone — wait for the follow-up line
-    sendWakeItem(query, mode);
+    if (!query) { // phrase said alone — wait for the follow-up line
+      _wakeArmedUntil = Date.now() + WAKE_FOLLOWUP_MS;
+      _wakeArmedMode = mode;
+      _wakeArmedGreeting = isGreeting;
+      continue;
+    }
+    sendWakeItem(query, mode, isGreeting);
     return;
   }
 }
@@ -2732,8 +2761,12 @@ function handleWakeResult(ev) {
 // 'chat'/'exam' get the _lastChatSentId/_lastChatSentMode pair
 // checkForPatientReply matches a reply against — the reply itself still
 // arrives via the normal poll and speaks through speakPatientReply.
-async function sendWakeItem(text, mode) {
+async function sendWakeItem(text, mode, isGreeting) {
   if (!sessionCode || _lastChatSentId || _wakeSendInFlight) return;
+  // One-shot: retire the bootstrap greeting triggers the instant one of them
+  // actually fires, regardless of whether the send below succeeds — from the
+  // student's perspective they've already "used" it either way.
+  if (isGreeting) _greetingWakeWordsActive = false;
   _wakeSendInFlight = true;
   const tracksReply = mode !== 'treatment';
   if (tracksReply) {
