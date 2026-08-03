@@ -249,6 +249,7 @@ function renderField(sk, fk, field) {
     switch (field.type) {
       case 'number': renderNumber(body, sk, fk); break;
       case 'string': renderString(body, sk, fk); break;
+      case 'prompt_text': renderPromptText(body, sk, fk); break;
       case 'string_list': renderStringList(body, sk, fk); break;
       case 'number_list': renderNumberList(body, sk, fk); break;
       case 'map_str_str': renderMap(body, sk, fk, 'text'); break;
@@ -284,6 +285,21 @@ function renderNumber(body, sk, fk) {
   input.value = workingData[sk][fk];
   input.oninput = () => { workingData[sk][fk] = input.value === '' ? 0 : parseFloat(input.value); };
   body.appendChild(input);
+}
+
+function renderPromptText(body, sk, fk) {
+  const meta = document.createElement('div');
+  meta.className = 'field-help';
+  meta.style.margin = '0 0 6px';
+  meta.id = `promptlen-${sk}-${fk}`;
+  const updateMeta = (v) => { meta.textContent = `${v.length.toLocaleString()} characters — this is the literal SYSTEM prompt sent to the AI, edit with care (see the warning above).`; };
+  updateMeta(workingData[sk][fk]);
+  const textarea = document.createElement('textarea');
+  textarea.value = workingData[sk][fk];
+  textarea.style.cssText = 'width:100%; min-height:260px; font-family:"Courier New",monospace; font-size:12px; line-height:1.5; padding:8px; border:1px solid #cfd7de; border-radius:6px; resize:vertical;';
+  textarea.oninput = () => { workingData[sk][fk] = textarea.value; updateMeta(textarea.value); };
+  body.appendChild(meta);
+  body.appendChild(textarea);
 }
 
 function renderString(body, sk, fk) {
