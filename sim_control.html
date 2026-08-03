@@ -921,7 +921,6 @@ async function createSession() {
       _joinInfoManuallyShown = false;
       treatments = [];
       undoStack = [];
-      _rewindFrontierMs = null;
       patientActions = {};
       actionControls = {};
       expandedActionKey = null;
@@ -995,7 +994,6 @@ async function toggleRun() {
     liveConfig.isPaused = patch.is_paused;
     liveConfig.pausedAtMs = patch.paused_at_ms;
     if (patch.total_paused_ms !== undefined) liveConfig.totalPausedMs = patch.total_paused_ms;
-    if (!patch.is_paused) _rewindFrontierMs = null; // resumed running — next pause captures a fresh rewind frontier
     renderRunControls();
   } catch (e) {
     alert('Could not update the run state — check the connection and try again.');
@@ -1225,19 +1223,15 @@ let _dragPointerId = null;
 let _lastLayout = null; // cached from the last renderGraph() call, used to invert screen coords -> (min, value)
 let inspectMin = null; // default-mode scrub position (minutes), null when not actively inspecting
 let _inspectPointerId = null;
-let pendingRewindMs = null; // absolute ms target while dragging the playhead — null when not actively rewinding
+let pendingRewindMs = null; // absolute ms target while dragging the playhead — null when not actively time-skipping
 let _rewindPointerId = null;
-let _rewindUpperBoundMs = null; // can't drag forward past "now" as of when this drag gesture started
-// The real frontier — simNow() as it was the moment THIS pause session
-// began, captured once and reused across every re-grab until the scenario
-// actually resumes. Re-deriving it fresh from simNow() on every grab (the
-// original approach) breaks the moment you're already paused: simNow()
-// while paused just returns whatever's currently frozen, which after even
-// one rewind commit is the rewound point itself, not the true frontier —
-// collapsing the forward bound to wherever you already are and making
-// forward dragging a no-op. Reset to null on Resume so the next pause
-// captures a fresh one.
-let _rewindFrontierMs = null;
+// Upper bound for dragging the playhead is the scenario's own planning
+// horizon (matches "Never exceed 60 minutes" in the AI trajectory prompts)
+// — NOT "real now": this is a genuine skip-ahead, not just a rewind you
+// have to Resume your way back out of, so jumping into time the scenario
+// hasn't actually lived through yet is the point, using whatever's already
+// projected/scheduled for that point (baseline trend, a scripted event
+// timed to land there, etc).
 
 function toggleGraphSeries(key, on) {
   graphSeriesOn[key] = on;
@@ -1572,38 +1566,30 @@ function startInspect(evt) {
   renderGraph();
 }
 
-// Auto-pauses if needed the instant the playhead is grabbed — rewinding
+// Auto-pauses if needed the instant the playhead is grabbed — time-skipping
 // reuses the pause-aware clock (getSimNow in sim_engine.js: while paused,
 // simNow = pausedAtMs - totalPausedMs, a value fixed regardless of real
-// wall-clock time), so there has to be a frozen pausedAtMs to rewind
-// relative to. Optimistic local update, same pattern as every other
-// session-state write here — the drag itself doesn't wait on this PATCH.
+// wall-clock time), so there has to be a frozen pausedAtMs to skip relative
+// to. Optimistic local update, same pattern as every other session-state
+// write here — the drag itself doesn't wait on this PATCH.
 function ensurePausedForRewind() {
-  if (!liveConfig.isPaused) {
-    const nowRaw = Date.now();
-    _rewindFrontierMs = simNow(); // true frontier — captured before anything else changes
-    liveConfig.isPaused = true;
-    liveConfig.pausedAtMs = nowRaw;
-    renderRunControls();
-    sbFetch(`sim_sessions?session_code=eq.${sessionCode}`, {
-      method: 'PATCH', prefer: 'return=minimal',
-      body: JSON.stringify({ is_paused: true, paused_at_ms: nowRaw, updated_at: new Date().toISOString() })
-    }).catch(() => {}); // best-effort — commitPlayheadRewind() writes total_paused_ms against this same local pausedAtMs regardless
-  } else if (_rewindFrontierMs === null) {
-    // Already paused when the playhead was grabbed (a manual Pause, or a
-    // reload while paused) and nothing's rewound yet this session — simNow()
-    // is still a valid frontier here, just not once a rewind has run.
-    _rewindFrontierMs = simNow();
-  }
+  if (liveConfig.isPaused) return;
+  const nowRaw = Date.now();
+  liveConfig.isPaused = true;
+  liveConfig.pausedAtMs = nowRaw;
+  renderRunControls();
+  sbFetch(`sim_sessions?session_code=eq.${sessionCode}`, {
+    method: 'PATCH', prefer: 'return=minimal',
+    body: JSON.stringify({ is_paused: true, paused_at_ms: nowRaw, updated_at: new Date().toISOString() })
+  }).catch(() => {}); // best-effort — commitPlayheadRewind() writes total_paused_ms against this same local pausedAtMs regardless
 }
 
-// Grabbing the dashed "now" line — live rewind, not just a preview: on
-// release this actually moves the shared session's current time backward
-// (or forward, back toward where it started), which the patient device
-// picks up on its next poll exactly like any other synced field. Bounded to
-// [scenario start, wherever "now" was when the drag began] — dragging
-// forward can only return you to real "now" as of grab time, never into
-// time that hasn't actually elapsed yet.
+// Grabbing the dashed "now" line: on release this actually moves the shared
+// session's current time (backward OR forward, into time not yet lived
+// through), which the patient device picks up on its next poll exactly like
+// any other synced field. Bounded to [scenario start, 60 minutes in] — the
+// same horizon the AI trajectory prompts are capped at, so anything you can
+// skip to has a defined projection already sitting in the overrides data.
 function startPlayheadDrag(evt) {
   if (!liveConfig || !liveConfig.hasStarted || !_lastLayout || !sessionCode) return;
   evt.preventDefault();
@@ -1612,8 +1598,7 @@ function startPlayheadDrag(evt) {
   _inspectPointerId = null;
   inspectMin = null;
   ensurePausedForRewind();
-  _rewindUpperBoundMs = _rewindFrontierMs;
-  pendingRewindMs = _rewindUpperBoundMs;
+  pendingRewindMs = simNow();
   _rewindPointerId = evt.pointerId;
   renderGraph();
 }
@@ -1747,7 +1732,8 @@ function onDragPointerMove(evt) {
     const coords = svgCoordFromEvent(evt);
     if (!coords) return;
     const targetMs = liveConfig.startTimeMs + minForX(coords.x) * 60000;
-    pendingRewindMs = Math.min(_rewindUpperBoundMs, Math.max(liveConfig.startTimeMs, targetMs));
+    const ceilingMs = liveConfig.startTimeMs + 60 * 60000;
+    pendingRewindMs = Math.min(ceilingMs, Math.max(liveConfig.startTimeMs, targetMs));
     scheduleGraphRender();
     return;
   }
