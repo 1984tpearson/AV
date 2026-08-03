@@ -58,6 +58,10 @@ body { display: flex; flex-direction: column; }
 .pending-txt { font-size: 10px; opacity: 0.85; }
 .queued-txt { font-size: 9px; opacity: 0.7; font-style: italic; }
 
+#monitor-actions-bar { flex-shrink: 0; padding: 6px 10px; border-top: 2px solid #0d1f35; text-align: center; }
+.apply-all-btn { width: 100%; background: rgba(0,255,136,0.08); border: 2px solid #00ff88; color: #00ff88; font-family: 'Courier New', monospace; font-size: 11px; font-weight: bold; letter-spacing: 1px; padding: 6px 10px; cursor: pointer; text-transform: uppercase; border-radius: 4px; }
+.apply-all-status { font-size: 9px; letter-spacing: 1px; color: #4a6a8a; font-style: italic; text-transform: uppercase; }
+
 #oneoff-strip { display: flex; flex-wrap: wrap; gap: 0; border-top: 2px solid #0d1f35; }
 .oo-card { flex: 1; min-width: 90px; padding: 6px 8px; border-right: 1px solid #1a2a3a; border-bottom: 1px solid #1a2a3a; cursor: pointer; -webkit-tap-highlight-color: rgba(255,255,255,0.15); }
 .oo-card:active { background: rgba(255,255,255,0.06); }
@@ -215,6 +219,7 @@ body { display: flex; flex-direction: column; }
       </div>
       <div id="monitor-box"></div>
     </div>
+    <div id="monitor-actions-bar"></div>
     <div id="oneoff-strip"></div>
     <div id="joule-tower"></div>
     <div id="defib-strip">
@@ -1193,7 +1198,7 @@ function startAction(key) {
 function beginPending(key) {
   const st = actionState[key];
   const now = Date.now();
-  const context = { ecgApplied: actionState.ecg.status === 'done' };
+  const context = { ecgApplied: actionState.ecg.status === 'done', bpCuffApplied };
   const durSec = SimEngine.getActionDurationSec(key, context);
   const durMs = instantMode ? 0 : durSec * 1000;
   if (key === 'bp') {
@@ -1222,6 +1227,7 @@ function onActionComplete(key, now) {
     const v = SimEngine.getVitals(testConfig, SimEngine.getSimNow(testConfig, now));
     lastBP = { sys: v.BPsys, dia: v.BPdia };
     bpNextDueMs = now + bpIntervalMin * 60000;
+    bpCuffApplied = true;
   }
   if (oneOffDefs[key]) {
     const v = extendedVitalsNow();
@@ -1312,12 +1318,29 @@ function countdownRemain(st) {
 let bpNextDueMs = null;
 let bpIntervalMin = 15;
 let lastBP = { sys: null, dia: null };
+// Set true once the first BP of the session completes — models the cuff
+// physically staying on the patient's arm afterward, so only the very first
+// application pays the "putting the cuff on" lead-in (see ACTION_DURATIONS.bp
+// in sim_engine.js); auto-refires/retakes just re-inflate.
+let bpCuffApplied = false;
+
+// Fixed inflate/hold/deflate cycle length — must match ACTION_DURATIONS.bp
+// .subsequent in sim_engine.js. Any extra time on the action's total duration
+// (i.e. the first-ever BP) is cuff-application lead-in prepended before this
+// cycle, not stretched into it, so the pressure curve itself never changes.
+const BP_INFLATE_MS = 35000;
+function bpLeadInMs(st) {
+  const total = st.completesAt - st.startedAt;
+  return Math.max(0, total - BP_INFLATE_MS);
+}
 
 // Simulated oscillometric cuff pressure while BP is 'pending': climbs to
 // ~systolic+20, brief hold, then descends with a couple of realistic stutters.
 function computeCuffPressure(st, now) {
-  const total = st.completesAt - st.startedAt;
-  const f = Math.min(1, Math.max(0, (now - st.startedAt) / Math.max(total, 1)));
+  const leadInMs = bpLeadInMs(st);
+  const elapsed = now - st.startedAt;
+  if (elapsed < leadInMs) return 0; // still just applying the cuff, not inflating yet
+  const f = Math.min(1, Math.max(0, (elapsed - leadInMs) / BP_INFLATE_MS));
   const target = (st.targetSys || 140) + 20;
   let val;
   if (f < 0.35) {
@@ -1525,7 +1548,8 @@ function renderBPCell(now) {
   if (st.status === 'queued') return `<span class="queued-txt">Queued\u2026</span>`;
   if (st.status === 'pending') {
     const p = computeCuffPressure(st, now);
-    return `${p}<span class="vunit">mmHg</span><div id="bp-timer">cuff inflating\u2026</div>`;
+    const label = (now - st.startedAt) < bpLeadInMs(st) ? 'applying cuff\u2026' : 'cuff inflating\u2026';
+    return `${p}<span class="vunit">mmHg</span><div id="bp-timer">${label}</div>`;
   }
   const remainMs = Math.max(0, (bpNextDueMs || now) - now);
   return `${lastBP.sys}/${lastBP.dia}<span class="vunit">mmHg</span><div id="bp-timer">next auto BP in ${fmtTimer(remainMs)} \u2022 tap to retake</div>`;
@@ -1547,6 +1571,37 @@ function renderMonitor(v, now) {
   `;
 }
 
+// "Apply all monitoring" \u2014 a single tap that starts every continuous
+// monitoring vital (everything on the monitor sidebar above) except the
+// 12-lead, which stays a deliberate separate action. Goes through the exact
+// same startAction()/MAX_CONCURRENT queue as tapping each vital individually
+// \u2014 some begin immediately, the rest queue and pick up as slots free, same
+// as a real second crew member working through them one at a time.
+const MONITORING_KEYS = ['ecg', 'spo2', 'etco2', 'bp'];
+
+function applyAllMonitoring() {
+  MONITORING_KEYS.forEach(key => {
+    if (actionState[key].status === 'idle') startAction(key);
+  });
+  renderMonitorActionsBar();
+}
+
+function renderMonitorActionsBar() {
+  const bar = document.getElementById('monitor-actions-bar');
+  if (MONITORING_KEYS.some(key => actionState[key].status === 'idle')) {
+    bar.style.display = 'block';
+    bar.innerHTML = `<button class="apply-all-btn" onclick="applyAllMonitoring()">Ask Partner to Apply All Monitoring</button>`;
+    return;
+  }
+  const anyInProgress = MONITORING_KEYS.some(key => actionState[key].status === 'pending' || actionState[key].status === 'queued');
+  if (anyInProgress) {
+    bar.style.display = 'block';
+    bar.innerHTML = `<div class="apply-all-status">Partner applying monitoring\u2026</div>`;
+  } else {
+    bar.style.display = 'none';
+    bar.innerHTML = '';
+  }
+}
 
 function renderOneOff() {
   const strip = document.getElementById('oneoff-strip');
@@ -1725,6 +1780,7 @@ function tick() {
   renderMonitor(v, now);
   updateEcgMain(v.HR);
   renderOneOff();
+  renderMonitorActionsBar();
   _lastHR = v.HR;
   document.getElementById('scenario-timer').textContent = fmtTimer(simNow - testConfig.startTimeMs);
   const indEl = document.getElementById('instant-mode-indicator');

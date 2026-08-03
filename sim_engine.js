@@ -29,13 +29,17 @@
   // ---- Action durations (reveal-delay system) ---------------------------
   // Seconds each assessment action takes before its value/waveform reveals.
   // ecg12lead is conditional: faster if monitoring leads are already on.
+  // bp is likewise conditional: the first-ever BP of a session pays a one-off
+  // "putting the cuff on" lead-in on top of the normal inflate/hold/deflate
+  // cycle (subsequent) — an imagined step, not a separately-timed action, since
+  // once the cuff is on the patient's arm it stays on for auto-refires/retakes.
   const ACTION_DURATIONS = {
     ecg: 20,
     ecg12lead: { withMonitoring: 35, fromScratch: 50 },
     rr: 30,
     spo2: 12,
     etco2: 15,
-    bp: 35,
+    bp: { firstApplication: 55, subsequent: 35 },
     temp: 8,
     gcs: 5,
     bgl: 15,
@@ -47,6 +51,9 @@
     if (typeof d === 'number') return d;
     if (key === 'ecg12lead') {
       return (context && context.ecgApplied) ? d.withMonitoring : d.fromScratch;
+    }
+    if (key === 'bp') {
+      return (context && context.bpCuffApplied) ? d.subsequent : d.firstApplication;
     }
     return 10; // fallback
   }
