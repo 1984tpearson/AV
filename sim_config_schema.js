@@ -531,13 +531,24 @@
             help: "'calm' deliberately has no entry — falls back to the patient’s own per-scenario eyebrow pick. Values must be real AvatarAssets.eyebrows keys.",
             validate: assetKeyValidate('eyebrows'),
             default: { angry: 'angryNatural', agitated: 'frownNatural', tearful: 'sadConcernedNatural', anxious: 'sadConcernedNatural', confused: 'upDownNatural' }
-          },
+          }
+        }
+      },
+
+      interaction: {
+        label: 'Session & Interaction',
+        owner: 'sim_patient.html',
+        fields: {
           MAX_CONCURRENT: {
-            type: 'number', label: 'Max concurrent pending assessments',
+            type: 'number',
+            label: 'Max simultaneous vital-sign assessments',
+            help: 'How many assessment actions (ECG, BP, SpO2, etc) can be actively "pending" — a crew member physically doing it — at once. Modelled as a fixed number of crew members: a tap beyond this limit queues as "waiting for a free crew member" instead of starting immediately, and picks up automatically as a slot frees up. Currently 2.',
             default: 2
           },
           MONITORING_KEYS: {
-            type: 'string_list', label: '"Apply All Monitoring" action keys',
+            type: 'string_list',
+            label: '"Apply All Monitoring" action keys',
+            help: 'Which assessment keys the single "Apply All Monitoring" tap starts together — goes through the same MAX_CONCURRENT queue as tapping each individually, so some may start immediately and the rest queue.',
             default: ['ecg', 'spo2', 'etco2', 'bp']
           }
         }

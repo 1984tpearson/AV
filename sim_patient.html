@@ -440,8 +440,8 @@ async function loadSimConfig() {
     HAIR_STYLE_LEAN = pick(field('avatar', 'HAIR_STYLE_LEAN'), HAIR_STYLE_LEAN);
     MOUTH_VARIANT = pick(field('avatar', 'MOUTH_VARIANT'), MOUTH_VARIANT);
     MOOD_EYEBROW = pick(field('avatar', 'MOOD_EYEBROW'), MOOD_EYEBROW);
-    MAX_CONCURRENT = pick(field('avatar', 'MAX_CONCURRENT'), MAX_CONCURRENT);
-    MONITORING_KEYS = pick(field('avatar', 'MONITORING_KEYS'), MONITORING_KEYS);
+    MAX_CONCURRENT = pick(field('interaction', 'MAX_CONCURRENT'), MAX_CONCURRENT);
+    MONITORING_KEYS = pick(field('interaction', 'MONITORING_KEYS'), MONITORING_KEYS);
 
     MALE_VOICE_HINTS = pick(field('voice', 'MALE_VOICE_HINTS'), MALE_VOICE_HINTS);
     FEMALE_VOICE_HINTS = pick(field('voice', 'FEMALE_VOICE_HINTS'), FEMALE_VOICE_HINTS);
