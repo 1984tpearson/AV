@@ -799,6 +799,10 @@
     if (hr <= 0) return 1;
     return Math.max(clamp01((60 - hr) / 60), clamp01((hr - 100) / 100));
   }
+  function rrAbnormality(rr) {
+    if (rr <= 0) return 1;
+    return Math.max(clamp01((12 - rr) / 12), clamp01((rr - 20) / 20));
+  }
   function bpSysAbnormality(sys) {
     if (sys <= 0) return 1;
     return clamp01((100 - sys) / 60);
@@ -871,11 +875,13 @@
   // respective indicators to agree with each other.
 
   // Instantaneous 0-100 "how normal right now" reading — a weighted average
-  // of the severity bands above across HR, RR, SpO2, BP sys, GCS and pain.
-  // 100 = every input fully normal; 0 = every input simultaneously at its
-  // worst band, which is reachable in practice — the AI's cardiac-arrest
+  // of the DISCRETE severity bands above across HR, RR, SpO2, BP sys, GCS and
+  // pain. 100 = every input fully normal; 0 = every input simultaneously at
+  // its worst band, which is reachable in practice — the AI's cardiac-arrest
   // cascade rule (see CLAUDE.md) writes HR/RR/SpO2/BP/GCS overrides
-  // together, not just one of them.
+  // together, not just one of them. This is the graph line's own calibration
+  // (matches the Appearance tab), used by getHealthScore() below; the trend
+  // arrows use healthLevelContinuous() instead — see that one for why.
   //
   // Pain is self-reported, so it only means something while the patient is
   // conscious enough to report it. painWeight fades from 1 down to 0 as GCS
@@ -888,11 +894,7 @@
   // read as "0 abnormality" — an improvement — at exactly the moment the
   // patient is at their worst. BPdia/EtCO2/temp/bgl/ketones/nausea are left
   // out entirely, for lack of an existing calibrated severity band for them.
-  //
-  // Deliberately a function of a single vitals snapshot, nothing else —
-  // this is the "raw" reading getHealthScore() below is built on top of,
-  // not what either caller actually plots/reads.
-  function healthLevel(v) {
+  function healthLevelDiscrete(v) {
     const gcsTotal = (v.gcsE || 0) + (v.gcsV || 0) + (v.gcsM || 0);
     const gcsAbnormality = Math.min(1, Math.max(0, (15 - gcsTotal) / 12));
     const painWeight = Math.min(1, Math.max(0, (gcsTotal - 8) / 7));
@@ -909,94 +911,117 @@
     return 100 * (1 - avgAbnormality);
   }
 
-  // Trailing window shared by both fixes in getHealthScore() below — one
-  // consistent amount of "lag" rather than two competing time constants.
-  // Admin-configurable (see sim_config_schema.js's 'timers' section) like
-  // the other tunables above, via _cfg/applyConfigOverrides.
+  // Same weighted blend as healthLevelDiscrete(), but built on the
+  // CONTINUOUS 0-1 abnormality curves above (hrAbnormality/rrAbnormality/
+  // bpSysAbnormality/spo2Abnormality/painAbnormality) instead of the
+  // discrete severity bands. Only the trend arrows use this: a trend is
+  // nothing but "how much did this move," and the discrete bands are blind
+  // to any movement that doesn't cross a band boundary — a HR swinging from
+  // 180 to 145 stays "severity 3, extreme" the whole way and registers as
+  // zero change, even though 35bpm of real movement happened. The graph's
+  // own instantaneous score deliberately stays on the discrete bands (see
+  // healthLevelDiscrete) since that's what's calibrated against the
+  // Appearance tab; this one exists purely for rate-of-change sensitivity.
+  function healthLevelContinuous(v) {
+    const gcsTotal = (v.gcsE || 0) + (v.gcsV || 0) + (v.gcsM || 0);
+    const gcsAbnormality = Math.min(1, Math.max(0, (15 - gcsTotal) / 12));
+    const painWeight = Math.min(1, Math.max(0, (gcsTotal - 8) / 7));
+    const weighted = [
+      { sub: hrAbnormality(v.HR), w: 1 },
+      { sub: rrAbnormality(v.RR), w: 1 },
+      { sub: spo2Abnormality(v.SpO2), w: 1 },
+      { sub: bpSysAbnormality(v.BPsys), w: 1 },
+      { sub: gcsAbnormality, w: 1 },
+      { sub: painAbnormality(v.pain), w: painWeight }
+    ];
+    const totalWeight = weighted.reduce((a, x) => a + x.w, 0);
+    const avgAbnormality = weighted.reduce((a, x) => a + x.sub * x.w, 0) / totalWeight;
+    return 100 * (1 - avgAbnormality);
+  }
+
+  // Rhythm is a distinct concept from the numeric vitals (see CLAUDE.md —
+  // HR/RR/BP/SpO2 don't by themselves say whether there's a pulse), and
+  // it's the authoritative "is there any perfusion at all" signal: VF,
+  // pulseless VT, asystole and PEA all mean zero cardiac output regardless
+  // of what the monitor numbers still read (an authored cascade doesn't
+  // always land every vital on 0 in perfect lockstep with the rhythm
+  // change). Reusing classifyRhythmForDefib() here — the same bucketing
+  // already trusted for shock/no-shock decisions — rather than inventing a
+  // second classification. HR<=0 is kept as a fallback for the rare
+  // scenario that reaches "HR 0" without a matching rhythm entry (a
+  // cascade-authoring gap CLAUDE.md's own cascade rule says shouldn't
+  // happen, but costs nothing to guard against here too).
+  function healthLevelAt(cfg, tMs, continuous) {
+    const rhythm = getRhythmAt(cfg, tMs);
+    if (rhythm && classifyRhythmForDefib(rhythm) !== 'organized') return 0;
+    const v = getVitalsRaw(cfg, tMs);
+    if (v.HR <= 0) return 0;
+    return continuous ? healthLevelContinuous(v) : healthLevelDiscrete(v);
+  }
+
+  // Trailing window both getHealthScore() and the trend arrows sample
+  // across. Admin-configurable (see sim_config_schema.js's 'timers'
+  // section) like the other tunables above, via _cfg/applyConfigOverrides.
   _cfg.HEALTH_WINDOW_MS = 90000;
   _cfg.HEALTH_SAMPLES = 4; // evenly spaced across the window, including "now"
 
-  // How far a vital needs to swing (peak-to-trough) within HEALTH_WINDOW_MS
-  // before it's treated as fully "unstable" — tuned by eye, not from a
-  // clinical reference; adjust if the Health line/arrows read too jumpy or
-  // too sluggish in practice.
-  _cfg.HEALTH_INSTABILITY_SWING = { HR: 40, RR: 8, SpO2: 15, BPsys: 30 };
-
-  // Composite 0-100 score actually consumed by both callers. Backward-
-  // looking only (never reads overrides scheduled after nowMs) — kept
-  // causal even on sim_control.html's graph, which technically has the
-  // whole future available, so both callers behave identically and
-  // sim_patient.html's real-time trend arrows (which can only ever know the
-  // past) never disagree with what the graph would show at the same point.
+  // The WORST (lowest) of healthLevelAt() sampled across the trailing
+  // window — not an average, and not a separate magnitude-based "how much
+  // is this swinging" heuristic (an earlier version tried that: it could
+  // floor the score to a literal, maximal 0 from nothing more than one
+  // vital's raw number moving a lot, even while every sample's actual
+  // computed severity was nowhere near that bad — verified against a real
+  // session where this fired 6 minutes before the patient was anywhere
+  // close to arrest). Taking the worst ACTUAL sampled level instead means
+  // the result is always grounded in a real computed reading, never an
+  // independent overshoot:
   //
-  // Built on healthLevel() above, fixing two things a single instantaneous
-  // reading gets wrong:
-  //
-  // 1. "Crashing through normal" — healthLevel() only looks at the CURRENT
-  //    value, so a HR sliding from tachycardic through the 60-100 normal
-  //    band on its way to arrest reads as briefly perfectly healthy,
-  //    producing a false uptick right as the patient is actually
-  //    collapsing. Fixed by an instability term: the peak-to-trough SWING
-  //    of HR/RR/SpO2/BPsys's raw values over the trailing window (not their
-  //    severity band, their magnitude of movement) floors how good the
-  //    score is allowed to look. Overrides ramp linearly (see
-  //    applyOverrides() above), so a vital mid-crossing is moving just as
-  //    fast at the exact "normal" instant as right before/after it — the
-  //    swing stays large right through the crossing, unlike the severity
-  //    band, which briefly reads 0. Deliberately magnitude-only, not
-  //    direction-aware: telling apart "fast genuine recovery" from "fast
-  //    overshoot in progress" isn't possible without seeing the future,
-  //    which this function deliberately doesn't do — a vital that's still
-  //    swinging, either way, isn't settled yet.
-  //
-  // 2. Step noise from small-range vitals — pain/GCS/nausea have few
-  //    severity bands covering a small numeric range, so a routine
-  //    authored change crosses a whole band (a visible step) much sooner
-  //    than the same clinical magnitude of change would for HR/BP. Fixed
-  //    by averaging healthLevel() across the same trailing window rather
-  //    than reading it at one instant — a brief step blends with its
-  //    neighbours instead of standing out as its own spike.
-  //
-  // 3. Confirmed cardiac arrest — once HR (and therefore perfusion) has
-  //    been at 0 for the whole trailing window, the score hard-floors at 0
-  //    no matter what anything else reads. With no cardiac output, a
-  //    GCS/pain/nausea reading isn't clinically meaningful, AND this
-  //    doubles as a safety net against any vital whose authored override
-  //    tail doesn't hold perfectly flat all the way to the end of a
-  //    scenario — a stray wobble there can no longer leak into the score
-  //    once arrest is this well-established.
-  //
-  // Mechanism 2 alone is broken out as getSmoothedHealthLevel() below,
-  // for sim_patient.html's trend arrows to use instead of this function —
-  // see that one's own comment for why.
-  function getSmoothedHealthLevel(cfg, nowMs) {
-    let sum = 0;
+  // - Fixes "crashing through normal": a HR sliding from tachycardic
+  //   through the 60-100 normal band on its way to arrest used to read as
+  //   briefly perfectly healthy at the exact crossing instant. The worse
+  //   reading from just before/after that instant, still inside the same
+  //   trailing window, now wins instead.
+  // - Fixes step noise from small-range vitals (pain/GCS/nausea have few
+  //   severity bands covering a small numeric range, so a routine authored
+  //   change crosses a whole band, and used to spike on its own) — a brief
+  //   worse reading here still only holds for as long as it stays inside
+  //   the trailing window, same as any other sample.
+  // - Confirmed cardiac arrest falls out of this for free: once every
+  //   sample in the window reads 0 (via healthLevelAt's rhythm/HR check),
+  //   the worst of them is 0 too — no separate "has HR been 0 the whole
+  //   window" gate needed, and no gap at the trailing edge of that gate
+  //   for a stray non-zero sample to slip through (which is what produced
+  //   a brief uptick a few minutes into a real confirmed asystole).
+  function getHealthScore(cfg, nowMs) {
+    let worst = 100;
     for (let i = 0; i < _cfg.HEALTH_SAMPLES; i++) {
       const tMs = nowMs - _cfg.HEALTH_WINDOW_MS * (i / (_cfg.HEALTH_SAMPLES - 1));
-      sum += healthLevel(getVitalsRaw(cfg, tMs));
+      worst = Math.min(worst, healthLevelAt(cfg, tMs, false));
     }
-    return sum / _cfg.HEALTH_SAMPLES;
+    return worst;
   }
 
-  function getHealthScore(cfg, nowMs) {
-    const samples = [];
+  // Same worst-of-window mechanism as getHealthScore(), but sampling
+  // healthLevelAt(..., true) (the continuous basis) instead — this is what
+  // sim_patient.html's trend arrows actually difference two of, 3 minutes
+  // apart (see computeHealthTrend() there). Needs its own function rather
+  // than reusing getHealthScore() purely because of that continuous basis:
+  // the discrete severity bands getHealthScore() uses are blind to any
+  // movement that doesn't cross a band boundary, which is fine for "how
+  // abnormal is this reading" but wrong for "how much has this moved" — a
+  // trend needs the latter. The worst-of-window mechanism itself is
+  // unchanged between the two and doesn't need separate justification here:
+  // unlike the swing-based approach it replaced, it doesn't cancel out a
+  // genuinely fast recovery (verified — see the redesign's own test notes),
+  // since it's always grounded in an actual computed reading rather than an
+  // independent magnitude heuristic.
+  function getHealthTrendLevel(cfg, nowMs) {
+    let worst = 100;
     for (let i = 0; i < _cfg.HEALTH_SAMPLES; i++) {
       const tMs = nowMs - _cfg.HEALTH_WINDOW_MS * (i / (_cfg.HEALTH_SAMPLES - 1));
-      samples.push(getVitalsRaw(cfg, tMs));
+      worst = Math.min(worst, healthLevelAt(cfg, tMs, true));
     }
-    if (samples.every(v => v.HR <= 0)) return 0;
-
-    const smoothedAbnormality = 1 - getSmoothedHealthLevel(cfg, nowMs) / 100;
-
-    let instability = 0;
-    Object.keys(_cfg.HEALTH_INSTABILITY_SWING).forEach(key => {
-      const vals = samples.map(v => v[key]);
-      const swing = Math.max(...vals) - Math.min(...vals);
-      instability = Math.max(instability, Math.min(1, swing / _cfg.HEALTH_INSTABILITY_SWING[key]));
-    });
-
-    const finalAbnormality = Math.max(smoothedAbnormality, instability);
-    return 100 * (1 - finalAbnormality);
+    return worst;
   }
 
   // Fuzzy-maps the scenario's free-text patient_meta.mood (e.g. "Anxious and
@@ -1078,7 +1103,7 @@
     get GCS_V3_WORDS() { return _cfg.GCS_V3_WORDS; },
     get GENERIC_SPONTANEOUS_LINES() { return _cfg.GENERIC_SPONTANEOUS_LINES; },
     getActionDurationSec, getVitals, getVitalsRaw, getSimNow, getStaticVitalAt, getRhythmAt, getAppearanceState,
-    getHealthScore, getSmoothedHealthLevel,
+    getHealthScore, getHealthTrendLevel,
     deriveRhythmFromHR, classifyRhythmForDefib, computeSurvivabilityScore, computeDefibrillationEffect, spliceAiOverridePlan, spliceRhythmPlan, clearFutureFromFork,
     parseAgeFromScenario, parseScenarioMood, cleanSpontaneousLines,
     hrSeverity, rrSeverity, spo2Severity, painSeverity, bpSysSeverity,

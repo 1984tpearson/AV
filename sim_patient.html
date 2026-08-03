@@ -528,17 +528,16 @@ function extendedVitalsNow() {
 }
 
 // --- Improving/declining trend arrows (next to the avatar) -----------------
-// Built on SimEngine.getSmoothedHealthLevel() — the same trailing-window
-// average that underlies sim_control.html's Health graph line
-// (SimEngine.getHealthScore), but WITHOUT that function's instability floor
-// or confirmed-arrest floor. Those two exist to correct a single instant's
-// absolute reading and deliberately don't care which direction a vital is
-// moving — but a trend is nothing BUT direction, and during an actively
-// fast-moving recovery both floors would suppress "now" and "a few minutes
-// ago" almost equally, cancelling out into "no trend" right when the
-// patient is improving fastest. The smoothed level alone still damps the
-// same step-noise/normal-crossing wobbles that motivated those floors (see
-// getHealthScore()'s own comment), just without erasing genuine direction.
+// Built on SimEngine.getHealthTrendLevel() — the rhythm-aware, worst-of-
+// trailing-window reading on the CONTINUOUS abnormality basis (see that
+// function and healthLevelContinuous() in sim_engine.js for why it's a
+// separate function from the graph's own getHealthScore()). Rhythm
+// awareness matters here specifically: VF/pulseless VT/asystole/PEA all
+// mean zero perfusion regardless of what the monitor numbers still read,
+// and a naive numbers-only trend could otherwise read as "improving" for
+// several minutes straight through a lethal rhythm, before the numbers
+// themselves caught up — this happened in practice, verified against a
+// real recorded session.
 //
 // A real-time reading, not a projection — this page can only ever know the
 // past. delta = level now minus level TREND_WINDOW_MS ago; sign gives
@@ -547,7 +546,7 @@ const TREND_WINDOW_MS = 180000; // 3 minutes
 // Points changed (0-100 scale) over TREND_WINDOW_MS needed for 1/2/3 arrows
 // — tuned by eye, not from a clinical reference; adjust if arrows appear
 // too eagerly or too reluctantly in practice.
-const TREND_THRESHOLDS = [3, 10, 20];
+const TREND_THRESHOLDS = [2, 10, 20];
 
 function computeHealthTrend(cfg, nowMs) {
   const lookbackMs = Math.max(cfg.startTimeMs, nowMs - TREND_WINDOW_MS);
@@ -555,7 +554,7 @@ function computeHealthTrend(cfg, nowMs) {
   // little to call a trend yet, rather than comparing against an
   // arbitrarily short baseline right at scenario start.
   if (nowMs - lookbackMs < TREND_WINDOW_MS * 0.5) return 0;
-  return SimEngine.getSmoothedHealthLevel(cfg, nowMs) - SimEngine.getSmoothedHealthLevel(cfg, lookbackMs);
+  return SimEngine.getHealthTrendLevel(cfg, nowMs) - SimEngine.getHealthTrendLevel(cfg, lookbackMs);
 }
 
 function trendArrowCount(delta) {

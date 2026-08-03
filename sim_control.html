@@ -415,8 +415,7 @@ async function loadSimConfig() {
       SURVIVABILITY: survivabilityMerged,
       ENERGY_FACTOR: field('defib', 'ENERGY_FACTOR_TABLE'),
       HEALTH_WINDOW_MS: field('timers', 'HEALTH_WINDOW_MS'),
-      HEALTH_SAMPLES: field('timers', 'HEALTH_SAMPLES'),
-      HEALTH_INSTABILITY_SWING: field('timers', 'HEALTH_INSTABILITY_SWING')
+      HEALTH_SAMPLES: field('timers', 'HEALTH_SAMPLES')
     });
   } catch (e) {
     console.warn('sim_config load failed — using built-in defaults', e); // never fatal, see comment above
@@ -2348,14 +2347,13 @@ function bpSysSeverity(sys) { return SimEngine.bpSysSeverity(sys); }
 let VITALS_TICK_MS = 1000;
 let DB_POLL_MS = 1500;
 
-// The Health line's scoring (instantaneous severity average, trailing-
-// window smoothing, instability floor, confirmed-arrest floor) lives in
-// SimEngine.getHealthScore(cfg, nowMs) — including its own HEALTH_WINDOW_MS/
-// HEALTH_SAMPLES/HEALTH_INSTABILITY_SWING tunables, admin-configurable via
-// the same SimEngine.applyConfigOverrides() call below that the other
-// SimEngine-owned fields go through (see loadSimConfig()) — so
-// sim_patient.html's trend arrows share the exact same number rather than
-// drifting from a second copy. See sim_engine.js for the full rationale.
+// The Health line's scoring (rhythm-aware instant level, worst-of-trailing-
+// window) lives in SimEngine.getHealthScore(cfg, nowMs) — including its own
+// HEALTH_WINDOW_MS/HEALTH_SAMPLES tunables, admin-configurable via the same
+// SimEngine.applyConfigOverrides() call below that the other SimEngine-owned
+// fields go through (see loadSimConfig()) — so sim_patient.html's trend
+// arrows share the exact same number rather than drifting from a second
+// copy. See sim_engine.js for the full rationale.
 
 // Consciousness gate — ONLY used for Appearance/Speech (things that require
 // a working brain to express). Skin and Work of Breathing are physical

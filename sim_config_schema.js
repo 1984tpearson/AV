@@ -248,7 +248,7 @@
           HEALTH_WINDOW_MS: {
             type: 'number',
             label: 'Health-score trailing window (ms)',
-            help: 'How far back healthScore() looks for its lag/smoothing window.',
+            help: 'How far back getHealthScore()/getHealthTrendLevel() look — the reported value is the WORST reading sampled across this window, not an average.',
             default: 90000
           },
           HEALTH_SAMPLES: {
@@ -256,12 +256,6 @@
             label: 'Health-score sample count',
             help: 'Samples spread evenly across the trailing window, including "now".',
             default: 4
-          },
-          HEALTH_INSTABILITY_SWING: {
-            type: 'map_str_num',
-            label: 'Health-score instability swing',
-            help: 'How far a vital needs to swing peak-to-trough within the window before it reads as fully "unstable" on the Health line. Tuned by eye — adjust if the line reads too jumpy or too sluggish.',
-            default: { HR: 40, RR: 8, SpO2: 15, BPsys: 30 }
           },
           GRAPH_ZOOM_LEVELS: {
             type: 'number_list',
