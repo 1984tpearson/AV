@@ -4,7 +4,21 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>Live Scenario — Patient View</title>
+<script>
+// Apply saved theme immediately to prevent flash
+(function(){const t=localStorage.getItem('av_theme');if(t&&t!=='default')document.documentElement.setAttribute('data-theme',t);})();
+</script>
 <style>
+:root {
+  --navy: #2C4F7C; --navy-dark: #1E3555; --navy-light: #4E7FAE;
+  --red: #C0392B; --red-light: #FDEDEC;
+  --amber: #E8921A; --amber-light: #FEF5E7;
+  --green: #27833A; --green-light: #EAFAF1;
+  --blue: #2E86C1; --blue-light: #EBF5FB;
+  --purple: #7D3C98; --purple-light: #F5EEF8;
+  --grey: #6C7A89; --light: #F4F6F9; --white: #FFFFFF; --text: #1A1A2E; --border: #D5D8DC;
+  --shadow: 0 2px 8px rgba(28,58,110,0.10);
+}
 * { box-sizing: border-box; margin: 0; padding: 0; }
 html, body { height: 100%; height: 100dvh; overflow: hidden; background: linear-gradient(135deg, #2C4F7C 0%, #4E7FAE 55%, #6FA0CC 100%); color: #1e2a36; font-family: 'Courier New', monospace; }
 body { display: flex; flex-direction: column; }
@@ -141,11 +155,18 @@ body { display: flex; flex-direction: column; }
 .voice-btn-primary { background: #0369a1; color: #fff; }
 .voice-btn-primary:disabled { opacity: 0.4; }
 .voice-btn-secondary { background: #e2e8f0; color: #33475a; }
+.topbar-logo-img { height: 26px; width: auto; max-width: 150px; object-fit: contain; flex-shrink: 0; display: block; }
+#topbar #avnav-hamburger { width: 34px; height: 34px; font-size: 15px; background: rgba(44,79,124,0.08); border: 1px solid rgba(44,79,124,0.25); color: var(--navy); }
+#topbar #avnav-hamburger:active { background: rgba(44,79,124,0.18); }
 </style>
 </head>
 <body>
 <div id="topbar">
-  <div class="title">Live Scenario — Patient View</div>
+  <div style="display:flex;align-items:center;gap:10px;">
+    <div id="avnav-slot"></div>
+    <img src="logoblack.png" alt="D.A.S.H — Dynamic Assessment &amp; Simulation Hub" class="topbar-logo-img">
+    <div class="title">Live Scenario — Patient View</div>
+  </div>
   <div id="topbar-right">
     <span id="pause-indicator" style="font-size:11px;font-weight:700;color:#b45309;display:none;">&#9208; PAUSED</span>
     <span id="instant-mode-indicator" style="font-size:10px;color:#33475a;display:none;">Instant Mode: ON</span>
@@ -314,6 +335,7 @@ const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
 // Realtime client, alongside (not instead of) the REST poll below — see
 // sim_control.html's identical setup for why the poll stays as a fallback.
 const sbRealtime = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+window.__avSupabaseClient = sbRealtime; // shared with nav.js — avoids duplicate GoTrueClient instances
 let _rtChannel = null;
 function subscribeSessionRealtime(code) {
   if (_rtChannel) { sbRealtime.removeChannel(_rtChannel); _rtChannel = null; }
@@ -1910,7 +1932,23 @@ function tick() {
   try { updateAvatarFace(extendedVitalsNow()); } catch (e) { console.error('avatar render failed:', e); }
 }
 
-window.addEventListener('DOMContentLoaded', () => {
+// Auth gate — matches quiz_player.html: a real Supabase session is
+// preferred, but a device joining a session as the patient view is
+// "playing", not "hosting", so login.html's "Continue as Guest" flag is
+// enough to let it through (sim_sessions reads/writes already run on the
+// anon key regardless — see sbFetch — so no anonymous auth.users row is
+// needed here the way quiz_player.html's quiz_players FK requires one).
+async function requireAuth() {
+  const { data: { session } } = await sbRealtime.auth.getSession();
+  if (session) return session;
+  if (window.localStorage.getItem('av_guest_mode') === 'true') return null; // let through below
+  window.location.href = 'login.html?redirect=sim_patient.html';
+  return null;
+}
+
+window.addEventListener('DOMContentLoaded', async () => {
+  const session = await requireAuth();
+  if (!session && window.localStorage.getItem('av_guest_mode') !== 'true') return; // real redirect already fired above
   document.getElementById('hq-voice-checkbox').checked = hqVoiceEnabled;
   if (localStorage.getItem(HQ_VOICE_LS_KEY) === null) {
     document.getElementById('hq-voice-prompt').style.display = 'flex';
@@ -2620,6 +2658,7 @@ function checkForPatientReply(reply) {
   }
 }
 </script>
+<script src="nav.js"></script>
 </body>
 </html>
 
