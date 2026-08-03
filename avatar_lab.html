@@ -459,9 +459,10 @@ function setSweat(moistureState, frac) {
   setDrop('av-sweat-l', f >= 0.35);
   setDrop('av-sweat-c', f >= 0.65);
 }
-// See sim_patient.html's copy for why 'mild'/'grimace' map to 'default'/'vomit'
-// rather than the nonexistent 'serious'/'grimace' asset keys.
-const MOUTH_VARIANT = { neutral: 'default', mild: 'default', distress: 'concerned', grimace: 'vomit', slack: 'sad', talkOpen: 'screamOpen',
+// See sim_patient.html's copy for why this maps straight to the literal
+// asset keys — an earlier pass here mis-detected 'grimace'/'serious' as
+// missing and substituted the wrong shapes.
+const MOUTH_VARIANT = { neutral: 'default', mild: 'serious', distress: 'concerned', grimace: 'grimace', slack: 'sad', talkOpen: 'screamOpen',
   angry: 'default', agitated: 'concerned', tearful: 'sad', anxious: 'concerned', confused: 'disbelief' };
 function setMouth(stateKey) {
   const variant = MOUTH_VARIANT[stateKey] || MOUTH_VARIANT.neutral;

@@ -337,12 +337,15 @@ rendered as a literal middle-aged adult:
   deliberately NOT tinted, since these wouldn't show through fabric) and
   diaphoresis are covered in their own section below. Resting mouth
   expression (neutral/mild/distress/grimace/slack, plus mood states —
-  mapped onto Avataaars' named mouth shapes; `avatar_assets.js`'s
-  extraction only kept 10 of DiceBear's 12 mouth variants, so 'mild' and
-  'grimace' map to 'default'/'vomit' rather than the nonexistent
-  'serious'/'grimace' keys, which would otherwise silently render nothing)
-  comes from pain score, distress level, consciousness, and mood (see
-  below).
+  mapped onto Avataaars' named mouth shapes; `avatar_assets.js` has all 12
+  of DiceBear's mouth variants, including `grimace` and `serious`, so
+  `MOUTH_VARIANT` maps `grimace`/`mild` straight to those literal keys — a
+  prior pass here mis-detected the two as missing, because the key-scan
+  regex used only matched values starting with `` `<path` `` and both
+  `grimace`/`serious` happen to start with `` `<rect` ``, and "fixed" it by
+  routing them to `vomit`/`default` instead, which is what actually broke
+  the pain≥7 grimace) comes from pain score, distress level, consciousness,
+  and mood (see below).
   Driven by `SimEngine.getAppearanceState(v)` — the same severity bands
   (`hrSeverity`/`rrSeverity`/`spo2Severity`/`painSeverity`/`bpSysSeverity`)
   `sim_control.html`'s assessor-facing Appearance tab computes

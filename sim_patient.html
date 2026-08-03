@@ -913,12 +913,13 @@ function setSweat(moistureState, frac) {
 // talkOpen is the "mouth open" frame the TTS-driven talking animation
 // alternates with (see startTalkAnimation()); every other state is a
 // resting expression driven by pain/distress/consciousness/mood.
-// NOTE: avatar_assets.js's extraction only kept 10 of DiceBear's 12 named
-// mouth variants — 'Grimace' and 'Serious' (the original literal matches
-// for pain/mild-distress) aren't present, so those two map to the closest
-// visual fits actually available ('vomit' — a scrunched, pained-looking
-// shape — and 'default') rather than silently rendering nothing.
-const MOUTH_VARIANT = { neutral: 'default', mild: 'default', distress: 'concerned', grimace: 'vomit', slack: 'sad', talkOpen: 'screamOpen',
+// 'grimace' (severe pain) and 'serious' (mild distress) are both literal
+// asset-key matches — avatar_assets.js has all 12 of DiceBear's named mouth
+// variants; an earlier pass here mis-detected them as missing (a key-scan
+// regex that only matched values starting with `<path`, when grimace/
+// serious both start with `<rect`) and mapped them to the wrong shapes
+// ('vomit'/'default') as a result. Fixed back to the real ones.
+const MOUTH_VARIANT = { neutral: 'default', mild: 'serious', distress: 'concerned', grimace: 'grimace', slack: 'sad', talkOpen: 'screamOpen',
   angry: 'default', agitated: 'concerned', tearful: 'sad', anxious: 'concerned', confused: 'disbelief' };
 function setMouth(stateKey) {
   const variant = MOUTH_VARIANT[stateKey] || MOUTH_VARIANT.neutral;

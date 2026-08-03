@@ -516,7 +516,7 @@ function setSweat(moistureState, frac) {
   setDrop('av-sweat-l', f >= 0.35);
   setDrop('av-sweat-c', f >= 0.65);
 }
-const MOUTH_VARIANT = { neutral: 'default', mild: 'default', distress: 'concerned', grimace: 'vomit', slack: 'sad', talkOpen: 'screamOpen',
+const MOUTH_VARIANT = { neutral: 'default', mild: 'serious', distress: 'concerned', grimace: 'grimace', slack: 'sad', talkOpen: 'screamOpen',
   angry: 'default', agitated: 'concerned', tearful: 'sad', anxious: 'concerned', confused: 'disbelief' };
 function setMouth(stateKey) {
   const variant = MOUTH_VARIANT[stateKey] || MOUTH_VARIANT.neutral;
