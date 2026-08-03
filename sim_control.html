@@ -1630,7 +1630,12 @@ async function commitPlayheadRewind() {
   if (pendingRewindMs === null || !sessionCode) { pendingRewindMs = null; renderGraph(); return; }
   const targetMs = pendingRewindMs;
   pendingRewindMs = null;
-  const newTotalPaused = liveConfig.pausedAtMs - targetMs;
+  // total_paused_ms is a bigint column — targetMs comes from pixel math
+  // (minForX: screen-x -> minutes, involving division), which yields a
+  // fractional-millisecond float almost every time. Postgres rejects a
+  // non-integer for bigint outright, so every commit failed on this
+  // regardless of direction — round before it ever reaches the network.
+  const newTotalPaused = Math.round(liveConfig.pausedAtMs - targetMs);
   try {
     await sbFetch(`sim_sessions?session_code=eq.${sessionCode}`, {
       method: 'PATCH', prefer: 'return=minimal',
