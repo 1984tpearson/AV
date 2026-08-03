@@ -3273,16 +3273,17 @@ function appendTreatmentEntry(entry) {
 // longer happened, for every vital, regardless of whether THIS specific
 // action itself has any effect (even a no-effect action still marks the
 // fork point). Runs once, before whatever this action's own splice does —
-// see SimEngine.resetFutureToBaseline for why resetting to the untreated
-// baseline is safe (history stays exactly as it was; only not-yet-reached
-// data is touched).
+// see SimEngine.clearFutureFromFork, which drops that future outright
+// rather than refilling it from the untreated baseline course (history
+// stays exactly as it was; only not-yet-reached data is touched). Whoever
+// calls this must also pass { diverged: true } into the AI call that
+// follows, so the cleared forward plan gets re-projected in full.
 async function resetDivergedFutureIfNeeded(givenAtMs) {
-  if (!liveConfig.baselineOverrides) return;
   const rows = await sbFetch(`sim_sessions?session_code=eq.${sessionCode}&select=overrides`, { method: 'GET' });
   const freshOverrides = (rows[0] && rows[0].overrides) || {};
   const previousSnapshot = JSON.parse(JSON.stringify(freshOverrides));
   const vitalsNow = SimEngine.getVitalsRaw(liveConfig, givenAtMs);
-  SimEngine.resetFutureToBaseline(freshOverrides, liveConfig.baselineOverrides, vitalsNow, givenAtMs);
+  SimEngine.clearFutureFromFork(freshOverrides, vitalsNow, givenAtMs);
   await sbFetch(`sim_sessions?session_code=eq.${sessionCode}`, {
     method: 'PATCH', prefer: 'return=minimal',
     body: JSON.stringify({ overrides: freshOverrides, previous_overrides: previousSnapshot, updated_at: new Date().toISOString() })
@@ -3369,7 +3370,16 @@ async function giveTreatment(providedText, opts) {
 
   const matched = routed.filter(it => it.matchId);
   const unmatched = routed.filter(it => !it.matchId);
-  const allMatched = routed.length > 0 && unmatched.length === 0;
+  // A diverging action always needs the full Sonnet path, even if every part
+  // of it matched the reviewed catalogue: the Haiku shortcut only applies
+  // each item's own small known effect and never re-projects anything else,
+  // but resetDivergedFutureIfNeeded has just cleared the ENTIRE forward
+  // plan — with nothing to re-author it, every vital would hold flat for the
+  // rest of the scenario (an anaphylaxis patient frozen mid-deterioration
+  // because the crew rewound and gave aspirin). Sonnet gets DIVERGENCE_NOTE
+  // and re-projects the whole picture, with the matched items passed along
+  // as context exactly like the partial-match case below.
+  const allMatched = routed.length > 0 && unmatched.length === 0 && !diverged;
 
   if (allMatched) {
     // Every distinct action matched a reviewed catalogue — skip Sonnet
@@ -3402,7 +3412,7 @@ async function giveTreatment(providedText, opts) {
     : '';
   if (statusEl) statusEl.textContent = 'Recalculating trajectory…';
   try {
-    await regenerateTimelineAfterTreatment(reasoningText + contextNote, givenAtMs);
+    await regenerateTimelineAfterTreatment(reasoningText + contextNote, givenAtMs, { diverged });
     if (matchedNotes.length) {
       const idx = treatments.length - 1;
       treatments[idx].assumptions = [...matchedNotes, ...(treatments[idx].assumptions || [])];
@@ -3428,12 +3438,23 @@ async function giveTreatment(providedText, opts) {
 // themselves right after splicing — that one line is a graph-UI concern
 // specific to this page, so it no longer lives inside the shared function.
 
+// Appended to either AI call's user message when this action follows a
+// rewind onto a different branch (see resetDivergedFutureIfNeeded). The
+// whole forward plan has just been cleared, so the usual "omission means
+// keep whatever was already scheduled" contract doesn't hold — there IS
+// nothing else scheduled, and a key left unmentioned will simply hold flat
+// forever. Says so explicitly rather than letting the model assume the old
+// schedule still covers what it leaves out.
+const DIVERGENCE_NOTE = `
+IMPORTANT — the scenario was rewound to this moment and a different action taken, so the entire previously-projected future has been DISCARDED: nothing at all is scheduled beyond this point now (which is why the two 'currently scheduled' lines above read 'none'). Anything you omit will hold flat at its current value for the rest of the scenario, which is very unlikely to be clinically right. Project the COMPLETE forward picture for every vital that will realistically change from here — including any continued deterioration from the underlying untreated condition that this action does NOT address, and including a 'rhythm' entry if the rhythm will change (or needs to change back — e.g. a previously projected arrest that this action now prevents must NOT be left scheduled, and an arrest that is still coming must be re-stated here or it will not happen at all).`;
+
 // Recalculates the patient's future trajectory in response to a specific
 // treatment/management action, using the AI to reason about THIS action on
 // THIS patient's THIS condition — replaces the old generic per-drug effect
 // table entirely. Anything already elapsed or mid-transition is left alone;
 // only not-yet-started future overrides are replaced.
-async function regenerateTimelineAfterTreatment(action, givenAtMs) {
+async function regenerateTimelineAfterTreatment(action, givenAtMs, opts) {
+  opts = opts || {};
   if (!currentScenario) return; // no scenario context available — treatment stays logged, trajectory just won't update
   const vitalsNow = SimEngine.getVitalsRaw(liveConfig, givenAtMs);
   const elapsedMin = (givenAtMs - liveConfig.startTimeMs) / 60000;
@@ -3532,7 +3553,7 @@ Current cardiac rhythm on the monitor: ${currentRhythmLabel || 'none scripted ye
 Currently scheduled future changes (minutes from now; not binding — see rules): ${Object.keys(scheduledSummary).length ? JSON.stringify(scheduledSummary) : 'none'}
 Currently scheduled future rhythm changes (minutes from now; not binding): ${scheduledRhythmSummary.length ? JSON.stringify(scheduledRhythmSummary) : 'none'}
 Remaining scenario time available to project (minutes; project less if the outcome resolves sooner): ${Math.round(remainingMin)}
-
+${opts.diverged ? DIVERGENCE_NOTE : ''}
 Project how this patient's vitals change from here, given this specific action.`;
 
   // System prompt is now fully static per model (the one dynamic value,
@@ -3655,7 +3676,7 @@ async function runAssessorCommand(providedText) {
   }
   if (statusEl) statusEl.textContent = 'Scripting event\u2026';
   try {
-    await regenerateTimelineForScriptedEvent(command, givenAtMs);
+    await regenerateTimelineForScriptedEvent(command, givenAtMs, { diverged });
     if (statusEl) statusEl.textContent = '';
   } catch (e) {
     if (statusEl) statusEl.textContent = 'Could not script the event: ' + e.message;
@@ -3670,7 +3691,8 @@ async function runAssessorCommand(providedText) {
 // regenerateTimelineAfterTreatment (see spliceAiOverridePlan) so a
 // scripted event supersedes future overrides on whatever it touches while
 // leaving everything else exactly as scheduled.
-async function regenerateTimelineForScriptedEvent(command, givenAtMs) {
+async function regenerateTimelineForScriptedEvent(command, givenAtMs, opts) {
+  opts = opts || {};
   if (!currentScenario) return; // no scenario context available \u2014 event stays logged, trajectory just won't update
   const vitalsNow = SimEngine.getVitalsRaw(liveConfig, givenAtMs);
   const elapsedMin = (givenAtMs - liveConfig.startTimeMs) / 60000;
@@ -3744,7 +3766,7 @@ Current cardiac rhythm on the monitor: ${currentRhythmLabel || 'none scripted ye
 Currently scheduled future changes (minutes from now; not binding \u2014 see rules): ${Object.keys(scheduledSummary).length ? JSON.stringify(scheduledSummary) : 'none'}
 Currently scheduled future rhythm changes (minutes from now; not binding): ${scheduledRhythmSummary.length ? JSON.stringify(scheduledRhythmSummary) : 'none'}
 Remaining scenario time available to project (minutes; project less if the outcome resolves sooner): ${Math.round(remainingMin)}
-
+${opts.diverged ? DIVERGENCE_NOTE : ''}
 Project how this patient's vitals change from here, given this command.`;
 
   const systemParam = promptCachingEnabled
