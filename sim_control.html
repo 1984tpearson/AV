@@ -174,7 +174,12 @@ select, input[type=number], input[type=text] { font-family: 'Courier New', monos
             <button class="btn btn-start" id="run-btn" onclick="toggleRun()">Start Scenario</button>
             <label style="margin:0;"><input type="checkbox" id="instant-toggle" onchange="updateInstantMode()"> Instant Mode</label>
           </div>
-          <h2 style="margin-top:12px;">Log Treatment / Management</h2>
+          <div class="row" style="justify-content:space-between;align-items:center;margin:12px 0 10px;">
+            <h2 style="margin-bottom:0;">Log Treatment / Management</h2>
+            <button class="btn btn-secondary toolbtn iconbtn" id="undo-action-btn" onclick="undoLastAction()" disabled aria-label="Undo last action" title="Nothing to undo">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7v6h6"/><path d="M3 13a9 9 0 1 0 3-7.7L3 7"/></svg>
+            </button>
+          </div>
           <div class="row">
             <div style="flex:1;min-width:220px;">
               <label for="action-input">Drug / Action</label>
@@ -495,6 +500,8 @@ let showPreviousGhost = false; // dashed same-colour line: state right before th
 let liveConfig = null; // mirrors the patient page's testConfig shape, plus pause fields
 let instantMode = false;
 let treatments = [];
+let undoStack = []; // {treatments, overrides} snapshots taken right before each logged action mutates them — in-memory only, cleared on createSession(), oldest dropped past UNDO_STACK_MAX
+const UNDO_STACK_MAX = 20;
 let patientActions = {}; // synced from sim_patient.html — see pollSession() / renderPendingActionsStack()
 let actionControls = {}; // this page's own pause/skip commands, echoed back by patient page
 let expandedActionKey = null; // which pending-action card currently has its Pause/Skip controls open
@@ -911,6 +918,7 @@ async function createSession() {
       };
       _joinInfoManuallyShown = false;
       treatments = [];
+      undoStack = [];
       patientActions = {};
       actionControls = {};
       expandedActionKey = null;
@@ -932,6 +940,7 @@ async function createSession() {
       updatePatientStatus();
       renderRunControls();
       renderLog();
+      updateUndoButtonState();
       renderPendingActionsStack();
       tickVitals();
       setInterval(tickVitals, VITALS_TICK_MS);
@@ -2474,6 +2483,55 @@ function toggleTreatmentExpanded(idx) {
   renderLog();
 }
 
+// Captures a deep-copy snapshot of treatments + overrides right before a
+// logged action (giveTreatment/runAssessorCommand, which also covers
+// patient-device-triggered treatments and defibrillation — see their call
+// sites) mutates them, so undoLastAction() can restore exactly this state.
+// In-memory only, not persisted to Supabase — cleared in createSession() —
+// so it only covers actions taken by this browser tab since the session
+// started, not ones from a session resumed elsewhere.
+function snapshotForUndo() {
+  undoStack.push({
+    treatments: JSON.parse(JSON.stringify(treatments)),
+    overrides: JSON.parse(JSON.stringify(liveConfig.overrides))
+  });
+  if (undoStack.length > UNDO_STACK_MAX) undoStack.shift();
+  updateUndoButtonState();
+}
+
+function updateUndoButtonState() {
+  const btn = document.getElementById('undo-action-btn');
+  if (!btn) return;
+  btn.disabled = !undoStack.length;
+  btn.title = undoStack.length ? 'Undo last action' : 'Nothing to undo';
+}
+
+// Pops the most recent pre-action snapshot and restores treatments +
+// overrides to it, both locally and in Supabase — a single-level-per-call
+// undo (repeatable, since each call pops one more step off the stack).
+async function undoLastAction() {
+  if (!undoStack.length || !sessionCode) return;
+  const snap = undoStack[undoStack.length - 1];
+  const btn = document.getElementById('undo-action-btn');
+  if (btn) btn.disabled = true;
+  try {
+    await sbFetch(`sim_sessions?session_code=eq.${sessionCode}`, {
+      method: 'PATCH', prefer: 'return=minimal',
+      body: JSON.stringify({ treatments: snap.treatments, overrides: snap.overrides, updated_at: new Date().toISOString() })
+    });
+    undoStack.pop();
+    treatments = snap.treatments;
+    liveConfig.treatments = treatments;
+    liveConfig.overrides = snap.overrides;
+    expandedTreatmentIdx = null;
+    renderLog();
+    renderGraph();
+  } catch (e) {
+    alert('Could not undo — check the connection and try again.');
+  }
+  updateUndoButtonState();
+}
+
 // Renders the currently pending/queued student actions (BP, RR, SpO2, GCS,
 // etc — see sim_patient.html's actionState) as small cards stacked at the
 // bottom of the Log panel, oldest first so a newly-started action lands at
@@ -3072,6 +3130,7 @@ async function giveTreatment(providedText, opts) {
   const inputEl = document.getElementById('action-input');
   const action = (providedText !== undefined ? providedText : inputEl.value).trim();
   if (!action) { if (!opts.silent) alert('Enter a drug or management action.'); return; }
+  snapshotForUndo();
   maybeHandleActionInitiated(); // giving a treatment is just as much "the scenario is underway" as a patient-side action starting — same auto-start/resume-prompt rule
   const statusEl = document.getElementById('treatment-status');
   const givenAtMs = simNow();
@@ -3387,6 +3446,7 @@ async function runAssessorCommand(providedText) {
   const inputEl = document.getElementById('event-command-input');
   const command = (providedText !== undefined ? providedText : inputEl.value).trim();
   if (!command) { alert('Enter a command describing the event.'); return; }
+  snapshotForUndo();
   maybeHandleActionInitiated(); // scripting an event is just as much "the scenario is underway" as any other action
   const statusEl = document.getElementById('event-command-status');
   const givenAtMs = simNow();
