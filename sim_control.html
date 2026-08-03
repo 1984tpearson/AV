@@ -2104,28 +2104,39 @@ function bpSysSeverity(sys) {
   return 0;
 }
 
-// Composite 0-100 score for the graph's "Health" line — averages the same
-// severity bands the Appearance tab above already uses (one calibrated
-// normal/abnormal notion, not a new set of thresholds) across HR, RR, SpO2,
-// BP sys and GCS. 100 = every input fully normal; 0 = every input
-// simultaneously at its worst band, which is reachable in practice — the
-// AI's cardiac-arrest cascade rule (see CLAUDE.md) writes HR/RR/SpO2/BP/GCS
-// overrides together, not just one of them. Pain is deliberately excluded:
-// a dying/unconscious patient's pain score is scripted DOWN to 0 in lockstep
-// with LOC (see the same cascade rule), which would read as "0 abnormality"
-// at the exact moment the patient is at their worst — the opposite of what
-// a badness index needs. BPdia/EtCO2/temp/bgl/ketones/nausea are left out
-// too, for lack of an existing calibrated severity band for them here.
+// Composite 0-100 score for the graph's "Health" line — a weighted average
+// of the same severity bands the Appearance tab above already uses (one
+// calibrated normal/abnormal notion, not a new set of thresholds) across
+// HR, RR, SpO2, BP sys, GCS and pain. 100 = every input fully normal; 0 =
+// every input simultaneously at its worst band, which is reachable in
+// practice — the AI's cardiac-arrest cascade rule (see CLAUDE.md) writes
+// HR/RR/SpO2/BP/GCS overrides together, not just one of them.
+//
+// Pain is self-reported, so it only means something while the patient is
+// conscious enough to report it. painWeight fades from 1 down to 0 as GCS
+// falls from 15 toward 8 (the same "unresponsive" threshold isUnresponsive()
+// uses below) rather than snapping off at that line — a hard cutoff would
+// put a visible kink in the line at the exact instant consciousness is
+// lost, while everything else is still transitioning smoothly. Below GCS 8,
+// pain carries no weight at all: cascade-scripted arrests correctly cut
+// pain to 0 alongside LOC (see CLAUDE.md), which would otherwise read as
+// "0 abnormality" — an improvement — at exactly the moment the patient is
+// at their worst. BPdia/EtCO2/temp/bgl/ketones/nausea are left out
+// entirely, for lack of an existing calibrated severity band for them here.
 function healthScore(v) {
   const gcsTotal = (v.gcsE || 0) + (v.gcsV || 0) + (v.gcsM || 0);
-  const subs = [
-    hrSeverity(v.HR) / 4,
-    rrSeverity(v.RR) / 4,
-    spo2Severity(v.SpO2) / 4,
-    bpSysSeverity(v.BPsys) / 4,
-    Math.min(1, Math.max(0, (15 - gcsTotal) / 12))
+  const gcsAbnormality = Math.min(1, Math.max(0, (15 - gcsTotal) / 12));
+  const painWeight = Math.min(1, Math.max(0, (gcsTotal - 8) / 7));
+  const weighted = [
+    { sub: hrSeverity(v.HR) / 4, w: 1 },
+    { sub: rrSeverity(v.RR) / 4, w: 1 },
+    { sub: spo2Severity(v.SpO2) / 4, w: 1 },
+    { sub: bpSysSeverity(v.BPsys) / 4, w: 1 },
+    { sub: gcsAbnormality, w: 1 },
+    { sub: painSeverity(v.pain) / 3, w: painWeight }
   ];
-  const avgAbnormality = subs.reduce((a, b) => a + b, 0) / subs.length;
+  const totalWeight = weighted.reduce((a, x) => a + x.w, 0);
+  const avgAbnormality = weighted.reduce((a, x) => a + x.sub * x.w, 0) / totalWeight;
   return 100 * (1 - avgAbnormality);
 }
 
