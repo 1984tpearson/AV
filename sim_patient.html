@@ -2588,34 +2588,67 @@ function setInputMode(mode) {
 syncInputModeUI(); // reflect the default mode on the toggle button before any button is ever pressed
 
 // --- Wake-word "auto-listen" ------------------------------------------------
-// Opt-in continuous listening so a crew member can address the patient by
-// name instead of holding the Talk button — see CLAUDE.md's "wake word"
-// discussion for why this, not eye-tracking or a bare open mic. NOT a real
-// hotword engine (browsers don't expose one): this just runs
-// SpeechRecognition continuously and fuzzy-matches each final transcript
-// against the patient's own first name (what a crew member naturally says
-// when addressing a patient anyway, no new phrase to learn) before treating
-// anything after it as a question for the existing "Talk to Patient"
-// pipeline. False positives from ordinary crew/student crosstalk that
-// happens to mention the patient's name are an accepted tradeoff of not
-// requiring a button press — same class of risk any keyword-gated always-on
-// mic has; a real wake-word engine wouldn't remove it either.
+// Opt-in continuous listening so a crew member doesn't have to hold one of
+// the three fab buttons — see CLAUDE.md's "wake word" discussion for why
+// this, not eye-tracking or a bare open mic. NOT a real hotword engine
+// (browsers don't expose one): this just runs SpeechRecognition continuously
+// and fuzzy-matches each final transcript against a small set of trigger
+// phrases (see getWakeWords()) before treating anything after the matched
+// phrase as that mode's content, queued through the exact same student_queue
+// path (queueStudentItem) a manual press uses. Three modes, two different
+// kinds of trigger:
+// - 'chat' triggers on the patient's own first name — asking the patient
+//   something is naturally addressed to them by name ("Dave, can you hear
+//   me?"), so no new phrase to learn.
+// - 'exam'/'treatment' trigger on a fixed lead-in phrase ("assessment"/
+//   "treatment") instead, because those two are narrated to the team/
+//   instructor, not spoken to the patient — there's no equivalent natural
+//   "address by name" moment to hook, so this is a spoken stand-in for
+//   holding the Assess/Treat button rather than something inferred from the
+//   content itself (that would need an AI classification call, and this
+//   page has no Anthropic key to make one — see CLAUDE.md's sim
+//   architecture notes on why all AI calls live in sim_control.html).
+// False positives from ordinary crew/student crosstalk that happens to
+// contain one of these phrases are an accepted tradeoff of not requiring a
+// button press — same class of risk any keyword-gated always-on mic has; a
+// real wake-word engine wouldn't remove it either.
 const WAKE_WORD_LS_KEY = 'av_wake_word_enabled';
 let _wakeWordEnabled = localStorage.getItem(WAKE_WORD_LS_KEY) === '1';
 let _wakeRecognition = null;
-// Set once the wake word alone was heard with nothing following it (e.g.
-// just "...Dave?") — the NEXT final transcript within this window is taken
-// as the question itself, without needing the name repeated.
+// Set once a wake phrase alone was heard with nothing following it (e.g.
+// just "...Dave?" or "assessment—") — the NEXT final transcript within this
+// window is taken as that phrase's content, without needing it repeated.
 let _wakeArmedUntil = 0;
+let _wakeArmedMode = null;
 const WAKE_FOLLOWUP_MS = 7000;
+// Synchronous guard against a second wake trigger firing while the first
+// send is still in flight — matters most for 'treatment', which (unlike
+// 'chat'/'exam') never sets _lastChatSentId, so nothing else would block a
+// near-simultaneous second detection during the await below.
+let _wakeSendInFlight = false;
 
+// Each entry's phrase triggers that entry's mode ('chat'/'exam'/'treatment'
+// — same three types student_queue items already carry, see
+// queueStudentItem()/processStudentQueue()). The patient's own name only
+// makes sense as a trigger for 'chat' — asking the patient something is
+// naturally addressed to them by name ("Dave, can you hear me?"), but an
+// assessment or treatment action is narrated to the team/instructor, not
+// spoken to the patient, so there's no equivalent natural "address by name"
+// moment to hook for those two. 'assessment'/'treatment' work instead as a
+// spoken equivalent of holding the Assess/Treat button — a fixed lead-in
+// phrase, not a name — accepting that this is one more thing to learn/say
+// than the chat trigger, same tradeoff already noted for the chat wake word:
+// no better signal is available without an AI classification call this page
+// has no Anthropic key to make (see CLAUDE.md's sim architecture notes).
 function getWakeWords() {
   const name = scenarioMeta && scenarioMeta.patient_meta && scenarioMeta.patient_meta.name;
-  const words = ['hey patient', 'excuse me'];
+  const words = [{ phrase: 'hey patient', mode: 'chat' }, { phrase: 'excuse me', mode: 'chat' }];
   if (name) {
     const first = String(name).trim().split(/\s+/)[0].toLowerCase();
-    if (first) words.unshift(first);
+    if (first) words.unshift({ phrase: first, mode: 'chat' });
   }
+  words.push({ phrase: 'assessment', mode: 'exam' }, { phrase: 'assessing', mode: 'exam' });
+  words.push({ phrase: 'treatment', mode: 'treatment' }, { phrase: 'administering', mode: 'treatment' });
   return words;
 }
 
@@ -2664,44 +2697,56 @@ function stopWakeListening() {
 }
 
 function handleWakeResult(ev) {
-  if (_voiceModalOpen || _lastChatSentId) return; // a manual exchange or an already-in-flight wake question owns the floor
+  if (_voiceModalOpen || _lastChatSentId || _wakeSendInFlight) return; // a manual exchange or an already-in-flight wake item owns the floor
   for (let i = ev.resultIndex; i < ev.results.length; i++) {
     if (!ev.results[i].isFinal) continue;
     const transcript = ev.results[i][0].transcript || '';
     const lower = transcript.toLowerCase();
-    let query = null;
+    let query = null, mode = null;
     if (Date.now() < _wakeArmedUntil) {
       query = transcript.trim();
+      mode = _wakeArmedMode;
     } else {
       for (const w of getWakeWords()) {
-        const idx = lower.indexOf(w);
+        const idx = lower.indexOf(w.phrase);
         if (idx === -1) continue;
-        query = transcript.slice(idx + w.length).trim();
+        query = transcript.slice(idx + w.phrase.length).trim();
+        mode = w.mode;
         break;
       }
     }
     _wakeArmedUntil = 0;
-    if (query === null) continue; // no wake word heard in this utterance — ordinary crosstalk, ignored
-    if (!query) { _wakeArmedUntil = Date.now() + WAKE_FOLLOWUP_MS; continue; } // name said alone — wait for the follow-up line
-    sendWakeQuery(query);
+    _wakeArmedMode = null;
+    if (query === null) continue; // no wake phrase heard in this utterance — ordinary crosstalk, ignored
+    if (!query) { _wakeArmedUntil = Date.now() + WAKE_FOLLOWUP_MS; _wakeArmedMode = mode; continue; } // phrase said alone — wait for the follow-up line
+    sendWakeItem(query, mode);
     return;
   }
 }
 
-// Funnels a wake-word-triggered question through the exact same queue/reply
-// pipeline as a manual "Talk to Patient" press (queueStudentItem + the
-// _lastChatSentId/_lastChatSentMode pair checkForPatientReply matches
-// against) — only the asking side is different, the reply still arrives via
-// the normal poll and speaks through speakPatientReply.
-async function sendWakeQuery(text) {
-  if (!sessionCode || _lastChatSentId) return;
-  _voiceMode = 'chat';
-  _lastChatSentId = -1; // synchronous placeholder — blocks a near-simultaneous second wake detection from also queueing while the real id is still in flight below
-  _lastChatSentMode = 'chat';
+// Funnels a wake-triggered treat/assess/talk item through the exact same
+// student_queue path a manual button press uses (queueStudentItem, then
+// processStudentQueue on sim_control.html's side dispatches by type — see
+// CLAUDE.md). 'treatment' is genuinely fire-and-forget there (giveTreatment
+// writes no patient_reply, same as the manual Treat button's flow), so only
+// 'chat'/'exam' get the _lastChatSentId/_lastChatSentMode pair
+// checkForPatientReply matches a reply against — the reply itself still
+// arrives via the normal poll and speaks through speakPatientReply.
+async function sendWakeItem(text, mode) {
+  if (!sessionCode || _lastChatSentId || _wakeSendInFlight) return;
+  _wakeSendInFlight = true;
+  const tracksReply = mode !== 'treatment';
+  if (tracksReply) {
+    _lastChatSentId = -1; // synchronous placeholder — blocks a near-simultaneous second wake detection from also queueing while the real id is still in flight below
+    _lastChatSentMode = mode;
+  }
   try {
-    _lastChatSentId = await queueStudentItem('chat', text);
+    const id = await queueStudentItem(mode, text);
+    if (tracksReply) _lastChatSentId = id;
   } catch (e) {
-    _lastChatSentId = null; // best-effort — a missed wake question just needs repeating
+    if (tracksReply) _lastChatSentId = null; // best-effort — a missed wake item just needs repeating
+  } finally {
+    _wakeSendInFlight = false;
   }
 }
 
