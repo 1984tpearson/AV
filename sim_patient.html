@@ -22,15 +22,15 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 html, body { height: 100%; height: 100dvh; overflow: hidden; background: linear-gradient(135deg, #2C4F7C 0%, #4E7FAE 55%, #6FA0CC 100%); color: #1e2a36; font-family: 'Courier New', monospace; }
 body { display: flex; flex-direction: column; }
-#topbar { flex-shrink: 0; background: #ffffff; border-bottom: 2px solid #d7dee6; padding: 8px 14px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-#topbar .title { font-size: 12px; font-weight: 900; letter-spacing: 1px; color: #0369a1; text-transform: uppercase; }
+#topbar { flex-shrink: 0; background: var(--navy); box-shadow: 0 2px 8px rgba(0,0,0,0.25); padding: 8px 14px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+#topbar .title { font-size: 12px; font-weight: 900; letter-spacing: 1px; color: #ffffff; text-transform: uppercase; }
 #topbar-right { display: flex; align-items: center; gap: 14px; }
-#instant-mode-label { font-size: 10px; display: flex; align-items: center; gap: 4px; color: #33475a; cursor: pointer; user-select: none; }
-#hq-voice-label { font-size: 10px; display: flex; align-items: center; gap: 4px; color: #33475a; cursor: pointer; user-select: none; }
-#hq-voice-status { font-size: 9px; font-style: italic; color: #6b8299; max-width: 110px; }
-#hq-voice-status.hq-voice-status-ready { color: #15803d; font-style: normal; }
-#hq-voice-status.hq-voice-status-error { color: #b91c1c; font-style: normal; cursor: pointer; text-decoration: underline dotted; }
-#scenario-timer { font-size: 13px; font-weight: 700; color: #15803d; }
+#instant-mode-label { font-size: 10px; display: flex; align-items: center; gap: 4px; color: rgba(255,255,255,0.85); cursor: pointer; user-select: none; }
+#hq-voice-label { font-size: 10px; display: flex; align-items: center; gap: 4px; color: rgba(255,255,255,0.85); cursor: pointer; user-select: none; }
+#hq-voice-status { font-size: 9px; font-style: italic; color: rgba(255,255,255,0.6); max-width: 110px; }
+#hq-voice-status.hq-voice-status-ready { color: #4ade80; font-style: normal; }
+#hq-voice-status.hq-voice-status-error { color: #f87171; font-style: normal; cursor: pointer; text-decoration: underline dotted; }
+#scenario-timer { font-size: 13px; font-weight: 700; color: #4ade80; }
 #patient-info { flex-shrink: 0; }
 #main { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 10px; padding: 10px; overflow: hidden; }
 @media (min-width: 800px) { #main { flex-direction: row; } }
@@ -156,20 +156,19 @@ body { display: flex; flex-direction: column; }
 .voice-btn-primary:disabled { opacity: 0.4; }
 .voice-btn-secondary { background: #e2e8f0; color: #33475a; }
 .topbar-logo-img { height: 26px; width: auto; max-width: 150px; object-fit: contain; flex-shrink: 0; display: block; }
-#topbar #avnav-hamburger { width: 34px; height: 34px; font-size: 15px; background: rgba(44,79,124,0.08); border: 1px solid rgba(44,79,124,0.25); color: var(--navy); }
-#topbar #avnav-hamburger:active { background: rgba(44,79,124,0.18); }
+#topbar #avnav-hamburger { width: 34px; height: 34px; font-size: 15px; }
 </style>
 </head>
 <body>
 <div id="topbar">
   <div style="display:flex;align-items:center;gap:10px;">
     <div id="avnav-slot"></div>
-    <img src="logoblack.png" alt="D.A.S.H — Dynamic Assessment &amp; Simulation Hub" class="topbar-logo-img">
+    <img src="logo.png" alt="D.A.S.H — Dynamic Assessment &amp; Simulation Hub" class="topbar-logo-img">
     <div class="title">Live Scenario — Patient View</div>
   </div>
   <div id="topbar-right">
-    <span id="pause-indicator" style="font-size:11px;font-weight:700;color:#b45309;display:none;">&#9208; PAUSED</span>
-    <span id="instant-mode-indicator" style="font-size:10px;color:#33475a;display:none;">Instant Mode: ON</span>
+    <span id="pause-indicator" style="font-size:11px;font-weight:700;color:#fbbf24;display:none;">&#9208; PAUSED</span>
+    <span id="instant-mode-indicator" style="font-size:10px;color:rgba(255,255,255,0.85);display:none;">Instant Mode: ON</span>
     <label id="hq-voice-label" title="Higher-quality patient voice (downloads a voice model on first use)">
       <input type="checkbox" id="hq-voice-checkbox" onchange="setHqVoiceEnabled(this.checked)">HQ Voice
     </label>
@@ -1932,23 +1931,31 @@ function tick() {
   try { updateAvatarFace(extendedVitalsNow()); } catch (e) { console.error('avatar render failed:', e); }
 }
 
-// Auth gate — matches quiz_player.html: a real Supabase session is
-// preferred, but a device joining a session as the patient view is
-// "playing", not "hosting", so login.html's "Continue as Guest" flag is
-// enough to let it through (sim_sessions reads/writes already run on the
-// anon key regardless — see sbFetch — so no anonymous auth.users row is
-// needed here the way quiz_player.html's quiz_players FK requires one).
+// Auth gate — a real Supabase session is used if present (so an instructor
+// testing this page on their own device still gets their identity in the
+// nav sidebar), but unlike sim_control.html/quiz_host.html this page never
+// bounces to login.html: it's a shared/kiosk device joined via pairing code,
+// not a personal account, so it drops straight into guest mode automatically
+// rather than making someone click through a sign-in screen first. Setting
+// the same flag login.html's "Continue as Guest" button sets is what makes
+// nav.js's sidebar render the trimmed guest view instead of skipping it.
 async function requireAuth() {
   const { data: { session } } = await sbRealtime.auth.getSession();
   if (session) return session;
-  if (window.localStorage.getItem('av_guest_mode') === 'true') return null; // let through below
-  window.location.href = 'login.html?redirect=sim_patient.html';
+  window.localStorage.setItem('av_guest_mode', 'true');
   return null;
 }
 
-window.addEventListener('DOMContentLoaded', async () => {
-  const session = await requireAuth();
-  if (!session && window.localStorage.getItem('av_guest_mode') !== 'true') return; // real redirect already fired above
+// Registered on `document`, not `window`: nav.js's own DOMContentLoaded
+// listener is also on `document` (see nav.js's init() call at the bottom of
+// that file), and per spec same-target listeners fire in registration order
+// while a `window`-registered listener for this event always fires later
+// (bubble phase, after document's target phase) regardless of registration
+// order. This script tag runs before nav.js's, so registering here first on
+// the same target is what guarantees the guest-mode flag below is actually
+// set before nav.js checks it — on `window` it raced and lost every time.
+document.addEventListener('DOMContentLoaded', async () => {
+  await requireAuth();
   document.getElementById('hq-voice-checkbox').checked = hqVoiceEnabled;
   if (localStorage.getItem(HQ_VOICE_LS_KEY) === null) {
     document.getElementById('hq-voice-prompt').style.display = 'flex';
