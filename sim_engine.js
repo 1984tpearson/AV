@@ -841,11 +841,60 @@
     return 'calm';
   }
 
+  // --- Spontaneous/unprompted patient speech --------------------------------
+  // Shared between sim_control.html (which asks the AI to write/refresh a
+  // per-scenario line bank, tagged by distressLevel band — see
+  // getAppearanceState() above) and sim_patient.html (which plays it back on
+  // a random timer, gated by the SAME gcsV tiering answerPatientQuestion()
+  // already uses for a directly-asked question: gcsV<=1 has nothing to say,
+  // 2/3 can only produce a generic sound/fragment — the AI-written lines only
+  // ever apply at gcsV>=4, where coherent speech is plausible at all).
+  // GCS_V2_SOUNDS/GCS_V3_WORDS previously lived only in sim_control.html
+  // (answerPatientQuestion's forced reply to a direct question) — moved here,
+  // one shared pool, so a spontaneous groan and a forced-answer groan don't
+  // drift into two different sets of the same handful of noises.
+  _cfg.GCS_V2_SOUNDS = ['Nnnghhh...', 'Uhhh... hnnn...', 'Mmm... hhh... mmm...', '...ngh... uhh...'];
+  _cfg.GCS_V3_WORDS = ['...dog... the blue one...', "...where's... my keys...", '...no... stop the light...', '...mum? ...mum...', '...cold... the cold one...'];
+  // Generic, non-AI fallback lines for a coherent (gcsV>=4) patient when
+  // either no scenario-specific bank exists yet (AI call hasn't returned,
+  // or failed) or nothing in it matches the patient's current distressLevel
+  // band — so spontaneous speech never goes silent just because the
+  // scenario-specific bank is thin or stale.
+  _cfg.GENERIC_SPONTANEOUS_LINES = [
+    { text: 'Is this going to take much longer?', distressMin: 0, distressMax: 1 },
+    { text: "Can someone let my family know what's happening?", distressMin: 0, distressMax: 1 },
+    { text: '...I just want to go home.', distressMin: 0, distressMax: 2 },
+    { text: "I don't feel right...", distressMin: 1, distressMax: 2 },
+    { text: 'I feel sick...', distressMin: 1, distressMax: 2 },
+    { text: 'It really hurts...', distressMin: 2, distressMax: 3 },
+    { text: 'Please... help me...', distressMin: 2, distressMax: 3 },
+    { text: "Something's wrong, I can feel it...", distressMin: 2, distressMax: 3 }
+  ];
+  // Validates/clamps the AI's spontaneousLines response (same shape from all
+  // three call sites in sim_control.html — generateSimTimeline's initial
+  // bank and both regenerateTimeline* refreshes) into the
+  // {text, distressMin, distressMax} shape sim_patient.html's playback
+  // filter expects, dropping anything malformed rather than trusting the
+  // model's JSON verbatim.
+  function cleanSpontaneousLines(raw) {
+    if (!Array.isArray(raw)) return [];
+    return raw
+      .filter(l => l && typeof l.text === 'string' && l.text.trim())
+      .map(l => ({
+        text: l.text.trim(),
+        distressMin: Math.max(0, Math.min(3, Number.isFinite(l.distressMin) ? l.distressMin : 0)),
+        distressMax: Math.max(0, Math.min(3, Number.isFinite(l.distressMax) ? l.distressMax : 3))
+      }));
+  }
+
   global.SimEngine = {
     get ACTION_DURATIONS() { return _cfg.ACTION_DURATIONS; },
+    get GCS_V2_SOUNDS() { return _cfg.GCS_V2_SOUNDS; },
+    get GCS_V3_WORDS() { return _cfg.GCS_V3_WORDS; },
+    get GENERIC_SPONTANEOUS_LINES() { return _cfg.GENERIC_SPONTANEOUS_LINES; },
     getActionDurationSec, getVitals, getVitalsRaw, getSimNow, getStaticVitalAt, getRhythmAt, getAppearanceState,
     deriveRhythmFromHR, classifyRhythmForDefib, computeSurvivabilityScore, computeDefibrillationEffect, spliceAiOverridePlan, spliceRhythmPlan,
-    parseAgeFromScenario, parseScenarioMood,
+    parseAgeFromScenario, parseScenarioMood, cleanSpontaneousLines,
     hrSeverity, rrSeverity, spo2Severity, painSeverity, bpSysSeverity,
     applyConfigOverrides
   };

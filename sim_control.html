@@ -722,7 +722,7 @@ Ground everything in the scenario's actual provisional diagnosis and clinical pi
 Project all the way to the condition's genuine untreated endpoint if that would realistically occur — including cardiac/respiratory arrest (vitals reaching true arrest values: HR 0, BP 0/0, RR 0, EtCO2 near 0, GCS 3) where the diagnosis and timeframe make that the honest outcome. Do not stop short at a "critical but stable" plateau if arrest would actually follow. Cap the total timeline at 60 minutes — if the natural course would take longer than that to reach arrest, project only as far as 60 minutes and leave the patient critically deteriorated rather than extending further.
 
 Return ONLY valid JSON, no prose, in exactly this shape:
-{"startingPain": 0, "startingNausea": 0, "overrides": {"HR": [{"targetValue":0,"startMin":0,"endMin":0}], "RR": [], "SpO2": [], "EtCO2": [], "BPsys": [], "BPdia": [], "temp": [], "bgl": [], "ketones": [], "pain": [], "nausea": [], "gcsE": [], "gcsV": [], "gcsM": []}, "rhythm": [{"label":"ventricular fibrillation","startMin":22}]}
+{"startingPain": 0, "startingNausea": 0, "overrides": {"HR": [{"targetValue":0,"startMin":0,"endMin":0}], "RR": [], "SpO2": [], "EtCO2": [], "BPsys": [], "BPdia": [], "temp": [], "bgl": [], "ketones": [], "pain": [], "nausea": [], "gcsE": [], "gcsV": [], "gcsM": []}, "rhythm": [{"label":"ventricular fibrillation","startMin":22}], "spontaneousLines": [{"text":"...", "distressMin":0, "distressMax":1}]}
 
 Rules:
 - Times are minutes elapsed since the crew arrived on scene (arrival = minute 0). Use as much of the 0-60 minute window as the condition genuinely needs — a rapidly fatal presentation may reach arrest in under 10 minutes; a slower one may need the full 60.
@@ -733,6 +733,7 @@ Rules:
 - startingPain: a 0-10 estimate of the patient's pain at arrival, consistent with the presentation (0 if not a pain-related complaint).
 - startingNausea: a 0-10 estimate of the patient's nausea at arrival, independent of pain (0 if not a relevant feature — a fracture can hurt without nausea, gastro can nauseate without much pain).
 - 'rhythm' is optional and is about what happens AFTER arrival — the patient's presenting rhythm at minute 0 is supplied to you separately and already handled, don't repeat it here. Only include a 'rhythm' entry if the untreated natural course would genuinely change it later (e.g. an unstable rhythm deteriorating into arrest, or a documented arrhythmia spontaneously resolving) — cardiac/respiratory arrest in your vitals ALWAYS needs a matching rhythm entry at the same minute (never leave it ambiguous between asystole/VF/PEA). Same shape and terminology as the vitals overrides: {"label": "<standard clinical rhythm name>", "startMin": <minutes from arrival>}, holding until the next entry (yours or a later one from a treatment/event).
+- spontaneousLines: 4-8 short (one sentence each), first-person, in-character things this patient might say or moan UNPROMPTED — not answering a question, not reporting a finding, just what would spontaneously come out of them given how they feel (a groan of pain, asking when help is coming, worry about a pet/family member, a passing comment about their surroundings). Never reveal the provisional diagnosis, vitals, or clinical reasoning — only what the patient themselves would plausibly say or perceive. Cover the range of how this patient will plausibly feel across the whole untreated course you just projected (an early line might be mildly worried, a late one barely coherent with distress), not only their state at minute 0. Each line needs distressMin/distressMax (0-3: 0=comfortable/no complaints, 1=mild discomfort/anxiety, 2=moderate pain/distress, 3=severe/critical distress) marking which part of that range it fits. Always assume the patient CAN speak coherently when writing these — the simulator itself substitutes generic moans/fragments whenever the patient's actual consciousness level wouldn't support clear speech, so don't hedge for that here.
 - This is a training placeholder pending clinical review, not a validated clinical model — use sound general physiological reasoning for the given diagnosis.`;
 
   const userPrompt = `Current real-world date/time: ${currentDateTimeContext()}
@@ -743,6 +744,7 @@ Category: ${scenario.category || ''} / ${scenario.subcategory || ''}
 Key history: ${scenario.key_hx || ''}
 Flags: ${JSON.stringify(scenario.flags || [])}
 Life threats: ${JSON.stringify(scenario.life_threats || [])}
+Patient: ${(scenario.patient_meta && scenario.patient_meta.name) || 'unnamed'}, mood: ${(scenario.patient_meta && scenario.patient_meta.mood) || 'not specified'}
 Starting vitals at arrival (minute 0): ${JSON.stringify(startingVitals)}
 Presenting cardiac rhythm at arrival (minute 0, already handled — react to it, don't restate it): ${startingRhythm || 'not specified — assume an ordinary sinus rhythm at this HR unless the diagnosis implies otherwise'}
 
@@ -796,7 +798,9 @@ Project the deterioration/progression from these starting vitals assuming no tre
       .map(ev => ({ label: ev.label.trim(), startOffsetMs: Math.min(60, Math.max(0, ev.startMin)) * 60000 }));
   }
 
-  return { starting_vitals: startingVitals, timeline_overrides: overridesOffset };
+  const spontaneousLines = SimEngine.cleanSpontaneousLines(parsed.spontaneousLines);
+
+  return { starting_vitals: startingVitals, timeline_overrides: overridesOffset, spontaneous_lines: spontaneousLines };
 }
 
 // --- Cache lookup/build for a scenario's sim timeline -----------------------
@@ -810,6 +814,7 @@ async function getOrBuildTimeline(scenario) {
     scenario_id: scenario.id,
     starting_vitals: built.starting_vitals,
     timeline_overrides: built.timeline_overrides,
+    spontaneous_lines: built.spontaneous_lines,
     source_updated_at: scenario.updated_at
   };
   await sbFetch('scenario_sim_timelines?on_conflict=scenario_id', {
@@ -877,6 +882,7 @@ async function createSession() {
           overrides,
           baseline_overrides: overrides,
           previous_overrides: overrides,
+          spontaneous_lines: timeline.spontaneous_lines || [],
           instant_mode: false,
           has_started: false,
           is_paused: true,
@@ -2868,9 +2874,11 @@ async function runDefibFollowUpPlan(entry, rowTreatments, followUpAtMs) {
 // speak coherently" is a clinical-accuracy question, not a roleplay
 // nuance, and an LLM asked to "act confused" can still drift into an
 // accidentally-coherent answer. Gating on the actual gcsV number guarantees
-// a GCS 3 patient never holds a lucid conversation.
-let GCS_V2_SOUNDS = ['Nnnghhh...', 'Uhhh... hnnn...', 'Mmm... hhh... mmm...', '...ngh... uhh...'];
-let GCS_V3_WORDS = ['...dog... the blue one...', "...where's... my keys...", '...no... stop the light...', '...mum? ...mum...', '...cold... the cold one...'];
+// a GCS 3 patient never holds a lucid conversation. Shared with
+// sim_patient.html's spontaneous-speech playback (see sim_engine.js) so a
+// forced-answer groan and an unprompted one draw from the same pool.
+let GCS_V2_SOUNDS = SimEngine.GCS_V2_SOUNDS;
+let GCS_V3_WORDS = SimEngine.GCS_V3_WORDS;
 
 // AI reasoning path — only reached for gcsV 4 (confused conversation) or 5
 // (oriented). Told explicitly which tier applies so a V4 patient is
@@ -3221,8 +3229,8 @@ async function regenerateTimelineAfterTreatment(action, givenAtMs) {
 Reason from the scenario's actual provisional diagnosis and the specific action taken — how would THIS action affect THIS patient's THIS condition. No generic effect table; you are the clinical model.
 
 Return ONLY valid JSON, no prose. Include ONLY the vital keys this specific action actually changes — omit every other key entirely, including as an empty array (an empty array and an absent key are treated identically downstream, so writing "key": [] for every unaffected vital just wastes output tokens for no benefit). Valid vital keys: HR, RR, SpO2, EtCO2, BPsys, BPdia, temp, bgl, ketones, pain, nausea, gcsE, gcsV, gcsM.
-Shape (showing one example key only — yours will have however many keys are actually affected, not necessarily HR; 'rhythm' is optional — see its rule below):
-{"overrides": {"HR": [{"targetValue":0,"startMin":0,"endMin":0}]}, "rhythm": [{"label":"ventricular fibrillation","startMin":4}], "assumptions": []}
+Shape (showing one example key only — yours will have however many keys are actually affected, not necessarily HR; 'rhythm' and 'spontaneousLines' are optional — see their rules below):
+{"overrides": {"HR": [{"targetValue":0,"startMin":0,"endMin":0}]}, "rhythm": [{"label":"ventricular fibrillation","startMin":4}], "assumptions": [], "spontaneousLines": [{"text":"...", "distressMin":0, "distressMax":3}]}
 
 Rules:
 - Times are minutes from THIS MOMENT (action = minute 0), not scenario start.
@@ -3243,6 +3251,7 @@ Rules:
 - 'rhythm' is a separate array (sibling of 'overrides', same JSON object), for when this action changes what actually shows on the cardiac monitor — the numeric HR alone can't tell the simulator that, since a rhythm is a distinct thing from a rate (asystole, VF, and PEA are all "no pulse" but look completely different, and none of them can be inferred from HR=0 by itself). Include a 'rhythm' entry any time this action starts, changes, or resolves an actual rhythm — cardiac arrest ALWAYS needs one (never leave the simulator to guess whether HR hitting 0 means asystole, VF, or PEA). A rate-only change that stays within whatever rhythm is already showing does not need one. Each entry is a single point in time the rhythm changes to, holding until the next entry: {"label": "<standard clinical rhythm name>", "startMin": <minutes from now>}. Use ordinary clinical terminology the simulator recognises — e.g. sinus rhythm, sinus tachycardia, sinus bradycardia, atrial fibrillation, atrial flutter, SVT, ventricular tachycardia, ventricular fibrillation, torsades de pointes, asystole, pulseless electrical activity (PEA), complete heart block, Mobitz I, Mobitz II, first degree heart block, junctional rhythm, WPW, PVCs, idioventricular rhythm, hyperkalaemia, prolonged QT, an inferior/anterior/lateral/posterior STEMI, LBBB, RBBB, paced rhythm — not novel or invented phrasing. Omit 'rhythm' entirely if this action doesn't change it.
 - Project forward until the outcome resolves, or until the remaining scenario time given in the user message runs out, whichever is sooner. Never exceed 60 minutes of total scenario time.
 - assumptions: short plain-English strings for anything inferred because it wasn't stated (e.g. "Assumed IV route (not stated) — standard for anaphylaxis"). Empty array if fully specified.
+- spontaneousLines (optional): only include this if this action would change what the patient might spontaneously say or moan UNPROMPTED going forward (e.g. it resolves their distress, worsens it, or changes their LOC) — if their likely unprompted remarks wouldn't meaningfully differ from before, omit this field entirely and the simulator keeps using what it already has. When you do include it, replace the whole set: 4-8 short first-person in-character lines the patient might say unprompted (not answering a question), each tagged with distressMin/distressMax (0-3: 0=comfortable/no complaints, 1=mild discomfort/anxiety, 2=moderate pain/distress, 3=severe/critical distress) marking which band it fits, covering how this patient will plausibly feel from now to the end of your projection. Never reveal diagnosis/vitals/clinical reasoning. Assume the patient can speak coherently — the simulator substitutes generic sounds itself when consciousness doesn't support real speech.
 
 Examples clarifying how chained entries work (illustrative shapes only, not clinical guidance):
 - A vital that rises then partially settles: [{"targetValue":150,"startMin":0,"endMin":3},{"targetValue":150,"startMin":3,"endMin":6},{"targetValue":95,"startMin":6,"endMin":25}]. The middle entry does not change the value, but it still gets its own entry so the chain reaches minute 6 before the decline begins.
@@ -3348,9 +3357,18 @@ Project how this patient's vitals change from here, given this specific action.`
     liveConfig.treatments = treatments;
   }
 
+  // spontaneousLines is omitted by the AI whenever this action wouldn't
+  // change what the patient spontaneously says — that must mean "leave the
+  // session's existing bank alone", same omission rule as the vitals
+  // overrides above, so the key is only added to the PATCH body when the AI
+  // actually returned a fresh (non-empty) set.
+  const patchBody = { overrides: freshOverrides, previous_overrides: previousSnapshot, treatments, updated_at: new Date().toISOString() };
+  const newSpontaneousLines = SimEngine.cleanSpontaneousLines(parsed.spontaneousLines);
+  if (newSpontaneousLines.length) patchBody.spontaneous_lines = newSpontaneousLines;
+
   await sbFetch(`sim_sessions?session_code=eq.${sessionCode}`, {
     method: 'PATCH', prefer: 'return=minimal',
-    body: JSON.stringify({ overrides: freshOverrides, previous_overrides: previousSnapshot, treatments, updated_at: new Date().toISOString() })
+    body: JSON.stringify(patchBody)
   });
   liveConfig.overrides = freshOverrides;
   liveConfig.previousOverrides = previousSnapshot;
@@ -3434,8 +3452,8 @@ async function regenerateTimelineForScriptedEvent(command, givenAtMs) {
 Interpret the command clinically and project how the patient's vitals would genuinely present as that event unfolds \u2014 real physiological reasoning for whatever's actually described, not an arbitrary number change with no mechanism behind it.
 
 Return ONLY valid JSON, no prose. Include ONLY the vital keys this event actually changes \u2014 omit every other key entirely, including as an empty array. Valid vital keys: HR, RR, SpO2, EtCO2, BPsys, BPdia, temp, bgl, ketones, pain, nausea, gcsE, gcsV, gcsM.
-Shape (showing one example key only \u2014 yours will have however many keys are actually affected; 'rhythm' is optional \u2014 see its rule below):
-{"overrides": {"HR": [{"targetValue":0,"startMin":0,"endMin":0}]}, "rhythm": [{"label":"ventricular fibrillation","startMin":4}], "assumptions": []}
+Shape (showing one example key only \u2014 yours will have however many keys are actually affected; 'rhythm' and 'spontaneousLines' are optional \u2014 see their rules below):
+{"overrides": {"HR": [{"targetValue":0,"startMin":0,"endMin":0}]}, "rhythm": [{"label":"ventricular fibrillation","startMin":4}], "assumptions": [], "spontaneousLines": [{"text":"...", "distressMin":0, "distressMax":3}]}
 
 Rules:
 - Times are minutes from THIS MOMENT (the command is issued = minute 0).
@@ -3451,6 +3469,7 @@ Rules:
 - 'rhythm' is a separate array (sibling of 'overrides', same JSON object), for when this event changes what actually shows on the cardiac monitor \u2014 the numeric HR alone can't tell the simulator that (asystole, VF, and PEA are all "no pulse" but look completely different, and none of them can be inferred from HR=0 by itself). Include a 'rhythm' entry any time the command starts, changes, or resolves an actual rhythm \u2014 this covers both an explicit rhythm command ("put the patient into VF") and any event that causes cardiac arrest or a new arrhythmia as a consequence. Cardiac arrest ALWAYS needs one \u2014 never leave the simulator to guess whether HR hitting 0 means asystole, VF, or PEA. A rate-only change that stays within whatever rhythm is already showing does not need one. Each entry is a single point in time the rhythm changes to, holding until the next entry: {"label": "<standard clinical rhythm name>", "startMin": <minutes from now, respecting the same stated delay as the vitals>}. Use ordinary clinical terminology the simulator recognises \u2014 e.g. sinus rhythm, sinus tachycardia, sinus bradycardia, atrial fibrillation, atrial flutter, SVT, ventricular tachycardia, ventricular fibrillation, torsades de pointes, asystole, pulseless electrical activity (PEA), complete heart block, Mobitz I, Mobitz II, first degree heart block, junctional rhythm, WPW, PVCs, idioventricular rhythm, hyperkalaemia, prolonged QT, an inferior/anterior/lateral/posterior STEMI, LBBB, RBBB, paced rhythm \u2014 not novel or invented phrasing. Omit 'rhythm' entirely if this event doesn't change it.
 - Project forward until the event's outcome resolves, or until the remaining scenario time given in the user message runs out, whichever is sooner. Never exceed 60 minutes of total scenario time.
 - assumptions: short plain-English strings for anything inferred because the command didn't state it (e.g. "Assumed immediate onset \u2014 no delay stated"). Empty array if fully specified.
+- spontaneousLines (optional): only include this if this event would change what the patient might spontaneously say or moan UNPROMPTED going forward (a new complication, a resolution, an LOC change) \u2014 if their likely unprompted remarks wouldn't meaningfully differ from before, omit this field entirely and the simulator keeps using what it already has. When you do include it, replace the whole set: 4-8 short first-person in-character lines the patient might say unprompted (not answering a question), each tagged with distressMin/distressMax (0-3: 0=comfortable/no complaints, 1=mild discomfort/anxiety, 2=moderate pain/distress, 3=severe/critical distress) marking which band it fits, covering how this patient will plausibly feel from now to the end of your projection. Never reveal diagnosis/vitals/clinical reasoning. Assume the patient can speak coherently \u2014 the simulator substitutes generic sounds itself when consciousness doesn't support real speech.
 
 Worked examples (illustrative only \u2014 reason independently for the real case each time):
 
@@ -3512,9 +3531,15 @@ Project how this patient's vitals change from here, given this command.`;
     liveConfig.treatments = treatments;
   }
 
+  // See regenerateTimelineAfterTreatment()'s identical comment — omitted
+  // spontaneousLines means "no change", so only PATCH it when non-empty.
+  const patchBody = { overrides: freshOverrides, previous_overrides: previousSnapshot, treatments, updated_at: new Date().toISOString() };
+  const newSpontaneousLines = SimEngine.cleanSpontaneousLines(parsed.spontaneousLines);
+  if (newSpontaneousLines.length) patchBody.spontaneous_lines = newSpontaneousLines;
+
   await sbFetch(`sim_sessions?session_code=eq.${sessionCode}`, {
     method: 'PATCH', prefer: 'return=minimal',
-    body: JSON.stringify({ overrides: freshOverrides, previous_overrides: previousSnapshot, treatments, updated_at: new Date().toISOString() })
+    body: JSON.stringify(patchBody)
   });
   liveConfig.overrides = freshOverrides;
   liveConfig.previousOverrides = previousSnapshot;
