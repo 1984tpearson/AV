@@ -140,7 +140,15 @@ body { display: flex; flex-direction: column; }
    flex column (top-to-bottom in DOM order); which end pulses first is
    controlled entirely by animation-delay (see trendArrowMarkup()), not by
    reversing the DOM order, so the same markup works for both directions. */
-#avatar-row { display: flex; flex-direction: row; align-items: center; gap: 4px; min-height: 0; }
+/* No min-height:0 here, deliberately — unlike #head-wrap (which needs that
+   override to counteract ITS OWN intrinsic SVG size fighting max-height),
+   this row has no such conflict, so its natural auto min-height is exactly
+   what should win: "at least as tall as #head-wrap needs." Setting it to 0
+   removed that floor and let #patient-graphic's flex-shrink squeeze this
+   row down to a sliver, leaving #head-wrap's real (still floor-protected)
+   height to spill out over the buttons below instead of being respected by
+   its own parent's box. */
+#avatar-row { display: flex; flex-direction: row; align-items: center; gap: 4px; }
 #trend-indicator { display: none; flex-direction: column; gap: 1px; flex-shrink: 0; }
 #trend-indicator svg { width: 16px; height: 16px; display: block; }
 #trend-indicator.up svg { fill: #16a34a; }
