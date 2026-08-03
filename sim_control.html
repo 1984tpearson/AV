@@ -1046,7 +1046,7 @@ const GRAPH_SERIES = [
   // the very bottom — same plotMax headroom trick GCS/SpO2 use above, just
   // pushed further since this one needs an entire extra half-chart of
   // headroom rather than a small margin.
-  { key: 'health',  label: 'Health',  color: '#000000', unit: '',       min: 0,  max: 100, plotMax: 200, get: v => healthScore(v) }
+  { key: 'health',  label: 'Health',  color: '#000000', unit: '',       min: 0,  max: 100, plotMax: 200, get: (v, cfg, tMs) => healthScore(cfg, tMs) }
 ];
 const GRAPH_DEFAULT_ON = { HR: true, BPsys: true, BPdia: true, SpO2: true, RR: true, EtCO2: true, temp: false, bgl: false, ketones: false, gcs: false, pain: false, nausea: false, health: false };
 let graphSeriesOn = { ...GRAPH_DEFAULT_ON };
@@ -1719,7 +1719,7 @@ function renderGraph() {
     for (let i = 0; i <= SAMPLES; i++) {
       const m = viewStart + (viewEnd - viewStart) * (i / SAMPLES);
       const tMs = liveConfig.startTimeMs + m * 60000;
-      const val = s.get(SimEngine.getVitalsRaw(liveConfig, tMs));
+      const val = s.get(SimEngine.getVitalsRaw(liveConfig, tMs), liveConfig, tMs);
       pts.push([xForMin(m), yFor(s, val)]);
     }
     ptsByKey[s.key] = pts;
@@ -1737,7 +1737,7 @@ function renderGraph() {
       for (let i = 0; i <= SAMPLES; i++) {
         const m = viewStart + (viewEnd - viewStart) * (i / SAMPLES);
         const tMs = liveConfig.startTimeMs + m * 60000;
-        const val = s.get(SimEngine.getVitalsRaw(baselineCfg, tMs));
+        const val = s.get(SimEngine.getVitalsRaw(baselineCfg, tMs), baselineCfg, tMs);
         gpts.push([xForMin(m), yFor(s, val)]);
       }
       const ghostOpacity = fadeOthers ? 0.15 : 1;
@@ -1753,7 +1753,7 @@ function renderGraph() {
       for (let i = 0; i <= SAMPLES; i++) {
         const m = viewStart + (viewEnd - viewStart) * (i / SAMPLES);
         const tMs = liveConfig.startTimeMs + m * 60000;
-        const val = s.get(SimEngine.getVitalsRaw(previousCfg, tMs));
+        const val = s.get(SimEngine.getVitalsRaw(previousCfg, tMs), previousCfg, tMs);
         ppts.push([xForMin(m), yFor(s, val)]);
       }
       const prevOpacity = fadeOthers ? 0.08 : 0.55;
@@ -1776,7 +1776,7 @@ function renderGraph() {
     // pinned like a monitor's live digit readout.
     const decimalReadoutKeys = ['temp', 'bgl', 'ketones'];
     const edgeTMs = liveConfig.startTimeMs + viewEnd * 60000;
-    const edgeRaw = s.get(SimEngine.getVitalsRaw(liveConfig, edgeTMs));
+    const edgeRaw = s.get(SimEngine.getVitalsRaw(liveConfig, edgeTMs), liveConfig, edgeTMs);
     const edgeStr = decimalReadoutKeys.includes(s.key) ? edgeRaw.toFixed(1) : Math.round(edgeRaw).toString();
     const edgeY = Math.min(Math.max(padT + 8, pts[pts.length - 1][1]), padT + plotH - 8);
     edgeReadoutEntries.push({ y: edgeY, str: edgeStr, color: s.color, opacity });
@@ -1876,7 +1876,7 @@ function renderGraph() {
     GRAPH_SERIES.forEach(s => {
       if (!graphSeriesOn[s.key]) return;
       const tMs = liveConfig.startTimeMs + elapsedMin * 60000;
-      const val = s.get(SimEngine.getVitalsRaw(liveConfig, tMs));
+      const val = s.get(SimEngine.getVitalsRaw(liveConfig, tMs), liveConfig, tMs);
       const y = yFor(s, val);
       playhead += `<circle cx="${x}" cy="${y}" r="4.5" fill="${s.color}" style="pointer-events:none;" />`;
     });
@@ -1917,7 +1917,7 @@ function renderGraph() {
         for (let i = 0; i <= dragSamples; i++) {
           const m = ghostFromMin + (viewEnd - ghostFromMin) * (i / dragSamples);
           const tMs = liveConfig.startTimeMs + m * 60000;
-          const val = s.get(SimEngine.getVitalsRaw(previewConfig, tMs));
+          const val = s.get(SimEngine.getVitalsRaw(previewConfig, tMs), previewConfig, tMs);
           gpts.push([xForMin(m), yFor(s, val)]);
         }
         out += `<path d="${pointsToSmoothPath(gpts)}" fill="none" stroke="${s.color}" stroke-width="${isPrimary ? 2.5 : 2}" stroke-dasharray="6,4" opacity="${isPrimary ? 0.9 : 0.55}" />`;
@@ -1955,7 +1955,7 @@ function renderGraph() {
     const v = SimEngine.getVitalsRaw(liveConfig, tMs);
     const decimalKeys = ['temp', 'bgl', 'ketones'];
     const rows = GRAPH_SERIES.filter(s => graphSeriesOn[s.key]).map(s => {
-      const val = s.get(v);
+      const val = s.get(v, liveConfig, tMs);
       const str = (decimalKeys.includes(s.key) ? val.toFixed(1) : Math.round(val).toString()) + s.unit;
       return { label: s.label, str, color: s.color };
     });
@@ -2104,7 +2104,7 @@ function bpSysSeverity(sys) {
   return 0;
 }
 
-// Composite 0-100 score for the graph's "Health" line — a weighted average
+// Instantaneous 0-100 "how normal right now" reading — a weighted average
 // of the same severity bands the Appearance tab above already uses (one
 // calibrated normal/abnormal notion, not a new set of thresholds) across
 // HR, RR, SpO2, BP sys, GCS and pain. 100 = every input fully normal; 0 =
@@ -2123,7 +2123,11 @@ function bpSysSeverity(sys) {
 // "0 abnormality" — an improvement — at exactly the moment the patient is
 // at their worst. BPdia/EtCO2/temp/bgl/ketones/nausea are left out
 // entirely, for lack of an existing calibrated severity band for them here.
-function healthScore(v) {
+//
+// Deliberately a function of a single vitals snapshot, nothing else — this
+// is the "raw" reading healthScore() below is built on top of, not what
+// gets plotted directly (see there for why).
+function healthLevel(v) {
   const gcsTotal = (v.gcsE || 0) + (v.gcsV || 0) + (v.gcsM || 0);
   const gcsAbnormality = Math.min(1, Math.max(0, (15 - gcsTotal) / 12));
   const painWeight = Math.min(1, Math.max(0, (gcsTotal - 8) / 7));
@@ -2138,6 +2142,72 @@ function healthScore(v) {
   const totalWeight = weighted.reduce((a, x) => a + x.w, 0);
   const avgAbnormality = weighted.reduce((a, x) => a + x.sub * x.w, 0) / totalWeight;
   return 100 * (1 - avgAbnormality);
+}
+
+// Trailing window shared by both fixes in healthScore() below — one
+// consistent amount of "lag" rather than two competing time constants.
+const HEALTH_WINDOW_MS = 90000;
+const HEALTH_SAMPLES = 4; // evenly spaced across the window, including "now"
+
+// How far a vital needs to swing (peak-to-trough) within HEALTH_WINDOW_MS
+// before it's treated as fully "unstable" — tuned by eye, not from a
+// clinical reference; adjust if the Health line reads too jumpy or too
+// sluggish in practice.
+const HEALTH_INSTABILITY_SWING = { HR: 40, RR: 8, SpO2: 15, BPsys: 30 };
+
+// Composite 0-100 score actually plotted as the graph's "Health" line.
+// Backward-looking only (never reads overrides scheduled after nowMs) even
+// though this graph technically has the whole future available — kept
+// causal on purpose, since this scoring logic is meant to eventually drive
+// a real-time improving/deteriorating indicator on sim_patient.html, which
+// can only ever know the past.
+//
+// Built on healthLevel() above, fixing two things a single instantaneous
+// reading gets wrong:
+//
+// 1. "Crashing through normal" — healthLevel() only looks at the CURRENT
+//    value, so a HR sliding from tachycardic through the 60-100 normal band
+//    on its way to arrest reads as briefly perfectly healthy, producing a
+//    false uptick right as the patient is actually collapsing. Fixed by an
+//    instability term: the peak-to-trough SWING of HR/RR/SpO2/BPsys's raw
+//    values over the trailing window (not their severity band, their
+//    magnitude of movement) floors how good the score is allowed to look.
+//    Overrides ramp linearly (see applyOverrides() in sim_engine.js), so a
+//    vital mid-crossing is moving just as fast at the exact "normal"
+//    instant as right before/after it — the swing stays large right
+//    through the crossing, unlike the severity band, which briefly reads 0.
+//    Deliberately magnitude-only, not direction-aware: telling apart "fast
+//    genuine recovery" from "fast overshoot in progress" isn't possible
+//    without seeing the future, which this function deliberately doesn't
+//    do — a vital that's still swinging, either way, isn't settled yet.
+//
+// 2. Step noise from small-range vitals — pain/GCS/nausea have few severity
+//    bands covering a small numeric range, so a routine authored change
+//    crosses a whole band (a visible step) much sooner than the same
+//    clinical magnitude of change would for HR/BP. Fixed by averaging
+//    healthLevel() across the same trailing window rather than reading it
+//    at one instant — a brief step blends with its neighbours instead of
+//    standing out as its own spike.
+function healthScore(cfg, nowMs) {
+  const samples = [];
+  const levels = [];
+  for (let i = 0; i < HEALTH_SAMPLES; i++) {
+    const tMs = nowMs - HEALTH_WINDOW_MS * (i / (HEALTH_SAMPLES - 1));
+    const v = SimEngine.getVitalsRaw(cfg, tMs);
+    samples.push(v);
+    levels.push(healthLevel(v));
+  }
+  const smoothedAbnormality = 1 - (levels.reduce((a, b) => a + b, 0) / levels.length) / 100;
+
+  let instability = 0;
+  Object.keys(HEALTH_INSTABILITY_SWING).forEach(key => {
+    const vals = samples.map(v => v[key]);
+    const swing = Math.max(...vals) - Math.min(...vals);
+    instability = Math.max(instability, Math.min(1, swing / HEALTH_INSTABILITY_SWING[key]));
+  });
+
+  const finalAbnormality = Math.max(smoothedAbnormality, instability);
+  return 100 * (1 - finalAbnormality);
 }
 
 // Consciousness gate — ONLY used for Appearance/Speech (things that require
@@ -2220,7 +2290,7 @@ function tickVitals() {
     let val;
     if (def.key === 'BP') val = `${Math.round(v.BPsys)}/${Math.round(v.BPdia)}`;
     else if (def.isGCS) val = Math.round(v.gcsE + v.gcsV + v.gcsM);
-    else if (def.isHealth) val = Math.round(healthScore(v));
+    else if (def.isHealth) val = Math.round(healthScore(liveConfig, simNow()));
     else if (['Temp', 'BGL', 'Ketones'].includes(def.key)) val = v[def.overrideKeys[0]].toFixed(1);
     else val = Math.round(v[def.overrideKeys[0]]);
     const armedStyle = (vitalsEditMode && armedTileKey === def.key) ? 'border-color:#0369a1;box-shadow:0 0 0 2px #bae0fd inset;' : '';
