@@ -663,6 +663,67 @@
     freshOverrides.rhythm = existing.concat(clean);
   }
 
+  // After a rewind + a genuinely diverging action (something given at a time
+  // EARLIER than what's already logged — see appendTreatmentEntry in
+  // sim_control.html), any vital/rhythm this new action's own plan doesn't
+  // address needs to stop reflecting the now-invalid old future. There's no
+  // per-entry record of which treatment produced which override row, so
+  // surgically undoing just the discarded treatment's own contribution isn't
+  // possible — instead every key's future beyond givenAtMs resets to
+  // whatever the scenario's frozen untreated baseline says happens there
+  // (baselineOverrides — the same source the "No Tx" ghost line already
+  // draws from): "assume nothing further happens here unless something
+  // explicitly addresses it again." History up to givenAtMs, and anything
+  // mid-transition at givenAtMs (frozen at its real value there), are
+  // preserved exactly like an ordinary splice — only the future is touched.
+  // Callers apply their OWN action's splice (spliceAiOverridePlan etc)
+  // AFTER this, so a key the new action does address just gets overwritten
+  // again immediately — this only matters for everything it doesn't.
+  const VITAL_KEYS = ['HR', 'RR', 'SpO2', 'EtCO2', 'BPsys', 'BPdia', 'temp', 'bgl', 'ketones', 'pain', 'nausea', 'gcsE', 'gcsV', 'gcsM'];
+  function resetFutureToBaseline(freshOverrides, baselineOverrides, vitalsNow, givenAtMs) {
+    if (!baselineOverrides) return;
+    // Every vital key, not just ones baselineOverrides happens to have an
+    // entry for — a key that's flat/unscheduled in the untreated course
+    // (no override needed at all) still needs its stale future cleared;
+    // "nothing in baselineOverrides for this key" correctly falls back to
+    // the raw baseline trend with no offset, same as any other empty array.
+    VITAL_KEYS.forEach(key => {
+      const arr = freshOverrides[key] || [];
+      const kept = [];
+      arr.forEach(ov => {
+        if (ov.endMs <= givenAtMs) {
+          kept.push(ov);
+        } else if (ov.startMs < givenAtMs) {
+          kept.push({ startMs: ov.startMs, endMs: givenAtMs, targetValue: vitalsNow[key] });
+        }
+        // else: startMs >= givenAtMs — from a discarded branch, drop
+      });
+      // If baseline itself was mid-transition at givenAtMs (e.g. a natural
+      // deterioration ramp that started before the fork), splicing its raw
+      // entry in unclipped would replay it from ITS OWN original start —
+      // retroactively changing values between that start and givenAtMs,
+      // which may well have looked different in this branch (a still-valid
+      // earlier treatment could have already shifted them away from raw
+      // baseline). Clipping its start to givenAtMs instead lets it pick up
+      // from wherever `kept`'s own offset actually leaves things — via the
+      // same startVal = raw(startMs)+offset mechanism every override uses —
+      // heading toward the same eventual target, without touching history.
+      const baselineFuture = [];
+      (baselineOverrides[key] || []).forEach(ov => {
+        if (ov.endMs <= givenAtMs) return; // fully in baseline's own past relative to the fork — irrelevant
+        if (ov.startMs < givenAtMs) {
+          baselineFuture.push({ startMs: givenAtMs, endMs: ov.endMs, targetValue: ov.targetValue });
+        } else {
+          baselineFuture.push(ov);
+        }
+      });
+      freshOverrides[key] = kept.concat(baselineFuture);
+    });
+    const existingRhythm = (freshOverrides.rhythm || []).filter(ev => ev.startMs < givenAtMs);
+    const baselineFutureRhythm = (baselineOverrides.rhythm || []).filter(ev => ev.startMs >= givenAtMs);
+    freshOverrides.rhythm = existingRhythm.concat(baselineFutureRhythm);
+  }
+
   // ---- Live appearance state (derived from vitals, no AI) -----------------
   // Same severity bands sim_control.html's assessor-facing Appearance tab
   // uses, kept here as the one shared source so sim_patient.html's avatar
@@ -893,7 +954,7 @@
     get GCS_V3_WORDS() { return _cfg.GCS_V3_WORDS; },
     get GENERIC_SPONTANEOUS_LINES() { return _cfg.GENERIC_SPONTANEOUS_LINES; },
     getActionDurationSec, getVitals, getVitalsRaw, getSimNow, getStaticVitalAt, getRhythmAt, getAppearanceState,
-    deriveRhythmFromHR, classifyRhythmForDefib, computeSurvivabilityScore, computeDefibrillationEffect, spliceAiOverridePlan, spliceRhythmPlan,
+    deriveRhythmFromHR, classifyRhythmForDefib, computeSurvivabilityScore, computeDefibrillationEffect, spliceAiOverridePlan, spliceRhythmPlan, resetFutureToBaseline,
     parseAgeFromScenario, parseScenarioMood, cleanSpontaneousLines,
     hrSeverity, rrSeverity, spo2Severity, painSeverity, bpSysSeverity,
     applyConfigOverrides

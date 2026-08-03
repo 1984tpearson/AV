@@ -3250,6 +3250,31 @@ function appendTreatmentEntry(entry) {
   liveConfig.treatments = treatments;
 }
 
+// If this action is being given at a time EARLIER than something already
+// logged — a rewind followed by a genuinely different choice this time —
+// the old scheduled future beyond givenAtMs belongs to a branch that no
+// longer happened, for every vital, regardless of whether THIS specific
+// action itself has any effect (even a no-effect action still marks the
+// fork point). Runs once, before whatever this action's own splice does —
+// see SimEngine.resetFutureToBaseline for why resetting to the untreated
+// baseline is safe (history stays exactly as it was; only not-yet-reached
+// data is touched).
+async function resetDivergedFutureIfNeeded(givenAtMs) {
+  if (!liveConfig.baselineOverrides) return;
+  const rows = await sbFetch(`sim_sessions?session_code=eq.${sessionCode}&select=overrides`, { method: 'GET' });
+  const freshOverrides = (rows[0] && rows[0].overrides) || {};
+  const previousSnapshot = JSON.parse(JSON.stringify(freshOverrides));
+  const vitalsNow = SimEngine.getVitalsRaw(liveConfig, givenAtMs);
+  SimEngine.resetFutureToBaseline(freshOverrides, liveConfig.baselineOverrides, vitalsNow, givenAtMs);
+  await sbFetch(`sim_sessions?session_code=eq.${sessionCode}`, {
+    method: 'PATCH', prefer: 'return=minimal',
+    body: JSON.stringify({ overrides: freshOverrides, previous_overrides: previousSnapshot, updated_at: new Date().toISOString() })
+  });
+  liveConfig.overrides = freshOverrides;
+  liveConfig.previousOverrides = previousSnapshot;
+  renderGraph();
+}
+
 async function giveTreatment(providedText, opts) {
   opts = opts || {};
   if (!sessionCode) return;
@@ -3261,6 +3286,15 @@ async function giveTreatment(providedText, opts) {
   const statusEl = document.getElementById('treatment-status');
   const givenAtMs = simNow();
   const givenAtMin = (givenAtMs - liveConfig.startTimeMs) / 60000;
+  const diverged = treatments.some(t => t.givenAtMin > givenAtMin + 1e-9);
+  if (diverged) {
+    try {
+      await resetDivergedFutureIfNeeded(givenAtMs);
+    } catch (e) {
+      if (!opts.silent) alert('Could not reset the diverged trajectory — check the connection and try again.');
+      return;
+    }
+  }
   const newEntry = { action, givenAtMin };
   if (opts.source) newEntry.source = opts.source;
   const preEntryTreatments = treatments;
@@ -3577,6 +3611,15 @@ async function runAssessorCommand(providedText) {
   const statusEl = document.getElementById('event-command-status');
   const givenAtMs = simNow();
   const givenAtMin = (givenAtMs - liveConfig.startTimeMs) / 60000;
+  const diverged = treatments.some(t => t.givenAtMin > givenAtMin + 1e-9);
+  if (diverged) {
+    try {
+      await resetDivergedFutureIfNeeded(givenAtMs);
+    } catch (e) {
+      alert('Could not reset the diverged trajectory — check the connection and try again.');
+      return;
+    }
+  }
   const newEntry = { action: command, givenAtMin, source: 'assessor_command' };
   const preEntryTreatments = treatments;
   appendTreatmentEntry(newEntry);
