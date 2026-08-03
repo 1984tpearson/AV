@@ -332,6 +332,7 @@
           '<div class="avnav-link" id="avnav-users-link" style="display:none" onclick="AVNav.openUsers()"><span class="avnav-icon">👥</span> Users</div>' +
           '<div class="avnav-link" id="avnav-usage-link" style="display:none" onclick="AVNav.openUsageLog()"><span class="avnav-icon">💲</span> Usage &amp; Costs</div>' +
           '<a class="avnav-link" id="avnav-cpg-link" href="cpg_editor.html" style="display:none"><span class="avnav-icon">📖</span> CPG Editor</a>' +
+          '<a class="avnav-link" id="avnav-simconfig-link" href="sim_config_admin.html" style="display:none"><span class="avnav-icon">🛠</span> Sim Config</a>' +
         '</div>' +
         '<div class="avnav-bottom"><button class="avnav-signout-btn" id="avnav-signout-btn" onclick="AVNav.signOut()">⎋ Sign out</button></div>' +
       '</div>' +
@@ -419,6 +420,8 @@
     if (usageLink) usageLink.style.display = isAdmin() ? 'flex' : 'none';
     var cpgLink = document.getElementById('avnav-cpg-link');
     if (cpgLink) cpgLink.style.display = isAdmin() ? 'flex' : 'none';
+    var simConfigLink = document.getElementById('avnav-simconfig-link');
+    if (simConfigLink) simConfigLink.style.display = isAdmin() ? 'flex' : 'none';
     // Guests get no writes at all — settings, avatar, my-scenarios, and manage-mine
     // all require a real account, so hide them and show a plain sign-in prompt instead.
     var settingsBtn = document.getElementById('avnav-settings-btn');

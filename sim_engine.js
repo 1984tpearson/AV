@@ -10,6 +10,25 @@
 (function (global) {
   'use strict';
 
+  // ---- Config overrides ---------------------------------------------------
+  // Every tunable value below (durations, keyword lists, severity/survivability
+  // bands, energy-factor thresholds, mood keywords) is stored here, seeded from
+  // this file's own hardcoded defaults so the engine works identically to
+  // before if nothing ever calls applyConfigOverrides — a missing/unreachable
+  // sim_config row (see sim_control.html's/sim_patient.html's loadSimConfig())
+  // must never break the sim, only leave it un-customized. Host pages fetch
+  // config once at page load and call this once, before the first tick —
+  // there is no live re-poll, see sim_config_schema.js.
+  const _cfg = {};
+  function applyConfigOverrides(overrides) {
+    if (!overrides) return;
+    Object.keys(overrides).forEach(key => {
+      if (Object.prototype.hasOwnProperty.call(_cfg, key) && overrides[key] !== undefined) {
+        _cfg[key] = overrides[key];
+      }
+    });
+  }
+
   // ---- Severity presets ------------------------------------------------
   // REMOVED: the old generic severity/direction-driven autonomous ramp.
   // Vitals progression is now entirely authored per-scenario by AI-generated
@@ -33,7 +52,7 @@
   // "putting the cuff on" lead-in on top of the normal inflate/hold/deflate
   // cycle (subsequent) — an imagined step, not a separately-timed action, since
   // once the cuff is on the patient's arm it stays on for auto-refires/retakes.
-  const ACTION_DURATIONS = {
+  _cfg.ACTION_DURATIONS = {
     ecg: 20,
     ecg12lead: { withMonitoring: 35, fromScratch: 50 },
     rr: 30,
@@ -47,7 +66,7 @@
     pain: 3
   };
   function getActionDurationSec(key, context) {
-    const d = ACTION_DURATIONS[key];
+    const d = _cfg.ACTION_DURATIONS[key];
     if (typeof d === 'number') return d;
     if (key === 'ecg12lead') {
       return (context && context.ecgApplied) ? d.withMonitoring : d.fromScratch;
@@ -256,7 +275,7 @@
   // (computeShockableOutcome) that USES the survivability score as one
   // input among several, rather than being it.
 
-  const HIGH_RISK_CONDITION_KEYWORDS = [
+  _cfg.HIGH_RISK_CONDITION_KEYWORDS = [
     'heart failure', 'chf', 'cardiomyopathy', 'copd', 'emphysema', 'chronic bronchitis',
     'renal failure', 'dialysis', 'ckd', 'cancer', 'malignancy', 'metastatic',
     'dementia', 'alzheimer', 'stroke', 'cva', 'diabetes', 'obesity', 'morbidly obese',
@@ -285,30 +304,46 @@
   }
 
   // 0-100. Deliberately NOT the same number as any single shock's conversion
-  // chance — see the comment above this section.
+  // chance — see the comment above this section. Age bands are ordered,
+  // first match wins (age <= maxAge); ageAboveAllBandsDelta applies past the
+  // last band.
+  _cfg.SURVIVABILITY = {
+    baseScore: 70, // an average adult, witnessed arrest, prompt care
+    ageBands: [
+      { maxAge: 1, delta: 10 },   // infants/neonates are a genuinely different model in reality — out of scope, kept neutral rather than penalised
+      { maxAge: 35, delta: 15 },
+      { maxAge: 55, delta: 5 },
+      { maxAge: 70, delta: -5 },
+      { maxAge: 85, delta: -15 }
+    ],
+    ageAboveAllBandsDelta: -25,
+    weightHighKg: 120, weightHighDelta: -10,
+    weightModerateKg: 100, weightModerateDelta: -5,
+    frailtyMinAge: 15, frailtyWeightKg: 45, frailtyDelta: -5, // frailty/cachexia proxy — only meaningful for an adult-sized patient
+    conditionPenaltyPerHit: 6, conditionPenaltyCap: 30,
+    downtimePenaltyPerMin: 5, // downtime dominates, per the AHA figures cited above
+    clampMin: 2, clampMax: 95
+  };
   function computeSurvivabilityScore(scenario, downtimeMs) {
-    let score = 70; // an average adult, witnessed arrest, prompt care
+    const s = _cfg.SURVIVABILITY;
+    let score = s.baseScore;
     const age = parseAgeFromScenario(scenario);
-    if (age <= 1) score += 10; // infants/neonates are a genuinely different model in reality — out of scope, kept neutral rather than penalised
-    else if (age <= 35) score += 15;
-    else if (age <= 55) score += 5;
-    else if (age <= 70) score -= 5;
-    else if (age <= 85) score -= 15;
-    else score -= 25;
+    const ageBand = s.ageBands.find(b => age <= b.maxAge);
+    score += ageBand ? ageBand.delta : s.ageAboveAllBandsDelta;
 
     const weightKg = parseWeightKgFromScenario(scenario);
-    if (weightKg >= 120) score -= 10;
-    else if (weightKg >= 100) score -= 5;
-    else if (age > 15 && weightKg < 45) score -= 5; // frailty/cachexia proxy — only meaningful for an adult-sized patient
+    if (weightKg >= s.weightHighKg) score += s.weightHighDelta;
+    else if (weightKg >= s.weightModerateKg) score += s.weightModerateDelta;
+    else if (age > s.frailtyMinAge && weightKg < s.frailtyWeightKg) score += s.frailtyDelta;
 
     const conditionsText = (scenario.medical_conditions || []).join(' ').toLowerCase();
-    const hits = HIGH_RISK_CONDITION_KEYWORDS.filter(k => conditionsText.includes(k)).length;
-    score -= Math.min(30, hits * 6);
+    const hits = _cfg.HIGH_RISK_CONDITION_KEYWORDS.filter(k => conditionsText.includes(k)).length;
+    score -= Math.min(s.conditionPenaltyCap, hits * s.conditionPenaltyPerHit);
 
     const downtimeMin = downtimeMs / 60000;
-    score -= downtimeMin * 5; // downtime dominates, per the AHA figures cited above
+    score -= downtimeMin * s.downtimePenaltyPerMin;
 
-    return Math.max(2, Math.min(95, Math.round(score)));
+    return Math.max(s.clampMin, Math.min(s.clampMax, Math.round(score)));
   }
 
   // Buckets a rhythm label into what matters for a defib decision — NOT the
@@ -357,17 +392,31 @@
   // little added benefit much past that) — NOT weight-based for adults, so
   // this deliberately branches on age rather than applying one formula to
   // both.
+  _cfg.ENERGY_FACTOR = {
+    pediatricAgeThreshold: 12,
+    pediatricJPerKgLow: 2, pediatricJPerKgHigh: 4, // real-world 2-4 J/kg dosing band
+    pediatricUnderHalfFactor: 0.3, // joules < idealLow*pediatricLowMultiplier
+    pediatricLowMultiplier: 0.5,
+    pediatricUnderIdealFactor: 0.6, // joules < idealLow
+    pediatricWithinFactor: 1, // joules <= idealHigh*pediatricHighMultiplier
+    pediatricHighMultiplier: 1.5,
+    pediatricOverFactor: 0.85, // over-energised for a child — likely still works, just not the guideline dose
+    adultLowJoules: 100, adultLowFactor: 0.55,
+    adultMidJoules: 120, adultMidFactor: 0.8,
+    adultFullFactor: 1
+  };
   function computeEnergyFactor(joules, age, weightKg) {
-    if (age < 12) {
-      const idealLow = weightKg * 2, idealHigh = weightKg * 4;
-      if (joules < idealLow * 0.5) return 0.3;
-      if (joules < idealLow) return 0.6;
-      if (joules <= idealHigh * 1.5) return 1;
-      return 0.85; // over-energised for a child — likely still works, just not the guideline dose
+    const e = _cfg.ENERGY_FACTOR;
+    if (age < e.pediatricAgeThreshold) {
+      const idealLow = weightKg * e.pediatricJPerKgLow, idealHigh = weightKg * e.pediatricJPerKgHigh;
+      if (joules < idealLow * e.pediatricLowMultiplier) return e.pediatricUnderHalfFactor;
+      if (joules < idealLow) return e.pediatricUnderIdealFactor;
+      if (joules <= idealHigh * e.pediatricHighMultiplier) return e.pediatricWithinFactor;
+      return e.pediatricOverFactor;
     }
-    if (joules < 100) return 0.55;
-    if (joules < 120) return 0.8;
-    return 1;
+    if (joules < e.adultLowJoules) return e.adultLowFactor;
+    if (joules < e.adultMidJoules) return e.adultMidFactor;
+    return e.adultFullFactor;
   }
 
   // Per-shock outcome for a genuinely shockable rhythm (VF/pulseless VT/
@@ -621,38 +670,56 @@
   // gates on consciousness where a working brain is actually required
   // (eye-opening) — skin colour/moisture/work-of-breathing are physical
   // findings and stay live regardless of GCS.
+  // Threshold numbers only — the band VALUES (0-4) are a fixed ordinal
+  // severity scale, not themselves configurable. spo2's chronic-respiratory
+  // baseline shift (see sim_control.html's detectChronicRespiratoryBaseline)
+  // is passed in per-call, not stored here — it's scenario-specific, not a
+  // global tuning value.
+  _cfg.SEVERITY_BANDS = {
+    hr:    { extremeLow: 40, extremeHigh: 140, severeLow: 50, severeHigh: 120, mildLow: 60, mildHigh: 100 },
+    rr:    { extremeLow: 6,  extremeHigh: 30,  severeLow: 9,  severeHigh: 24,  mildLow: 12, mildHigh: 20 },
+    spo2:  { band4: 80, band3: 85, band2: 90, band1: 95 },
+    pain:  { band3: 7, band2: 4, band1: 1 },
+    bpSys: { band3: 70, band2: 90, band1: 100 }
+  };
   function hrSeverity(hr) {
+    const t = _cfg.SEVERITY_BANDS.hr;
     if (hr <= 0) return 4;
-    if (hr < 40 || hr > 140) return 3;
-    if (hr < 50 || hr > 120) return 2;
-    if (hr < 60 || hr > 100) return 1;
+    if (hr < t.extremeLow || hr > t.extremeHigh) return 3;
+    if (hr < t.severeLow || hr > t.severeHigh) return 2;
+    if (hr < t.mildLow || hr > t.mildHigh) return 1;
     return 0;
   }
   function rrSeverity(rr) {
+    const t = _cfg.SEVERITY_BANDS.rr;
     if (rr <= 0) return 4;
-    if (rr <= 6 || rr > 30) return 3;
-    if (rr <= 9 || rr > 24) return 2;
-    if (rr < 12 || rr > 20) return 1;
+    if (rr <= t.extremeLow || rr > t.extremeHigh) return 3;
+    if (rr <= t.severeLow || rr > t.severeHigh) return 2;
+    if (rr < t.mildLow || rr > t.mildHigh) return 1;
     return 0;
   }
-  function spo2Severity(spo2) {
-    if (spo2 < 80) return 4;
-    if (spo2 < 85) return 3;
-    if (spo2 < 90) return 2;
-    if (spo2 < 95) return 1;
+  function spo2Severity(spo2, shift) {
+    shift = shift || 0;
+    const t = _cfg.SEVERITY_BANDS.spo2;
+    if (spo2 < t.band4 - shift) return 4;
+    if (spo2 < t.band3 - shift) return 3;
+    if (spo2 < t.band2 - shift) return 2;
+    if (spo2 < t.band1 - shift) return 1;
     return 0;
   }
   function painSeverity(pain) {
-    if (pain >= 7) return 3;
-    if (pain >= 4) return 2;
-    if (pain >= 1) return 1;
+    const t = _cfg.SEVERITY_BANDS.pain;
+    if (pain >= t.band3) return 3;
+    if (pain >= t.band2) return 2;
+    if (pain >= t.band1) return 1;
     return 0;
   }
   function bpSysSeverity(sys) {
+    const t = _cfg.SEVERITY_BANDS.bpSys;
     if (sys <= 0) return 4;
-    if (sys < 70) return 3;
-    if (sys < 90) return 2;
-    if (sys < 100) return 1;
+    if (sys < t.band3) return 3;
+    if (sys < t.band2) return 2;
+    if (sys < t.band1) return 1;
     return 0;
   }
   // Real session data can momentarily lack a key (older scenarios, a field
@@ -753,27 +820,34 @@
   // same style as ecg_engine.js's mapRhythm(). Order matters: checked
   // top-to-bottom, first match wins. Falls back to 'calm' for unset/
   // unrecognised text rather than guessing, since "not sure" should read as
-  // an unremarkable resting expression, not an arbitrary mood.
-  const MOOD_MAP = [
-    [/angry|hostile|aggressive|combative|furious|irate/, 'angry'],
-    [/agitat|restless|irritable|uncooperative|on edge/, 'agitated'],
-    [/tearful|crying|weeping|sobbing/, 'tearful'],
-    [/anxious|worried|frightened|scared|fearful|panick/, 'anxious'],
-    [/confus|disorient|vague|bewildered/, 'confused']
+  // an unremarkable resting expression, not an arbitrary mood. Plain
+  // substring keyword lists (not regex) — the original patterns were all
+  // simple word alternations with no other regex features, so this is a
+  // safe, equivalent, and admin-UI-friendly (no regex-authoring risk) form.
+  _cfg.MOOD_MAP = [
+    { mood: 'angry', keywords: ['angry', 'hostile', 'aggressive', 'combative', 'furious', 'irate'] },
+    { mood: 'agitated', keywords: ['agitat', 'restless', 'irritable', 'uncooperative', 'on edge'] },
+    { mood: 'tearful', keywords: ['tearful', 'crying', 'weeping', 'sobbing'] },
+    { mood: 'anxious', keywords: ['anxious', 'worried', 'frightened', 'scared', 'fearful', 'panick'] },
+    { mood: 'confused', keywords: ['confus', 'disorient', 'vague', 'bewildered'] }
   ];
   function parseScenarioMood(text) {
     const s = String(text || '').toLowerCase().trim();
     if (!s) return 'calm';
-    for (let i = 0; i < MOOD_MAP.length; i++) {
-      if (MOOD_MAP[i][0].test(s)) return MOOD_MAP[i][1];
+    for (let i = 0; i < _cfg.MOOD_MAP.length; i++) {
+      const entry = _cfg.MOOD_MAP[i];
+      if (entry.keywords.some(k => s.includes(k))) return entry.mood;
     }
     return 'calm';
   }
 
   global.SimEngine = {
-    ACTION_DURATIONS, getActionDurationSec, getVitals, getVitalsRaw, getSimNow, getStaticVitalAt, getRhythmAt, getAppearanceState,
+    get ACTION_DURATIONS() { return _cfg.ACTION_DURATIONS; },
+    getActionDurationSec, getVitals, getVitalsRaw, getSimNow, getStaticVitalAt, getRhythmAt, getAppearanceState,
     deriveRhythmFromHR, classifyRhythmForDefib, computeSurvivabilityScore, computeDefibrillationEffect, spliceAiOverridePlan, spliceRhythmPlan,
-    parseAgeFromScenario, parseScenarioMood
+    parseAgeFromScenario, parseScenarioMood,
+    hrSeverity, rrSeverity, spo2Severity, painSeverity, bpSysSeverity,
+    applyConfigOverrides
   };
 })(typeof window !== 'undefined' ? window : this);
 

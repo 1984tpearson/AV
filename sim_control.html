@@ -262,6 +262,7 @@ select, input[type=number], input[type=text] { font-family: 'Courier New', monos
 <script src="https://cdn.jsdelivr.net/npm/qrcode@1.4.4/build/qrcode.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="https://1984tpearson.github.io/AV/sim_engine.js"></script>
+<script src="https://1984tpearson.github.io/AV/sim_config_schema.js"></script>
 <script>
 const SUPABASE_URL = 'https://befsjenbaruxqrntuhpn.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJlZnNqZW5iYXJ1eHFybnR1aHBuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI2MjA5MjAsImV4cCI6MjA4ODE5NjkyMH0.hOFFbIvd1wAgu-QyghupQ-7ttSpg7sxz_UsJbXyXztA';
@@ -296,6 +297,92 @@ async function sbFetch(path, opts = {}) {
     throw new Error(err.message || `Supabase error ${res.status}`);
   }
   return res.status === 204 ? null : res.json();
+}
+
+// --- Sim tuning config (see sim_config_admin.html / sim_config_schema.js) --
+// Fetched ONCE at session-create time, before the first tickVitals()/
+// pollSession() interval is registered — not re-polled, unlike session
+// state. An admin's edit needs a page reload to take effect. Every field
+// falls back to this file's own hardcoded literal (now a `let`, not removed)
+// if the fetch fails, the row doesn't exist yet, or sim_config_schema.js
+// itself failed to load — this must never block a session from starting.
+let _simConfigLoaded = false;
+async function loadSimConfig() {
+  if (_simConfigLoaded) return;
+  _simConfigLoaded = true;
+  try {
+    const rows = await sbFetch('sim_config?select=section_key,value');
+    const bySection = {};
+    (rows || []).forEach(r => { bySection[r.section_key] = r.value || {}; });
+    const schemaSections = (window.SimConfigSchema && window.SimConfigSchema.sections) || {};
+    function field(section, key) {
+      const saved = bySection[section] && bySection[section][key];
+      if (saved !== undefined) return saved;
+      const f = schemaSections[section] && schemaSections[section].fields[key];
+      return f ? f.default : undefined;
+    }
+    // Plain `||` would treat a legitimate 0/false/'' config value as
+    // "missing" — use explicit undefined-checking instead.
+    function pick(v, fallback) { return v === undefined ? fallback : v; }
+
+    NO_EFFECT_ACTIONS = pick(field('medications', 'NO_EFFECT_ACTIONS'), NO_EFFECT_ACTIONS);
+    CODED_EFFECT_ACTIONS = pick(field('medications', 'CODED_EFFECT_ACTIONS'), CODED_EFFECT_ACTIONS);
+    ACTION_LOG_VERB = pick(field('medications', 'ACTION_LOG_VERB'), ACTION_LOG_VERB);
+    GCS_V2_SOUNDS = pick(field('medications', 'GCS_V2_SOUNDS'), GCS_V2_SOUNDS);
+    GCS_V3_WORDS = pick(field('medications', 'GCS_V3_WORDS'), GCS_V3_WORDS);
+
+    HEALTH_WINDOW_MS = pick(field('timers', 'HEALTH_WINDOW_MS'), HEALTH_WINDOW_MS);
+    HEALTH_SAMPLES = pick(field('timers', 'HEALTH_SAMPLES'), HEALTH_SAMPLES);
+    HEALTH_INSTABILITY_SWING = pick(field('timers', 'HEALTH_INSTABILITY_SWING'), HEALTH_INSTABILITY_SWING);
+    GRAPH_ZOOM_LEVELS = pick(field('timers', 'GRAPH_ZOOM_LEVELS'), GRAPH_ZOOM_LEVELS);
+    VITALS_TICK_MS = pick(field('timers', 'VITALS_TICK_MS'), VITALS_TICK_MS);
+    DB_POLL_MS = pick(field('timers', 'DB_POLL_MS'), DB_POLL_MS);
+
+    // GRAPH_SERIES: only styling fields are admin-editable — the `get`
+    // accessor closures stay hardcoded (they're JS, not data) and are
+    // preserved by merging saved styling onto the existing array by key
+    // rather than replacing it wholesale.
+    const savedSeries = field('graph', 'GRAPH_SERIES');
+    if (Array.isArray(savedSeries)) {
+      GRAPH_SERIES = GRAPH_SERIES.map(orig => {
+        const s = savedSeries.find(x => x.key === orig.key);
+        return s ? Object.assign({}, orig, { label: s.label, color: s.color, unit: s.unit, min: s.min, max: s.max, plotMax: s.plotMax }) : orig;
+      });
+    }
+    GRAPH_DEFAULT_ON = pick(field('graph', 'GRAPH_DEFAULT_ON'), GRAPH_DEFAULT_ON);
+    VITAL_DEFS = pick(field('graph', 'VITAL_DEFS'), VITAL_DEFS);
+    SS_LABELS = pick(field('graph', 'SS_LABELS'), SS_LABELS);
+    OVERRIDE_KEY_LABELS = pick(field('graph', 'OVERRIDE_KEY_LABELS'), OVERRIDE_KEY_LABELS);
+    INFO_TAB_ORDER = pick(field('graph', 'INFO_TAB_ORDER'), INFO_TAB_ORDER);
+
+    CHRONIC_RESP_KEYWORDS = pick(field('severity', 'CHRONIC_RESP_KEYWORDS'), CHRONIC_RESP_KEYWORDS);
+
+    // SimEngine-owned fields (sim_engine.js's _cfg — see applyConfigOverrides).
+    // NOTE: the admin page always saves a section's COMPLETE field state, not
+    // a diff, so a saved SEVERITY_BANDS/SURVIVABILITY row is always the full
+    // 5-vital / full-scalar shape below — a partial replace here would
+    // otherwise silently drop untouched vitals from _cfg.
+    const severityRows = field('severity', 'SEVERITY_BANDS');
+    const severityBandsObj = Array.isArray(severityRows)
+      ? severityRows.reduce((acc, r) => { const rest = Object.assign({}, r); delete rest.vital; acc[r.vital] = rest; return acc; }, {})
+      : undefined;
+    const survivabilityAgeBands = field('severity', 'SURVIVABILITY');
+    const survivabilityScalars = field('severity', 'SURVIVABILITY_SCALARS');
+    const survivabilityMerged = (survivabilityAgeBands || survivabilityScalars)
+      ? Object.assign({}, survivabilityScalars, { ageBands: survivabilityAgeBands })
+      : undefined;
+
+    SimEngine.applyConfigOverrides({
+      ACTION_DURATIONS: field('medications', 'ACTION_DURATIONS'),
+      HIGH_RISK_CONDITION_KEYWORDS: field('medications', 'HIGH_RISK_CONDITION_KEYWORDS'),
+      MOOD_MAP: field('medications', 'MOOD_MAP'),
+      SEVERITY_BANDS: severityBandsObj,
+      SURVIVABILITY: survivabilityMerged,
+      ENERGY_FACTOR: field('defib', 'ENERGY_FACTOR_TABLE')
+    });
+  } catch (e) {
+    console.warn('sim_config load failed — using built-in defaults', e); // never fatal, see comment above
+  }
 }
 
 // Real-world date/time, distinct from the scenario's own simulated clock
@@ -410,7 +497,7 @@ function escapeHtml(s) {
 }
 
 let activeInfoTab = 'dispatch';
-const INFO_TAB_ORDER = ['dispatch', 'history', 'medhx', 'appearance', 'survey', 'clinical'];
+let INFO_TAB_ORDER = ['dispatch', 'history', 'medhx', 'appearance', 'survey', 'clinical'];
 
 function switchInfoTab(tab) {
   activeInfoTab = tab;
@@ -439,7 +526,7 @@ function infoSubheading(text) {
 
 // Matches scenario.html's SS_FIELD_LABELS so the same finding reads the same
 // way in both places.
-const SS_LABELS = {
+let SS_LABELS = {
   head: 'Head and face', neck: 'Neck', chest: 'Chest', abdomen: 'Abdomen', back: 'Back', pelvis: 'Pelvis', limbs: 'Limbs',
   neuro: 'Neurological', cardio: 'Cardiovascular', resp: 'Respiratory', gi: 'Gastrointestinal', gu: 'Genitourinary',
   msk: 'Musculoskeletal', skin: 'Integumentary/Skin', other: 'Other/consideration'
@@ -709,6 +796,7 @@ async function createSession() {
 
   btn.disabled = true;
   statusEl.textContent = 'Loading scenario…';
+  await loadSimConfig(); // before anything reads a tunable value, and before tickVitals/pollSession start ticking
 
   let scenario, timeline;
   try {
@@ -809,8 +897,8 @@ async function createSession() {
       renderLog();
       renderPendingActionsStack();
       tickVitals();
-      setInterval(tickVitals, 1000);
-      setInterval(pollSession, 1500); // fallback poll — realtime (subscribeSessionRealtime) covers the common case
+      setInterval(tickVitals, VITALS_TICK_MS);
+      setInterval(pollSession, DB_POLL_MS); // fallback poll — realtime (subscribeSessionRealtime) covers the common case
       return;
     } catch (e) {
       attempts++; // session_code collision (rare) — retry with a new code
@@ -1027,7 +1115,7 @@ async function updateInstantMode() {
 // adds headroom above the real max so a maxed-out value still renders with
 // clear space above it, without changing what "the maximum" actually means
 // clinically.
-const GRAPH_SERIES = [
+let GRAPH_SERIES = [
   { key: 'HR',      label: 'HR',     color: '#dc1114', unit: 'bpm',     min: 0,  max: 300, get: v => v.HR },
   { key: 'BPsys',   label: 'BP Sys', color: '#65b440', unit: 'mmHg',    min: 0,  max: 260, get: v => v.BPsys },
   { key: 'BPdia',   label: 'BP Dia', color: '#8bbf2c', unit: 'mmHg',    min: 0,  max: 220, get: v => v.BPdia },
@@ -1048,7 +1136,7 @@ const GRAPH_SERIES = [
   // headroom rather than a small margin.
   { key: 'health',  label: 'Health',  color: '#000000', unit: '',       min: 0,  max: 100, plotMax: 200, get: (v, cfg, tMs) => healthScore(cfg, tMs) }
 ];
-const GRAPH_DEFAULT_ON = { HR: true, BPsys: true, BPdia: true, SpO2: true, RR: true, EtCO2: true, temp: false, bgl: false, ketones: false, gcs: false, pain: false, nausea: false, health: false };
+let GRAPH_DEFAULT_ON = { HR: true, BPsys: true, BPdia: true, SpO2: true, RR: true, EtCO2: true, temp: false, bgl: false, ketones: false, gcs: false, pain: false, nausea: false, health: false };
 let graphSeriesOn = { ...GRAPH_DEFAULT_ON };
 
 // Auto-shows a "more" series (temp/BGL/ketones/GCS/pain — the ones off by
@@ -1091,7 +1179,7 @@ function toggleGraphSeries(key, on) {
 // list instead of continuously dividing/multiplying the window keeps zoom
 // in/out exact inverses of each other, so repeated in-then-out never drifts
 // off the original span the way a floating-point factor eventually would.
-const GRAPH_ZOOM_LEVELS = [1, 5, 10, 30, 60, 90, 120, 240];
+let GRAPH_ZOOM_LEVELS = [1, 5, 10, 30, 60, 90, 120, 240];
 function graphZoom(direction) {
   const idx = GRAPH_ZOOM_LEVELS.indexOf(graphViewWindowMin);
   let newIdx;
@@ -2034,7 +2122,7 @@ function renderGraph() {
   wrap.innerHTML = `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" style="width:100%;height:100%;display:block;touch-action:none;">${grid}${rhythmUI}${ghostPaths}${paths}${hitPaths}${overrideMarkers}${playhead}${pendingUI}${edgeReadouts}${inspectUI}${inspectCatcher}</svg>`;
 }
 
-const VITAL_DEFS = [
+let VITAL_DEFS = [
   { key: 'HR',      label: 'HR',      unit: 'bpm',     overrideKeys: ['HR'] },
   { key: 'BP',      label: 'NIBP',    unit: 'mmHg',    overrideKeys: ['BPsys', 'BPdia'] },
   { key: 'SpO2',    label: 'SpO\u2082', unit: '%',     overrideKeys: ['SpO2'] },
@@ -2059,7 +2147,7 @@ const VITAL_DEFS = [
 // text and applied as a flat shift to the SpO2 bands, rather than trying to
 // derive an exact per-patient baseline.
 let _spo2AdaptedBaseline = false;
-const CHRONIC_RESP_KEYWORDS = [
+let CHRONIC_RESP_KEYWORDS = [
   'copd', 'chronic obstructive', 'emphysema', 'chronic bronchitis', 'bronchiectasis',
   'pulmonary fibrosis', 'interstitial lung', 'chronic respiratory failure', 'chronic lung disease', 'home oxygen'
 ];
@@ -2068,41 +2156,16 @@ function detectChronicRespiratoryBaseline(medicalConditions) {
   return CHRONIC_RESP_KEYWORDS.some(k => text.includes(k));
 }
 
-function hrSeverity(hr) {
-  if (hr <= 0) return 4;
-  if (hr < 40 || hr > 140) return 3;
-  if (hr < 50 || hr > 120) return 2;
-  if (hr < 60 || hr > 100) return 1;
-  return 0;
-}
-function rrSeverity(rr) {
-  if (rr <= 0) return 4;
-  if (rr <= 6 || rr > 30) return 3;
-  if (rr <= 9 || rr > 24) return 2;
-  if (rr < 12 || rr > 20) return 1;
-  return 0;
-}
-function spo2Severity(spo2) {
-  const shift = _spo2AdaptedBaseline ? 10 : 0;
-  if (spo2 < 80 - shift) return 4;
-  if (spo2 < 85 - shift) return 3;
-  if (spo2 < 90 - shift) return 2;
-  if (spo2 < 95 - shift) return 1;
-  return 0;
-}
-function painSeverity(pain) {
-  if (pain >= 7) return 3;
-  if (pain >= 4) return 2;
-  if (pain >= 1) return 1;
-  return 0;
-}
-function bpSysSeverity(sys) {
-  if (sys <= 0) return 4;
-  if (sys < 70) return 3;
-  if (sys < 90) return 2;
-  if (sys < 100) return 1;
-  return 0;
-}
+// The five severity-band functions used to be duplicated here (drifted from
+// sim_engine.js's copy — this one had the chronic-resp shift, the shared one
+// didn't). Now calls straight through to SimEngine's single canonical
+// version; the shift is passed explicitly per-call since it's scenario-
+// specific state (_spo2AdaptedBaseline), not a global tuning value.
+function hrSeverity(hr) { return SimEngine.hrSeverity(hr); }
+function rrSeverity(rr) { return SimEngine.rrSeverity(rr); }
+function spo2Severity(spo2) { return SimEngine.spo2Severity(spo2, _spo2AdaptedBaseline ? 10 : 0); }
+function painSeverity(pain) { return SimEngine.painSeverity(pain); }
+function bpSysSeverity(sys) { return SimEngine.bpSysSeverity(sys); }
 
 // Instantaneous 0-100 "how normal right now" reading — a weighted average
 // of the same severity bands the Appearance tab above already uses (one
@@ -2146,14 +2209,16 @@ function healthLevel(v) {
 
 // Trailing window shared by both fixes in healthScore() below — one
 // consistent amount of "lag" rather than two competing time constants.
-const HEALTH_WINDOW_MS = 90000;
-const HEALTH_SAMPLES = 4; // evenly spaced across the window, including "now"
+let VITALS_TICK_MS = 1000;
+let DB_POLL_MS = 1500;
+let HEALTH_WINDOW_MS = 90000;
+let HEALTH_SAMPLES = 4; // evenly spaced across the window, including "now"
 
 // How far a vital needs to swing (peak-to-trough) within HEALTH_WINDOW_MS
 // before it's treated as fully "unstable" — tuned by eye, not from a
 // clinical reference; adjust if the Health line reads too jumpy or too
 // sluggish in practice.
-const HEALTH_INSTABILITY_SWING = { HR: 40, RR: 8, SpO2: 15, BPsys: 30 };
+let HEALTH_INSTABILITY_SWING = { HR: 40, RR: 8, SpO2: 15, BPsys: 30 };
 
 // Composite 0-100 score actually plotted as the graph's "Health" line.
 // Backward-looking only (never reads overrides scheduled after nowMs) even
@@ -2323,7 +2388,7 @@ function tickVitals() {
 
 // Friendlier wording for the Log's completed-action lines than the raw
 // tile label — falls back to "<label> completed" for anything unmapped.
-const ACTION_LOG_VERB = {
+let ACTION_LOG_VERB = {
   ecg: 'ECG (Lead II) applied', ecg12lead: '12-Lead ECG applied', rr: 'Resp Rate assessed', spo2: 'SpO\u2082 assessed',
   etco2: 'EtCO\u2082 assessed', bp: 'BP taken', temp: 'Temperature assessed', gcs: 'GCS assessed',
   bgl: 'BGL taken', ketones: 'Ketones taken', pain: 'Pain score assessed'
@@ -2453,7 +2518,7 @@ function skipAction(key) {
 // multi-action entries all work. This is a starting reference list, not
 // scoped to any particular service's formulary — any real-world drug is a
 // valid entry here if its outcome is genuinely fixed.
-const NO_EFFECT_ACTIONS = [
+let NO_EFFECT_ACTIONS = [
   { id: 'aspirin', label: 'Aspirin (PO)', note: 'Antiplatelet effect is days-scale — no modelled effect on tracked vitals.' },
   { id: 'dexamethasone', label: 'Dexamethasone', note: 'Steroid — onset of any real effect is hours, not minutes — no modelled effect.' },
   { id: 'hydrocortisone', label: 'Hydrocortisone', note: 'Steroid — same reasoning as dexamethasone — no modelled effect.' },
@@ -2479,7 +2544,7 @@ const NO_EFFECT_ACTIONS = [
 // matter within a training scenario's timescale (methoxyflurane, not
 // paracetamol/ibuprofen/ondansetron, whose real durations outlast any
 // scenario anyway).
-const CODED_EFFECT_ACTIONS = [
+let CODED_EFFECT_ACTIONS = [
   { id: 'paracetamol', label: 'Paracetamol (PO/IV)', vital: 'pain', delta: [-3, -1], onsetMin: [10, 20] },
   { id: 'ibuprofen', label: 'Ibuprofen (PO)', vital: 'pain', delta: [-4, -2], onsetMin: [15, 30] },
   { id: 'methoxyflurane', label: 'Methoxyflurane (Penthrox)', vital: 'pain', delta: [-5, -3], onsetMin: [2, 5], wearOffMin: [15, 25] },
@@ -2765,8 +2830,8 @@ async function runDefibFollowUpPlan(entry, rowTreatments, followUpAtMs) {
 // nuance, and an LLM asked to "act confused" can still drift into an
 // accidentally-coherent answer. Gating on the actual gcsV number guarantees
 // a GCS 3 patient never holds a lucid conversation.
-const GCS_V2_SOUNDS = ['Nnnghhh...', 'Uhhh... hnnn...', 'Mmm... hhh... mmm...', '...ngh... uhh...'];
-const GCS_V3_WORDS = ['...dog... the blue one...', "...where's... my keys...", '...no... stop the light...', '...mum? ...mum...', '...cold... the cold one...'];
+let GCS_V2_SOUNDS = ['Nnnghhh...', 'Uhhh... hnnn...', 'Mmm... hhh... mmm...', '...ngh... uhh...'];
+let GCS_V3_WORDS = ['...dog... the blue one...', "...where's... my keys...", '...no... stop the light...', '...mum? ...mum...', '...cold... the cold one...'];
 
 // AI reasoning path — only reached for gcsV 4 (confused conversation) or 5
 // (oriented). Told explicitly which tier applies so a V4 patient is
@@ -3418,7 +3483,7 @@ Project how this patient's vitals change from here, given this command.`;
   renderGraph();
 }
 
-const OVERRIDE_KEY_LABELS = {
+let OVERRIDE_KEY_LABELS = {
   HR: 'HR', BPsys: 'BP Sys', BPdia: 'BP Dia', SpO2: 'SpO\u2082', RR: 'RR', EtCO2: 'EtCO\u2082',
   temp: 'Temp', bgl: 'BGL', ketones: 'Ketones', pain: 'Pain',
   gcsE: 'GCS Eye', gcsV: 'GCS Verbal', gcsM: 'GCS Motor'

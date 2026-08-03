@@ -305,6 +305,7 @@ body { display: flex; flex-direction: column; }
 <script src="https://1984tpearson.github.io/AV/ecg_engine.js"></script>
 <script src="https://1984tpearson.github.io/AV/sim_engine.js"></script>
 <script src="https://1984tpearson.github.io/AV/avatar_assets.js"></script>
+<script src="https://1984tpearson.github.io/AV/sim_config_schema.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script>
 // --- Supabase session sync ------------------------------------------------
@@ -342,6 +343,108 @@ async function sbPatch(path, body) {
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
 }
 
+// --- Sim tuning config (see sim_config_admin.html / sim_config_schema.js) --
+// Fetched ONCE per page load, awaited inside the DOMContentLoaded handler
+// below BEFORE the first tick() runs — not re-polled, unlike session state.
+// An admin's edit needs a page reload to take effect. Every field falls back
+// to this file's own hardcoded literal (now a `let`, not removed) if the
+// fetch fails, the row doesn't exist yet, or sim_config_schema.js itself
+// failed to load — this must never block the patient view from starting.
+// Applies the SAME SimEngine.applyConfigOverrides() call sim_control.html's
+// loadSimConfig() does — both pages must compute identical vitals/defib
+// odds/mood from the same inputs, so this glue logic is intentionally kept
+// in sync between the two files by hand (see that function's own comments).
+let _simConfigLoaded = false;
+async function loadSimConfig() {
+  if (_simConfigLoaded) return;
+  _simConfigLoaded = true;
+  try {
+    const rows = await sbGet('sim_config?select=section_key,value');
+    const bySection = {};
+    (rows || []).forEach(r => { bySection[r.section_key] = r.value || {}; });
+    const schemaSections = (window.SimConfigSchema && window.SimConfigSchema.sections) || {};
+    function field(section, key) {
+      const saved = bySection[section] && bySection[section][key];
+      if (saved !== undefined) return saved;
+      const f = schemaSections[section] && schemaSections[section].fields[key];
+      return f ? f.default : undefined;
+    }
+    function pick(v, fallback) { return v === undefined ? fallback : v; }
+
+    ACTION_LABELS = pick(field('medications', 'ACTION_LABELS'), ACTION_LABELS);
+    JOULE_LEVELS = pick(field('defib', 'JOULE_LEVELS'), JOULE_LEVELS);
+    CHARGE_STEP_MS = pick(field('defib', 'CHARGE_STEP_MS'), CHARGE_STEP_MS);
+    VITALS_TICK_MS = pick(field('timers', 'VITALS_TICK_MS'), VITALS_TICK_MS);
+    DB_POLL_MS = pick(field('timers', 'DB_POLL_MS'), DB_POLL_MS);
+
+    AGE_SCALE_AT_ZERO = pick(field('avatar', 'AGE_SCALE_AT_ZERO'), AGE_SCALE_AT_ZERO);
+    EYE_SCALE_X_AT_ZERO = pick(field('avatar', 'EYE_SCALE_X_AT_ZERO'), EYE_SCALE_X_AT_ZERO);
+    EYE_SCALE_Y_AT_ZERO = pick(field('avatar', 'EYE_SCALE_Y_AT_ZERO'), EYE_SCALE_Y_AT_ZERO);
+    FACE_LOWER_OFFSET_AT_ZERO = pick(field('avatar', 'FACE_LOWER_OFFSET_AT_ZERO'), FACE_LOWER_OFFSET_AT_ZERO);
+    MOUTH_LOWER_OFFSET_AT_ZERO = pick(field('avatar', 'MOUTH_LOWER_OFFSET_AT_ZERO'), MOUTH_LOWER_OFFSET_AT_ZERO);
+    HEAD_BULGE_RX_AT_ZERO = pick(field('avatar', 'HEAD_BULGE_RX_AT_ZERO'), HEAD_BULGE_RX_AT_ZERO);
+    HEAD_BULGE_RY_AT_ZERO = pick(field('avatar', 'HEAD_BULGE_RY_AT_ZERO'), HEAD_BULGE_RY_AT_ZERO);
+    HAIR_SCALE_AT_ZERO = pick(field('avatar', 'HAIR_SCALE_AT_ZERO'), HAIR_SCALE_AT_ZERO);
+    HAIR_OFFSET_Y_AT_ZERO = pick(field('avatar', 'HAIR_OFFSET_Y_AT_ZERO'), HAIR_OFFSET_Y_AT_ZERO);
+
+    HAIR_COLOURS = pick(field('avatar', 'HAIR_COLOURS'), HAIR_COLOURS);
+    const greyList = field('avatar', 'GREY_HAIR_COLOURS');
+    if (Array.isArray(greyList)) GREY_HAIR_COLOURS = new Set(greyList);
+    CLOTHES_COLOURS = pick(field('avatar', 'CLOTHES_COLOURS'), CLOTHES_COLOURS);
+    const adultOnlyList = field('avatar', 'ADULT_ONLY_HAIR');
+    if (Array.isArray(adultOnlyList)) ADULT_ONLY_HAIR = new Set(adultOnlyList);
+    const headwearList = field('avatar', 'HEADWEAR');
+    if (Array.isArray(headwearList)) HEADWEAR = new Set(headwearList);
+    const casualHeadwearList = field('avatar', 'CASUAL_HEADWEAR');
+    if (Array.isArray(casualHeadwearList)) CASUAL_HEADWEAR = new Set(casualHeadwearList);
+    const faceFramingList = field('avatar', 'FACE_FRAMING_HEADWEAR');
+    if (Array.isArray(faceFramingList)) FACE_FRAMING_HEADWEAR = new Set(faceFramingList);
+    HAIR_STYLE_LEAN = pick(field('avatar', 'HAIR_STYLE_LEAN'), HAIR_STYLE_LEAN);
+    MOUTH_VARIANT = pick(field('avatar', 'MOUTH_VARIANT'), MOUTH_VARIANT);
+    MOOD_EYEBROW = pick(field('avatar', 'MOOD_EYEBROW'), MOOD_EYEBROW);
+    MAX_CONCURRENT = pick(field('avatar', 'MAX_CONCURRENT'), MAX_CONCURRENT);
+    MONITORING_KEYS = pick(field('avatar', 'MONITORING_KEYS'), MONITORING_KEYS);
+
+    MALE_VOICE_HINTS = pick(field('voice', 'MALE_VOICE_HINTS'), MALE_VOICE_HINTS);
+    FEMALE_VOICE_HINTS = pick(field('voice', 'FEMALE_VOICE_HINTS'), FEMALE_VOICE_HINTS);
+    PIPER_VOICE_POOL = pick(field('voice', 'PIPER_VOICE_POOL'), PIPER_VOICE_POOL);
+    VOICE_MODE_LABELS = pick(field('voice', 'VOICE_MODE_LABELS'), VOICE_MODE_LABELS);
+    VOICE_MODE_REPLY_LABELS = pick(field('voice', 'VOICE_MODE_REPLY_LABELS'), VOICE_MODE_REPLY_LABELS);
+    PIPER_MODULE_URL = pick(field('voice', 'PIPER_MODULE_URL'), PIPER_MODULE_URL);
+
+    // SimEngine-owned fields — same shape/merge logic as sim_control.html's
+    // loadSimConfig(), see its comments for why. Must stay in sync by hand.
+    const severityRows = field('severity', 'SEVERITY_BANDS');
+    const severityBandsObj = Array.isArray(severityRows)
+      ? severityRows.reduce((acc, r) => { const rest = Object.assign({}, r); delete rest.vital; acc[r.vital] = rest; return acc; }, {})
+      : undefined;
+    const survivabilityAgeBands = field('severity', 'SURVIVABILITY');
+    const survivabilityScalars = field('severity', 'SURVIVABILITY_SCALARS');
+    const survivabilityMerged = (survivabilityAgeBands || survivabilityScalars)
+      ? Object.assign({}, survivabilityScalars, { ageBands: survivabilityAgeBands })
+      : undefined;
+
+    SimEngine.applyConfigOverrides({
+      ACTION_DURATIONS: field('medications', 'ACTION_DURATIONS'),
+      HIGH_RISK_CONDITION_KEYWORDS: field('medications', 'HIGH_RISK_CONDITION_KEYWORDS'),
+      MOOD_MAP: field('medications', 'MOOD_MAP'),
+      SEVERITY_BANDS: severityBandsObj,
+      SURVIVABILITY: survivabilityMerged,
+      ENERGY_FACTOR: field('defib', 'ENERGY_FACTOR_TABLE')
+    });
+
+    // BP_INFLATE_MS is fully derived from ACTION_DURATIONS.bp.subsequent —
+    // not independently stored/edited — so it automatically stays in sync
+    // with whatever was just applied above instead of risking the desync
+    // the original code comment warned about.
+    BP_INFLATE_MS = SimEngine.ACTION_DURATIONS.bp.subsequent * 1000;
+  } catch (e) {
+    console.warn('sim_config load failed — using built-in defaults', e); // never fatal, see comment above
+  }
+}
+
+let VITALS_TICK_MS = 1000;
+let DB_POLL_MS = 1500;
 let testConfig = null; // populated once a session is joined — see connectSession()
 let scenarioMeta = null; // title/subtitle/dispatch/vitals/medical_conditions — see connectSession(); feeds handleShockBtn()'s local defib computation
 // Fuzzy-mapped once when scenarioMeta arrives (see connectSession()), not
@@ -373,8 +476,8 @@ let avatarBuild = { skin: '#E0AC81', hairColour: '#3b2b20', hairStyle: 'shortFla
 // below. Kept in the same flat array (not a separate palette) so an unset
 // age still lets a young-reading grey/premature-grey/platinum tone turn up
 // occasionally, same "soft weighting, not a hard rule" approach as gender.
-const HAIR_COLOURS = ['#1b1410', '#3b2b20', '#5a3b23', '#8a5a2b', '#c9a227', '#7a2e1d', '#8c8c8c', '#b0b0b0', '#e8e4dc'];
-const GREY_HAIR_COLOURS = new Set(['#8c8c8c', '#b0b0b0', '#e8e4dc']);
+let HAIR_COLOURS = ['#1b1410', '#3b2b20', '#5a3b23', '#8a5a2b', '#c9a227', '#7a2e1d', '#8c8c8c', '#b0b0b0', '#e8e4dc'];
+let GREY_HAIR_COLOURS = new Set(['#8c8c8c', '#b0b0b0', '#e8e4dc']);
 
 // patient_meta.age is patient.age verbatim from generator.html — a plain
 // number of years, a "N months" string, or the literal string "newborn".
@@ -449,7 +552,7 @@ function ageRamp(years, atZero, atEighteen) {
 // Uniform scale of the whole figure. Tuned visually via avatar_tuning_lab.html
 // — most of the "younger = smaller" cue comes from HEAD_BULGE below
 // (proportionally bigger head) rather than shrinking the whole figure hard.
-const AGE_SCALE_AT_ZERO = 0.94;
+let AGE_SCALE_AT_ZERO = 0.94;
 // Cartoon "younger = bigger head/eyes, lower/rounder face" cues, layered on
 // top of the uniform scale above. The face features (eyes/eyebrows/mouth)
 // are independent groups, so they can move and eyes can grow independently
@@ -481,17 +584,17 @@ const AGE_SCALE_AT_ZERO = 0.94;
 // as wall-eyed/alien on infants rather than "big eyed". Keeping X close to
 // 1 while Y does most of the work gives bigger, rounder eyes without much
 // added horizontal separation.
-const EYE_SCALE_X_AT_ZERO = 1.1;
-const EYE_SCALE_Y_AT_ZERO = 1.6;
-const FACE_LOWER_OFFSET_AT_ZERO = 12;
+let EYE_SCALE_X_AT_ZERO = 1.1;
+let EYE_SCALE_Y_AT_ZERO = 1.6;
+let FACE_LOWER_OFFSET_AT_ZERO = 12;
 // Mouths were sitting too low on newborns at the same drop as eyes/eyebrows
 // — a smaller value keeps the mouth closer to its normal position while
 // eyes/eyebrows keep their existing (larger) drop.
-const MOUTH_LOWER_OFFSET_AT_ZERO = 6.5;
-const HEAD_BULGE_RX_AT_ZERO = 1.16;
-const HEAD_BULGE_RY_AT_ZERO = 1.19;
-const HAIR_SCALE_AT_ZERO = 1;
-const HAIR_OFFSET_Y_AT_ZERO = -2;
+let MOUTH_LOWER_OFFSET_AT_ZERO = 6.5;
+let HEAD_BULGE_RX_AT_ZERO = 1.16;
+let HEAD_BULGE_RY_AT_ZERO = 1.19;
+let HAIR_SCALE_AT_ZERO = 1;
+let HAIR_OFFSET_Y_AT_ZERO = -2;
 // Clothing is a flat-colour fill only — no separate neckline graphic.
 // DiceBear ships nicely contoured collar shapes (crew neck, v-neck, etc)
 // but they're hand-positioned for stock Avataaars' own eye/eyebrow
@@ -517,12 +620,12 @@ const HAIR_OFFSET_Y_AT_ZERO = -2;
 // receding-hairline-prone crop) — excluded below teen so a pediatric
 // scenario can't land on a look that reads as a grown adult, same
 // complaint that prompted this whole age system.
-const ADULT_ONLY_HAIR = new Set(['theCaesar', 'theCaesarAndSidePart', 'shavedSides', 'sides']);
+let ADULT_ONLY_HAIR = new Set(['theCaesar', 'theCaesarAndSidePart', 'shavedSides', 'sides']);
 
 // Patient's own clothes colour, not a uniform — picked deterministically
 // per scenario same as hair, unweighted (no gender/age lean; a pool this
 // broad doesn't need one).
-const CLOTHES_COLOURS = ['#3b6ea5', '#22577a', '#5c4b8a', '#7a2e2e', '#2f6d4f', '#4a4a4a', '#8a5a2b', '#1a1a1a', '#c9a227', '#6b4c9a', '#b0392f', '#3d3d3d'];
+let CLOTHES_COLOURS = ['#3b6ea5', '#22577a', '#5c4b8a', '#7a2e2e', '#2f6d4f', '#4a4a4a', '#8a5a2b', '#1a1a1a', '#c9a227', '#6b4c9a', '#b0392f', '#3d3d3d'];
 
 // Rough masc('m')/femme('f')/neutral('n') lean per hairstyle — used only as
 // a soft weighting (see weightedPick() below), never a hard filter. Real
@@ -531,7 +634,7 @@ const CLOTHES_COLOURS = ['#3b6ea5', '#22577a', '#5c4b8a', '#7a2e2e', '#2f6d4f', 
 // while still leaving real cross-coded variety in play, rather than either
 // ignoring gender entirely (came across as arbitrary — see CLAUDE.md) or
 // hard-restricting to a fixed subset (halves the variety this was built for).
-const HAIR_STYLE_LEAN = {
+let HAIR_STYLE_LEAN = {
   hat: 'n', hijab: 'f', turban: 'm', winterHat1: 'n', winterHat02: 'n', winterHat03: 'n', winterHat04: 'n',
   bob: 'f', bun: 'f', curly: 'n', curvy: 'f', dreads: 'n', frida: 'f', fro: 'n', froBand: 'f',
   longButNotTooLong: 'f', miaWallace: 'f', shavedSides: 'm', straight02: 'f', straight01: 'f',
@@ -543,7 +646,7 @@ const HAIR_STYLE_LEAN = {
 // with age (greyWeight(), below) makes no sense applied to a garment, so
 // they're excluded from that weighting even though they share the same
 // __HAIRCOLOR__-token colour pool for lack of a more specific one.
-const HEADWEAR = new Set(['hat', 'hijab', 'turban', 'winterHat1', 'winterHat02', 'winterHat03', 'winterHat04']);
+let HEADWEAR = new Set(['hat', 'hijab', 'turban', 'winterHat1', 'winterHat02', 'winterHat03', 'winterHat04']);
 // Of that set, only the plain hat/winter hats get down-weighted below —
 // hijab/turban stay at their normal (gender-leaned) weight since they're
 // day-to-day headwear for a real portion of the population, same reasoning
@@ -551,7 +654,7 @@ const HEADWEAR = new Set(['hat', 'hijab', 'turban', 'winterHat1', 'winterHat02',
 // "costume" variety than a real everyday look and were landing far too
 // often (~1 in 7 patients) purely because they shared the same 'n' lean
 // tag and per-item weight as actual hairstyles.
-const CASUAL_HEADWEAR = new Set(['hat', 'winterHat1', 'winterHat02', 'winterHat03', 'winterHat04']);
+let CASUAL_HEADWEAR = new Set(['hat', 'winterHat1', 'winterHat02', 'winterHat03', 'winterHat04']);
 // hijab/turban drape down around the neck/shoulders, not just the top of
 // the head like hat/winterHat — that drape is drawn (and scaled, see
 // applyAgeScale()'s hairScale) purely off the enlarged head-bulge ratio,
@@ -561,7 +664,7 @@ const CASUAL_HEADWEAR = new Set(['hat', 'winterHat1', 'winterHat02', 'winterHat0
 // teen for that reason — same cutoff as ADULT_ONLY_HAIR — rather than
 // trying to make the drape itself elastic, which the source art has no
 // hook for.
-const FACE_FRAMING_HEADWEAR = new Set(['hijab', 'turban']);
+let FACE_FRAMING_HEADWEAR = new Set(['hijab', 'turban']);
 
 function hashStr(s) {
   let h = 0;
@@ -924,7 +1027,7 @@ function setSweat(moistureState, frac) {
 // regex that only matched values starting with `<path`, when grimace/
 // serious both start with `<rect`) and mapped them to the wrong shapes
 // ('vomit'/'default') as a result. Fixed back to the real ones.
-const MOUTH_VARIANT = { neutral: 'default', mild: 'serious', distress: 'concerned', grimace: 'grimace', slack: 'sad', talkOpen: 'screamOpen',
+let MOUTH_VARIANT = { neutral: 'default', mild: 'serious', distress: 'concerned', grimace: 'grimace', slack: 'sad', talkOpen: 'screamOpen',
   angry: 'default', agitated: 'concerned', tearful: 'sad', anxious: 'concerned', confused: 'disbelief' };
 function setMouth(stateKey) {
   const variant = MOUTH_VARIANT[stateKey] || MOUTH_VARIANT.neutral;
@@ -936,7 +1039,7 @@ function setMouth(stateKey) {
 // neutral eyebrow pick" (avatarBuild.eyebrowStyle, chosen once for variety —
 // see buildAvatarBase()) rather than forcing every calm patient onto the
 // same identical shape.
-const MOOD_EYEBROW = { angry: 'angryNatural', agitated: 'frownNatural', tearful: 'sadConcernedNatural', anxious: 'sadConcernedNatural', confused: 'upDownNatural' };
+let MOOD_EYEBROW = { angry: 'angryNatural', agitated: 'frownNatural', tearful: 'sadConcernedNatural', anxious: 'sadConcernedNatural', confused: 'upDownNatural' };
 function setEyebrows(styleKey) {
   document.getElementById('av-eyebrows').innerHTML = AvatarAssets.eyebrows[styleKey || avatarBuild.eyebrowStyle];
 }
@@ -1030,6 +1133,7 @@ async function connectSession(code) {
   const errEl = document.getElementById('gate-error');
   errEl.textContent = '';
   try {
+    await loadSimConfig(); // before buildAvatarBase()/tick() read anything it can affect
     const rows = await sbGet(`sim_sessions?session_code=eq.${encodeURIComponent(code)}&select=*`);
     if (!rows.length) { errEl.textContent = 'No session found with that code.'; return; }
     const row = rows[0];
@@ -1089,8 +1193,8 @@ async function connectSession(code) {
         .catch(() => {});
     }
     tick();
-    setInterval(tick, 1000);
-    setInterval(pollSession, 1500); // fallback poll — realtime (subscribeSessionRealtime) covers the common case
+    setInterval(tick, VITALS_TICK_MS);
+    setInterval(pollSession, DB_POLL_MS); // fallback poll — realtime (subscribeSessionRealtime) covers the common case
   } catch (e) {
     errEl.textContent = 'Could not reach the session — check the code and try again.';
   }
@@ -1144,7 +1248,7 @@ function applySessionRow(row) {
 // Status lifecycle: idle -> (queued ->) pending -> done
 // Only MAX_CONCURRENT actions may be 'pending' (a crew member actively doing
 // it) at once; further requests wait as 'queued' until a slot frees up.
-const MAX_CONCURRENT = 2;
+let MAX_CONCURRENT = 2;
 let actionQueue = [];
 const actionState = {};
 ['ecg','ecg12lead','spo2','etco2','bp','temp','gcs','bgl','ketones','pain'].forEach(k => {
@@ -1161,7 +1265,7 @@ const oneOffDefs = {
 
 // Human-readable labels for every actionState key — used when pushing state
 // to Supabase for sim_control.html's Actions tab (see pushActionState()).
-const ACTION_LABELS = {
+let ACTION_LABELS = {
   ecg: 'ECG (Lead II)', ecg12lead: '12-Lead ECG', spo2: 'SpO\u2082',
   etco2: 'EtCO\u2082', bp: 'Blood Pressure', temp: 'Temperature', gcs: 'GCS',
   bgl: 'BGL', ketones: 'Ketones', pain: 'Pain Score'
@@ -1324,11 +1428,16 @@ let lastBP = { sys: null, dia: null };
 // in sim_engine.js); auto-refires/retakes just re-inflate.
 let bpCuffApplied = false;
 
-// Fixed inflate/hold/deflate cycle length — must match ACTION_DURATIONS.bp
-// .subsequent in sim_engine.js. Any extra time on the action's total duration
-// (i.e. the first-ever BP) is cuff-application lead-in prepended before this
-// cycle, not stretched into it, so the pressure curve itself never changes.
-const BP_INFLATE_MS = 35000;
+// Fixed inflate/hold/deflate cycle length — DERIVED from ACTION_DURATIONS.bp
+// .subsequent (see loadSimConfig() above), not independently stored/edited,
+// so it can no longer drift out of sync the way two separately-hardcoded
+// copies of the same number could. 35000 here is only the pre-config-load
+// fallback value (identical to ACTION_DURATIONS.bp.subsequent's own
+// fallback of 35s) — loadSimConfig() overwrites it before first use. Any
+// extra time on the action's total duration (i.e. the first-ever BP) is
+// cuff-application lead-in prepended before this cycle, not stretched into
+// it, so the pressure curve itself never changes.
+let BP_INFLATE_MS = 35000;
 function bpLeadInMs(st) {
   const total = st.completesAt - st.startedAt;
   return Math.max(0, total - BP_INFLATE_MS);
@@ -1577,7 +1686,7 @@ function renderMonitor(v, now) {
 // same startAction()/MAX_CONCURRENT queue as tapping each vital individually
 // \u2014 some begin immediately, the rest queue and pick up as slots free, same
 // as a real second crew member working through them one at a time.
-const MONITORING_KEYS = ['ecg', 'spo2', 'etco2', 'bp'];
+let MONITORING_KEYS = ['ecg', 'spo2', 'etco2', 'bp'];
 
 function applyAllMonitoring() {
   MONITORING_KEYS.forEach(key => {
@@ -1627,8 +1736,8 @@ function renderOneOff() {
 // row per tick, until it reaches the selected row — so higher energy takes
 // longer to charge, same as the real thing. Two taps of Charge: first opens
 // the tower for selection, second (once a value is picked) starts the charge.
-const JOULE_LEVELS = [200, 150, 120, 100, 85, 70, 50, 30, 20, 15, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1];
-const CHARGE_STEP_MS = 180;
+let JOULE_LEVELS = [200, 150, 120, 100, 85, 70, 50, 30, 20, 15, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1];
+let CHARGE_STEP_MS = 180;
 let defibState = 'idle'; // idle -> selecting -> charging -> charged -> (shock) -> idle
 let selectedJoules = 200; // default preset, matching a real monitor remembering the last-used energy
 let chargeFillCount = 0; // rows lit, counting from the bottom (1J) up
@@ -1915,8 +2024,8 @@ function unlockPiperAudio() {
 // Explicit "male"/"female" in the name wins; falls back to known common
 // voice names; falls back further to just any en-AU/en-* voice, same as
 // before this existed.
-const MALE_VOICE_HINTS = ['male', 'david', 'daniel', 'alex', 'fred', 'guy', 'ryan', 'mark', 'thomas', 'james', 'george', 'oliver', 'aaron'];
-const FEMALE_VOICE_HINTS = ['female', 'samantha', 'victoria', 'karen', 'susan', 'zira', 'emma', 'amy', 'joanna', 'salli', 'kate', 'moira', 'tessa'];
+let MALE_VOICE_HINTS = ['male', 'david', 'daniel', 'alex', 'fred', 'guy', 'ryan', 'mark', 'thomas', 'james', 'george', 'oliver', 'aaron'];
+let FEMALE_VOICE_HINTS = ['female', 'samantha', 'victoria', 'karen', 'susan', 'zira', 'emma', 'amy', 'joanna', 'salli', 'kate', 'moira', 'tessa'];
 
 function pickVoice() {
   if (!_cachedVoices.length) refreshVoiceCache();
@@ -1949,12 +2058,12 @@ function pickVoice() {
 // youthVoiceRate() instead, a real approximation rather than a true
 // child voice, same tradeoff already accepted for it.
 const HQ_VOICE_LS_KEY = 'av_hq_voice_enabled';
-const PIPER_MODULE_URL = 'https://cdn.jsdelivr.net/npm/@diffusionstudio/vits-web@1/+esm';
+let PIPER_MODULE_URL = 'https://cdn.jsdelivr.net/npm/@diffusionstudio/vits-web@1/+esm';
 // A few voices per gender rather than one fixed pick — same "medium" quality
 // tier throughout (a reasonable size/quality balance; "low" sounds worse,
 // "high" isn't worth the extra download for a training tool), spanning a
 // couple of English accents/timbres for real variety between patients.
-const PIPER_VOICE_POOL = {
+let PIPER_VOICE_POOL = {
   male: ['en_GB-alan-medium', 'en_US-ryan-medium', 'en_GB-northern_english_male-medium'],
   female: ['en_GB-jenny_dioco-medium', 'en_US-amy-medium', 'en_GB-alba-medium'],
 };
@@ -2278,8 +2387,8 @@ async function queueStudentItem(type, text) {
   return id;
 }
 
-const VOICE_MODE_LABELS = { treatment: 'Give Treatment', exam: 'Assessment', chat: 'Talk to Patient' };
-const VOICE_MODE_REPLY_LABELS = { exam: 'Finding:', chat: 'Patient replied:' };
+let VOICE_MODE_LABELS = { treatment: 'Give Treatment', exam: 'Assessment', chat: 'Talk to Patient' };
+let VOICE_MODE_REPLY_LABELS = { exam: 'Finding:', chat: 'Patient replied:' };
 
 function openVoiceModal(mode) {
   unlockSpeechSynthesis(); // must happen here, inside the tap handler, to count as a user gesture
