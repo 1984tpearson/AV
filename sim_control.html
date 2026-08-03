@@ -1039,9 +1039,16 @@ const GRAPH_SERIES = [
   { key: 'ketones', label: 'Ketones', color: '#a96aab', unit: 'mmol/L', min: 0,  max: 15,  get: v => v.ketones },
   { key: 'gcs',     label: 'GCS',     color: '#d02e8b', unit: '/15',    min: 3,  max: 15, plotMax: 18, get: v => v.gcsE + v.gcsV + v.gcsM },
   { key: 'pain',    label: 'Pain',    color: '#dd9806', unit: '/10',    min: 0,  max: 10, get: v => v.pain },
-  { key: 'nausea',  label: 'Nausea',  color: '#14b8a6', unit: '/10',    min: 0,  max: 10, get: v => v.nausea }
+  { key: 'nausea',  label: 'Nausea',  color: '#14b8a6', unit: '/10',    min: 0,  max: 10, get: v => v.nausea },
+  // Composite, not a real vital — see healthScore() for how it's derived.
+  // plotMax (double the real max) is what pins "normal" (100) at the
+  // vertical MIDDLE of the chart rather than the top, leaving "dead" (0) at
+  // the very bottom — same plotMax headroom trick GCS/SpO2 use above, just
+  // pushed further since this one needs an entire extra half-chart of
+  // headroom rather than a small margin.
+  { key: 'health',  label: 'Health',  color: '#000000', unit: '',       min: 0,  max: 100, plotMax: 200, get: v => healthScore(v) }
 ];
-const GRAPH_DEFAULT_ON = { HR: true, BPsys: true, BPdia: true, SpO2: true, RR: true, EtCO2: true, temp: false, bgl: false, ketones: false, gcs: false, pain: false, nausea: false };
+const GRAPH_DEFAULT_ON = { HR: true, BPsys: true, BPdia: true, SpO2: true, RR: true, EtCO2: true, temp: false, bgl: false, ketones: false, gcs: false, pain: false, nausea: false, health: false };
 let graphSeriesOn = { ...GRAPH_DEFAULT_ON };
 
 // Auto-shows a "more" series (temp/BGL/ketones/GCS/pain — the ones off by
@@ -1139,7 +1146,9 @@ let vitalsEditMode = false;
 // GCS is a combined graph line (E+V+M summed) but three separate override
 // keys — shared by both tap modes, so this stays a single source of truth.
 function vtileGraphKeys(def) {
-  return def.key === 'GCS' ? ['gcs'] : def.overrideKeys.filter(k => GRAPH_SERIES.some(s => s.key === k));
+  if (def.key === 'GCS') return ['gcs'];
+  if (def.key === 'Health') return ['health'];
+  return def.overrideKeys.filter(k => GRAPH_SERIES.some(s => s.key === k));
 }
 
 // Default-mode tap target: shows/hides this tile's line(s) on the graph.
@@ -1186,6 +1195,10 @@ function setEditTool(tool) {
 }
 
 function handleVtileClick(defKey) {
+  // Health is a derived composite, not an override-backed series — there's
+  // nothing to arm/drag, so it stays a plain visibility toggle even in edit
+  // mode (unlike every other tile here).
+  if (defKey === 'Health') { toggleVitalVisibility(defKey); return; }
   const def = VITAL_DEFS.find(d => d.key === defKey);
   const graphKeys = vtileGraphKeys(def);
   if (!graphKeys.length) { openOverrideModal(defKey); return; }
@@ -2032,7 +2045,8 @@ const VITAL_DEFS = [
   { key: 'Ketones', label: 'Ketones', unit: 'mmol/L',  overrideKeys: ['ketones'] },
   { key: 'Pain',    label: 'Pain',    unit: '/10',     overrideKeys: ['pain'] },
   { key: 'Nausea',  label: 'Nausea',  unit: '/10',     overrideKeys: ['nausea'] },
-  { key: 'GCS',     label: 'GCS',     unit: '/15',     overrideKeys: ['gcsE', 'gcsV', 'gcsM'], isGCS: true }
+  { key: 'GCS',     label: 'GCS',     unit: '/15',     overrideKeys: ['gcsE', 'gcsV', 'gcsM'], isGCS: true },
+  { key: 'Health',  label: 'Health',  unit: '',        overrideKeys: [], isHealth: true }
 ];
 
 // --- Dynamic Appearance tab (derived live from vitals — no AI involved) -----
@@ -2088,6 +2102,31 @@ function bpSysSeverity(sys) {
   if (sys < 90) return 2;
   if (sys < 100) return 1;
   return 0;
+}
+
+// Composite 0-100 score for the graph's "Health" line — averages the same
+// severity bands the Appearance tab above already uses (one calibrated
+// normal/abnormal notion, not a new set of thresholds) across HR, RR, SpO2,
+// BP sys and GCS. 100 = every input fully normal; 0 = every input
+// simultaneously at its worst band, which is reachable in practice — the
+// AI's cardiac-arrest cascade rule (see CLAUDE.md) writes HR/RR/SpO2/BP/GCS
+// overrides together, not just one of them. Pain is deliberately excluded:
+// a dying/unconscious patient's pain score is scripted DOWN to 0 in lockstep
+// with LOC (see the same cascade rule), which would read as "0 abnormality"
+// at the exact moment the patient is at their worst — the opposite of what
+// a badness index needs. BPdia/EtCO2/temp/bgl/ketones/nausea are left out
+// too, for lack of an existing calibrated severity band for them here.
+function healthScore(v) {
+  const gcsTotal = (v.gcsE || 0) + (v.gcsV || 0) + (v.gcsM || 0);
+  const subs = [
+    hrSeverity(v.HR) / 4,
+    rrSeverity(v.RR) / 4,
+    spo2Severity(v.SpO2) / 4,
+    bpSysSeverity(v.BPsys) / 4,
+    Math.min(1, Math.max(0, (15 - gcsTotal) / 12))
+  ];
+  const avgAbnormality = subs.reduce((a, b) => a + b, 0) / subs.length;
+  return 100 * (1 - avgAbnormality);
 }
 
 // Consciousness gate — ONLY used for Appearance/Speech (things that require
@@ -2170,6 +2209,7 @@ function tickVitals() {
     let val;
     if (def.key === 'BP') val = `${Math.round(v.BPsys)}/${Math.round(v.BPdia)}`;
     else if (def.isGCS) val = Math.round(v.gcsE + v.gcsV + v.gcsM);
+    else if (def.isHealth) val = Math.round(healthScore(v));
     else if (['Temp', 'BGL', 'Ketones'].includes(def.key)) val = v[def.overrideKeys[0]].toFixed(1);
     else val = Math.round(v[def.overrideKeys[0]]);
     const armedStyle = (vitalsEditMode && armedTileKey === def.key) ? 'border-color:#0369a1;box-shadow:0 0 0 2px #bae0fd inset;' : '';
