@@ -2188,6 +2188,16 @@ const HEALTH_INSTABILITY_SWING = { HR: 40, RR: 8, SpO2: 15, BPsys: 30 };
 //    healthLevel() across the same trailing window rather than reading it
 //    at one instant — a brief step blends with its neighbours instead of
 //    standing out as its own spike.
+//
+// 3. Confirmed cardiac arrest — once HR (and therefore perfusion) has been
+//    at 0 for the whole trailing window, the score hard-floors at 0 no
+//    matter what anything else reads. With no cardiac output, a GCS/pain/
+//    nausea reading isn't clinically meaningful, AND this doubles as a
+//    safety net against any vital whose authored override tail doesn't
+//    hold perfectly flat all the way to the end of a scenario — a stray
+//    wobble there (an easy mistake for an AI-generated timeline to make,
+//    30 minutes deep into a chart nobody's watching that closely) can no
+//    longer leak into the score once arrest is this well-established.
 function healthScore(cfg, nowMs) {
   const samples = [];
   const levels = [];
@@ -2197,6 +2207,8 @@ function healthScore(cfg, nowMs) {
     samples.push(v);
     levels.push(healthLevel(v));
   }
+  if (samples.every(v => v.HR <= 0)) return 0;
+
   const smoothedAbnormality = 1 - (levels.reduce((a, b) => a + b, 0) / levels.length) / 100;
 
   let instability = 0;
