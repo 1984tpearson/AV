@@ -34,6 +34,9 @@ body { display: flex; flex-direction: column; }
 #graph-svg-wrap { display: block; }
 #management-row { flex: 1; min-height: 0; display: flex; flex-direction: row; gap: 8px; }
 #management-panel, #scenario-info-panel { flex: 1; min-width: 0; min-height: 0; overflow-y: auto; }
+#management-row.mgmt-fullscreen { position: fixed; inset: 0; z-index: 40; margin: 0; padding: 8px; background: linear-gradient(135deg, #2C4F7C 0%, #4E7FAE 55%, #6FA0CC 100%); }
+#management-row.mgmt-fullscreen #management-panel { flex: 2; }
+#management-row.mgmt-fullscreen #scenario-info-panel { flex: 1; }
 .info-block { margin-bottom: 10px; }
 .info-block:last-child { margin-bottom: 0; }
 .info-label { font-size: 10px; color: #6b8299; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 3px; font-weight: 700; }
@@ -160,7 +163,13 @@ select, input[type=number], input[type=text] { font-family: 'Courier New', monos
 
       <div id="management-row">
         <div class="panel" id="management-panel">
-          <h2>Management / Controls</h2>
+          <div class="row" style="justify-content:space-between;align-items:center;margin-bottom:8px;">
+            <h2 style="margin-bottom:0;">Management / Controls</h2>
+            <button class="btn btn-secondary toolbtn iconbtn" id="mgmt-fullscreen-btn" onclick="toggleManagementFullscreen()" aria-label="Toggle fullscreen" title="Expand to fullscreen">
+              <svg id="mgmt-fs-expand-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
+              <svg id="mgmt-fs-collapse-icon" style="display:none;" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 14 10 14 10 20"/><polyline points="20 10 14 10 14 4"/><line x1="14" y1="10" x2="21" y2="3"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
+            </button>
+          </div>
           <div class="row">
             <button class="btn btn-start" id="run-btn" onclick="toggleRun()">Start Scenario</button>
             <label style="margin:0;"><input type="checkbox" id="instant-toggle" onchange="updateInstantMode()"> Instant Mode</label>
@@ -1270,6 +1279,14 @@ function toggleVitalVisibility(defKey) {
   const turningOn = !graphSeriesOn[graphKeys[0]];
   graphKeys.forEach(k => { graphSeriesOn[k] = turningOn; });
   tickVitals();
+}
+
+function toggleManagementFullscreen() {
+  const row = document.getElementById('management-row');
+  const isFs = row.classList.toggle('mgmt-fullscreen');
+  document.getElementById('mgmt-fs-expand-icon').style.display = isFs ? 'none' : '';
+  document.getElementById('mgmt-fs-collapse-icon').style.display = isFs ? '' : 'none';
+  document.getElementById('mgmt-fullscreen-btn').title = isFs ? 'Exit fullscreen' : 'Expand to fullscreen';
 }
 
 function toggleVitalsEditMode() {
