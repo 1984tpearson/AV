@@ -134,6 +134,7 @@ select, input[type=number], input[type=text] { font-family: 'Courier New', monos
         </div>
       </div>
       <button class="btn" id="create-session-btn" onclick="createSession()">Create Session</button>
+      <button class="btn btn-secondary" id="regen-timeline-btn" style="display:none;margin-left:8px;" onclick="regenerateScenarioTimeline()">Regenerate Timeline (Admin)</button>
       <div id="create-status" class="muted" style="margin-top:8px;"></div>
     </div>
   </div>
@@ -3715,6 +3716,18 @@ async function requireAuth() {
   window.location.href = 'login.html?redirect=sim_control.html';
   return null;
 }
+// Same admin check as sim_config_admin.html's ADMIN AUTH GATE, but gating
+// just one button here rather than the whole page — everyone else running a
+// session has no reason to see it.
+const ADMIN_UUID = 'fe1f2d3f-2139-44ec-bbe0-14ad6bb748ac';
+async function checkIsAdmin(session) {
+  if (!session) return false;
+  try {
+    const { data: profile } = await sbRealtime.from('profiles').select('role').eq('id', session.user.id).single();
+    if (profile && profile.role === 'admin') return true;
+  } catch (e) { /* best-effort — fall through to UUID check */ }
+  return session.user.id === ADMIN_UUID;
+}
 async function initAuth() {
   _authSession = await requireAuth();
   if (!_authSession) return; // redirected away above
@@ -3722,9 +3735,40 @@ async function initAuth() {
   // token in the background — see scenario.html/generator.html's identical
   // comment for why this matters on long-lived tabs.
   sbRealtime.auth.onAuthStateChange((_event, session) => { _authSession = session; });
+  checkIsAdmin(_authSession).then(isAdmin => {
+    document.getElementById('regen-timeline-btn').style.display = isAdmin ? '' : 'none';
+  });
   loadRecentScenarios().then(handleScenarioDeepLink);
 }
 initAuth();
+
+// Deletes the cached scenario_sim_timelines row and re-runs
+// generateSimTimeline() from scratch, same cache-miss path getOrBuildTimeline()
+// takes for a scenario it's never seen before — for re-checking a scenario's
+// projection after a prompt change, or just re-rolling it, without having to
+// go delete the row by hand.
+async function regenerateScenarioTimeline() {
+  const scenarioId = document.getElementById('scenario-select').value;
+  const statusEl = document.getElementById('create-status');
+  if (!scenarioId) { statusEl.textContent = 'Pick a scenario first.'; return; }
+  if (!confirm("Regenerate this scenario's untreated timeline from scratch, as if loading it for the first time? This discards the cached AI projection and calls the AI again.")) return;
+  const btn = document.getElementById('regen-timeline-btn');
+  btn.disabled = true;
+  statusEl.textContent = 'Clearing cached timeline…';
+  try {
+    const rows = await sbFetch(`scenarios?id=eq.${encodeURIComponent(scenarioId)}&select=*`, { method: 'GET' });
+    if (!rows.length) throw new Error('Scenario not found.');
+    const scenario = rows[0];
+    await sbFetch(`scenario_sim_timelines?scenario_id=eq.${encodeURIComponent(scenarioId)}`, { method: 'DELETE', prefer: 'return=minimal' });
+    statusEl.textContent = 'Regenerating timeline (calling AI)…';
+    await getOrBuildTimeline(scenario);
+    statusEl.textContent = 'Timeline regenerated and cached — the next session created from this scenario will use it.';
+  } catch (e) {
+    statusEl.textContent = 'Could not regenerate the timeline: ' + e.message;
+  } finally {
+    btn.disabled = false;
+  }
+}
 
 // Arrived here from scenario.html's "Load as Live Scenario" link option —
 // preselect that scenario and create its session immediately, mirroring how
