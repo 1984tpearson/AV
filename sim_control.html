@@ -1200,15 +1200,47 @@ let GRAPH_SERIES = [
   { key: 'pain',    label: 'Pain',    color: '#dd9806', unit: '/10',    min: 0,  max: 10, get: v => v.pain },
   { key: 'nausea',  label: 'Nausea',  color: '#14b8a6', unit: '/10',    min: 0,  max: 10, get: v => v.nausea },
   // Composite, not a real vital — see SimEngine.getDisplayHealthScore() (and getHealthScore() underneath it) for how it's derived.
-  // plotMax (double the real max) is what pins "normal" (100) at the
-  // vertical MIDDLE of the chart rather than the top, leaving "dead" (0) at
-  // the very bottom — same plotMax headroom trick GCS/SpO2 use above, just
-  // pushed further since this one needs an entire extra half-chart of
-  // headroom rather than a small margin.
-  { key: 'health',  label: 'Health',  color: '#000000', unit: '',       min: 0,  max: 100, plotMax: 200, get: (v, cfg, tMs) => SimEngine.getDisplayHealthScore(cfg, tMs) }
+  // plotMax (1.5x the real max) pins "normal" (100) at the upper third of
+  // the chart rather than the top or dead centre, leaving "dead" (0) at the
+  // very bottom — same plotMax headroom trick GCS/SpO2 use above, just
+  // pushed further since this one needs extra headroom above the line's own
+  // range rather than a small margin. color is only a fallback (legend
+  // swatch etc) — the drawn line itself is colour-coded by value at render
+  // time, see healthLineColor()/renderGraph()'s health-line-gradient.
+  { key: 'health',  label: 'Health',  color: '#16a34a', unit: '',       min: 0,  max: 100, plotMax: 150, get: (v, cfg, tMs) => SimEngine.getDisplayHealthScore(cfg, tMs) }
 ];
 let GRAPH_DEFAULT_ON = { HR: true, BPsys: true, BPdia: true, SpO2: true, RR: true, EtCO2: true, temp: false, bgl: false, ketones: false, gcs: false, pain: false, nausea: false, health: false };
 let graphSeriesOn = { ...GRAPH_DEFAULT_ON };
+
+// Colour stops for the Health line — green at 100 down through yellow/
+// orange/red to black at 0 (death), evenly spaced so the stop offsets are
+// just (100-value)/100 — see renderGraph()'s health-line-gradient, which
+// reuses these same stops as an SVG gradient positioned by actual y-pixel
+// (so the drawn line's colour always matches its own height, not a single
+// flat value) rather than doing the per-point blending below at 80 samples
+// a render.
+const HEALTH_COLOR_STOPS = [
+  { value: 100, color: '#16a34a' }, // green
+  { value: 75,  color: '#eab308' }, // yellow
+  { value: 50,  color: '#f97316' }, // orange
+  { value: 25,  color: '#dc2626' }, // red
+  { value: 0,   color: '#000000' }  // black — death
+];
+function healthLineColor(rawVal) {
+  const val = Math.max(0, Math.min(100, rawVal));
+  for (let i = 0; i < HEALTH_COLOR_STOPS.length - 1; i++) {
+    const a = HEALTH_COLOR_STOPS[i], b = HEALTH_COLOR_STOPS[i + 1];
+    if (val <= a.value && val >= b.value) {
+      const t = (a.value - val) / (a.value - b.value);
+      const pa = parseInt(a.color.slice(1), 16), pb = parseInt(b.color.slice(1), 16);
+      const r = Math.round(((pa >> 16) & 255) + (((pb >> 16) & 255) - ((pa >> 16) & 255)) * t);
+      const g = Math.round(((pa >> 8) & 255) + (((pb >> 8) & 255) - ((pa >> 8) & 255)) * t);
+      const bl = Math.round((pa & 255) + ((pb & 255) - (pa & 255)) * t);
+      return `rgb(${r},${g},${bl})`;
+    }
+  }
+  return HEALTH_COLOR_STOPS[HEALTH_COLOR_STOPS.length - 1].color;
+}
 
 // Auto-shows a "more" series (temp/BGL/ketones/GCS/pain — the ones off by
 // default in GRAPH_DEFAULT_ON) the moment the AI actually gives it a real
@@ -2025,14 +2057,29 @@ function renderGraph() {
     const d = pointsToSmoothPath(pts);
     const baseline = padT + plotH;
     const areaD = `${d} L${pts[pts.length - 1][0].toFixed(1)},${baseline} L${pts[0][0].toFixed(1)},${baseline} Z`;
-    paths += `<defs><linearGradient id="grad-${s.key}" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="${s.color}" stop-opacity="0.05" /><stop offset="100%" stop-color="${s.color}" stop-opacity="0" /></linearGradient></defs>`;
     // BP is filled separately as a band between systolic and diastolic (see
     // below, after this loop) rather than each line filling to the baseline.
+    // Health skips the area fill entirely — a single flat tint colour would
+    // misrepresent a line whose whole point is that its colour isn't flat.
     const isBpComponent = s.key === 'BPsys' || s.key === 'BPdia';
-    if (!isBpComponent) {
+    const isHealth = s.key === 'health';
+    if (!isBpComponent && !isHealth) {
+      paths += `<defs><linearGradient id="grad-${s.key}" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="${s.color}" stop-opacity="0.05" /><stop offset="100%" stop-color="${s.color}" stop-opacity="0" /></linearGradient></defs>`;
       paths += `<path d="${areaD}" fill="url(#grad-${s.key})" stroke="none" opacity="${opacity}" />`;
     }
-    paths += `<path d="${d}" fill="none" stroke="${s.color}" stroke-width="${isArmed ? 3.5 : 2}" opacity="${opacity}" stroke-linecap="round" />`;
+    // Health's stroke is a vertical gradient positioned by actual y-pixel
+    // (userSpaceOnUse, spanning yFor(100) to yFor(0)) rather than a flat
+    // colour — since y already encodes value here, this colours the line by
+    // value with no per-point/per-segment path splitting needed.
+    let strokeAttr = `stroke="${s.color}"`;
+    if (isHealth) {
+      const yTop = yFor(s, 100), yBottom = yFor(s, 0);
+      paths += `<defs><linearGradient id="health-line-gradient" gradientUnits="userSpaceOnUse" x1="0" y1="${yTop}" x2="0" y2="${yBottom}">` +
+        HEALTH_COLOR_STOPS.map(st => `<stop offset="${100 - st.value}%" stop-color="${st.color}" />`).join('') +
+        `</linearGradient></defs>`;
+      strokeAttr = `stroke="url(#health-line-gradient)"`;
+    }
+    paths += `<path d="${d}" fill="none" ${strokeAttr} stroke-width="${isArmed ? 3.5 : 2}" opacity="${opacity}" stroke-linecap="round" />`;
 
     // Right-edge value readout — the value at the visible window's edge,
     // pinned like a monitor's live digit readout.
@@ -2041,7 +2088,7 @@ function renderGraph() {
     const edgeRaw = s.get(SimEngine.getVitalsRaw(liveConfig, edgeTMs), liveConfig, edgeTMs);
     const edgeStr = decimalReadoutKeys.includes(s.key) ? edgeRaw.toFixed(1) : Math.round(edgeRaw).toString();
     const edgeY = Math.min(Math.max(padT + 8, pts[pts.length - 1][1]), padT + plotH - 8);
-    edgeReadoutEntries.push({ y: edgeY, str: edgeStr, color: s.color, opacity });
+    edgeReadoutEntries.push({ y: edgeY, str: edgeStr, color: isHealth ? healthLineColor(edgeRaw) : s.color, opacity });
 
     if (isArmed && !pendingDrag) {
       // Every FUTURE point on this series gets a marker — including ones
@@ -2148,7 +2195,8 @@ function renderGraph() {
       const tMs = liveConfig.startTimeMs + dispMin * 60000;
       const val = s.get(SimEngine.getVitalsRaw(liveConfig, tMs), liveConfig, tMs);
       const y = yFor(s, val);
-      playhead += `<circle cx="${x}" cy="${y}" r="4.5" fill="${s.color}" style="pointer-events:none;" />`;
+      const dotColor = s.key === 'health' ? healthLineColor(val) : s.color;
+      playhead += `<circle cx="${x}" cy="${y}" r="4.5" fill="${dotColor}" style="pointer-events:none;" />`;
     });
     if (isRewinding) {
       playhead += `<text x="${x}" y="${padT - 2}" font-size="9" font-weight="700" fill="${phColor}" text-anchor="middle">t+${dispMin.toFixed(1)}m — release to jump</text>`;
@@ -2230,7 +2278,7 @@ function renderGraph() {
     const rows = GRAPH_SERIES.filter(s => graphSeriesOn[s.key]).map(s => {
       const val = s.get(v, liveConfig, tMs);
       const str = (decimalKeys.includes(s.key) ? val.toFixed(1) : Math.round(val).toString()) + s.unit;
-      return { label: s.label, str, color: s.color };
+      return { label: s.label, str, color: s.key === 'health' ? healthLineColor(val) : s.color };
     });
     if (rows.length) {
       // Size the panel to the widest label+value pair instead of a fixed
@@ -2461,7 +2509,7 @@ function tickVitals() {
     const armedStyle = (vitalsEditMode && armedTileKey === def.key) ? 'border-color:#0369a1;box-shadow:0 0 0 2px #bae0fd inset;' : '';
     const graphKeys = vtileGraphKeys(def);
     const isOn = graphKeys.length && graphSeriesOn[graphKeys[0]];
-    const dotColor = graphKeys.length ? GRAPH_SERIES.find(s => s.key === graphKeys[0]).color : '#cbd5e1';
+    const dotColor = def.isHealth ? healthLineColor(val) : (graphKeys.length ? GRAPH_SERIES.find(s => s.key === graphKeys[0]).color : '#cbd5e1');
     const clickFn = vitalsEditMode ? `handleVtileClick('${def.key}')` : `toggleVitalVisibility('${def.key}')`;
     return `<div class="vtile" style="${armedStyle}" onclick="${clickFn}">
       <span class="vtile-dot" style="background:${isOn ? dotColor : '#cbd5e1'};"></span>
