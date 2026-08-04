@@ -22,10 +22,20 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 html, body { height: 100%; height: 100dvh; overflow: hidden; background: linear-gradient(135deg, #2C4F7C 0%, #4E7FAE 55%, #6FA0CC 100%); color: #1e2a36; font-family: 'Courier New', monospace; }
 body { display: flex; flex-direction: column; }
-#topbar { flex-shrink: 0; background: var(--navy); box-shadow: 0 2px 8px rgba(0,0,0,0.25); padding: 8px 14px; display: flex; align-items: center; justify-content: space-between; }
+/* position+z-index so the topbar (and the basic/advanced switch living in
+   it) stays above #management-row.mgmt-fullscreen's fixed inset:0 overlay
+   below — otherwise there'd be no way back out of fullscreen. */
+#topbar { flex-shrink: 0; position: relative; z-index: 45; background: var(--navy); box-shadow: 0 2px 8px rgba(0,0,0,0.25); padding: 8px 14px; display: flex; align-items: center; justify-content: space-between; }
 #topbar .title { font-size: 12px; font-weight: 900; letter-spacing: 1px; color: #ffffff; text-transform: uppercase; }
 #topbar label { color: rgba(255,255,255,0.85); }
 #run-status { font-size: 11px; font-weight: 700; }
+#mode-switch-wrap { display: none; align-items: center; gap: 6px; }
+#mode-switch-wrap span { font-size: 10px; font-weight: 700; letter-spacing: 0.5px; color: rgba(255,255,255,0.5); }
+#mode-switch-wrap span.active { color: #ffffff; }
+.mode-switch { position: relative; width: 36px; height: 19px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.4); background: rgba(255,255,255,0.15); cursor: pointer; padding: 0; flex-shrink: 0; }
+.mode-switch .mode-switch-thumb { position: absolute; top: 1px; left: 1px; width: 15px; height: 15px; border-radius: 50%; background: #fff; transition: left 0.15s ease; }
+.mode-switch.on { background: #27833A; border-color: #27833A; }
+.mode-switch.on .mode-switch-thumb { left: 18px; }
 #main { flex: 1; min-height: 0; padding: 8px; display: flex; flex-direction: column; gap: 8px; width: 100%; overflow: hidden; }
 #create-panel { max-width: 480px; margin: 0 auto; flex-shrink: 0; }
 #dashboard { flex: 1; min-height: 0; display: none; flex-direction: row; gap: 8px; }
@@ -40,7 +50,10 @@ body { display: flex; flex-direction: column; }
    spare — it's hidden in the normal side-by-side layout and only shown
    when management-row goes fullscreen (see #mini-graph-panel below). */
 #mini-graph-panel { display: none; }
-#mini-graph-svg-wrap { display: block; flex: 1; min-height: 0; }
+#mini-graph-svg-wrap { display: block; flex: 1; min-height: 0; cursor: pointer; }
+#full-graph-modal-inner { width: 100%; max-width: 1000px; height: 85vh; display: flex; flex-direction: column; }
+#full-graph-modal-slot { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+#full-graph-modal-slot #graph-panel { flex: 1; min-height: 0; }
 #management-row.mgmt-fullscreen { position: fixed; inset: 0; z-index: 40; margin: 0; padding: 8px; background: linear-gradient(135deg, #2C4F7C 0%, #4E7FAE 55%, #6FA0CC 100%); }
 #management-row.mgmt-fullscreen #management-panel { flex: 2; }
 #management-row.mgmt-fullscreen #info-col { flex: 1; }
@@ -114,6 +127,11 @@ select, input[type=number], input[type=text] { font-family: 'Courier New', monos
     <div id="avnav-slot"></div>
     <img src="logo.png" alt="D.A.S.H — Dynamic Assessment &amp; Simulation Hub" class="topbar-logo-img">
     <div class="title">Live Scenario — Control</div>
+    <div id="mode-switch-wrap" title="Basic: just Management/Controls + Scenario Info, plus a compact trajectory preview. Advanced: the full dashboard with the editable graph and log feed.">
+      <span id="mode-label-basic">BASIC</span>
+      <button type="button" class="mode-switch" id="mode-switch" role="switch" aria-checked="false" aria-label="Toggle basic/advanced view" onclick="toggleManagementFullscreen()"><span class="mode-switch-thumb"></span></button>
+      <span id="mode-label-advanced" class="active">ADVANCED</span>
+    </div>
   </div>
   <div style="display:flex;align-items:center;gap:10px;">
     <div id="ai-cost-indicator" style="font-size:11px;color:rgba(255,255,255,0.85);" title="Running Anthropic API cost this session">$0.0000</div>
@@ -177,13 +195,7 @@ select, input[type=number], input[type=text] { font-family: 'Courier New', monos
 
       <div id="management-row">
         <div class="panel" id="management-panel">
-          <div class="row" style="justify-content:space-between;align-items:center;margin-bottom:8px;">
-            <h2 style="margin-bottom:0;">Management / Controls</h2>
-            <button class="btn btn-secondary toolbtn iconbtn" id="mgmt-fullscreen-btn" onclick="toggleManagementFullscreen()" aria-label="Toggle fullscreen" title="Expand to fullscreen">
-              <svg id="mgmt-fs-expand-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
-              <svg id="mgmt-fs-collapse-icon" style="display:none;" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 14 10 14 10 20"/><polyline points="20 10 14 10 14 4"/><line x1="14" y1="10" x2="21" y2="3"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
-            </button>
-          </div>
+          <h2>Management / Controls</h2>
           <div class="row">
             <button class="btn btn-start" id="run-btn" onclick="toggleRun()">Start Scenario</button>
             <label style="margin:0;"><input type="checkbox" id="instant-toggle" onchange="updateInstantMode()"> Instant Mode</label>
@@ -245,8 +257,8 @@ select, input[type=number], input[type=text] { font-family: 'Courier New', monos
           <div class="info-tab-content" id="info-tab-clinical"></div>
         </div>
         <div class="panel" id="mini-graph-panel">
-          <h2>Trajectory</h2>
-          <div id="mini-graph-svg-wrap"></div>
+          <h2>Trajectory <span class="muted" style="text-transform:none;letter-spacing:0;font-weight:400;">— tap to open</span></h2>
+          <div id="mini-graph-svg-wrap" onclick="openFullGraphModal()" title="Open the full trajectory graph"></div>
         </div>
         </div>
       </div>
@@ -310,6 +322,21 @@ select, input[type=number], input[type=text] { font-family: 'Courier New', monos
       <button class="btn btn-secondary" style="flex:1;" onclick="dismissResumePrompt()">Not Now</button>
       <button class="btn btn-start" style="flex:1;" onclick="confirmResumeFromPrompt()">Resume</button>
     </div>
+  </div>
+</div>
+
+<!-- Opened by tapping the mini graph in the Basic (fullscreen management)
+     view — see openFullGraphModal(). Deliberately empty of its own graph
+     markup: it borrows the real #graph-panel element (toolbar, edit tools,
+     svg, vitals grid) by reparenting it into #full-graph-modal-slot rather
+     than duplicating that whole subsystem, so every existing behaviour
+     (zoom/pan, ghosts, Edit Mode add/move/remove, etc) just works unchanged. -->
+<div id="full-graph-modal" style="display:none;position:fixed;inset:0;background:rgba(20,30,45,0.75);align-items:center;justify-content:center;z-index:55;padding:16px;">
+  <div class="panel" id="full-graph-modal-inner">
+    <div class="row" style="justify-content:flex-end;align-items:center;margin-bottom:0;">
+      <button class="btn btn-secondary" style="padding:2px 10px;font-size:14px;" onclick="closeFullGraphModal()">&times;</button>
+    </div>
+    <div id="full-graph-modal-slot"></div>
   </div>
 </div>
 
@@ -968,6 +995,7 @@ async function createSession() {
       autoEnableGraphSeriesFromOverrides(timeline.timeline_overrides);
       document.getElementById('create-panel').style.display = 'none';
       document.getElementById('dashboard').style.display = 'flex';
+      document.getElementById('mode-switch-wrap').style.display = 'flex';
       document.getElementById('code-display').textContent = code;
       graphViewStartMin = 0;
       graphViewWindowMin = 30;
@@ -1379,16 +1407,54 @@ function toggleVitalVisibility(defKey) {
   tickVitals();
 }
 
+// "Basic" (fullscreen management — just Management/Controls + Scenario
+// Info, plus the compact mini graph) vs "Advanced" (the normal full
+// dashboard: editable graph + management row + log feed). Driven by the
+// switch in the topbar (see #mode-switch-wrap) rather than a button buried
+// in the management panel itself, so it reads as a page-level view mode,
+// not a per-panel expand/collapse.
 function toggleManagementFullscreen() {
   const row = document.getElementById('management-row');
   const isFs = row.classList.toggle('mgmt-fullscreen');
-  document.getElementById('mgmt-fs-expand-icon').style.display = isFs ? 'none' : '';
-  document.getElementById('mgmt-fs-collapse-icon').style.display = isFs ? '' : 'none';
-  document.getElementById('mgmt-fullscreen-btn').title = isFs ? 'Exit fullscreen' : 'Expand to fullscreen';
+  document.getElementById('mode-switch').classList.toggle('on', isFs);
+  document.getElementById('mode-switch').setAttribute('aria-checked', String(isFs));
+  document.getElementById('mode-label-basic').classList.toggle('active', isFs);
+  document.getElementById('mode-label-advanced').classList.toggle('active', !isFs);
+  // The full graph modal borrows the real #graph-panel node (see
+  // openFullGraphModal) — Advanced needs that node back in #dash-left, so
+  // leaving Basic while it's open closes it first rather than leaving
+  // #graph-panel stranded inside a hidden modal.
+  if (!isFs) closeFullGraphModal();
   // The main graph panel is hidden while fullscreen (it's outside
   // management-row), so the mini graph is the only trajectory view visible
   // — draw it immediately rather than waiting for the next tick/renderGraph.
   renderMiniGraph();
+}
+
+// Tapping the mini graph swaps in the real, fully-interactive graph panel
+// (toolbar, zoom/pan, Edit Mode, everything) rather than a second
+// implementation — see the comment above #full-graph-modal in the HTML for
+// why this reparents the DOM node instead of duplicating it.
+let _graphPanelHome = null;
+function openFullGraphModal() {
+  if (!liveConfig) return;
+  const panel = document.getElementById('graph-panel');
+  const slot = document.getElementById('full-graph-modal-slot');
+  if (!panel || !slot || _graphPanelHome) return; // already open
+  _graphPanelHome = { parent: panel.parentNode, next: panel.nextSibling };
+  slot.appendChild(panel);
+  document.getElementById('full-graph-modal').style.display = 'flex';
+  renderGraph();
+}
+function closeFullGraphModal() {
+  const panel = document.getElementById('graph-panel');
+  if (_graphPanelHome && panel) {
+    if (_graphPanelHome.next) _graphPanelHome.parent.insertBefore(panel, _graphPanelHome.next);
+    else _graphPanelHome.parent.appendChild(panel);
+  }
+  _graphPanelHome = null;
+  document.getElementById('full-graph-modal').style.display = 'none';
+  if (liveConfig) renderGraph();
 }
 
 function toggleVitalsEditMode() {
@@ -2399,15 +2465,30 @@ function renderGraph() {
 // with every one of that function's many call sites for free) and directly
 // from toggleManagementFullscreen() (so it appears the instant the panel
 // is shown, without waiting for the next tick).
+// Fixed set of series shown in the compact preview — deliberately not tied
+// to graphSeriesOn (the main graph's user-configurable toggles): there's no
+// room here for toggle controls, and tapping the mini graph opens the real,
+// fully-configurable one in a modal instead (see openFullGraphModal()).
+const MINI_GRAPH_KEYS = ['HR', 'BPsys', 'BPdia', 'RR', 'health'];
+const MINI_GRAPH_WINDOW_MIN = 10;
+
 function renderMiniGraph() {
   const wrap = document.getElementById('mini-graph-svg-wrap');
   if (!wrap) return;
   const row = document.getElementById('management-row');
   if (!row || !row.classList.contains('mgmt-fullscreen') || !liveConfig) { wrap.innerHTML = ''; return; }
 
-  const W = 400, H = 130, padL = 4, padR = 28, padT = 6, padB = 14;
+  const W = 400, H = 130, padL = 4, padR = 10, padT = 6, padB = 16;
   const plotW = W - padL - padR, plotH = H - padT - padB;
-  const viewStart = graphViewStartMin, viewEnd = graphViewStartMin + graphViewWindowMin;
+  const elapsedMin = (simNow() - liveConfig.startTimeMs) / 60000;
+  // Fixed [0, 10] window until "now" reaches 1/3 of the way across it, then
+  // slides continuously to keep "now" pinned at that 1/3 mark — a
+  // real-time-monitor-style sliding window, deliberately continuous rather
+  // than the main graph's own jump-when-90%-full auto-follow (see
+  // renderGraph() above) since there's no room here to show the jump.
+  const followAtMin = MINI_GRAPH_WINDOW_MIN / 3;
+  const viewStart = (liveConfig.hasStarted && elapsedMin > followAtMin) ? elapsedMin - followAtMin : 0;
+  const viewEnd = viewStart + MINI_GRAPH_WINDOW_MIN;
   const xForMin = (m) => padL + ((m - viewStart) / (viewEnd - viewStart)) * plotW;
   const yFor = (s, val) => padT + (1 - Math.min(1, Math.max(0, (val - s.min) / ((s.plotMax !== undefined ? s.plotMax : s.max) - s.min)))) * plotH;
   const SAMPLES = 40;
@@ -2417,10 +2498,19 @@ function renderMiniGraph() {
     const y = padT + (1 - f) * plotH;
     grid += `<line x1="${padL}" y1="${y}" x2="${padL + plotW}" y2="${y}" stroke="#f1f5f9" stroke-width="1" />`;
   });
+  // Time axis — same niceStep() rounding renderGraph() uses for the main
+  // graph's grid, just against this view's fixed 10-minute span.
+  const gridStepMin = niceStep(MINI_GRAPH_WINDOW_MIN / 5);
+  for (let m = Math.ceil(viewStart / gridStepMin) * gridStepMin; m <= viewEnd; m += gridStepMin) {
+    const x = xForMin(m);
+    grid += `<line x1="${x}" y1="${padT}" x2="${x}" y2="${padT + plotH}" stroke="#e2e8f0" stroke-width="1" />`;
+    grid += `<text x="${x}" y="${H - 4}" font-size="9" fill="#6b8299" text-anchor="middle">${Math.round(m)}m</text>`;
+  }
 
   let paths = '';
-  GRAPH_SERIES.forEach(s => {
-    if (!graphSeriesOn[s.key]) return;
+  MINI_GRAPH_KEYS.forEach(key => {
+    const s = GRAPH_SERIES.find(g => g.key === key);
+    if (!s) return;
     const pts = [];
     for (let i = 0; i <= SAMPLES; i++) {
       const m = viewStart + (viewEnd - viewStart) * (i / SAMPLES);
@@ -2428,11 +2518,21 @@ function renderMiniGraph() {
       const val = s.get(SimEngine.getVitalsRaw(liveConfig, tMs), liveConfig, tMs);
       pts.push([xForMin(m), yFor(s, val)]);
     }
-    paths += `<path d="${pointsToSmoothPath(pts)}" fill="none" stroke="${s.color}" stroke-width="1.5" stroke-linecap="round" />`;
+    // Health is coloured by value (green -> black), matching the main
+    // graph's health-line-gradient — a flat stroke would misrepresent a
+    // line whose whole point is that its colour isn't flat.
+    let strokeAttr = `stroke="${s.color}"`;
+    if (s.key === 'health') {
+      const yTop = yFor(s, 100), yBottom = yFor(s, 0);
+      paths += `<defs><linearGradient id="mini-health-line-gradient" gradientUnits="userSpaceOnUse" x1="0" y1="${yTop}" x2="0" y2="${yBottom}">` +
+        HEALTH_COLOR_STOPS.map(st => `<stop offset="${100 - st.value}%" stop-color="${st.color}" />`).join('') +
+        `</linearGradient></defs>`;
+      strokeAttr = `stroke="url(#mini-health-line-gradient)"`;
+    }
+    paths += `<path d="${pointsToSmoothPath(pts)}" fill="none" ${strokeAttr} stroke-width="1.5" stroke-linecap="round" />`;
   });
 
   let playhead = '';
-  const elapsedMin = (simNow() - liveConfig.startTimeMs) / 60000;
   if (liveConfig.hasStarted && elapsedMin >= viewStart && elapsedMin <= viewEnd) {
     const x = xForMin(elapsedMin);
     playhead = `<line x1="${x}" y1="${padT}" x2="${x}" y2="${padT + plotH}" stroke="#0369a1" stroke-width="1.5" stroke-dasharray="3,2" />`;
