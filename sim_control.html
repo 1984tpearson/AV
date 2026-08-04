@@ -754,7 +754,7 @@ let SCRIPTED_EVENT_PROMPT = "You are the instructor/assessor's direct control ch
 let TREATMENT_ROUTER_PROMPT = "You are a fast router for a paramedic training simulator. You are given one or more management actions given together in a single entry, and a fixed catalogue of actions the simulator can already handle with zero AI reasoning — either a known no-effect outcome, or a known coded/randomised effect on a specific tracked vital.\n\nCATALOGUE (id | label | outcome):\n{{catalogue}}\n\nTRACKED VITALS in this simulator: HR, RR, SpO2, EtCO2, BP (systolic/diastolic), Temp, BGL, Ketones, Pain score, Nausea score, GCS. Anything NOT affecting one of these is out of scope for reasoning regardless of its real-world effect.\n\nPatient's stated allergies: {{allergies}}\n\nTASK: Split the input into its distinct actions. For each, decide if it fuzzy-matches a catalogue item (handle typos, dose/route wording, synonyms — e.g. \"300mg aspirin chewed\" matches \"aspirin\"). A catalogue match is INVALID if the patient is allergic to that drug/class per the stated allergies above — treat it as needing full reasoning instead. A catalogue match is ALSO INVALID if a stated dose is clearly outside the normal/standard therapeutic range for that drug (grossly excessive, unusually subtherapeutic, or otherwise abnormal) — the catalogue's fixed outcome only holds for an ordinary, appropriately-dosed administration; an unusual dose needs full reasoning to model toxicity, reduced/exaggerated effect, or other dose-dependent consequences. If no dose is stated at all, assume a standard dose and match normally. If an action doesn't clearly match anything in the catalogue, or you're not confident, mark it unmatched — default to unmatched whenever unsure.\n\nReturn ONLY valid JSON, no prose: {\"items\":[{\"text\":\"<verbatim excerpt of this action from the input>\",\"matchId\":\"<catalogue id, or null>\"}]}";
 let PATIENT_VOICE_PROMPT = "You are voicing the PATIENT in a paramedic training scenario, answering a question the crew just asked out loud. Reply only as the patient would speak — first person, in character, brief (1-3 short sentences), plain lay language, no clinical terms the patient wouldn't use.\n\nOnly say what this patient could plausibly know or perceive themselves (their own symptoms, feelings, what happened to them, basic personal details) — never reveal the provisional diagnosis, clinical reasoning, vital sign numbers, or anything a real patient wouldn't know or say. If asked something the patient wouldn't know or that's irrelevant to them, answer in character as a confused/unsure patient would.\n\nLet their current condition colour HOW they answer: e.g. short of breath = short, breathless sentences; distressed/in pain = anxious tone. Never break character, never mention this being a simulation.\n\nYour name is {{patientName}}. If asked your name, or anything requiring you to refer to yourself, you MUST use this exact name — never invent or substitute a different one.\n{{confusedNote}}\n\nReturn ONLY the spoken reply text — no quotation marks, no stage directions, no prose about the answer.";
 let PATIENT_VOICE_CONFUSED_NOTE = "This patient’s GCS Verbal score is 4 (confused conversation) — they are disoriented. Every reply must be rambling, tangential, and only loosely connected to what was actually asked (may drift to an unrelated memory, misidentify the crew, or answer a different question than the one asked) — never a clear, accurate, on-topic answer, no matter what is asked.";
-let EXAM_FINDING_PROMPT = "You are narrating an OBJECTIVE physical exam/assessment finding in a paramedic training scenario — the crew has just described an assessment action out loud (e.g. \"I check the patient's pupils\", \"I auscultate the chest\", \"I palpate the abdomen\"). Reply as a brief, third-person clinical finding statement (1-2 short sentences) — what the crew would observe/feel/hear — not as the patient speaking, and not clinical reasoning or diagnosis.\n\nGround your answer in the scenario data provided below (secondary_survey findings per body system, flags, life threats, current vitals). If the crew's action clearly matches an authored finding, report that finding (in your own words, not verbatim). If it doesn't match anything explicitly authored (e.g. a specific item like pupils that isn't itemised), give a plausible, UNREMARKABLE finding that is consistent with — and never contradicts — the rest of the authored picture (e.g. don't report normal pupils if there's a documented opioid-toxicity/CNS-depression picture; don't report clear lung sounds if there's a documented respiratory life threat).\n\nThis works regardless of the patient's conscious state — a physical exam finding is observable whether or not the patient can respond verbally.\n\nReturn ONLY the finding statement — no quotation marks, no prose about the answer, no clinical reasoning or diagnosis, no mention of this being a simulation.";
+let EXAM_FINDING_PROMPT = "You are narrating an OBJECTIVE physical exam/assessment finding in a paramedic training scenario — the crew has just described an assessment action out loud (e.g. \"I check the patient's pupils\", \"I auscultate the chest\", \"I palpate the abdomen\"). Reply as a brief, third-person clinical finding statement (1-2 short sentences) — what the crew would observe/feel/hear — not as the patient speaking, and not clinical reasoning or diagnosis.\n\nGround your answer in the scenario data provided below (secondary_survey findings per body system, flags, current vitals). If the crew's action clearly matches an authored finding, report that finding (in your own words, not verbatim). If it doesn't match anything explicitly authored (e.g. a specific item like pupils that isn't itemised), give a plausible, UNREMARKABLE finding that is consistent with — and never contradicts — the rest of the authored picture (e.g. don't report normal pupils if there's a documented opioid-toxicity/CNS-depression picture; don't report clear lung sounds if there's a documented respiratory life threat).\n\nThis works regardless of the patient's conscious state — a physical exam finding is observable whether or not the patient can respond verbally.\n\nReturn ONLY the finding statement — no quotation marks, no prose about the answer, no clinical reasoning or diagnosis, no mention of this being a simulation.";
 
 async function generateSimTimeline(scenario) {
   const startingVitals = parseScenarioVitals(scenario);
@@ -770,7 +770,6 @@ CPG: ${scenario.cpg || 'unspecified'}
 Category: ${scenario.category || ''} / ${scenario.subcategory || ''}
 Key history: ${scenario.key_hx || ''}
 Flags: ${JSON.stringify(scenario.flags || [])}
-Life threats: ${JSON.stringify(scenario.life_threats || [])}
 Patient: ${(scenario.patient_meta && scenario.patient_meta.name) || 'unnamed'}, mood: ${(scenario.patient_meta && scenario.patient_meta.mood) || 'not specified'}
 Starting vitals at arrival (minute 0): ${JSON.stringify(startingVitals)}
 Presenting cardiac rhythm at arrival (minute 0, already handled — react to it, don't restate it): ${startingRhythm || 'not specified — assume an ordinary sinus rhythm at this HR unless the diagnosis implies otherwise'}
@@ -3055,10 +3054,14 @@ async function answerPatientQuestion(question, forId) {
 // sim_patient.html's Assessment button. Deliberately NOT gated by GCS —
 // unlike answerPatientQuestion(), a physical exam works whether or not the
 // patient can talk (an unconscious patient's pupils are still checkable).
-// Grounded in the scenario's own authored secondary_survey/flags/
-// life_threats data so findings aren't invented from nothing; anything not
-// explicitly authored defaults to an unremarkable finding consistent with
-// the rest of the picture, never contradicting an authored abnormal flag.
+// Grounded in the scenario's own authored secondary_survey/flags data so
+// findings aren't invented from nothing; anything not explicitly authored
+// defaults to an unremarkable finding consistent with the rest of the
+// picture, never contradicting an authored abnormal flag. Deliberately NOT
+// grounded in life_threats — those are pre-scenario primary-survey actions
+// (see generator.html), and feeding "management already performed" text
+// into any AI call here risks the same "already treated" assumption that
+// life_threats caused in the trajectory-projection prompts.
 async function answerExamFinding(question, forId) {
   if (!currentScenario) return;
   const nowMin = (simNow() - liveConfig.startTimeMs) / 60000;
@@ -3074,7 +3077,6 @@ async function answerExamFinding(question, forId) {
 Provisional diagnosis (do not reveal): ${currentScenario.provisional || 'unspecified'}
 Key history: ${currentScenario.key_hx || ''}
 Flags: ${JSON.stringify(currentScenario.flags || {})}
-Life threats: ${JSON.stringify(currentScenario.life_threats || [])}
 Authored secondary survey findings: ${JSON.stringify(currentScenario.secondary_survey || {})}
 Appearance data: ${JSON.stringify({ rsa: currentScenario.rsa || null, ra: currentScenario.ra || null })}
 Current vitals: HR ${v.HR}, RR ${v.RR}, SpO2 ${v.SpO2}%, BP ${v.BPsys}/${v.BPdia}, GCS ${(v.gcsE||0)+(v.gcsV||0)+(v.gcsM||0)}/15
@@ -3377,7 +3379,6 @@ Provisional diagnosis: ${currentScenario.provisional || 'unspecified'}
 CPG: ${currentScenario.cpg || 'unspecified'}
 Key history: ${currentScenario.key_hx || ''}
 Flags: ${JSON.stringify(currentScenario.flags || [])}
-Life threats: ${JSON.stringify(currentScenario.life_threats || [])}
 
 Prior treatments already given in this encounter, in order (factor in their cumulative effect — this action doesn't happen in isolation): ${treatments.length > 1 ? treatments.slice(0, -1).map(t => `${t.action} (at minute ${t.givenAtMin.toFixed(1)})`).join('; ') : 'none — this is the first treatment given'}
 Action just given by the crew (at minute ${elapsedMin.toFixed(1)} of the scenario): ${action}
@@ -3556,7 +3557,6 @@ Provisional diagnosis: ${currentScenario.provisional || 'unspecified'}
 CPG: ${currentScenario.cpg || 'unspecified'}
 Key history: ${currentScenario.key_hx || ''}
 Flags: ${JSON.stringify(currentScenario.flags || [])}
-Life threats: ${JSON.stringify(currentScenario.life_threats || [])}
 
 Treatments given so far in this encounter, in order: ${treatments.filter(t => t.source !== 'assessor_command').length ? treatments.filter(t => t.source !== 'assessor_command').map(t => `${t.action} (at minute ${t.givenAtMin.toFixed(1)})`).join('; ') : 'none'}
 Assessor command just issued (at minute ${elapsedMin.toFixed(1)} of the scenario): ${command}
