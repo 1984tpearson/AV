@@ -121,6 +121,38 @@ label at each in-scenario rhythm change in view, plus a persistent
 "♥ CURRENT RHYTHM" badge (skips drawing a marker line for the scenario's
 starting entry itself — the badge already covers that).
 
+### Patient orientation: real-world date vs. in-scenario time-of-day
+
+Two distinct date/time concepts feed `sim_control.html`'s AI calls, both
+computed fresh per call rather than cached — neither is stored on
+`liveConfig`:
+
+- `currentDateTimeContext()` — the real device clock (`new Date()`), used
+  as background grounding for the trajectory/projection prompts
+  (`generateSimTimeline`, `TREATMENT_UPDATE_PROMPT`,
+  `SCRIPTED_EVENT_PROMPT`) so the model's pharmacological/clinical
+  reasoning is anchored to the real calendar date rather than whatever it
+  might otherwise assume — unrelated to what the patient believes.
+- `scenarioFictionalDateTime()` — the patient's own sense of the date/time,
+  used only in `callPatientAI()`'s user prompt (the "Talk to Patient" AI
+  path, gcsV 4-5). Answers a GCS orientation question ("what year is it?")
+  with today's real calendar date (so the patient doesn't default to some
+  earlier year from the model's training cutoff) at the scenario's
+  authored baseline time-of-day (`vitals.TimeOfDay`, a `generator.html`
+  free-text-with-fallback field parsed by `parseScenarioTimeOfDay()` —
+  same pattern as `vitals.Rhythm` above, e.g. a scenario that opens as a
+  3am callout), advanced by however much scenario time has genuinely
+  elapsed since arrival via `simNow() - liveConfig.startTimeMs` — the same
+  pause-aware clock (`SimEngine.getSimNow()`) the vitals engine itself
+  runs on, so pausing the session doesn't also age the patient's sense of
+  time, and rewinding the playhead moves it backward too since it's
+  derived from `simNow()` fresh on every call rather than accumulated
+  separately. Falls back to `currentDateTimeContext()` for older scenarios
+  that predate the `TimeOfDay` field, or if nothing's live yet.
+  `PATIENT_VOICE_PROMPT`'s system-prompt text also explicitly tells the
+  model to trust the given date/time over any date it might otherwise
+  assume, rather than relying on the user-turn wording alone.
+
 ### Patient avatar (`sim_patient.html` only)
 
 The `#head-wrap` placeholder is a hand-built inline SVG face, not a photo —

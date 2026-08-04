@@ -570,6 +570,7 @@ textarea{resize:vertical;min-height:72px;line-height:1.5}
           <div><label>Temp</label><input type="text" id="m-temp" placeholder="36.8°C"></div>
           <div><label>BGL</label><input type="text" id="m-bgl" placeholder="6.2 mmol/L"></div>
           <div><label>Rhythm</label><input type="text" id="m-rhythm" placeholder="Sinus tachycardia"></div>
+          <div><label>Time of Day</label><input type="time" id="m-time-of-day"></div>
           <div><label>Weight</label><input type="text" id="m-weight" placeholder="82 kg"></div>
           <div><label>Ketones</label><input type="text" id="m-ketones" placeholder="0.2 mmol/L"></div>
           <div><label>EtCO₂</label><input type="text" id="m-etco2" placeholder="38 mmHg"></div>
@@ -1397,6 +1398,7 @@ For medications: provide a concise array of medication names with doses — no e
 For allergies: this field must reflect a DOCUMENTED ALLERGY, not a current exposure. For anaphylaxis scenarios — ALWAYS populate this field with the causative allergen (e.g. "Prawns / shellfish", "Bee sting venom", "Penicillin"). For all other scenarios: approximately 25% of patients have a pre-existing allergy — vary the allergen using realistic Australian options: morphine, aspirin, ibuprofen, sulfonamides, latex, bee stings, nuts, shellfish, contrast dye, codeine, tramadol. Return "" if no known allergy.
 For vitals.GCS: always return the structured object {E, V, M, total, description}. Choose component scores appropriate to the clinical presentation — do NOT default every scenario to GCS 15 / E4V5M6. Impaired consciousness should be reflected with realistic component scores. The description must match the scores (e.g. E2 V3 M5 = "eyes open to pain, inappropriate words, localising to pain").
 For vitals.Rhythm: Always include a cardiac rhythm using standard clinical terms (e.g. "Atrial Fibrillation", "Sinus Tachycardia", "Normal Sinus Rhythm"). Rules: (1) Non-cardiac scenarios: default to rate-appropriate sinus rhythm — "Sinus Tachycardia" if HR >100, "Sinus Bradycardia" if HR <60, otherwise "Normal Sinus Rhythm". (2) Consider age-appropriate incidental rhythms that don't affect primary management — e.g. a 78yo with pneumonia may coincidentally be in Atrial Fibrillation; a 72yo trauma patient may have 1st Degree AV Block. This is realistic and encouraged for patients over 65. (3) Cardiac scenarios: use a clinically appropriate rhythm for the presentation. (4) PEA cardiac arrest: use "Pulseless Electrical Activity (PEA)" — do NOT use VF or Asystole for PEA. (5) Never leave Rhythm blank.
+For vitals.TimeOfDay: the approximate time the crew arrives on scene, in strict 24-hour HH:MM format only (e.g. "03:15", "14:40") — no other words or units. Pick a time consistent with the scenario's narrative where one is implied (e.g. a nightclub intoxication or house-fire scenario is more plausible late at night; a school-related paediatric presentation during school hours) — otherwise any realistic time of day is fine. This is used only to let the simulated patient answer an orientation question correctly (e.g. "do you know roughly what time it is?") — it does not affect vitals, clinical reasoning, or any other field.
 For vitals.Weight: always provide a realistic weight in kg appropriate to the patient's age and presentation (e.g. "82 kg", "14 kg"). For adults use a realistic Australian adult weight. For paediatric patients use an age-appropriate weight. Never leave blank.
 For PAEDIATRIC scenarios: vitals MUST reflect the patient's age using the following AV CPG normal ranges. Generate values appropriate to the clinical context — a sick child should have vitals OUTSIDE these normal ranges in clinically appropriate directions (e.g. tachycardia, tachypnoea, hypoxia, hypotension). Normal ranges by age group:
 - Newborn (Birth–24hrs): HR 110–170, RR 25–60, sBP >60
@@ -2563,6 +2565,7 @@ async function saveManualScenario() {
       Temp: document.getElementById('m-temp').value.trim() || '—',
       BGL: document.getElementById('m-bgl').value.trim() || '—',
       Rhythm: document.getElementById('m-rhythm').value.trim() || '—',
+      TimeOfDay: document.getElementById('m-time-of-day').value || '',
       Weight: document.getElementById('m-weight').value.trim() || '—',
       Ketones: document.getElementById('m-ketones').value.trim() || '—',
       EtCO2: document.getElementById('m-etco2').value.trim() || '—',
