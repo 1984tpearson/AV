@@ -808,42 +808,23 @@ function parseScenarioStartingRhythm(scenario) {
   return (r && r !== '—') ? r : null;
 }
 
-// The scenario's authored baseline time-of-day (generator.html's "Time of
-// Day" field, e.g. "03:15" for a scenario that starts as a 3am callout) —
-// strict 24-hour HH:MM, same free-text-with-fallback pattern as Rhythm
-// above. Returns null for older scenarios that predate the field, or any
-// value that doesn't parse cleanly (scenarioFictionalDateTime() below falls
-// back to real device time in that case).
-function parseScenarioTimeOfDay(scenario) {
-  const raw = String((scenario.vitals && scenario.vitals.TimeOfDay) || '').trim();
-  const m = /^([01]?\d|2[0-3]):([0-5]\d)$/.exec(raw);
-  if (!m) return null;
-  return { hh: parseInt(m[1], 10), mm: parseInt(m[2], 10) };
-}
-
 // The patient's own in-fiction sense of "what time is it" — distinct from
 // currentDateTimeContext() (the real device clock, used elsewhere purely to
 // ground AI clinical/pharmacological reasoning in the real calendar date).
 // This is what a patient should answer if the crew asks an orientation
-// question ("what year is it", "roughly what time is it"): today's real
-// calendar date (so a training run happening in 2026 doesn't have the
-// patient stuck on some earlier year from the model's training data) at the
-// scenario's authored baseline time-of-day, advanced by however much
-// *scenario* time has genuinely elapsed since arrival — using simNow(),
-// the same pause-aware clock the vitals engine itself runs on (see
-// SimEngine.getSimNow), so pausing the session doesn't also age the
-// patient's sense of time. Falls back to the plain real-world date/time if
-// the scenario never set a baseline (older scenarios) or nothing is live
-// yet.
+// question ("what year is it", "roughly what time is it"). Delegates to
+// SimEngine.getScenarioFictionalNow() — shared with sim_patient.html's
+// on-screen scenario clock, both computed independently from the same
+// vitals.TimeOfDay baseline + pause-aware simNow(), same as the vitals
+// themselves (see CLAUDE.md "Patient orientation"). Falls back to the plain
+// real-world date/time if the scenario never set a baseline (older
+// scenarios) or nothing is live yet.
 function scenarioFictionalDateTime() {
   const fallback = currentDateTimeContext();
   if (!liveConfig || !currentScenario) return fallback;
-  const tod = parseScenarioTimeOfDay(currentScenario);
-  if (!tod) return fallback;
-  const base = new Date();
-  base.setHours(tod.hh, tod.mm, 0, 0);
-  const elapsedMs = Math.max(0, simNow() - liveConfig.startTimeMs);
-  const fictionalNow = new Date(base.getTime() + elapsedMs);
+  const raw = currentScenario.vitals && currentScenario.vitals.TimeOfDay;
+  const fictionalNow = SimEngine.getScenarioFictionalNow(raw, liveConfig, Date.now());
+  if (!fictionalNow) return fallback;
   return fictionalNow.toLocaleString('en-AU', { dateStyle: 'full', timeStyle: 'short' });
 }
 

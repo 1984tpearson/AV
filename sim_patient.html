@@ -312,6 +312,7 @@ body.mode-avatar #monitor-col { display: none !important; }
     <div class="row" id="pi-demographics">&mdash;</div>
     <div class="row" id="pi-dispatch">&mdash;</div>
     <div class="row" id="pi-complaint">&mdash;</div>
+    <div class="row" id="pi-scenario-clock">Scene time: <span id="pi-scenario-clock-value" style="font-family:'Courier New',monospace;font-weight:700;">&mdash;</span></div>
   </div>
   <div id="patient-info-voice">
     <div id="voice-modal-title-row">
@@ -1871,6 +1872,23 @@ function fmtTimer(ms) {
   return `${mm}:${ss}`;
 }
 
+// The "Scene time" clock in the Patient / Scene Info panel — the scenario's
+// own in-fiction time of day (e.g. "03:47" for a scenario that opened as a
+// 3am callout, 47 scenario-minutes in), NOT how much time has elapsed
+// (that's #scenario-timer in the topbar, a T+mm:ss countup). Delegates to
+// SimEngine.getScenarioFictionalNow() — the same shared, pause-aware
+// computation sim_control.html's AI patient-voice prompt uses (see
+// CLAUDE.md "Patient orientation"), computed independently here rather than
+// synced, same as the vitals themselves. Falls back to the real device
+// clock for scenarios that predate the vitals.TimeOfDay field.
+function updateScenarioClock(nowMs) {
+  const raw = scenarioMeta && scenarioMeta.vitals && scenarioMeta.vitals.TimeOfDay;
+  const clockDate = (testConfig && SimEngine.getScenarioFictionalNow(raw, testConfig, nowMs)) || new Date(nowMs);
+  const hh = String(clockDate.getHours()).padStart(2, '0');
+  const mm = String(clockDate.getMinutes()).padStart(2, '0');
+  document.getElementById('pi-scenario-clock-value').textContent = `${hh}:${mm}`;
+}
+
 function cellFor(actionKey) {
   const st = actionState[actionKey];
   if (st.status === 'idle') return `<span class="tap-hint">Tap to Apply</span>`;
@@ -2138,6 +2156,7 @@ function tick() {
   renderMonitorActionsBar();
   _lastHR = v.HR;
   document.getElementById('scenario-timer').textContent = fmtTimer(simNow - testConfig.startTimeMs);
+  updateScenarioClock(now);
   const indEl = document.getElementById('instant-mode-indicator');
   indEl.style.display = instantMode ? 'inline' : 'none';
   const pauseEl = document.getElementById('pause-indicator');

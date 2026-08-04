@@ -123,35 +123,41 @@ starting entry itself — the badge already covers that).
 
 ### Patient orientation: real-world date vs. in-scenario time-of-day
 
-Two distinct date/time concepts feed `sim_control.html`'s AI calls, both
-computed fresh per call rather than cached — neither is stored on
-`liveConfig`:
+`sim_engine.js`'s `getScenarioFictionalNow(timeOfDayRaw, cfg, nowMs)` is the
+patient's own in-fiction sense of "what time is it" — today's real calendar
+date (so a GCS orientation question doesn't get answered with some earlier
+year from a model's training cutoff, or a stale device clock) at the
+scenario's authored baseline time-of-day (`vitals.TimeOfDay`, a
+`generator.html` free-text-with-fallback field parsed by
+`SimEngine.parseTimeOfDay()` — same pattern as `vitals.Rhythm` above, e.g.
+"03:15" for a scenario that opens as a 3am callout), advanced by however
+much scenario time has genuinely elapsed since arrival via the SAME
+pause-aware clock (`getSimNow()`) the vitals engine itself runs on — so
+pausing the session doesn't also age the patient's sense of time, and
+rewinding the playhead moves it backward too since it's recomputed fresh
+each call rather than accumulated separately. Returns `null` if
+`timeOfDayRaw` doesn't parse (older scenarios that predate the field) —
+both call sites below fall back to the real device clock in that case, same
+as before this field existed. Kept in `sim_engine.js` and called
+independently from both pages, same as the vitals themselves, rather than
+syncing one computed value between them:
 
-- `currentDateTimeContext()` — the real device clock (`new Date()`), used
-  as background grounding for the trajectory/projection prompts
-  (`generateSimTimeline`, `TREATMENT_UPDATE_PROMPT`,
-  `SCRIPTED_EVENT_PROMPT`) so the model's pharmacological/clinical
-  reasoning is anchored to the real calendar date rather than whatever it
-  might otherwise assume — unrelated to what the patient believes.
-- `scenarioFictionalDateTime()` — the patient's own sense of the date/time,
-  used only in `callPatientAI()`'s user prompt (the "Talk to Patient" AI
-  path, gcsV 4-5). Answers a GCS orientation question ("what year is it?")
-  with today's real calendar date (so the patient doesn't default to some
-  earlier year from the model's training cutoff) at the scenario's
-  authored baseline time-of-day (`vitals.TimeOfDay`, a `generator.html`
-  free-text-with-fallback field parsed by `parseScenarioTimeOfDay()` —
-  same pattern as `vitals.Rhythm` above, e.g. a scenario that opens as a
-  3am callout), advanced by however much scenario time has genuinely
-  elapsed since arrival via `simNow() - liveConfig.startTimeMs` — the same
-  pause-aware clock (`SimEngine.getSimNow()`) the vitals engine itself
-  runs on, so pausing the session doesn't also age the patient's sense of
-  time, and rewinding the playhead moves it backward too since it's
-  derived from `simNow()` fresh on every call rather than accumulated
-  separately. Falls back to `currentDateTimeContext()` for older scenarios
-  that predate the `TimeOfDay` field, or if nothing's live yet.
+- `sim_control.html`'s `scenarioFictionalDateTime()` feeds `callPatientAI()`'s
+  user prompt (the "Talk to Patient" AI path, gcsV 4-5) — distinct from
+  `currentDateTimeContext()` (the real device clock), which stays wired into
+  the trajectory/projection prompts (`generateSimTimeline`,
+  `TREATMENT_UPDATE_PROMPT`, `SCRIPTED_EVENT_PROMPT`) purely to ground the
+  model's pharmacological/clinical reasoning in the real calendar date —
+  unrelated to what the patient believes, so left untouched.
   `PATIENT_VOICE_PROMPT`'s system-prompt text also explicitly tells the
   model to trust the given date/time over any date it might otherwise
   assume, rather than relying on the user-turn wording alone.
+- `sim_patient.html`'s `updateScenarioClock()`, called every `tick()`, drives
+  the "Scene time" row in the Patient / Scene Info panel — a 24-hour HH:MM
+  readout of the scenario's own in-fiction time, deliberately separate from
+  the topbar's `#scenario-timer` (a T+mm:ss elapsed-time countup) so a
+  student can tell "what time is it in the scenario" apart from "how long
+  have we been on scene."
 
 ### Patient avatar (`sim_patient.html` only)
 

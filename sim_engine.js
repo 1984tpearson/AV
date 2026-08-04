@@ -212,6 +212,38 @@
     return rawNowMs - totalPaused - pausedNow;
   }
 
+  // ---- Scenario baseline time-of-day (patient orientation) ----------------
+  // Parses generator.html's vitals.TimeOfDay field (e.g. "03:15" for a
+  // scenario that opens as a 3am callout) — strict 24-hour HH:MM, same
+  // free-text-with-fallback pattern as vitals.Rhythm. Returns null for older
+  // scenarios that predate the field, or anything that doesn't parse cleanly.
+  function parseTimeOfDay(raw) {
+    const m = /^([01]?\d|2[0-3]):([0-5]\d)$/.exec(String(raw || '').trim());
+    if (!m) return null;
+    return { hh: parseInt(m[1], 10), mm: parseInt(m[2], 10) };
+  }
+
+  // The patient's own in-fiction "now" — today's real calendar date (so a
+  // GCS orientation question doesn't get answered with some earlier year
+  // from a model's training cutoff, or a stale device clock) at the
+  // scenario's authored baseline time-of-day, advanced by however much
+  // scenario time has genuinely elapsed since arrival via the SAME
+  // pause-aware clock (getSimNow, above) the vitals engine itself runs on —
+  // so pausing the session doesn't also age the patient's sense of time.
+  // Both sim_control.html (AI patient-voice prompt) and sim_patient.html
+  // (the on-screen scenario clock) call this independently, same as the
+  // vitals themselves, rather than syncing a computed value between them.
+  // Returns null if timeOfDayRaw doesn't parse — callers fall back to the
+  // real device clock in that case.
+  function getScenarioFictionalNow(timeOfDayRaw, cfg, nowMs) {
+    const tod = parseTimeOfDay(timeOfDayRaw);
+    if (!tod) return null;
+    const base = new Date();
+    base.setHours(tod.hh, tod.mm, 0, 0);
+    const elapsedMs = Math.max(0, getSimNow(cfg, nowMs) - cfg.startTimeMs);
+    return new Date(base.getTime() + elapsedMs);
+  }
+
   // ---- Static-vital history (Temp/GCS/BGL/Ketones/Pain) -------------------
   // These aren't continuous curves — they're point-in-time readings that hold
   // until explicitly reassessed. Modelled as a step function: a list of
@@ -1139,6 +1171,7 @@
     get GCS_V3_WORDS() { return _cfg.GCS_V3_WORDS; },
     get GENERIC_SPONTANEOUS_LINES() { return _cfg.GENERIC_SPONTANEOUS_LINES; },
     getActionDurationSec, getVitals, getVitalsRaw, getSimNow, getStaticVitalAt, getRhythmAt, getAppearanceState,
+    parseTimeOfDay, getScenarioFictionalNow,
     getHealthScore, getHealthTrendLevel, getDisplayHealthScore, getDisplayHealthTrendLevel,
     deriveRhythmFromHR, classifyRhythmForDefib, computeSurvivabilityScore, computeDefibrillationEffect, spliceAiOverridePlan, spliceRhythmPlan, clearFutureFromFork,
     parseAgeFromScenario, parseScenarioMood, cleanSpontaneousLines,
