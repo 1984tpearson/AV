@@ -1311,7 +1311,7 @@ async function generateAIScenario() {
     : `${patient.age}yo`;
   const patientNote = complaint
     ? `Default patient demographics (use only for any details not already specified in the scenario requirements above): ${ageStr} ${patient.gender}, name: ${patient.name}.`
-    : `Patient demographics: ${ageStr} ${patient.gender}, name: ${patient.name}. Use this name and demographics in the dispatch and scenario. Do NOT change the patient age — use exactly ${ageStr}.`;
+    : `Patient demographics: ${ageStr} ${patient.gender}, name: ${patient.name}. These are FIXED and NON-NEGOTIABLE for the PATIENT — use this exact name, age, and gender everywhere the patient is described (title, subtitle, dispatch, caller_hx, arrival_hx, every hx.* field). Do NOT invent a different age or gender for the patient anywhere, including implicitly through how a bystander/caller refers to them — e.g. do not write a "husband"/"wife"/"his"/"her" framing that contradicts ${patient.gender}, and do not let the caller's own age or gender bleed into the patient's. The caller/bystander can be any relationship to the patient you like; the PATIENT's own demographics must stay exactly ${ageStr} ${patient.gender} in every field, with zero exceptions.`;
 
   const cpgInstruction = cpgContext
     ? `You MUST use the exact drug doses, thresholds, and management steps from the CPG content provided below. Do not invent doses or deviate from the provided protocol.${cpgContext}`
@@ -1472,6 +1472,35 @@ ${SCENARIO_JSON_TEMPLATE.replace('CAT', category).replace('SUB', subcategory)}`;
     delete scenario.baseline_cognitive_status;
     delete scenario.mood;
     delete scenario.pregnancy_status;
+    // Sanity-check the AI actually followed patientNote's instruction above
+    // — it's free text, and (confirmed via a real generated scenario) can
+    // simply ignore "do not change the age/gender" and write a fully
+    // self-consistent but WRONG narrative instead (e.g. patient_meta says
+    // 71yo Female, but the AI wrote an entirely different 58yo Male
+    // patient into title/subtitle/dispatch/hx). patient_meta itself can't
+    // be wrong here — it's set straight from the code-generated `patient`
+    // object a few lines up, never from AI output — so this only ever
+    // catches the AI's free text drifting away from it, not the reverse.
+    // dispatch's format is force-instructed ("Priority N — [age]yo
+    // [Male/Female] — ...", see the dispatch instruction below in
+    // userPrompt) so it's the one field reliable enough to regex-check
+    // against patient_meta's ground truth. Best-effort only — skips
+    // newborn/months-old ages (dispatch's "NNyo" pattern doesn't apply to
+    // those) and never blocks saving, same as classifyScenario()'s own
+    // best-effort philosophy elsewhere in this file; it only makes a
+    // mismatch visible instead of shipping silently.
+    let demographicsMismatch = false;
+    if (typeof patient.age === 'number' && scenario.dispatch) {
+      const dm = scenario.dispatch.match(/(\d+)\s*yo\s+(Male|Female)/i);
+      if (dm) {
+        const dispatchAge = parseInt(dm[1], 10);
+        const dispatchGender = dm[2].toLowerCase();
+        if (dispatchAge !== Math.round(patient.age) || dispatchGender !== patient.gender.toLowerCase()) {
+          demographicsMismatch = true;
+          console.warn(`Demographics mismatch: patient_meta says ${patient.age}yo ${patient.gender} (${patient.name}), but the AI's own dispatch says ${dispatchAge}yo ${dispatchGender} — it ignored the instructed demographics. Scenario: "${scenario.title}"`);
+        }
+      }
+    }
     // Validate and normalise flags object (red/yellow per CPG A0108)
     if (Array.isArray(scenario.flags)) {
       // AI returned legacy flat array despite instructions — treat as unclassified, put in red to stay safe
@@ -1521,8 +1550,9 @@ ${SCENARIO_JSON_TEMPLATE.replace('CAT', category).replace('SUB', subcategory)}`;
     const _snapTrack = document.querySelector('.gen-progress-track');
     if (_snapTrack) _ambSetTarget(100, _snapTrack.offsetWidth || 300);
     await new Promise(r=>setTimeout(r,600));
-    showStatus('quick-status','success','✅ Saved — loading scenario…');
-    showStatus('custom-status','success','✅ Saved — loading scenario…');
+    const demoWarningSuffix = demographicsMismatch ? ' — ⚠️ demographics mismatch, check patient_meta vs. title/dispatch before use' : '';
+    showStatus('quick-status','success',`✅ Saved${demoWarningSuffix} — loading scenario…`);
+    showStatus('custom-status','success',`✅ Saved${demoWarningSuffix} — loading scenario…`);
     await saveAndNavigate(scenario);
   } catch(e) {
     showStatus('quick-status','error','✕ Error: '+e.message);
