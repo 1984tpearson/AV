@@ -2776,13 +2776,15 @@ async function speakPatientReply(text, resumeIfConversing, isConversation, useHq
 //   Source Extensions — for the short (max_tokens 300) replies this engine
 //   generates, the difference is small, but a longer reply would benefit
 //   from real chunked playback later.
-// - Barge-in relies on the browser's own echo cancellation
-//   (getUserMedia's echoCancellation constraint) to keep Deepgram's
-//   SpeechStarted VAD event from mistaking the patient's own TTS audio,
-//   played through the same device's speaker, for the student interrupting
-//   — quality of this varies by device/browser and hasn't been validated
-//   against real hardware yet. If barge-in fires spuriously during
-//   testing, this is the first place to look.
+// - True mid-sentence barge-in is DISABLED for now, not just unreliable:
+//   the browser's own echo cancellation wasn't enough to stop Deepgram's
+//   VAD from reading the patient's own TTS audio (bleeding from speaker
+//   back into mic, no headset) as the student interrupting — first
+//   real-device test cut every reply off after a word or two. Fixed by
+//   pausing the mic entirely while a reply plays (see speakRealtimeReply())
+//   rather than trying to filter the false positive, which trades away
+//   genuine interruption for correctness. SpeechStarted can now only ever
+//   fire between exchanges, never during one.
 // - Requires Chrome (MediaRecorder) — same constraint the legacy path
 //   already has, see getSpeechRecognitionCtor()'s comment above.
 // - Requires one more API key (Deepgram — used for BOTH the STT
@@ -2947,6 +2949,9 @@ function endRealtimeCall() {
 function stopRealtimeAudio() {
   _rtSpeaking = false;
   if (_rtAudioEl) { try { _rtAudioEl.pause(); } catch (e) {} }
+  // Resume listening — see speakRealtimeReply()'s pause() for why the
+  // recorder was paused in the first place.
+  if (_rtRecorder && _rtRecorder.state === 'paused') { try { _rtRecorder.resume(); } catch (e) {} }
   stopTalkAnimation();
 }
 
@@ -2991,7 +2996,7 @@ async function startRealtimeCapture() {
 
   socket.onopen = () => {
     if (callId !== _rtCallId) { try { socket.close(); } catch (e) {} return; }
-    statusEl.textContent = 'Listening… (just talk — you can interrupt anytime)';
+    statusEl.textContent = 'Listening… (just talk)';
     const recorder = new MediaRecorder(stream, { mimeType: 'audio/webm;codecs=opus' });
     _rtRecorder = recorder;
     recorder.ondataavailable = (ev) => {
@@ -3005,10 +3010,12 @@ async function startRealtimeCapture() {
     let msg;
     try { msg = JSON.parse(ev.data); } catch (e) { return; }
     if (msg.type === 'SpeechStarted') {
-      // Barge-in: the student started talking again. Only meaningful while
-      // the patient's own reply is actually playing — otherwise this is
-      // just normal VAD noise at the start of every utterance, not an
-      // interruption of anything.
+      // In practice this should now only ever fire BETWEEN exchanges — the
+      // recorder is paused for the whole time _rtSpeaking is true (see
+      // speakRealtimeReply()), so there's no mic audio reaching Deepgram
+      // for it to (mis)detect during playback anymore. Left as a guard
+      // rather than removed outright, in case a message that was already
+      // in flight when the pause took effect still lands.
       if (_rtSpeaking) stopRealtimeAudio();
       return;
     }
@@ -3053,7 +3060,7 @@ async function handleRealtimeUtterance(text, callId) {
   if (callId !== _rtCallId) return; // call ended/superseded while the AI call was in flight
   if (!reply) {
     // GCS V<=1 — no verbal response at all, same as the legacy path.
-    statusEl.textContent = 'Listening… (just talk — you can interrupt anytime)';
+    statusEl.textContent = 'Listening… (just talk)';
     return;
   }
   statusEl.textContent = 'Patient replied:';
@@ -3067,7 +3074,7 @@ async function handleRealtimeUtterance(text, callId) {
   }).catch(() => {});
   await speakRealtimeReply(reply, callId);
   if (callId !== _rtCallId) return;
-  statusEl.textContent = 'Listening… (just talk — you can interrupt anytime)';
+  statusEl.textContent = 'Listening… (just talk)';
   replyEl.style.display = 'none';
 }
 
@@ -3151,15 +3158,28 @@ async function speakRealtimeReply(text, callId) {
     const audio = _rtAudioEl || new Audio();
     audio.src = URL.createObjectURL(blob);
     _rtSpeaking = true;
+    // Pause the mic BEFORE playing — without a real headset, the patient's
+    // own reply bleeds out of the speaker and back into the mic, and
+    // Deepgram's VAD reads that as the student interrupting (see
+    // onmessage's SpeechStarted branch in startRealtimeCapture()), cutting
+    // the reply off after a word or two. Pausing means no audio reaches
+    // Deepgram while the reply plays, so there's nothing for the VAD to
+    // (mis)detect — resumed in stopRealtimeAudio() once playback ends.
+    // Trade-off: this makes true mid-sentence barge-in impossible for now
+    // (the mic is genuinely deaf while the patient is talking, not just
+    // ignored) — SpeechStarted can now only ever fire between exchanges,
+    // never during one. Revisit if real interruption turns out to matter
+    // more than eliminating the self-cutoff bug; a headset/proper echo
+    // cancellation would let both coexist.
+    if (_rtRecorder && _rtRecorder.state === 'recording') { try { _rtRecorder.pause(); } catch (e) {} }
     await new Promise((resolve, reject) => {
       audio.onended = resolve;
       audio.onerror = () => reject(new Error('Deepgram TTS audio playback error'));
       audio.play().then(startTalkAnimation).catch(reject);
     });
-    _rtSpeaking = false;
-    stopTalkAnimation();
+    stopRealtimeAudio(); // clears _rtSpeaking, stops talk animation, AND resumes the recorder — see its comment
   } catch (e) {
-    _rtSpeaking = false;
+    stopRealtimeAudio();
     if (callId !== _rtCallId) return;
     // Fall back to the legacy Piper/Web Speech chain — isConversation=false
     // and a no-op resume since this call site drives its own loop
