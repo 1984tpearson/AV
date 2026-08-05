@@ -135,15 +135,27 @@ body.mode-avatar #monitor-col { display: none !important; }
 
 /* Voice capture — Give Treatment / Talk to Patient ------------------------ */
 #voice-fab-strip { display: flex; flex-direction: row; gap: 6px; flex-shrink: 0; width: 100%; max-width: 240px; }
-.voice-fab { flex: 1; min-height: 26px; display: flex; align-items: center; justify-content: center; gap: 4px; border-radius: 7px; border: none; background: #0369a1; color: #fff; font-family: 'Courier New', monospace; font-weight: 700; font-size: 10px; letter-spacing: 0.3px; cursor: pointer; padding: 4px 6px; -webkit-tap-highlight-color: rgba(255,255,255,0.2); touch-action: none; user-select: none; }
+.voice-fab { flex: 1; min-height: 26px; display: flex; align-items: center; justify-content: center; gap: 4px; border-radius: 7px; border: none; background: #0369a1; color: #fff; font-family: 'Courier New', monospace; font-weight: 700; font-size: 10px; letter-spacing: 0.3px; cursor: pointer; padding: 4px 6px; -webkit-tap-highlight-color: rgba(255,255,255,0.2); user-select: none; }
 .voice-fab svg { width: 11px; height: 11px; flex-shrink: 0; fill: currentColor; }
-.voice-fab:active, .voice-fab.holding { background: #075985; }
+.voice-fab:active { background: #075985; }
 #voice-fab-chat { background: #15803d; }
-#voice-fab-chat:active, #voice-fab-chat.holding { background: #14532d; }
+#voice-fab-chat:active { background: #14532d; }
 #voice-fab-exam { background: #7c3aed; }
-#voice-fab-exam:active, #voice-fab-exam.holding { background: #5b21b6; }
-#voice-input-mode-btn { width: 100%; max-width: 240px; min-height: 22px; margin-top: 2px; border-radius: 7px; border: 1px solid #d7dee6; background: #f7fafc; color: #33475a; font-family: 'Courier New', monospace; font-weight: 700; font-size: 9px; letter-spacing: 0.3px; cursor: pointer; padding: 3px 6px; -webkit-tap-highlight-color: rgba(255,255,255,0.2); }
-#voice-input-mode-btn.active { background: #0369a1; color: #fff; border-color: #0369a1; }
+#voice-fab-exam:active { background: #5b21b6; }
+/* Tap-to-toggle armed state (mic open) — see handleFabTap()/isFabArmed().
+   Turns red regardless of the button's own idle colour (green/purple/blue),
+   which needs the ID+class overrides below since a bare ID selector like
+   #voice-fab-chat otherwise outranks a two-class one on specificity alone. */
+.voice-fab .fab-idle, .voice-fab .fab-armed { display: inline-flex; align-items: center; gap: 4px; }
+.voice-fab .fab-armed { display: none; }
+.voice-fab.armed .fab-idle { display: none; }
+.voice-fab.armed .fab-armed { display: inline-flex; }
+.voice-fab.armed,
+#voice-fab-chat.armed,
+#voice-fab-exam.armed { background: #dc2626; }
+.voice-fab.armed:active,
+#voice-fab-chat.armed:active,
+#voice-fab-exam.armed:active { background: #b91c1c; }
 #wake-word-toggle-btn { width: 100%; max-width: 240px; min-height: 22px; margin-top: 4px; border-radius: 7px; border: 1px solid #d7dee6; background: #f7fafc; color: #33475a; font-family: 'Courier New', monospace; font-weight: 700; font-size: 9px; letter-spacing: 0.3px; cursor: pointer; padding: 3px 6px; -webkit-tap-highlight-color: rgba(255,255,255,0.2); }
 #wake-word-toggle-btn.active { background: #15803d; color: #fff; border-color: #15803d; }
 #wake-word-toggle-btn.warn { background: #b91c1c; color: #fff; border-color: #b91c1c; }
@@ -151,7 +163,15 @@ body.mode-avatar #monitor-col { display: none !important; }
 /* Floating head + mic badge — mic sits just above/right of the gif, flat
    red icon, invisible unless actively listening (toggled via .listening,
    same mechanism as before — just relocated and restyled). */
-#head-wrap { position: relative; display: inline-block; line-height: 0; min-width: 50px; min-height: 50px; overflow: hidden; }
+/* height:100% (not the old inline-block/content-sized box) is what makes the
+   avatar actually grow to fill #avatar-row's real height instead of sitting
+   at its own small intrinsic SVG size with empty panel around it — see
+   #avatar-row below for why that height is now real or #av-svg's own rule
+   for why growing it doesn't distort/crop it. min-width/min-height:50px is
+   the OTHER direction's floor (shrinking, not growing) — see the Gotchas
+   section in CLAUDE.md for why that one still needs to stay. */
+#head-wrap { position: relative; line-height: 0; min-width: 50px; min-height: 50px; height: 100%; overflow: hidden; }
+#av-svg { height: 100%; width: auto; max-width: 100%; display: block; }
 /* Skin tint eases rather than snapping so the once-a-second tick lines up
    visually with the continuously-drifting vitals underneath it (see
    applySkinTint()) instead of reading as a hard colour cut every tick. */
@@ -175,8 +195,16 @@ body.mode-avatar #monitor-col { display: none !important; }
    row down to a sliver, leaving #head-wrap's real (still floor-protected)
    height to spill out over the buttons below instead of being respected by
    its own parent's box. */
-#avatar-row { display: flex; flex-direction: row; align-items: center; gap: 4px; }
-#trend-indicator { display: none; flex-direction: column; gap: 1px; flex-shrink: 0; }
+/* flex:1/min-height:0/align-items:stretch (not the old content-sized,
+   vertically-centered row) is what gives #head-wrap real height to grow
+   into — without this, #head-wrap's own height:100% above has nothing to
+   resolve against, so it stays pinned to the SVG's small intrinsic size
+   with unused white space filling the rest of #patient-graphic (the "too
+   small" complaint). align-self:center on #trend-indicator opts it back
+   out of the stretch — it's a couple of small fixed-size arrow icons, not
+   something that should stretch tall just because its sibling now does. */
+#avatar-row { display: flex; flex-direction: row; align-items: stretch; justify-content: center; gap: 4px; flex: 1; min-height: 0; width: 100%; }
+#trend-indicator { display: none; flex-direction: column; gap: 1px; flex-shrink: 0; align-self: center; }
 #trend-indicator svg { width: 16px; height: 16px; display: block; }
 #trend-indicator.up svg { fill: #16a34a; }
 #trend-indicator.down svg { fill: #dc2626; }
@@ -190,10 +218,18 @@ body.mode-avatar #monitor-col { display: none !important; }
    be taken mid-conversation. #patient-info-voice is display:none by
    default; openVoiceModal()/closeVoiceModal() toggle which of the two
    sits visible inside the #patient-info panel. */
-#patient-info-voice { display: none; gap: 10px; align-items: flex-start; }
-#patient-info-voice-text { flex: 1; min-width: 0; }
-#voice-modal-title-row { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
+/* One child now (no more #voice-modal-actions/Cancel sitting beside it as a
+   second flex column) — the mic-toggle fab buttons themselves are what
+   opens/closes this panel now, see handleFabTap(). */
+#patient-info-voice { display: none; }
+#voice-modal-title-row { display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-bottom: 4px; }
 #voice-modal-title { font-size: 11px; font-weight: 900; letter-spacing: 1px; text-transform: uppercase; color: #0369a1; }
+/* Small icon-only toggle, replacing the old full-width "Switch to Text"
+   button that used to sit permanently under the fab strip — a hidden
+   fallback (see CLAUDE.md) rather than a persistent control, since typing
+   is the exception now, not a pre-set mode most students reach for. */
+#input-mode-toggle-btn { flex-shrink: 0; width: 22px; height: 22px; border-radius: 5px; border: 1px solid #d7dee6; background: #f7fafc; color: #33475a; font-size: 12px; line-height: 1; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0; -webkit-tap-highlight-color: rgba(255,255,255,0.2); }
+#input-mode-toggle-btn.active { background: #0369a1; color: #fff; border-color: #0369a1; }
 #voice-modal-status { font-size: 11px; color: #33475a; margin-bottom: 4px; min-height: 14px; }
 /* Auto-listen (wake-word) exchanges reuse this same panel, but the student
    never pressed anything to open it — so it needs to announce itself more
@@ -212,12 +248,12 @@ body.mode-avatar #monitor-col { display: none !important; }
 #type-input-row { display: none; gap: 6px; margin-bottom: 4px; }
 #type-input-row input { flex: 1; min-width: 0; font-size: 13px; padding: 6px 8px; border: 1px solid #d7dee6; border-radius: 6px; font-family: 'Courier New', monospace; }
 #type-input-row .voice-btn { width: auto; padding: 0 12px; min-height: 34px; }
-#patient-reply-display { font-size: 13px; color: #15803d; margin-bottom: 0; font-style: italic; display: none; }
-#voice-modal-actions { display: flex; flex-direction: column; gap: 6px; width: 92px; flex-shrink: 0; }
+/* Bigger now that Cancel's column and the always-visible type-input row are
+   gone — this is the main thing left in the panel worth giving room to. */
+#patient-reply-display { font-size: 17px; line-height: 1.4; color: #15803d; margin-bottom: 0; font-style: italic; display: none; }
 .voice-btn { min-height: 40px; border-radius: 6px; border: none; font-family: 'Courier New', monospace; font-weight: 700; font-size: 12px; cursor: pointer; }
 .voice-btn-primary { background: #0369a1; color: #fff; }
 .voice-btn-primary:disabled { opacity: 0.4; }
-.voice-btn-secondary { background: #e2e8f0; color: #33475a; }
 .topbar-logo-img { height: 26px; width: auto; max-width: 150px; object-fit: contain; flex-shrink: 0; display: block; }
 #topbar #avnav-hamburger { width: 34px; height: 34px; font-size: 15px; }
 </style>
@@ -241,7 +277,7 @@ body.mode-avatar #monitor-col { display: none !important; }
       <input type="checkbox" id="hq-voice-checkbox" onchange="setHqVoiceEnabled(this.checked)">HQ Voice
     </label>
     <span id="hq-voice-status"></span>
-    <label id="rt-voice-label" title="Experimental: continuous, low-latency &quot;Talk to Patient&quot; conversation — streams speech straight to Claude and speaks back via Deepgram Aura-2 TTS, entirely from this device (no dependency on the assessor's tab being open/polling). Requires a Deepgram API key configured by the admin; falls back to the standard hold-to-talk flow if unavailable. Chrome only.">
+    <label id="rt-voice-label" title="Experimental: continuous, low-latency &quot;Talk to Patient&quot; conversation — streams speech straight to Claude and speaks back via Deepgram Aura-2 TTS, entirely from this device (no dependency on the assessor's tab being open/polling). Requires a Deepgram API key configured by the admin; falls back to the standard tap-to-talk flow if unavailable. Chrome only.">
       <input type="checkbox" id="rt-voice-checkbox" onchange="setRtVoiceEnabled(this.checked)">&#9889; Realtime Voice (beta)
     </label>
     <span id="rt-voice-status"></span>
@@ -278,21 +314,17 @@ body.mode-avatar #monitor-col { display: none !important; }
     <div class="row" id="pi-complaint">&mdash;</div>
   </div>
   <div id="patient-info-voice">
-    <div id="patient-info-voice-text">
-      <div id="voice-modal-title-row">
-        <span id="voice-modal-title">Give Treatment</span>
-      </div>
-      <div id="voice-modal-status">Listening&hellip;</div>
-      <div id="voice-modal-transcript"></div>
-      <div id="type-input-row">
-        <input type="text" id="type-input" placeholder="Type here&hellip;" autocomplete="off" onkeydown="if(event.key==='Enter'){event.preventDefault();sendTypedText();}">
-        <button type="button" class="voice-btn voice-btn-primary" id="type-send-btn" onclick="sendTypedText()">Send</button>
-      </div>
-      <div id="patient-reply-display"></div>
+    <div id="voice-modal-title-row">
+      <span id="voice-modal-title">Give Treatment</span>
+      <button type="button" id="input-mode-toggle-btn" onclick="toggleInputMode()" title="Switch to typing">&#9000;</button>
     </div>
-    <div id="voice-modal-actions">
-      <button class="voice-btn voice-btn-secondary" onclick="closeVoiceModal()">Cancel</button>
+    <div id="voice-modal-status">Listening&hellip;</div>
+    <div id="voice-modal-transcript"></div>
+    <div id="type-input-row">
+      <input type="text" id="type-input" placeholder="Type here&hellip;" autocomplete="off" onkeydown="if(event.key==='Enter'){event.preventDefault();sendTypedText();}">
+      <button type="button" class="voice-btn voice-btn-primary" id="type-send-btn" onclick="sendTypedText()">Send</button>
     </div>
+    <div id="patient-reply-display"></div>
   </div>
 </div>
 <div id="main">
@@ -387,11 +419,19 @@ body.mode-avatar #monitor-col { display: none !important; }
     <div id="trend-indicator" aria-hidden="true"></div>
     </div>
     <div id="voice-fab-strip">
-      <button class="voice-fab" id="voice-fab-treatment" onpointerdown="handleFabPress('treatment', event)" onpointerup="handleFabRelease(event)" onpointercancel="handleFabRelease(event)" oncontextmenu="return false;"><svg viewBox="0 0 24 24"><path d="M4 4h16a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H9l-5 4v-4H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"/></svg>Treat</button>
-      <button class="voice-fab" id="voice-fab-exam" onpointerdown="handleFabPress('exam', event)" onpointerup="handleFabRelease(event)" onpointercancel="handleFabRelease(event)" oncontextmenu="return false;"><svg viewBox="0 0 24 24"><path d="M4 4h16a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H9l-5 4v-4H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"/></svg>Assess</button>
-      <button class="voice-fab" id="voice-fab-chat" onpointerdown="handleFabPress('chat', event)" onpointerup="handleFabRelease(event)" onpointercancel="handleFabRelease(event)" oncontextmenu="return false;"><svg viewBox="0 0 24 24"><path d="M4 4h16a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H9l-5 4v-4H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"/></svg>Talk</button>
+      <button class="voice-fab" id="voice-fab-treatment" onclick="handleFabTap('treatment')" oncontextmenu="return false;">
+        <span class="fab-idle"><svg viewBox="0 0 24 24"><path d="M4 4h16a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H9l-5 4v-4H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"/></svg>Treat</span>
+        <span class="fab-armed"><svg viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>Stop</span>
+      </button>
+      <button class="voice-fab" id="voice-fab-exam" onclick="handleFabTap('exam')" oncontextmenu="return false;">
+        <span class="fab-idle"><svg viewBox="0 0 24 24"><path d="M4 4h16a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H9l-5 4v-4H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"/></svg>Assess</span>
+        <span class="fab-armed"><svg viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>Stop</span>
+      </button>
+      <button class="voice-fab" id="voice-fab-chat" onclick="handleFabTap('chat')" oncontextmenu="return false;">
+        <span class="fab-idle"><svg viewBox="0 0 24 24"><path d="M4 4h16a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H9l-5 4v-4H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"/></svg>Talk</span>
+        <span class="fab-armed"><svg viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>Stop</span>
+      </button>
     </div>
-    <button type="button" id="voice-input-mode-btn" onclick="toggleInputMode()">&#8996; Switch to Text</button>
     <button type="button" id="wake-word-toggle-btn" onclick="toggleWakeWord()">🎤 Auto-listen: Off</button>
   </div>
   </div>
@@ -2282,6 +2322,12 @@ document.addEventListener('visibilitychange', () => {
 // Treatment/Assessment are untouched either way.
 let _voiceMode = null;
 let _recognition = null;
+// True only while _recognition is actually listening — distinct from
+// _recognition's own truthiness, which stays set (a dead, already-ended
+// object) until closeVoiceModal() nulls it out. handleFabTap() needs this
+// to tell "second tap should stop live capture" apart from "second tap
+// should just close the panel" — see startVoiceCapture()'s onend comment.
+let _recognitionActive = false;
 let _voiceFinalText = '';
 let _lastChatSentId = null;
 let _lastChatSentMode = null;
@@ -2814,11 +2860,11 @@ async function speakPatientReply(text, resumeIfConversing, isConversation, useHq
 // ============================================================================
 // --- Realtime Voice (beta): cascaded low-latency conversation pipeline ----
 // ============================================================================
-// An alternative to the legacy hold-to-talk "Talk to Patient" flow above —
-// opt-in via the topbar's "⚡ Realtime Voice (beta)" checkbox, OFF by
-// default. Give Treatment/Assessment are completely untouched; this only
-// replaces what happens when _rtVoiceEnabled is true and the student taps
-// Talk (see the branch in handleFabPress()).
+// An alternative to the legacy "Talk to Patient" flow above — opt-in via the
+// topbar's "⚡ Realtime Voice (beta)" checkbox, OFF by default. Give
+// Treatment/Assessment are completely untouched; this only replaces what
+// happens when _rtVoiceEnabled is true and the student taps Talk (see the
+// branch in handleFabTap()).
 //
 // Why this exists: the legacy chat flow is genuinely slow by conversational
 // standards — a spoken question goes browser SpeechRecognition -> Supabase
@@ -3031,6 +3077,14 @@ const BARGE_IN_CONFIRM_MS = 600;
 let _rtPlaybackStartedAt = 0; // Date.now() when _rtSpeaking last became true — grace period is measured from here
 let _rtBargeInArmedAt = null; // Date.now() a SpeechStarted armed a possible barge-in, or null if none pending
 
+// Set once the student has tapped Talk's red X to close the mic while a
+// reply is still finishing playback — see requestEndRealtimeCall(). Kept
+// separate from _rtActive (which stays true until the reply actually
+// finishes and the call is torn down) specifically so isFabArmed() can flip
+// the button back to idle THE INSTANT the mic closes, without waiting for
+// however much longer the current sentence has left to play.
+let _rtMicClosed = false;
+
 function startRealtimeCall() {
   if (_patientDisplayMode === 'monitor') return; // this device's mic is intentionally never used in Monitor Only mode — see setDisplayMode()
   unlockSpeechSynthesis(); // the TTS-failure fallback in speakRealtimeReply() still needs this unlocked
@@ -3039,17 +3093,55 @@ function startRealtimeCall() {
   hideWakePanel();
   _rtCallId++;
   _rtActive = true;
+  _rtMicClosed = false;
   openVoiceModal('chat', { skipCapture: true }); // reuses the shared modal shell; skipCapture=true means it does NOT also start legacy SpeechRecognition
   document.getElementById('voice-modal-title').textContent = '⚡ Realtime Voice';
   startRealtimeCapture();
+  syncFabArmedUI();
+}
+
+// The "closes mic, lets the patient finish whatever they were saying" half
+// of the Talk button's second tap — the mic/socket close IMMEDIATELY (no
+// more of the student's speech is captured), but if a reply is actively
+// playing, the call isn't torn down (and the panel doesn't close) until
+// that finishes naturally: cutting speakRealtimeReply()'s audio off
+// mid-sentence just because the student tapped Stop would be a worse
+// experience than a mic that's already stopped listening. Listens on
+// _rtAudioEl directly (once, alongside whatever speakRealtimeReply() itself
+// already has hooked into 'ended'/'onpause') rather than polling
+// _rtSpeaking, so this fires in the same synchronous dispatch as that
+// resolution instead of up to one poll-interval late.
+function requestEndRealtimeCall() {
+  if (!_rtActive || _rtMicClosed) return;
+  const callId = _rtCallId;
+  stopRealtimeCapture();
+  _rtMicClosed = true;
+  syncFabArmedUI();
+  const finish = () => { if (callId === _rtCallId) closeVoiceModal(); };
+  if (_rtSpeaking && _rtAudioEl) {
+    _rtAudioEl.addEventListener('ended', finish, { once: true });
+    _rtAudioEl.addEventListener('pause', finish, { once: true });
+    document.getElementById('voice-modal-status').textContent = 'Mic closed — finishing reply…';
+  } else {
+    finish();
+  }
+}
+
+// Mic/socket teardown only — factored out of endRealtimeCall() so
+// requestEndRealtimeCall() above can stop capturing immediately without
+// also cutting a reply that's still playing (see its own comment).
+function stopRealtimeCapture() {
+  if (_rtSocket) { try { _rtSocket.close(); } catch (e) {} _rtSocket = null; }
+  if (_rtRecorder) { try { _rtRecorder.stop(); } catch (e) {} _rtRecorder = null; }
+  if (_rtStream) { _rtStream.getTracks().forEach(t => { try { t.stop(); } catch (e) {} }); _rtStream = null; }
+  document.getElementById('voice-mic-indicator').classList.remove('listening');
 }
 
 function endRealtimeCall() {
   _rtActive = false;
+  _rtMicClosed = false;
   _rtCallId++; // invalidates any in-flight async work from this call
-  if (_rtSocket) { try { _rtSocket.close(); } catch (e) {} _rtSocket = null; }
-  if (_rtRecorder) { try { _rtRecorder.stop(); } catch (e) {} _rtRecorder = null; }
-  if (_rtStream) { _rtStream.getTracks().forEach(t => { try { t.stop(); } catch (e) {} }); _rtStream = null; }
+  stopRealtimeCapture();
   stopRealtimeAudio();
   _rtPendingText = '';
 }
@@ -3124,6 +3216,7 @@ async function startRealtimeCapture() {
     clearTimeout(connectTimer);
     if (callId !== _rtCallId) { try { socket.close(); } catch (e) {} return; }
     statusEl.textContent = 'Listening… (you can interrupt anytime)';
+    document.getElementById('voice-mic-indicator').classList.add('listening'); // same red badge legacy hold-to-talk uses — removed in stopRealtimeCapture()
     const recorder = new MediaRecorder(stream, { mimeType: 'audio/webm;codecs=opus' });
     _rtRecorder = recorder;
     recorder.ondataavailable = (ev) => {
@@ -3429,7 +3522,7 @@ let VOICE_MODE_REPLY_LABELS = { exam: 'Finding:', chat: 'Patient replied:' };
 
 // `opts.skipCapture` is used by startRealtimeCall() — it wants this
 // function's panel-opening side effects (title, wake-panel teardown, mode
-// state) WITHOUT also starting the legacy hold-to-talk SpeechRecognition
+// state) WITHOUT also starting the legacy tap-to-toggle SpeechRecognition
 // capture in beginCapture(), since realtime mode drives its own Deepgram
 // capture instead. Omitted (or falsy), this behaves exactly as before.
 function openVoiceModal(mode, opts) {
@@ -3446,9 +3539,10 @@ function openVoiceModal(mode, opts) {
   document.getElementById('patient-reply-display').style.display = 'none';
   document.getElementById('patient-reply-display').textContent = '';
   document.getElementById('patient-info-normal').style.display = 'none';
-  document.getElementById('patient-info-voice').style.display = 'flex';
+  document.getElementById('patient-info-voice').style.display = 'block';
   _voiceModalOpen = true;
   syncInputModeUI();
+  syncFabArmedUI();
   if (!(opts && opts.skipCapture)) beginCapture();
 }
 
@@ -3461,8 +3555,14 @@ let _inputMode = 'speech'; // 'speech' | 'type'
 function syncInputModeUI() {
   document.getElementById('type-input-row').style.display = _inputMode === 'type' ? 'flex' : 'none';
   document.getElementById('voice-modal-transcript').style.display = _inputMode === 'type' ? 'none' : 'block';
-  const modeBtn = document.getElementById('voice-input-mode-btn');
-  modeBtn.textContent = _inputMode === 'speech' ? '⌨ Switch to Text' : '🎤 Switch to Speech';
+  // Small icon now (was a persistent full-width "Switch to Text" button
+  // below the fab strip) — a hidden fallback tucked into the panel's title
+  // row instead of permanent UI, since typing is the exception, not a
+  // pre-set preference most students reach for. Glyph shows what tapping it
+  // switches TO, matching the old button-text convention.
+  const modeBtn = document.getElementById('input-mode-toggle-btn');
+  modeBtn.textContent = _inputMode === 'speech' ? '⌨' : '🎤';
+  modeBtn.title = _inputMode === 'speech' ? 'Switch to typing' : 'Switch to speech';
   modeBtn.classList.toggle('active', _inputMode === 'type');
 }
 
@@ -3679,7 +3779,7 @@ function showWakePanel(mode, opts) {
   document.getElementById('type-input-row').style.display = 'none'; // nothing to type into — this exchange is voice-driven by definition
   document.getElementById('patient-info-voice').classList.add('wake-auto');
   document.getElementById('patient-info-normal').style.display = 'none';
-  document.getElementById('patient-info-voice').style.display = 'flex';
+  document.getElementById('patient-info-voice').style.display = 'block';
   document.getElementById('voice-mic-indicator').classList.toggle('listening', opts.state === 'hearing');
 }
 
@@ -3906,36 +4006,62 @@ async function sendWakeItem(text, mode, isGreeting) {
 // opens the panel (openVoiceModal already focuses the text field via
 // beginCapture), and release is a no-op. setPointerCapture keeps the release
 // tied to the same button even if the finger slides off it mid-hold.
-function handleFabPress(mode, ev) {
+// Tap-to-toggle for all three fab buttons (Treat/Assess/Talk) — replaced
+// the old press-and-hold model (see git history) so the button itself can
+// double as the panel's only open/close control, with Cancel gone. First
+// tap opens the mic (button goes red with an X — see the .armed CSS rule
+// and isFabArmed() below); a second tap on the SAME button closes it again.
+// Realtime Voice (beta) only replaces "Talk to Patient" — Give
+// Treatment/Assessment always stay on the legacy SpeechRecognition +
+// sim_control.html queue flow, since those still need the assessor's
+// scenario-authoring context (giveTreatment) or aren't latency-sensitive in
+// the same way.
+function handleFabTap(mode) {
   if (_patientDisplayMode === 'monitor') return; // buttons are hidden in this mode anyway — belt-and-braces against any programmatic call
-  if (ev.pointerType === 'mouse' && ev.button !== 0) return; // ignore right/middle click
-  ev.preventDefault(); // avoid text-selection/long-press callouts on touch
-  // Realtime Voice (beta) only replaces "Talk to Patient" — Give
-  // Treatment/Assessment always stay on the legacy hold-to-talk +
-  // sim_control.html queue flow, since those still need the assessor's
-  // scenario-authoring context (giveTreatment) or aren't latency-sensitive
-  // in the same way. It also owns the interaction fully once armed: no
-  // hold gesture, no setPointerCapture — see startRealtimeCall().
-  if (mode === 'chat' && _rtVoiceEnabled) { startRealtimeCall(); return; }
-  const btn = ev.currentTarget;
-  try { btn.setPointerCapture(ev.pointerId); } catch (e) {}
-  if (_inputMode === 'speech') btn.classList.add('holding');
-  openVoiceModal(mode);
+  const armed = isFabArmed(mode);
+  if (mode === 'chat' && _rtVoiceEnabled) {
+    if (armed) requestEndRealtimeCall(); else startRealtimeCall();
+    return;
+  }
+  if (armed) {
+    // Second tap: if speech is actively being captured right now, stop it —
+    // the same "send whatever was heard so far" behaviour hold-release used
+    // to have, just tap-triggered (see startVoiceCapture()'s onend). If
+    // between turns instead (already sent, waiting on a reply, or typing),
+    // there's nothing to stop capturing, so just close outright — this is
+    // Cancel's old job, now folded into the same button.
+    if (_recognitionActive) { try { _recognition.stop(); } catch (e) {} }
+    else { closeVoiceModal(); }
+  } else {
+    openVoiceModal(mode);
+  }
 }
 
-function handleFabRelease(ev) {
-  ev.currentTarget.classList.remove('holding');
-  if (_inputMode !== 'speech') return; // type mode already did everything it needs to on press
-  if (_recognition) { try { _recognition.stop(); } catch (e) {} }
+// Whether a fab button's own session is currently "open" (red-X state).
+// Deliberately NOT the same thing as "is SpeechRecognition running RIGHT
+// NOW" — between turns (already sent, waiting on a reply) recognition is
+// stopped but the conversation is still open, and the button should keep
+// showing armed until closeVoiceModal() actually runs (manually, or via
+// checkForPatientReply()'s auto-close for Treat/Assess).
+function isFabArmed(mode) {
+  if (mode === 'chat' && _rtVoiceEnabled) return _rtActive && !_rtMicClosed;
+  return _voiceModalOpen && _voiceMode === mode;
+}
+
+function syncFabArmedUI() {
+  document.getElementById('voice-fab-treatment').classList.toggle('armed', isFabArmed('treatment'));
+  document.getElementById('voice-fab-exam').classList.toggle('armed', isFabArmed('exam'));
+  document.getElementById('voice-fab-chat').classList.toggle('armed', isFabArmed('chat'));
 }
 
 // Single entry point for "start waiting on the next question/answer" —
 // starts the mic in speech mode, or just clears/focuses the text field in
-// typed mode. Called on open, via handleFabPress. The Talk to Patient
-// continuous-conversation loop does NOT call this in speech mode once a
-// reply is done — see resumeIfConversing() in checkForPatientReply — since
-// auto-starting the mic without the student holding the button down would
-// break the press-to-talk/release-to-stop contract.
+// typed mode. Called on open, via handleFabTap. The Talk to Patient
+// continuous-conversation loop (legacy, non-Realtime) now calls this again
+// itself once a reply finishes — see resumeIfConversing() in
+// checkForPatientReply — since re-arming automatically after each reply is
+// what "tap to open, tap to close" implies for an ongoing conversation, the
+// same way Realtime Voice's own mic already never stops between turns.
 function beginCapture() {
   document.getElementById('patient-reply-display').style.display = 'none';
   if (_inputMode === 'type') {
@@ -3973,6 +4099,7 @@ function startVoiceCapture() {
   _recognition.maxAlternatives = 1;
   statusEl.textContent = 'Listening\u2026';
   micEl.classList.add('listening');
+  _recognitionActive = true;
   _recognition.onresult = (ev) => {
     let interim = '', final = '';
     for (let i = ev.resultIndex; i < ev.results.length; i++) {
@@ -3984,32 +4111,42 @@ function startVoiceCapture() {
   };
   _recognition.onerror = (ev) => {
     micEl.classList.remove('listening');
-    statusEl.textContent = ev.error === 'no-speech' ? 'Didn\u2019t catch anything \u2014 hold the button and try again.' : `Speech recognition error: ${ev.error}`;
+    statusEl.textContent = ev.error === 'no-speech' ? 'Didn\u2019t catch anything \u2014 tap the button and try again.' : `Speech recognition error: ${ev.error}`;
   };
   _recognition.onend = () => {
+    // _recognition itself stays a truthy (but now-dead) object here \u2014 only
+    // closeVoiceModal() nulls it out \u2014 so handleFabTap()'s "is a second tap
+    // meant to stop live capture, or just close the panel?" check needs its
+    // own flag rather than testing _recognition's mere existence. Without
+    // this, tapping the (still-armed-looking) button after a natural
+    // no-speech timeout called .stop() on an already-dead recognition and
+    // silently did nothing instead of closing.
+    _recognitionActive = false;
     micEl.classList.remove('listening');
     if (_voiceFinalText) {
       sendCapturedText(_voiceFinalText);
     } else {
-      statusEl.textContent = 'Didn\u2019t catch anything \u2014 hold the button and try again.';
+      statusEl.textContent = 'Didn\u2019t catch anything \u2014 tap the button and try again.';
     }
   };
-  try { _recognition.start(); } catch (e) { micEl.classList.remove('listening'); statusEl.textContent = 'Could not start the microphone.'; }
+  try { _recognition.start(); } catch (e) { _recognitionActive = false; micEl.classList.remove('listening'); statusEl.textContent = 'Could not start the microphone.'; }
 }
 
 function closeVoiceModal() {
   _voiceModalOpen = false;
-  if (_rtActive) endRealtimeCall(); // Cancel button is shared with Realtime Voice's live-call modal — tear down the socket/mic/audio too, not just the panel
-  // Also the dismiss path for an auto-listen exchange — the panel's Cancel
-  // button is shared, and without this it would hide the panel while leaving
+  if (_rtActive) endRealtimeCall(); // this is the shared close path for Realtime Voice's live call too (a second Talk tap while mid-reply routes through requestEndRealtimeCall() first, which calls this once the reply finishes) — tear down the socket/mic/audio, not just the panel
+  // Also the dismiss path for an auto-listen exchange — this is the shared
+  // close path, and without this it would hide the panel while leaving
   // _wakePanelActive and the wake-* classes set, so the next wake exchange
   // would inherit stale styling and a pending hide timer.
   hideWakePanel();
   document.getElementById('voice-mic-indicator').classList.remove('listening');
   if (_recognition) { try { _recognition.abort(); } catch (e) {} _recognition = null; }
+  _recognitionActive = false;
   if ('speechSynthesis' in window) { try { window.speechSynthesis.cancel(); } catch (e) {} }
   document.getElementById('patient-info-voice').style.display = 'none';
   document.getElementById('patient-info-normal').style.display = 'block';
+  syncFabArmedUI();
   startWakeListening(); // hand the mic back to auto-listen, if it's on
 }
 
@@ -4062,26 +4199,25 @@ function checkForPatientReply(reply) {
   _lastChatSentId = null;
   _wakeSentAtMs = 0; // the reply arrived, so the wake-item timeout has nothing left to release
 
-  // Once the reply is done, in type mode we can safely auto-focus the text
-  // field again (no gesture required to type). In speech mode the mic is
-  // now hold-to-talk (see handleFabPress/handleFabRelease), so auto-starting
-  // it here without the student physically holding Talk would open the mic
-  // in the background — instead just prompt them to hold Talk for their
-  // next line. Guarded by _voiceModalOpen so a reply that arrives after the
+  // Once the reply is done: Assess auto-closes (there's nothing more to do
+  // with a finding once you've read/heard it — see CLAUDE.md's note on the
+  // fab buttons auto-closing "once there's been a response"), Talk re-arms
+  // its mic automatically for the next line (tap-to-toggle means there's no
+  // hold gesture to prompt for anymore — the mic just stays open across
+  // turns, same as Realtime Voice's own continuous listening already
+  // does), and Treat isn't handled here at all (it never sets
+  // _lastChatSentId — see sendCapturedText — so never reaches this
+  // function; its own auto-close already runs right after sending).
+  // Guarded by _voiceModalOpen throughout so a reply that arrives after the
   // student has already closed the modal does nothing.
   const resumeIfConversing = () => {
     // Wake-word exchange: no modal to resume into, so the job here is just
     // to leave the reply text up long enough to read before the panel
     // retires itself and the normal Patient/Scene Info comes back.
     if (_wakePanelActive && !_voiceModalOpen) { scheduleWakePanelHide(); return; }
-    if (!isConversation || !_voiceModalOpen) return;
-    if (_inputMode === 'type') {
-      beginCapture();
-    } else {
-      document.getElementById('patient-reply-display').style.display = 'none';
-      document.getElementById('voice-modal-status').textContent = 'Hold Talk to reply…';
-      document.getElementById('voice-modal-transcript').textContent = '';
-    }
+    if (!_voiceModalOpen) return;
+    if (isExam) { setTimeout(closeVoiceModal, 900); return; } // same brief "let it stay readable" grace period Treat's own send confirmation uses
+    if (isConversation) beginCapture();
   };
 
   if (reply.speak !== false) {
