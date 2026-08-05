@@ -2283,7 +2283,7 @@ function renderGraph() {
     const diaSmooth = pointsToSmoothPath(diaReversed).replace(/^M/, 'L');
     const bpArmed = armedGraphKeys.includes('BPsys') || armedGraphKeys.includes('BPdia');
     const bpBandFade = armedGraphKeys.length > 0 && !bpArmed;
-    const bpOpacity = bpBandFade ? 0.12 : 0.5;
+    const bpOpacity = bpBandFade ? 0.12 : 0.25;
     bpBandMarkup = `<path d="${sysSmooth} ${diaSmooth} Z" fill="${bpColor}" stroke="none" opacity="${bpOpacity}" />`;
   }
 
@@ -2615,7 +2615,7 @@ function renderMiniGraph() {
     });
     const sysSmooth = pointsToSmoothPath(sysPts);
     const diaSmooth = pointsToSmoothPath(diaPts.slice().reverse()).replace(/^M/, 'L');
-    bpBandMarkup = `<path d="${sysSmooth} ${diaSmooth} Z" fill="${bpSys.color}" stroke="none" opacity="0.5" />`;
+    bpBandMarkup = `<path d="${sysSmooth} ${diaSmooth} Z" fill="${bpSys.color}" stroke="none" opacity="0.25" />`;
   }
 
   let paths = '';
