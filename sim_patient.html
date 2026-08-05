@@ -209,6 +209,10 @@ body { display: flex; flex-direction: column; }
       <input type="checkbox" id="hq-voice-checkbox" onchange="setHqVoiceEnabled(this.checked)">HQ Voice
     </label>
     <span id="hq-voice-status"></span>
+    <label id="rt-voice-label" title="Experimental: continuous, low-latency &quot;Talk to Patient&quot; conversation — streams speech straight to Claude and speaks back via Cartesia TTS, entirely from this device (no dependency on the assessor's tab being open/polling). Requires Deepgram + Cartesia API keys configured by the admin; falls back to the standard hold-to-talk flow if unavailable. Chrome only.">
+      <input type="checkbox" id="rt-voice-checkbox" onchange="setRtVoiceEnabled(this.checked)">&#9889; Realtime Voice (beta)
+    </label>
+    <span id="rt-voice-status"></span>
     <div id="scenario-timer">00:00</div>
   </div>
 </div>
@@ -477,6 +481,17 @@ async function loadSimConfig() {
     YOUTH_VOICE_RATE_AT_ZERO = pick(field('voice', 'YOUTH_VOICE_RATE_AT_ZERO'), YOUTH_VOICE_RATE_AT_ZERO);
     PIPER_WARM_STALL_MS = pick(field('voice', 'PIPER_WARM_STALL_MS'), PIPER_WARM_STALL_MS);
     PIPER_REPLY_STALL_MS = pick(field('voice', 'PIPER_REPLY_STALL_MS'), PIPER_REPLY_STALL_MS);
+
+    // Realtime Voice (beta) reads the SAME admin-editable 'prompts' section
+    // sim_control.html's callPatientAI() does — the default text below is a
+    // plain copy of sim_control.html's own defaults (this file has no access
+    // to sim_control.html's top-level `let`s, and these aren't SimEngine-
+    // owned), but because both pages resolve the same field('prompts', ...)
+    // key, an admin edit via sim_config_admin.html applies to both call
+    // sites even though the JS text itself lives in two places. Keep in
+    // sync by hand if the default wording ever changes in sim_control.html.
+    PATIENT_VOICE_PROMPT = pick(field('prompts', 'PATIENT_VOICE_PROMPT'), PATIENT_VOICE_PROMPT);
+    PATIENT_VOICE_CONFUSED_NOTE = pick(field('prompts', 'PATIENT_VOICE_CONFUSED_NOTE'), PATIENT_VOICE_CONFUSED_NOTE);
 
     // SimEngine-owned fields — same shape/merge logic as sim_control.html's
     // loadSimConfig(), see its comments for why. Must stay in sync by hand.
@@ -1326,8 +1341,11 @@ async function connectSession(code) {
       // SimEngine.computeDefibrillationEffect() locally (age/weight/
       // comorbidity parsing all read from this same scenarioMeta) — see
       // CLAUDE.md on why this device otherwise deliberately has no scenario
-      // context beyond the avatar build.
-      sbGet(`scenarios?id=eq.${encodeURIComponent(row.scenario_id)}&select=title,subtitle,dispatch,hx,vitals,medical_conditions,patient_meta`)
+      // context beyond the avatar build. provisional/key_hx are ALSO fetched
+      // now, purely for Realtime Voice mode's direct-from-this-device Claude
+      // call (see generateRealtimePatientReply()) — unused by anything else
+      // here, but harmless to always have since this is a single-row fetch.
+      sbGet(`scenarios?id=eq.${encodeURIComponent(row.scenario_id)}&select=title,subtitle,dispatch,hx,vitals,medical_conditions,patient_meta,provisional,key_hx`)
         .then(rows2 => {
           const scen = rows2[0] || {};
           scenarioMeta = scen;
@@ -2149,6 +2167,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   } else if (hqVoiceEnabled) {
     warmPiperVoice(); // gives status feedback immediately, without waiting on a session to connect
   }
+  document.getElementById('rt-voice-checkbox').checked = _rtVoiceEnabled;
+  updateRtVoiceStatusLabel();
   const params = new URLSearchParams(window.location.search);
   const code = params.get('code');
   if (code && /^\d{6}$/.test(code)) {
@@ -2174,6 +2194,13 @@ document.addEventListener('visibilitychange', () => {
 // — see processStudentQueue()/giveTreatment() there. Chat questions get an
 // AI-generated in-character reply written back to patient_reply, which
 // this page picks up via the existing pollSession() poll and speaks aloud.
+//
+// This description no longer covers "Talk to Patient" when Realtime Voice
+// (beta) is armed — see the large comment block above startRealtimeCall()
+// (search for "Realtime Voice (beta)") for that separate, faster path,
+// which DOES call Anthropic (plus Deepgram/Cartesia) directly from this
+// device instead of queuing through sim_control.html. Give
+// Treatment/Assessment are untouched either way.
 let _voiceMode = null;
 let _recognition = null;
 let _voiceFinalText = '';
@@ -2705,6 +2732,435 @@ async function speakPatientReply(text, resumeIfConversing, isConversation, useHq
   }
 }
 
+// ============================================================================
+// --- Realtime Voice (beta): cascaded low-latency conversation pipeline ----
+// ============================================================================
+// An alternative to the legacy hold-to-talk "Talk to Patient" flow above —
+// opt-in via the topbar's "⚡ Realtime Voice (beta)" checkbox, OFF by
+// default. Give Treatment/Assessment are completely untouched; this only
+// replaces what happens when _rtVoiceEnabled is true and the student taps
+// Talk (see the branch in handleFabPress()).
+//
+// Why this exists: the legacy chat flow is genuinely slow by conversational
+// standards — a spoken question goes browser SpeechRecognition -> Supabase
+// student_queue -> sim_control.html's ~3s poll -> Haiku call -> Supabase
+// patient_reply -> this page's own ~3s poll -> speechSynthesis/Piper. That's
+// up to two ~3s polling delays plus two full round trips through Postgres
+// before a single word is spoken back, and the assessor's tab has to be
+// open the whole time or nothing happens at all. This mode collapses that
+// into: Deepgram streaming STT (fast, low-latency, native VAD events for
+// barge-in) -> a Claude call fired DIRECTLY from this device (same Haiku
+// model, same prompt, same GCS-tiering as sim_control.html's
+// callPatientAI()/answerPatientQuestion() — duplicated here rather than
+// shared, see the PATIENT_VOICE_PROMPT comment in loadSimConfig() above)
+// -> Cartesia TTS, played back immediately. No Supabase round trip, no
+// dependency on sim_control.html polling.
+//
+// Trade-offs accepted for this first pass, deliberately not fixed yet:
+// - Assessor-side Log visibility: sim_control.html's `actionLog` is
+//   populated only when sim_control.html itself processes a student_queue
+//   item — it's never persisted to Supabase (see processStudentQueue()).
+//   Since this mode bypasses that queue entirely, exchanges here do NOT
+//   currently show up in the assessor's Log tab (only a best-effort write
+//   to the row's `patient_reply` field — see handleRealtimeUtterance()).
+//   A future pass could patch a proper audit record onto the session row
+//   for sim_control.html to pick up; out of scope for this first cut.
+// - TTS playback fetches the full Cartesia response before playing (a
+//   single <audio> element, same pattern as the legacy Piper path in
+//   speakPatientReply()) rather than true streaming playback via Media
+//   Source Extensions — for the short (max_tokens 300) replies this engine
+//   generates, the difference is small, but a longer reply would benefit
+//   from real chunked playback later.
+// - Barge-in relies on the browser's own echo cancellation
+//   (getUserMedia's echoCancellation constraint) to keep Deepgram's
+//   SpeechStarted VAD event from mistaking the patient's own TTS audio,
+//   played through the same device's speaker, for the student interrupting
+//   — quality of this varies by device/browser and hasn't been validated
+//   against real hardware yet. If barge-in fires spuriously during
+//   testing, this is the first place to look.
+// - Requires Chrome (MediaRecorder) — same constraint the legacy path
+//   already has, see getSpeechRecognitionCtor()'s comment above.
+// - Requires two more API keys (Deepgram, Cartesia) configured in the same
+//   Supabase app_config table the Anthropic key already lives in — see
+//   getDeepgramKey()/getCartesiaKey() below. Until an admin adds
+//   'deepgram_api_key'/'cartesia_api_key' rows there, the toggle can be
+//   switched on but every call attempt fails closed with a clear status
+//   message.
+// - CARTESIA_VOICE_POOL below is placeholder text, not real voice IDs —
+//   see its comment. Nothing here can actually speak until those are
+//   replaced with real IDs from Cartesia's voice library.
+
+// --- Config/keys -----------------------------------------------------------
+// Mirrors sim_control.html's getAnthropicKey() exactly (same table, same
+// column, same caching-then-throw shape) — duplicated rather than shared
+// since this file has no import of sim_control.html's script. This only
+// ever calls Haiku, same as sim_control.html's own callPatientAI() —
+// CLAUDE.md's Sonnet-only rule is about the physiological-trajectory
+// reasoning calls, which stay exclusively in sim_control.html; this is the
+// same kind of call classifyTreatmentWithHaiku()/callPatientAI() already
+// make, just fired from this device instead.
+let _cachedAnthropicKey = null;
+async function getAnthropicKey() {
+  if (_cachedAnthropicKey) return _cachedAnthropicKey;
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/app_config?key=eq.anthropic_api_key&select=value`, {
+    headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
+  });
+  if (res.ok) {
+    const data = await res.json();
+    if (data && data[0] && data[0].value) { _cachedAnthropicKey = data[0].value; return _cachedAnthropicKey; }
+  }
+  throw new Error('AI generation is temporarily unavailable. Please contact the administrator.');
+}
+
+let _cachedDeepgramKey = null;
+async function getDeepgramKey() {
+  if (_cachedDeepgramKey) return _cachedDeepgramKey;
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/app_config?key=eq.deepgram_api_key&select=value`, {
+    headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
+  });
+  if (res.ok) {
+    const data = await res.json();
+    if (data && data[0] && data[0].value) { _cachedDeepgramKey = data[0].value; return _cachedDeepgramKey; }
+  }
+  throw new Error('Realtime Voice needs a Deepgram API key — ask the administrator to add one (app_config key "deepgram_api_key").');
+}
+
+let _cachedCartesiaKey = null;
+async function getCartesiaKey() {
+  if (_cachedCartesiaKey) return _cachedCartesiaKey;
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/app_config?key=eq.cartesia_api_key&select=value`, {
+    headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
+  });
+  if (res.ok) {
+    const data = await res.json();
+    if (data && data[0] && data[0].value) { _cachedCartesiaKey = data[0].value; return _cachedCartesiaKey; }
+  }
+  throw new Error('Realtime Voice needs a Cartesia API key — ask the administrator to add one (app_config key "cartesia_api_key").');
+}
+
+// Default text is a plain copy of sim_control.html's own PATIENT_VOICE_PROMPT
+// / PATIENT_VOICE_CONFUSED_NOTE defaults — see the loadSimConfig() override
+// above for why both files can still stay in sync via the admin config even
+// though the JS text itself is duplicated. Keep in sync by hand if the
+// default wording ever changes in sim_control.html.
+let PATIENT_VOICE_PROMPT = "You are voicing the PATIENT in a paramedic training scenario, answering a question the crew just asked out loud. Reply only as the patient would speak — first person, in character, brief (1-3 short sentences), plain lay language, no clinical terms the patient wouldn't use.\n\nOnly say what this patient could plausibly know or perceive themselves (their own symptoms, feelings, what happened to them, basic personal details) — never reveal the provisional diagnosis, clinical reasoning, vital sign numbers, or anything a real patient wouldn't know or say. If asked something the patient wouldn't know or that's irrelevant to them, answer in character as a confused/unsure patient would.\n\nLet their current condition colour HOW they answer: e.g. short of breath = short, breathless sentences; distressed/in pain = anxious tone. Never break character, never mention this being a simulation.\n\nYour name is {{patientName}}. If asked your name, or anything requiring you to refer to yourself, you MUST use this exact name — never invent or substitute a different one.\n{{confusedNote}}\n\nReturn ONLY the spoken reply text — no quotation marks, no stage directions, no prose about the answer.";
+let PATIENT_VOICE_CONFUSED_NOTE = "This patient’s GCS Verbal score is 4 (confused conversation) — they are disoriented. Every reply must be rambling, tangential, and only loosely connected to what was actually asked (may drift to an unrelated memory, misidentify the crew, or answer a different question than the one asked) — never a clear, accurate, on-topic answer, no matter what is asked.";
+
+// --- Cartesia voice selection -----------------------------------------
+// Same per-scenario-stable pick as piperVoiceIdFor() (hashStr(seed +
+// ':voice') % pool.length, seeded off avatarBuild.voiceSeed) — deliberately
+// a DIFFERENT hash suffix and a different namespace of IDs than
+// PIPER_VOICE_POOL, since these are Cartesia catalogue voice IDs, not
+// Piper model IDs. PLACEHOLDERS BELOW ARE NOT REAL VOICE IDS — browse
+// Cartesia's voice library (their console lets you preview voices) and
+// replace these before this mode can actually speak. Only two demographic
+// buckets for now (matching what patientGender already gives us) — a
+// finer age-aware pick (matching how the avatar's ageRamp() already varies
+// pediatric/elderly appearance) is a natural follow-up once real voice IDs
+// are in hand, via avatarBuild.ageYears the same way youthVoiceRate() reads it.
+let CARTESIA_VOICE_POOL = {
+  male: ['REPLACE_WITH_CARTESIA_VOICE_ID_MALE_1', 'REPLACE_WITH_CARTESIA_VOICE_ID_MALE_2'],
+  female: ['REPLACE_WITH_CARTESIA_VOICE_ID_FEMALE_1', 'REPLACE_WITH_CARTESIA_VOICE_ID_FEMALE_2'],
+};
+function cartesiaVoiceIdFor(gender) {
+  const pool = CARTESIA_VOICE_POOL[gender] || CARTESIA_VOICE_POOL.male;
+  const seed = avatarBuild.voiceSeed || sessionCode || 'default';
+  return pool[hashStr(seed + ':cartesia-voice') % pool.length];
+}
+
+// --- Toggle ------------------------------------------------------------
+const RT_VOICE_LS_KEY = 'av_rt_voice_enabled';
+let _rtVoiceEnabled = localStorage.getItem(RT_VOICE_LS_KEY) === '1';
+function setRtVoiceEnabled(enabled) {
+  _rtVoiceEnabled = !!enabled;
+  localStorage.setItem(RT_VOICE_LS_KEY, _rtVoiceEnabled ? '1' : '0');
+  document.getElementById('rt-voice-checkbox').checked = _rtVoiceEnabled;
+  updateRtVoiceStatusLabel();
+  if (!_rtVoiceEnabled && _rtActive) endRealtimeCall(); // switching off mid-call tears the live call down too
+}
+function updateRtVoiceStatusLabel() {
+  const el = document.getElementById('rt-voice-status');
+  if (!el) return;
+  const supported = !!(window.MediaRecorder && MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported('audio/webm;codecs=opus'));
+  el.textContent = _rtVoiceEnabled && !supported ? '(needs Chrome)' : '';
+}
+
+// Same unlock trick as unlockPiperAudio() (see its comment above) —
+// Safari/iOS require play() to happen synchronously inside a real user
+// gesture, and the actual Cartesia audio only becomes available later from
+// an async fetch. Reuses the same primed-<audio>-element pattern with its
+// own element (not _piperAudioEl) — the two TTS paths never run
+// concurrently, but keeping them distinct avoids any chance of one
+// clobbering the other's src mid-flight.
+let _rtAudioEl = null;
+let _rtAudioUnlocked = false;
+function unlockRealtimeAudio() {
+  if (_rtAudioUnlocked) return;
+  _rtAudioUnlocked = true;
+  try {
+    _rtAudioEl = new Audio(SILENT_WAV_DATA_URI);
+    _rtAudioEl.play().catch(() => {}); // best-effort — a rejection here just means the real reply falls back to text-only display later
+  } catch (e) { /* best-effort unlock only */ }
+}
+
+// --- Live call lifecycle ------------------------------------------------
+let _rtActive = false;
+let _rtCallId = 0; // bumped on every start/end — every async callback checks this before touching shared state, so a stale call (ended or superseded) can't act after the fact
+let _rtSocket = null;
+let _rtRecorder = null;
+let _rtStream = null;
+let _rtSpeaking = false; // true while Cartesia audio is actually playing — gates whether a SpeechStarted VAD event counts as a barge-in
+let _rtPendingText = ''; // accumulated is_final fragments since the last speech_final
+
+function startRealtimeCall() {
+  unlockSpeechSynthesis(); // the Cartesia-failure fallback in speakRealtimeReply() still needs this unlocked
+  unlockRealtimeAudio(); // must happen here, inside the tap handler, to count as a user gesture
+  stopWakeListening();
+  hideWakePanel();
+  _rtCallId++;
+  _rtActive = true;
+  openVoiceModal('chat', { skipCapture: true }); // reuses the shared modal shell; skipCapture=true means it does NOT also start legacy SpeechRecognition
+  document.getElementById('voice-modal-title').textContent = '⚡ Realtime Voice';
+  startRealtimeCapture();
+}
+
+function endRealtimeCall() {
+  _rtActive = false;
+  _rtCallId++; // invalidates any in-flight async work from this call
+  if (_rtSocket) { try { _rtSocket.close(); } catch (e) {} _rtSocket = null; }
+  if (_rtRecorder) { try { _rtRecorder.stop(); } catch (e) {} _rtRecorder = null; }
+  if (_rtStream) { _rtStream.getTracks().forEach(t => { try { t.stop(); } catch (e) {} }); _rtStream = null; }
+  stopRealtimeAudio();
+  _rtPendingText = '';
+}
+
+function stopRealtimeAudio() {
+  _rtSpeaking = false;
+  if (_rtAudioEl) { try { _rtAudioEl.pause(); } catch (e) {} }
+  stopTalkAnimation();
+}
+
+// --- STT: Deepgram streaming ---------------------------------------------
+// Browsers can't set an Authorization header on a WebSocket handshake, so
+// the API key travels as a Sec-WebSocket-Protocol subprotocol instead —
+// Deepgram's own documented browser auth method (`new WebSocket(url,
+// ['token', apiKey])`), not a workaround improvised here. No `encoding`
+// query param: MediaRecorder's webm/opus output is a self-describing
+// container Deepgram auto-detects, per their browser streaming examples —
+// if transcripts come back empty during testing, an explicit
+// encoding=opus&sample_rate=... pair is the first thing to try adding.
+// vad_events=true is what makes barge-in possible at all — see onmessage's
+// SpeechStarted branch below.
+async function startRealtimeCapture() {
+  const callId = _rtCallId;
+  const statusEl = document.getElementById('voice-modal-status');
+  const transcriptEl = document.getElementById('voice-modal-transcript');
+  if (!(window.MediaRecorder && MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported('audio/webm;codecs=opus'))) {
+    statusEl.textContent = 'Realtime Voice needs Chrome (MediaRecorder isn’t available here).';
+    return;
+  }
+  statusEl.textContent = 'Connecting…';
+  let dgKey;
+  try { dgKey = await getDeepgramKey(); }
+  catch (e) { if (callId === _rtCallId) statusEl.textContent = e.message; return; }
+  if (callId !== _rtCallId) return; // call ended/superseded while the key fetch was in flight
+
+  let stream;
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
+  } catch (e) {
+    if (callId === _rtCallId) statusEl.textContent = 'Microphone permission is required for Realtime Voice.';
+    return;
+  }
+  if (callId !== _rtCallId) { stream.getTracks().forEach(t => t.stop()); return; }
+  _rtStream = stream;
+
+  const dgUrl = 'wss://api.deepgram.com/v1/listen?model=nova-3&smart_format=true&punctuate=true&interim_results=true&endpointing=300&vad_events=true&language=en-US';
+  const socket = new WebSocket(dgUrl, ['token', dgKey]);
+  _rtSocket = socket;
+
+  socket.onopen = () => {
+    if (callId !== _rtCallId) { try { socket.close(); } catch (e) {} return; }
+    statusEl.textContent = 'Listening… (just talk — you can interrupt anytime)';
+    const recorder = new MediaRecorder(stream, { mimeType: 'audio/webm;codecs=opus' });
+    _rtRecorder = recorder;
+    recorder.ondataavailable = (ev) => {
+      if (ev.data && ev.data.size > 0 && socket.readyState === WebSocket.OPEN) socket.send(ev.data);
+    };
+    recorder.start(250); // ~250ms chunks — small enough for low latency, large enough not to spam the socket
+  };
+
+  socket.onmessage = (ev) => {
+    if (callId !== _rtCallId) return;
+    let msg;
+    try { msg = JSON.parse(ev.data); } catch (e) { return; }
+    if (msg.type === 'SpeechStarted') {
+      // Barge-in: the student started talking again. Only meaningful while
+      // the patient's own reply is actually playing — otherwise this is
+      // just normal VAD noise at the start of every utterance, not an
+      // interruption of anything.
+      if (_rtSpeaking) stopRealtimeAudio();
+      return;
+    }
+    if (msg.type !== 'Results') return;
+    const alt = msg.channel && msg.channel.alternatives && msg.channel.alternatives[0];
+    const text = (alt && alt.transcript) || '';
+    // is_final and speech_final are independent flags — a message can be
+    // is_final (this fragment's words are locked in) without speech_final
+    // (more speech is still coming), and Deepgram often sends the actual
+    // speech_final:true signal on a LATER message with an EMPTY transcript
+    // (pure silence/endpoint detection) — so the "send it to the AI" check
+    // below deliberately does not require THIS message to carry text.
+    if (msg.is_final && text) {
+      _rtPendingText = (_rtPendingText + ' ' + text).trim();
+      transcriptEl.textContent = _rtPendingText;
+    } else if (!msg.is_final && text) {
+      transcriptEl.textContent = (_rtPendingText + ' ' + text).trim();
+    }
+    if (msg.speech_final) {
+      const finalText = _rtPendingText;
+      _rtPendingText = '';
+      if (finalText) handleRealtimeUtterance(finalText, callId);
+    }
+  };
+
+  socket.onerror = () => { if (callId === _rtCallId) statusEl.textContent = 'Connection error — check the network and try again.'; };
+  socket.onclose = () => { /* no-op — endRealtimeCall() is the only place that tears state down; a server-initiated close just leaves the modal showing whatever status was last set */ };
+}
+
+// --- One question/answer exchange -----------------------------------------
+async function handleRealtimeUtterance(text, callId) {
+  if (!text || callId !== _rtCallId) return;
+  const statusEl = document.getElementById('voice-modal-status');
+  const replyEl = document.getElementById('patient-reply-display');
+  statusEl.textContent = 'Thinking…';
+  let reply;
+  try {
+    reply = await generateRealtimePatientReply(text);
+  } catch (e) {
+    reply = "...sorry, I didn't catch that.";
+  }
+  if (callId !== _rtCallId) return; // call ended/superseded while the AI call was in flight
+  if (!reply) {
+    // GCS V<=1 — no verbal response at all, same as the legacy path.
+    statusEl.textContent = 'Listening… (just talk — you can interrupt anytime)';
+    return;
+  }
+  statusEl.textContent = 'Patient replied:';
+  replyEl.textContent = `“${reply}”`;
+  replyEl.style.display = 'block';
+  // Fire-and-forget audit write — see the "Trade-offs" comment at the top
+  // of this section on why this doesn't reach the assessor's Log tab yet.
+  sbPatch(`sim_sessions?session_code=eq.${encodeURIComponent(sessionCode)}`, {
+    patient_reply: { id: Date.now(), forId: null, text: reply, speak: true },
+    updated_at: new Date().toISOString()
+  }).catch(() => {});
+  await speakRealtimeReply(reply, callId);
+  if (callId !== _rtCallId) return;
+  statusEl.textContent = 'Listening… (just talk — you can interrupt anytime)';
+  replyEl.style.display = 'none';
+}
+
+// Same GCS-verbal tiering as sim_control.html's answerPatientQuestion() —
+// V<=1 no reply, V2/V3 canned sounds/fragments (no AI call), V4/V5 genuine
+// reasoning. Kept in sync by hand (see the comment on PATIENT_VOICE_PROMPT
+// above) rather than shared, since sim_control.html's version is entangled
+// with its own actionLog/Supabase-write side effects this path doesn't
+// have. Returns null for "no verbal response" (V<=1) so the caller can
+// distinguish that from a real (possibly canned) reply string.
+async function generateRealtimePatientReply(question) {
+  const v = SimEngine.getVitalsRaw(testConfig, SimEngine.getSimNow(testConfig, Date.now()));
+  const gcsV = Math.round(v.gcsV || 0);
+  if (gcsV <= 1) return null;
+  if (gcsV === 2) return SimEngine.GCS_V2_SOUNDS[Math.floor(Math.random() * SimEngine.GCS_V2_SOUNDS.length)];
+  if (gcsV === 3) return SimEngine.GCS_V3_WORDS[Math.floor(Math.random() * SimEngine.GCS_V3_WORDS.length)];
+
+  const apiKey = await getAnthropicKey();
+  const patientName = (scenarioMeta && scenarioMeta.patient_meta && scenarioMeta.patient_meta.name) || 'the patient';
+  const confused = gcsV === 4;
+  const confusedNote = confused ? ('\n' + PATIENT_VOICE_CONFUSED_NOTE) : '';
+  const systemPrompt = PATIENT_VOICE_PROMPT.replace(/\{\{patientName\}\}/g, patientName).replace(/\{\{confusedNote\}\}/g, confusedNote);
+  // Simplified inline equivalent of sim_control.html's currentDateTimeContext().
+  const nowStr = new Date().toLocaleString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+  const treatmentsList = (testConfig.treatments || []).map(t => t.action).join('; ');
+  const userPrompt = `Current real-world date/time: ${nowStr} — use this if the crew asks an orientation question ("do you know what day it is?" etc), otherwise it's just background context.
+Scenario: ${(scenarioMeta && scenarioMeta.title) || ''}
+Patient name: ${patientName}
+Provisional diagnosis (do not reveal): ${(scenarioMeta && scenarioMeta.provisional) || 'unspecified'}
+Key history: ${(scenarioMeta && scenarioMeta.key_hx) || ''}
+Current approximate condition: HR ${v.HR}, RR ${v.RR}, SpO2 ${v.SpO2}%, GCS ${(v.gcsE||0)+(v.gcsV||0)+(v.gcsM||0)}/15 (Verbal component: ${gcsV}/5), pain ${v.pain != null ? v.pain + '/10' : 'unspecified'}
+Treatments given so far: ${treatmentsList || 'none yet'}
+
+The crew just asked/said: "${question}"
+
+Reply as the patient.`;
+  const response = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' },
+    body: JSON.stringify({ model: 'claude-haiku-4-5-20251001', max_tokens: 300, system: systemPrompt, messages: [{ role: 'user', content: userPrompt }] })
+  });
+  if (!response.ok) throw new Error(`Anthropic call failed (${response.status})`);
+  const data = await response.json();
+  const text = (data.content || []).map(b => b.text || '').join('').trim();
+  return text || "...sorry, I didn't catch that.";
+}
+
+// --- TTS: Cartesia ---------------------------------------------------------
+// Fetches the FULL audio before playing (see the "Trade-offs" comment at
+// the top of this section) — a single POST to /tts/bytes, played through
+// the element unlockRealtimeAudio() already primed inside a real tap.
+// Falls back to speakPatientReply()'s existing Piper-then-Web-Speech chain
+// on any failure (missing key, network error, bad voice ID) rather than
+// leaving the reply silent — same "never leave the training exercise
+// stuck" principle the legacy path already follows.
+async function speakRealtimeReply(text, callId) {
+  try {
+    const apiKey = await getCartesiaKey();
+    if (callId !== _rtCallId) return;
+    const voiceId = cartesiaVoiceIdFor(patientGender);
+    const res = await fetch('https://api.cartesia.ai/tts/bytes', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`,
+        // Cartesia requires a dated version header on every request — bump
+        // this if Cartesia's API starts returning a version-related error.
+        'Cartesia-Version': '2025-11-04'
+      },
+      body: JSON.stringify({
+        model_id: 'sonic-2',
+        transcript: text,
+        voice: { mode: 'id', id: voiceId },
+        // NOT independently verified against Cartesia's schema for the mp3
+        // container specifically (only a wav/pcm example was available
+        // while writing this) — first thing to check if this call 400s.
+        output_format: { container: 'mp3', sample_rate: 44100 }
+      })
+    });
+    if (!res.ok) throw new Error(`Cartesia call failed (${res.status})`);
+    if (callId !== _rtCallId) return;
+    const blob = await res.blob();
+    if (callId !== _rtCallId) return;
+    const audio = _rtAudioEl || new Audio();
+    audio.src = URL.createObjectURL(blob);
+    _rtSpeaking = true;
+    await new Promise((resolve, reject) => {
+      audio.onended = resolve;
+      audio.onerror = () => reject(new Error('Cartesia audio playback error'));
+      audio.play().then(startTalkAnimation).catch(reject);
+    });
+    _rtSpeaking = false;
+    stopTalkAnimation();
+  } catch (e) {
+    _rtSpeaking = false;
+    if (callId !== _rtCallId) return;
+    // Fall back to the legacy Piper/Web Speech chain — isConversation=false
+    // and a no-op resume since this call site drives its own loop
+    // (handleRealtimeUtterance), not speakPatientReply()'s.
+    await speakPatientReply(text, () => {}, false, hqVoiceEnabled);
+  }
+}
+
 async function queueStudentItem(type, text) {
   const rows = await sbGet(`sim_sessions?session_code=eq.${encodeURIComponent(sessionCode)}&select=student_queue`);
   const queue = (rows[0] && rows[0].student_queue) || [];
@@ -2717,7 +3173,12 @@ async function queueStudentItem(type, text) {
 let VOICE_MODE_LABELS = { treatment: 'Give Treatment', exam: 'Assessment', chat: 'Talk to Patient' };
 let VOICE_MODE_REPLY_LABELS = { exam: 'Finding:', chat: 'Patient replied:' };
 
-function openVoiceModal(mode) {
+// `opts.skipCapture` is used by startRealtimeCall() — it wants this
+// function's panel-opening side effects (title, wake-panel teardown, mode
+// state) WITHOUT also starting the legacy hold-to-talk SpeechRecognition
+// capture in beginCapture(), since realtime mode drives its own Deepgram
+// capture instead. Omitted (or falsy), this behaves exactly as before.
+function openVoiceModal(mode, opts) {
   unlockSpeechSynthesis(); // must happen here, inside the tap handler, to count as a user gesture
   unlockPiperAudio(); // same requirement, separate API — see unlockPiperAudio()'s comment
   stopWakeListening(); // a manual exchange takes the mic away from auto-listen until this one closes
@@ -2734,7 +3195,7 @@ function openVoiceModal(mode) {
   document.getElementById('patient-info-voice').style.display = 'flex';
   _voiceModalOpen = true;
   syncInputModeUI();
-  beginCapture();
+  if (!(opts && opts.skipCapture)) beginCapture();
 }
 
 // Speech vs typed toggle — one button below the three hold buttons, applies
@@ -3193,6 +3654,13 @@ async function sendWakeItem(text, mode, isGreeting) {
 function handleFabPress(mode, ev) {
   if (ev.pointerType === 'mouse' && ev.button !== 0) return; // ignore right/middle click
   ev.preventDefault(); // avoid text-selection/long-press callouts on touch
+  // Realtime Voice (beta) only replaces "Talk to Patient" — Give
+  // Treatment/Assessment always stay on the legacy hold-to-talk +
+  // sim_control.html queue flow, since those still need the assessor's
+  // scenario-authoring context (giveTreatment) or aren't latency-sensitive
+  // in the same way. It also owns the interaction fully once armed: no
+  // hold gesture, no setPointerCapture — see startRealtimeCall().
+  if (mode === 'chat' && _rtVoiceEnabled) { startRealtimeCall(); return; }
   const btn = ev.currentTarget;
   try { btn.setPointerCapture(ev.pointerId); } catch (e) {}
   if (_inputMode === 'speech') btn.classList.add('holding');
@@ -3275,6 +3743,7 @@ function startVoiceCapture() {
 
 function closeVoiceModal() {
   _voiceModalOpen = false;
+  if (_rtActive) endRealtimeCall(); // Cancel button is shared with Realtime Voice's live-call modal — tear down the socket/mic/audio too, not just the panel
   // Also the dismiss path for an auto-listen exchange — the panel's Cancel
   // button is shared, and without this it would hide the panel while leaving
   // _wakePanelActive and the wake-* classes set, so the next wake exchange
