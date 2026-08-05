@@ -122,6 +122,16 @@ select, input[type=number], input[type=text] { font-family: 'Courier New', monos
 #edit-mode-btn.active { background: #0369a1; }
 .topbar-logo-img { height: 26px; width: auto; max-width: 150px; object-fit: contain; flex-shrink: 0; display: block; }
 #topbar #avnav-hamburger { width: 34px; height: 34px; font-size: 15px; }
+/* "AI is thinking" — lives in the topbar (see beginAiWork/endAiWork) so
+   it's visible in both Basic and Advanced, not tucked into whichever
+   status line happens to be on screen. Colour (purple, otherwise unused
+   by any clinical/vitals element) plus motion make it read as "something
+   is actively happening" at a glance, without being a modal/blocking
+   interruption — the rest of the page stays fully usable while it's up. */
+#ai-thinking-indicator { display: none; align-items: center; gap: 6px; font-size: 11px; font-weight: 700; color: #fff; background: var(--purple); padding: 4px 10px; border-radius: 12px; animation: ai-thinking-glow 1.6s ease-in-out infinite; }
+#ai-thinking-indicator .ai-thinking-dot { width: 7px; height: 7px; border-radius: 50%; background: #fff; flex-shrink: 0; animation: ai-thinking-dot 1.1s ease-in-out infinite; }
+@keyframes ai-thinking-glow { 0%, 100% { box-shadow: 0 0 0 0 rgba(125,60,152,0.55); } 50% { box-shadow: 0 0 0 6px rgba(125,60,152,0); } }
+@keyframes ai-thinking-dot { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.3; transform: scale(0.7); } }
 </style>
 </head>
 <body>
@@ -137,6 +147,7 @@ select, input[type=number], input[type=text] { font-family: 'Courier New', monos
     </div>
   </div>
   <div style="display:flex;align-items:center;gap:10px;">
+    <div id="ai-thinking-indicator" title="Waiting on an AI call — treatment/event reasoning, patient reply, or scenario timeline generation"><span class="ai-thinking-dot"></span>AI THINKING…</div>
     <div id="ai-cost-indicator" style="font-size:11px;color:rgba(255,255,255,0.85);" title="Running Anthropic API cost this session">$0.0000</div>
     <label style="font-size:10px;margin:0;display:flex;align-items:center;gap:4px;" title="Caches the treatment-effect system prompt so repeat calls within a session cost ~1/10th on input tokens. Costs a small premium instead on a single one-off call with no follow-up — turn off while doing isolated test runs.">
       <input type="checkbox" id="cache-toggle" checked onchange="promptCachingEnabled = this.checked"> Cache
@@ -543,6 +554,26 @@ let sessionAiCostUsd = 0;
 // fraction (paid on every subsequent call that reuses it within the TTL).
 const CACHE_WRITE_MULTIPLIER = 1.25;
 const CACHE_READ_MULTIPLIER = 0.1;
+
+// Drives #ai-thinking-indicator in the topbar. A counter, not a boolean —
+// a chained user action (e.g. giveTreatment()'s Haiku-router call followed
+// by a Sonnet regenerate) wraps as ONE begin/end pair around the whole
+// chain so the badge stays on continuously rather than flickering off
+// between the two calls, but nesting is still cheap/safe to allow for.
+let _aiBusyCount = 0;
+function beginAiWork() {
+  _aiBusyCount++;
+  const el = document.getElementById('ai-thinking-indicator');
+  if (el) el.style.display = 'flex';
+}
+function endAiWork() {
+  _aiBusyCount = Math.max(0, _aiBusyCount - 1);
+  if (_aiBusyCount === 0) {
+    const el = document.getElementById('ai-thinking-indicator');
+    if (el) el.style.display = 'none';
+  }
+}
+
 function addAiCost(model, usage) {
   if (!usage) return;
   const pricing = MODEL_PRICING[model] || { input: 0, output: 0 };
@@ -883,7 +914,15 @@ async function getOrBuildTimeline(scenario) {
   if (cached.length && cached[0].source_updated_at === scenario.updated_at) {
     return cached[0];
   }
-  const built = await generateSimTimeline(scenario);
+  // Only the cache-miss path below is an actual AI call — a cache hit
+  // above returns before this, deliberately not flagged as "thinking".
+  beginAiWork();
+  let built;
+  try {
+    built = await generateSimTimeline(scenario);
+  } finally {
+    endAiWork();
+  }
   const row = {
     scenario_id: scenario.id,
     starting_vitals: built.starting_vitals,
@@ -2476,7 +2515,7 @@ function renderGraph() {
 // to graphSeriesOn (the main graph's user-configurable toggles): there's no
 // room here for toggle controls, and tapping the mini graph opens the real,
 // fully-configurable one in a modal instead (see openFullGraphModal()).
-const MINI_GRAPH_KEYS = ['HR', 'BPsys', 'BPdia', 'RR', 'health'];
+const MINI_GRAPH_KEYS = ['HR', 'BPsys', 'BPdia', 'SpO2', 'health'];
 const MINI_GRAPH_WINDOW_MIN = 10;
 
 function renderMiniGraph() {
@@ -2504,6 +2543,21 @@ function renderMiniGraph() {
   const xForMin = (m) => padL + ((m - viewStart) / (viewEnd - viewStart)) * plotW;
   const yFor = (s, val) => padT + (1 - Math.min(1, Math.max(0, (val - s.min) / ((s.plotMax !== undefined ? s.plotMax : s.max) - s.min)))) * plotH;
   const SAMPLES = 40;
+  // Samples sit on a FIXED absolute-time grid (multiples of stepMin since
+  // scenario start), not evenly divided across the *current* window. While
+  // the window slides continuously (see viewStart above), dividing evenly
+  // across it means every sample's position relative to any override kink
+  // in the underlying piecewise-linear vitals curve shifts a little on
+  // every render — and pointsToSmoothPath()'s Catmull-Rom-style smoothing
+  // isn't shape-preserving for samples that don't land exactly on a kink,
+  // so that shift showed up as a visible per-frame wobble/warp near it.
+  // Snapping to a fixed grid means each sample's time (and so its value
+  // and its curvature near a kink) barely changes between renders — only
+  // the oldest sample ages off the left edge and a new one appears on the
+  // right, the way a real strip-chart monitor scrolls.
+  const stepMin = MINI_GRAPH_WINDOW_MIN / SAMPLES;
+  const sampleMins = [];
+  for (let m = Math.floor(viewStart / stepMin) * stepMin; m <= viewEnd + stepMin; m += stepMin) sampleMins.push(m);
 
   let grid = '';
   [0.25, 0.5, 0.75].forEach(f => {
@@ -2523,13 +2577,11 @@ function renderMiniGraph() {
   MINI_GRAPH_KEYS.forEach(key => {
     const s = GRAPH_SERIES.find(g => g.key === key);
     if (!s) return;
-    const pts = [];
-    for (let i = 0; i <= SAMPLES; i++) {
-      const m = viewStart + (viewEnd - viewStart) * (i / SAMPLES);
+    const pts = sampleMins.map(m => {
       const tMs = liveConfig.startTimeMs + m * 60000;
       const val = s.get(SimEngine.getVitalsRaw(liveConfig, tMs), liveConfig, tMs);
-      pts.push([xForMin(m), yFor(s, val)]);
-    }
+      return [xForMin(m), yFor(s, val)];
+    });
     // Health is coloured by value (green -> black), matching the main
     // graph's health-line-gradient — a flat stroke would misrepresent a
     // line whose whole point is that its colour isn't flat. It also gets a
@@ -2567,7 +2619,7 @@ function renderMiniGraph() {
     const items = [
       { label: 'HR', color: GRAPH_SERIES.find(g => g.key === 'HR').color },
       { label: 'BP', color: GRAPH_SERIES.find(g => g.key === 'BPsys').color },
-      { label: 'RR', color: GRAPH_SERIES.find(g => g.key === 'RR').color },
+      { label: 'SpO₂', color: GRAPH_SERIES.find(g => g.key === 'SpO2').color },
       { label: 'Health', color: healthLineColor(healthNow) }
     ];
     legendWrap.innerHTML = items.map(it =>
@@ -3293,8 +3345,15 @@ async function answerPatientQuestion(question, forId) {
     speak = true;
   } else {
     // gcsV 4 (confused) or 5 (oriented) — genuine AI reasoning, told which
-    // tier applies so it can't accidentally answer too lucidly at V4.
-    replyText = await callPatientAI(question, v, gcsV);
+    // tier applies so it can't accidentally answer too lucidly at V4. The
+    // other branches above are canned/local (no network call), so only
+    // this one flags the topbar's "AI thinking" badge.
+    beginAiWork();
+    try {
+      replyText = await callPatientAI(question, v, gcsV);
+    } finally {
+      endAiWork();
+    }
     speak = true;
   }
 
@@ -3509,70 +3568,82 @@ async function giveTreatment(providedText, opts) {
   // piece against the reviewed catalogues. If the router itself fails, fall
   // back to the full original text going to Sonnet (safest default — same
   // as if nothing had matched).
-  if (statusEl) statusEl.textContent = 'Checking action…';
-  let routed = [];
+  // One begin/end pair spans this whole region (through every exit below,
+  // success or failure) so the topbar's "AI thinking" badge stays on
+  // continuously across the Haiku router + a possible follow-up Sonnet
+  // call instead of flickering off between the two — wrapped in
+  // try/finally rather than an explicit endAiWork() at each exit point so
+  // a thrown exception anywhere in here (e.g. from noteForMatchedItem)
+  // can't leave the badge stuck on.
+  beginAiWork();
   try {
-    routed = await classifyTreatmentWithHaiku(action);
-  } catch (e) { routed = []; }
-
-  const matched = routed.filter(it => it.matchId);
-  const unmatched = routed.filter(it => !it.matchId);
-  // A diverging action always needs the full Sonnet path, even if every part
-  // of it matched the reviewed catalogue: the Haiku shortcut only applies
-  // each item's own small known effect and never re-projects anything else,
-  // but resetDivergedFutureIfNeeded has just cleared the ENTIRE forward
-  // plan — with nothing to re-author it, every vital would hold flat for the
-  // rest of the scenario (an anaphylaxis patient frozen mid-deterioration
-  // because the crew rewound and gave aspirin). Sonnet gets DIVERGENCE_NOTE
-  // and re-projects the whole picture, with the matched items passed along
-  // as context exactly like the partial-match case below.
-  const allMatched = routed.length > 0 && unmatched.length === 0 && !diverged;
-
-  if (allMatched) {
-    // Every distinct action matched a reviewed catalogue — skip Sonnet
-    // entirely. Coded-effect items get applied here (sequentially, not in
-    // parallel, since each does its own read-modify-write on overrides).
-    const notes = [];
-    for (const item of matched) notes.push(await noteForMatchedItem(item, givenAtMs));
-    newEntry.assumptions = notes;
+    if (statusEl) statusEl.textContent = 'Checking action…';
+    let routed = [];
     try {
-      await sbFetch(`sim_sessions?session_code=eq.${sessionCode}`, {
-        method: 'PATCH', prefer: 'return=minimal',
-        body: JSON.stringify({ treatments, updated_at: new Date().toISOString() })
-      });
-      renderLog();
-    } catch (e) { /* initial log entry is already saved without assumptions — non-fatal */ }
-    if (statusEl) statusEl.textContent = '';
-    return;
-  }
+      routed = await classifyTreatmentWithHaiku(action);
+    } catch (e) { routed = []; }
 
-  // Partial or no match — full AI reasoning runs on the unmatched portion
-  // only, with the matched portion (if any) passed along as context so
-  // Sonnet knows what else was given concurrently (interactions, etc).
-  // Matched items are still applied/logged (sequentially) alongside Sonnet's
-  // own reasoning about the rest.
-  const matchedNotes = [];
-  for (const item of matched) matchedNotes.push(await noteForMatchedItem(item, givenAtMs));
-  const reasoningText = unmatched.length ? unmatched.map(it => it.text).join(', ') : action;
-  const contextNote = matched.length
-    ? ` (Also given at the same time, already handled locally: ${matched.map(it => it.text).join(', ')}.)`
-    : '';
-  if (statusEl) statusEl.textContent = 'Recalculating trajectory…';
-  try {
-    await regenerateTimelineAfterTreatment(reasoningText + contextNote, givenAtMs, { diverged });
-    if (matchedNotes.length) {
-      const idx = treatments.length - 1;
-      treatments[idx].assumptions = [...matchedNotes, ...(treatments[idx].assumptions || [])];
-      liveConfig.treatments = treatments;
-      await sbFetch(`sim_sessions?session_code=eq.${sessionCode}`, {
-        method: 'PATCH', prefer: 'return=minimal',
-        body: JSON.stringify({ treatments, updated_at: new Date().toISOString() })
-      });
-      renderLog();
+    const matched = routed.filter(it => it.matchId);
+    const unmatched = routed.filter(it => !it.matchId);
+    // A diverging action always needs the full Sonnet path, even if every part
+    // of it matched the reviewed catalogue: the Haiku shortcut only applies
+    // each item's own small known effect and never re-projects anything else,
+    // but resetDivergedFutureIfNeeded has just cleared the ENTIRE forward
+    // plan — with nothing to re-author it, every vital would hold flat for the
+    // rest of the scenario (an anaphylaxis patient frozen mid-deterioration
+    // because the crew rewound and gave aspirin). Sonnet gets DIVERGENCE_NOTE
+    // and re-projects the whole picture, with the matched items passed along
+    // as context exactly like the partial-match case below.
+    const allMatched = routed.length > 0 && unmatched.length === 0 && !diverged;
+
+    if (allMatched) {
+      // Every distinct action matched a reviewed catalogue — skip Sonnet
+      // entirely. Coded-effect items get applied here (sequentially, not in
+      // parallel, since each does its own read-modify-write on overrides).
+      const notes = [];
+      for (const item of matched) notes.push(await noteForMatchedItem(item, givenAtMs));
+      newEntry.assumptions = notes;
+      try {
+        await sbFetch(`sim_sessions?session_code=eq.${sessionCode}`, {
+          method: 'PATCH', prefer: 'return=minimal',
+          body: JSON.stringify({ treatments, updated_at: new Date().toISOString() })
+        });
+        renderLog();
+      } catch (e) { /* initial log entry is already saved without assumptions — non-fatal */ }
+      if (statusEl) statusEl.textContent = '';
+      return;
     }
-    if (statusEl) statusEl.textContent = '';
-  } catch (e) {
-    if (statusEl) statusEl.textContent = 'Could not recalculate the trajectory: ' + e.message;
+
+    // Partial or no match — full AI reasoning runs on the unmatched portion
+    // only, with the matched portion (if any) passed along as context so
+    // Sonnet knows what else was given concurrently (interactions, etc).
+    // Matched items are still applied/logged (sequentially) alongside Sonnet's
+    // own reasoning about the rest.
+    const matchedNotes = [];
+    for (const item of matched) matchedNotes.push(await noteForMatchedItem(item, givenAtMs));
+    const reasoningText = unmatched.length ? unmatched.map(it => it.text).join(', ') : action;
+    const contextNote = matched.length
+      ? ` (Also given at the same time, already handled locally: ${matched.map(it => it.text).join(', ')}.)`
+      : '';
+    if (statusEl) statusEl.textContent = 'Recalculating trajectory…';
+    try {
+      await regenerateTimelineAfterTreatment(reasoningText + contextNote, givenAtMs, { diverged });
+      if (matchedNotes.length) {
+        const idx = treatments.length - 1;
+        treatments[idx].assumptions = [...matchedNotes, ...(treatments[idx].assumptions || [])];
+        liveConfig.treatments = treatments;
+        await sbFetch(`sim_sessions?session_code=eq.${sessionCode}`, {
+          method: 'PATCH', prefer: 'return=minimal',
+          body: JSON.stringify({ treatments, updated_at: new Date().toISOString() })
+        });
+        renderLog();
+      }
+      if (statusEl) statusEl.textContent = '';
+    } catch (e) {
+      if (statusEl) statusEl.textContent = 'Could not recalculate the trajectory: ' + e.message;
+    }
+  } finally {
+    endAiWork();
   }
 }
 
@@ -3768,11 +3839,14 @@ async function runAssessorCommand(providedText) {
     return;
   }
   if (statusEl) statusEl.textContent = 'Scripting event\u2026';
+  beginAiWork();
   try {
     await regenerateTimelineForScriptedEvent(command, givenAtMs, { diverged });
     if (statusEl) statusEl.textContent = '';
   } catch (e) {
     if (statusEl) statusEl.textContent = 'Could not script the event: ' + e.message;
+  } finally {
+    endAiWork();
   }
 }
 
