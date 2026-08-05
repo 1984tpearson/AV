@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<title>Sim — Combo (Control + Patient)</title>
+<style>
+  html, body { height: 100%; height: 100dvh; margin: 0; overflow: hidden; background: linear-gradient(135deg, #2C4F7C 0%, #4E7FAE 55%, #6FA0CC 100%); color: #1e2a36; font-family: 'Courier New', monospace; }
+  body { display: flex; flex-direction: column; }
+
+  /* PROTOTYPE NOTICE — see chat: this is a demo of the shell-page approach,
+     not a shipped feature. Remove this banner once/if it's adopted for real. */
+  #proto-banner { flex-shrink: 0; background: #7a2e2e; color: #fff; font-size: 11px; font-weight: 700; text-align: center; padding: 4px 8px; letter-spacing: 0.5px; }
+
+  #combo-topbar { flex-shrink: 0; position: relative; z-index: 50; background: #1c2f45; box-shadow: 0 2px 8px rgba(0,0,0,0.25); padding: 6px 10px; display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+  #combo-topbar .title { font-size: 12px; font-weight: 900; letter-spacing: 1px; color: #fff; text-transform: uppercase; white-space: nowrap; }
+
+  #combo-tabs { display: flex; gap: 4px; background: rgba(255,255,255,0.08); border-radius: 8px; padding: 3px; }
+  #combo-tabs button { border: none; background: transparent; color: rgba(255,255,255,0.65); font-family: inherit; font-size: 11px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; padding: 6px 12px; border-radius: 6px; cursor: pointer; }
+  #combo-tabs button.active { background: #4E7FAE; color: #fff; }
+  #combo-tabs button:not(.active):hover { color: #fff; }
+  #combo-tabs button[data-mode="split"] { display: none; } /* shown only above the width breakpoint, see media query */
+
+  #pair-status { font-size: 10px; color: rgba(255,255,255,0.75); display: flex; align-items: center; gap: 6px; white-space: nowrap; }
+  #pair-status .dot { width: 7px; height: 7px; border-radius: 50%; background: #6b7a8c; flex-shrink: 0; }
+  #pair-status.linked .dot { background: #27833A; }
+  #pair-status button { font-family: inherit; font-size: 10px; font-weight: 700; color: #fff; background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.3); border-radius: 5px; padding: 3px 8px; cursor: pointer; }
+  #pair-status button:hover { background: rgba(255,255,255,0.25); }
+
+  #combo-body { flex: 1; min-height: 0; display: flex; }
+  .pane { flex: 1; min-width: 0; height: 100%; display: flex; flex-direction: column; }
+  .pane iframe { flex: 1; width: 100%; height: 100%; border: none; background: #14243a; }
+  .pane-label { display: none; } /* only shown in split mode */
+
+  /* single-pane modes: only one pane occupies space, the other is 0-width
+     but stays mounted (not display:none) so its timers/animation loops and
+     any in-progress voice interaction keep running underneath — same
+     tradeoff called out in chat: convenience now, at the cost of a hidden
+     pane still spending CPU. */
+  body.mode-control .pane.patient-pane,
+  body.mode-patient .pane.control-pane { flex: 0 0 0; width: 0; overflow: hidden; }
+
+  body.mode-split .pane-label { display: block; flex-shrink: 0; font-size: 10px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; color: rgba(255,255,255,0.7); background: #14243a; padding: 3px 10px; }
+  body.mode-split #combo-body { gap: 2px; }
+
+  @media (min-width: 900px) {
+    #combo-tabs button[data-mode="split"] { display: inline-block; }
+  }
+  @media (max-width: 899px) {
+    body.mode-split .pane.patient-pane { display: none; } /* split isn't reachable below the breakpoint anyway, this is just a safety fallback */
+  }
+</style>
+</head>
+<body class="mode-control">
+
+<div id="proto-banner">PROTOTYPE — demonstrating the "shell page hosting both tools" approach discussed in chat. Not wired into the site nav.</div>
+
+<div id="combo-topbar">
+  <div class="title">Sim — Combo</div>
+  <div id="combo-tabs">
+    <button data-mode="control" class="active" onclick="setComboMode('control')">Control</button>
+    <button data-mode="patient" onclick="setComboMode('patient')">Patient</button>
+    <button data-mode="split" onclick="setComboMode('split')">Split</button>
+  </div>
+  <div id="pair-status">
+    <span class="dot"></span>
+    <span id="pair-status-text">No session yet — create one on the Control tab</span>
+    <button id="pair-manual-btn" onclick="promptManualCode()" title="Type a pairing code into the Patient pane by hand, e.g. if auto-pairing didn't fire">Enter code manually</button>
+  </div>
+</div>
+
+<div id="combo-body">
+  <div class="pane control-pane">
+    <div class="pane-label">Control (assessor)</div>
+    <iframe id="control-frame" src="sim_control.html" title="Sim Control"></iframe>
+  </div>
+  <div class="pane patient-pane">
+    <div class="pane-label">Patient (student)</div>
+    <iframe id="patient-frame" src="sim_patient.html" title="Sim Patient" allow="microphone; autoplay"></iframe>
+  </div>
+</div>
+
+<script>
+// ---------------------------------------------------------------------
+// Tab switching. Both iframes stay mounted at all times (see CSS) rather
+// than swapping `src` in and out — that would tear down and reload
+// whichever side isn't showing, killing its Supabase subscription, any
+// mid-flight voice interaction, and the avatar's animation loop every
+// time the assessor glances at the graph and back. The cost (see banner
+// note in chat) is that the hidden pane keeps running its own timers.
+// ---------------------------------------------------------------------
+function setComboMode(mode) {
+  document.body.classList.remove('mode-control', 'mode-patient', 'mode-split');
+  document.body.classList.add('mode-' + mode);
+  document.querySelectorAll('#combo-tabs button').forEach(b => b.classList.toggle('active', b.dataset.mode === mode));
+  try { localStorage.setItem('av_combo_mode', mode); } catch (e) {}
+}
+(function restoreMode() {
+  let saved = null;
+  try { saved = localStorage.getItem('av_combo_mode'); } catch (e) {}
+  if (saved === 'split' && window.innerWidth < 900) saved = 'control'; // split tab is hidden below the breakpoint, don't strand the user on it
+  if (saved) setComboMode(saved);
+})();
+
+// ---------------------------------------------------------------------
+// Auto-pairing: once the Control pane creates a session, its pairing
+// code lands in its own #code-display element. Both iframes are
+// same-origin (this shell ships from the same directory as the two
+// tools it hosts), so contentDocument access needs no postMessage
+// plumbing — just poll the one element. When a fresh 6-digit code shows
+// up, hand it straight to the Patient pane's own connectSession(), the
+// same function its manual "Connect" button calls, instead of reloading
+// the iframe (a reload would also throw away any display-mode choice —
+// monitor-only / avatar-only — already made there).
+// ---------------------------------------------------------------------
+let _lastPairedCode = null;
+function pollForSessionCode() {
+  try {
+    const ctrlDoc = document.getElementById('control-frame').contentDocument;
+    const el = ctrlDoc && ctrlDoc.getElementById('code-display');
+    const text = el && el.textContent.trim();
+    if (text && /^\d{6}$/.test(text) && text !== _lastPairedCode) {
+      _lastPairedCode = text;
+      pairPatientFrame(text);
+    }
+  } catch (e) {
+    // cross-origin or not-yet-loaded — ignore, just retry next tick
+  }
+}
+setInterval(pollForSessionCode, 1000);
+
+function pairPatientFrame(code) {
+  const frame = document.getElementById('patient-frame');
+  const win = frame.contentWindow;
+  try {
+    if (win && typeof win.connectSession === 'function') {
+      win.connectSession(code);
+    } else {
+      // patient page hasn't finished loading its script yet — fall back
+      // to a src navigation with ?code=, which sim_patient.html's own
+      // startup already knows how to consume.
+      frame.src = 'sim_patient.html?code=' + encodeURIComponent(code);
+    }
+    setPairStatus(true, 'Paired — code ' + code);
+  } catch (e) {
+    setPairStatus(false, 'Could not auto-pair (' + e.message + ') — use "Enter code manually"');
+  }
+}
+
+function setPairStatus(linked, text) {
+  const wrap = document.getElementById('pair-status');
+  wrap.classList.toggle('linked', !!linked);
+  document.getElementById('pair-status-text').textContent = text;
+}
+
+function promptManualCode() {
+  const code = prompt('6-digit pairing code (from the Control tab):');
+  if (code && /^\d{6}$/.test(code.trim())) {
+    _lastPairedCode = code.trim();
+    pairPatientFrame(code.trim());
+  } else if (code) {
+    alert('That doesn\'t look like a 6-digit code.');
+  }
+}
+</script>
+
+</body>
+</html>
