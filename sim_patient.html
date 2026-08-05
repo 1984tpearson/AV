@@ -37,6 +37,20 @@ body { display: flex; flex-direction: column; }
 .panel { background: #ffffff; border: 1px solid #d7dee6; border-radius: 8px; padding: 10px; }
 #monitor-col { background: #0a0e16 !important; border-color: #142235 !important; min-height: 0; position: relative; }
 #info-col { flex: 1; max-width: 280px; display: flex; flex-direction: column; gap: 10px; min-width: 0; min-height: 0; }
+/* Display mode (Standard / Monitor Only / Avatar Only) — see setDisplayMode()
+   for why this exists: splitting the "patient" role across two physical
+   devices when one of them can't do voice reliably. Monitor Only also hides
+   every voice control, not just the avatar column, since the whole point is
+   this device's mic never gets touched — see the JS-side guards for the
+   non-visual half of that (a hidden button alone doesn't stop e.g. auto-listen
+   resuming from a stale localStorage flag). */
+body.mode-monitor #info-col,
+body.mode-monitor #hq-voice-label,
+body.mode-monitor #hq-voice-status,
+body.mode-monitor #rt-voice-label,
+body.mode-monitor #rt-voice-status { display: none !important; }
+body.mode-avatar #monitor-col { display: none !important; }
+#display-mode-select { font-size: 10px; background: rgba(255,255,255,0.12); color: #fff; border: 1px solid rgba(255,255,255,0.3); border-radius: 6px; padding: 3px 6px; cursor: pointer; }
 #patient-info h2 { font-size: 12px; color: #0369a1; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; }
 #patient-info .row { font-size: 12px; color: #33475a; margin-bottom: 3px; }
 #patient-graphic { flex: 1; min-height: 100px; display: flex; align-items: center; justify-content: center; overflow: hidden; }
@@ -205,6 +219,11 @@ body { display: flex; flex-direction: column; }
   <div id="topbar-right">
     <span id="pause-indicator" style="font-size:11px;font-weight:700;color:#fbbf24;display:none;">&#9208; PAUSED</span>
     <span id="instant-mode-indicator" style="font-size:10px;color:rgba(255,255,255,0.85);display:none;">Instant Mode: ON</span>
+    <select id="display-mode-select" onchange="setDisplayMode(this.value)" title="What this device shows. Split the patient role across two devices when one of them (e.g. an iPad blocked from realtime voice by network policy) can't do voice reliably — connect both to the same session code.">
+      <option value="standard">🖥️ Standard</option>
+      <option value="monitor">📈 Monitor Only</option>
+      <option value="avatar">🧑 Avatar Only</option>
+    </select>
     <label id="hq-voice-label" title="Higher-quality patient voice (downloads a voice model on first use)">
       <input type="checkbox" id="hq-voice-checkbox" onchange="setHqVoiceEnabled(this.checked)">HQ Voice
     </label>
@@ -2151,6 +2170,49 @@ async function requireAuth() {
   return null;
 }
 
+// --- Display mode: Standard / Monitor Only / Avatar Only -------------------
+// Lets the "patient" role be split across two physical devices when one of
+// them can't do voice reliably — e.g. an iPad whose network security policy
+// blocks the realtime voice WebSocket (see the git history around
+// startRealtimeCapture()'s connect-timeout comment) stays in Monitor Only
+// (vitals/ECG, no mic use at all) while a phone runs Avatar Only (avatar +
+// every voice control), both connected to the same session code at once.
+// #patient-info (title/dispatch/complaint, and the voice-exchange transcript
+// panel) sits outside both mode-gated columns in the DOM, so it stays visible
+// in every mode without any extra handling here — matches "monitor only
+// shows the monitor AND info" by construction, not by listing it below.
+const DISPLAY_MODE_LS_KEY = 'av_patient_display_mode';
+let _patientDisplayMode = 'standard';
+
+function defaultDisplayModeForDevice() {
+  // Real desktops/laptops (mouse, no coarse pointer) always get the full
+  // Standard experience by default — only touch devices get split.
+  const coarse = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
+  if (!coarse) return 'standard';
+  // The SMALLER of the two screen dimensions is what actually distinguishes
+  // "phone" from "tablet" — screen WIDTH alone isn't, since a landscape
+  // phone can be wider than a portrait tablet. A phone's short edge is
+  // still under ~500 CSS px in any orientation; a tablet's isn't.
+  const minDim = Math.min(window.screen.width, window.screen.height);
+  return minDim < 500 ? 'avatar' : 'monitor';
+}
+
+function setDisplayMode(mode) {
+  if (mode !== 'monitor' && mode !== 'avatar') mode = 'standard';
+  _patientDisplayMode = mode;
+  localStorage.setItem(DISPLAY_MODE_LS_KEY, mode);
+  document.body.classList.remove('mode-standard', 'mode-monitor', 'mode-avatar');
+  document.body.classList.add('mode-' + mode);
+  const sel = document.getElementById('display-mode-select');
+  if (sel) sel.value = mode;
+  // Belt-and-braces on top of the CSS hiding every voice control above:
+  // Monitor Only means this device's mic is never touched, even if
+  // auto-listen was left on in localStorage from before this device was
+  // repurposed (see startWakeListening()'s own guard for the other half of
+  // this — a hidden button alone doesn't stop something that auto-resumes).
+  if (mode === 'monitor') stopWakeListening();
+}
+
 // Registered on `document`, not `window`: nav.js's own DOMContentLoaded
 // listener is also on `document` (see nav.js's init() call at the bottom of
 // that file), and per spec same-target listeners fire in registration order
@@ -2161,8 +2223,13 @@ async function requireAuth() {
 // set before nav.js checks it — on `window` it raced and lost every time.
 document.addEventListener('DOMContentLoaded', async () => {
   await requireAuth();
+  setDisplayMode(localStorage.getItem(DISPLAY_MODE_LS_KEY) || defaultDisplayModeForDevice());
   document.getElementById('hq-voice-checkbox').checked = hqVoiceEnabled;
-  if (localStorage.getItem(HQ_VOICE_LS_KEY) === null) {
+  if (_patientDisplayMode === 'monitor') {
+    // No voice control is visible in this mode (see the CSS rules on
+    // body.mode-monitor) — asking about voice quality here would be a
+    // dead-end prompt for a setting this device will never use.
+  } else if (localStorage.getItem(HQ_VOICE_LS_KEY) === null) {
     document.getElementById('hq-voice-prompt').style.display = 'flex';
   } else if (hqVoiceEnabled) {
     warmPiperVoice(); // gives status feedback immediately, without waiting on a session to connect
@@ -2953,6 +3020,7 @@ let _rtPlaybackStartedAt = 0; // Date.now() when _rtSpeaking last became true �
 let _rtBargeInArmedAt = null; // Date.now() a SpeechStarted armed a possible barge-in, or null if none pending
 
 function startRealtimeCall() {
+  if (_patientDisplayMode === 'monitor') return; // this device's mic is intentionally never used in Monitor Only mode — see setDisplayMode()
   unlockSpeechSynthesis(); // the TTS-failure fallback in speakRealtimeReply() still needs this unlocked
   unlockRealtimeAudio(); // must happen here, inside the tap handler, to count as a user gesture
   stopWakeListening();
@@ -3594,6 +3662,7 @@ function toggleWakeWord() {
 // tick rather than leaving auto-listen silently dead for the rest of the
 // session (which is exactly how the first version failed).
 function startWakeListening() {
+  if (_patientDisplayMode === 'monitor') return; // this device's mic is intentionally never used in Monitor Only mode — see setDisplayMode()
   if (!_wakeWordEnabled || _wakeRecognition || _voiceModalOpen || _isSpeaking || !sessionCode) return;
   const Ctor = getSpeechRecognitionCtor();
   if (!Ctor) { setWakeStatus('unavailable'); return; } // no SpeechRecognition at all — iOS Safari, this tool's primary device (same Chrome-only limitation the push-to-talk mic reports in its own status line)
@@ -3734,6 +3803,7 @@ async function sendWakeItem(text, mode, isGreeting) {
 // beginCapture), and release is a no-op. setPointerCapture keeps the release
 // tied to the same button even if the finger slides off it mid-hold.
 function handleFabPress(mode, ev) {
+  if (_patientDisplayMode === 'monitor') return; // buttons are hidden in this mode anyway — belt-and-braces against any programmatic call
   if (ev.pointerType === 'mouse' && ev.button !== 0) return; // ignore right/middle click
   ev.preventDefault(); // avoid text-selection/long-press callouts on touch
   // Realtime Voice (beta) only replaces "Talk to Patient" — Give
