@@ -3305,22 +3305,39 @@ async function speakRealtimeReply(text, callId) {
     });
     if (!res.ok) throw new Error(`Deepgram TTS call failed (${res.status})`);
     if (callId !== _rtCallId) return;
-    const blob = await res.blob();
-    if (callId !== _rtCallId) return;
+
     const audio = _rtAudioEl || new Audio();
-    audio.src = URL.createObjectURL(blob);
-    _rtSpeaking = true;
-    // Mic stays live (recorder is never paused) — see the "Barge-in tuning"
-    // comment above _rtBargeInArmedAt for the grace-period + confirmation
-    // mitigation that replaces the old pause-the-mic approach.
-    _rtPlaybackStartedAt = Date.now();
-    _rtBargeInArmedAt = null;
-    await new Promise((resolve, reject) => {
-      audio.onended = resolve;
-      audio.onerror = () => reject(new Error('Deepgram TTS audio playback error'));
-      audio.play().then(startTalkAnimation).catch(reject);
-    });
-    stopRealtimeAudio(); // clears _rtSpeaking, stops talk animation
+    // Stream via MediaSource where possible — see playStreamedMp3() for why
+    // this is the actual latency win over the old res.blob()-then-play
+    // approach (audio starts on the FIRST chunk instead of the whole file).
+    // Chrome has supported MP3 in MSE for years and this feature is already
+    // Chrome-only (see the MediaRecorder gate in startRealtimeCapture()), so
+    // this should always be true in practice — checked explicitly anyway
+    // rather than assumed, with a safety-net fallback to the old behaviour.
+    if (window.MediaSource && MediaSource.isTypeSupported('audio/mpeg') && res.body) {
+      await playStreamedMp3(audio, res.body, callId);
+    } else {
+      const blob = await res.blob();
+      if (callId !== _rtCallId) return;
+      audio.src = URL.createObjectURL(blob);
+      _rtSpeaking = true;
+      _rtPlaybackStartedAt = Date.now();
+      _rtBargeInArmedAt = null;
+      await new Promise((resolve, reject) => {
+        // onpause (not just onended) matters here: stopRealtimeAudio() calls
+        // audio.pause() directly on a confirmed barge-in, which does NOT
+        // fire 'ended' — without this, that path left this promise (and the
+        // handleRealtimeUtterance() call awaiting it) permanently hanging,
+        // silently skipping its own status-reset tail. Real bug, found while
+        // touching this code for the streaming rewrite below, not a
+        // hypothetical — see git history for the fuller story.
+        audio.onended = resolve;
+        audio.onpause = resolve;
+        audio.onerror = () => reject(new Error('Deepgram TTS audio playback error'));
+        audio.play().then(startTalkAnimation).catch(reject);
+      });
+    }
+    if (callId === _rtCallId) stopRealtimeAudio(); // clears _rtSpeaking, stops talk animation — harmless no-op if a barge-in already called this
   } catch (e) {
     stopRealtimeAudio();
     if (callId !== _rtCallId) return;
@@ -3329,6 +3346,73 @@ async function speakRealtimeReply(text, callId) {
     // (handleRealtimeUtterance), not speakPatientReply()'s.
     await speakPatientReply(text, () => {}, false, hqVoiceEnabled);
   }
+}
+
+// Pipes a streamed Deepgram Aura-2 MP3 response into <audio> via MediaSource
+// Extensions, so playback can start on the FIRST chunk instead of waiting
+// for res.blob() to collect the entire file — the actual fix for "responses
+// feel slow", since the old approach silently waited out the full TTS
+// synthesis + download before a single sound played. Resolves once playback
+// ends (natural completion OR a pause — see the onpause comment in
+// speakRealtimeReply()) so the caller doesn't need to know which path this
+// function's caller took.
+function playStreamedMp3(audio, body, callId) {
+  let sourceBuffer;
+  let startedPlayback = false;
+
+  function appendChunk(chunk) {
+    return new Promise((resolve, reject) => {
+      const onUpdateEnd = () => { sourceBuffer.removeEventListener('updateend', onUpdateEnd); resolve(); };
+      sourceBuffer.addEventListener('updateend', onUpdateEnd);
+      try { sourceBuffer.appendBuffer(chunk); } catch (e) { reject(e); }
+    });
+  }
+
+  return new Promise((resolve, reject) => {
+    const mediaSource = new MediaSource();
+    audio.src = URL.createObjectURL(mediaSource);
+    audio.onended = resolve;
+    audio.onpause = resolve; // see speakRealtimeReply()'s comment on why this matters as much as onended
+    audio.onerror = () => reject(new Error('Deepgram TTS audio playback error'));
+
+    mediaSource.addEventListener('sourceopen', async () => {
+      if (callId !== _rtCallId) { resolve(); return; }
+      try {
+        sourceBuffer = mediaSource.addSourceBuffer('audio/mpeg');
+        const reader = body.getReader();
+        while (true) {
+          // Stop feeding the buffer once this call has ended OR this specific
+          // reply was cut off by a confirmed barge-in — stopRealtimeAudio()
+          // clears _rtSpeaking on both a real interruption and a normal
+          // completion, checked here only once playback has actually
+          // started (it's legitimately still false during the brief window
+          // before the first chunk arrives, which isn't a stop signal).
+          if (callId !== _rtCallId || (startedPlayback && !_rtSpeaking)) {
+            reader.cancel().catch(() => {});
+            resolve();
+            return;
+          }
+          const { done, value } = await reader.read();
+          if (done) {
+            if (mediaSource.readyState === 'open') { try { mediaSource.endOfStream(); } catch (e) {} }
+            break;
+          }
+          await appendChunk(value);
+          if (!startedPlayback) {
+            // Don't wait for the rest of the file — enough is buffered to
+            // start now, which is the entire point of streaming this.
+            startedPlayback = true;
+            _rtSpeaking = true;
+            _rtPlaybackStartedAt = Date.now();
+            _rtBargeInArmedAt = null;
+            audio.play().then(startTalkAnimation).catch(reject);
+          }
+        }
+      } catch (e) {
+        reject(e);
+      }
+    });
+  });
 }
 
 async function queueStudentItem(type, text) {
