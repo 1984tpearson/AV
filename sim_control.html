@@ -2137,6 +2137,7 @@ function renderGraph() {
   let ghostPaths = '';
   let hitPaths = '';
   let overrideMarkers = '';
+  let bpBandMarkup = '';
   let edgeReadoutEntries = [];
   const ptsByKey = {};
   GRAPH_SERIES.forEach(s => {
@@ -2212,7 +2213,16 @@ function renderGraph() {
         `</linearGradient></defs>`;
       strokeAttr = `stroke="url(#health-line-gradient)"`;
     }
-    paths += `<path d="${d}" fill="none" ${strokeAttr} stroke-width="${isArmed ? 3.5 : 2}" opacity="${opacity}" stroke-linecap="round" />`;
+    // BPsys/BPdia no longer draw their own stroke lines at all — replaced
+    // by the solid band fill below (bpBandMarkup), which is built once
+    // both series' points are known and drawn well behind every other
+    // line (see the final markup assembly). The right-edge readout and
+    // override markers below still fire for both regardless, so their
+    // numeric values and edit handles stay available with no line to
+    // carry them.
+    if (!isBpComponent) {
+      paths += `<path d="${d}" fill="none" ${strokeAttr} stroke-width="${isArmed ? 3.5 : 2}" opacity="${opacity}" stroke-linecap="round" />`;
+    }
 
     // Right-edge value readout — the value at the visible window's edge,
     // pinned like a monitor's live digit readout.
@@ -2256,17 +2266,25 @@ function renderGraph() {
     }
   }
 
-  // BP fill: a single band between the systolic and diastolic curves rather
-  // than each filling to the chart baseline — makes the pulse-pressure gap
-  // between the two visually obvious. Reuses the systolic gradient, which
-  // naturally fades out over the band's own height (top of sys to bottom of
-  // dia), so it reads as "starts at systolic, cuts off toward diastolic".
+  // BP presentation: a solid green band between the systolic and diastolic
+  // curves instead of two separate lines — makes the pulse-pressure gap
+  // between them visually obvious at a glance, without two overlapping
+  // strokes to tell apart. Built into bpBandMarkup (not appended to
+  // paths) so it can be placed ahead of every other series' line in the
+  // final markup below — always behind, never covering another vital's
+  // trajectory. (This also fixes a latent bug: the previous version filled
+  // with url(#grad-BPsys), a gradient defs block that isBpComponent above
+  // skips creating for BPsys/BPdia specifically — the reference never
+  // resolved to anything, so the band was invisible the whole time.)
   if (ptsByKey.BPsys && ptsByKey.BPdia) {
+    const bpColor = (GRAPH_SERIES.find(g => g.key === 'BPsys') || {}).color || '#65b440';
     const sysSmooth = pointsToSmoothPath(ptsByKey.BPsys);
     const diaReversed = ptsByKey.BPdia.slice().reverse();
     const diaSmooth = pointsToSmoothPath(diaReversed).replace(/^M/, 'L');
-    const bpBandFade = armedGraphKeys.length > 0 && !armedGraphKeys.includes('BPsys') && !armedGraphKeys.includes('BPdia') ? 0.12 : 1;
-    paths += `<path d="${sysSmooth} ${diaSmooth} Z" fill="url(#grad-BPsys)" stroke="none" opacity="${bpBandFade}" />`;
+    const bpArmed = armedGraphKeys.includes('BPsys') || armedGraphKeys.includes('BPdia');
+    const bpBandFade = armedGraphKeys.length > 0 && !bpArmed;
+    const bpOpacity = bpBandFade ? 0.12 : 0.5;
+    bpBandMarkup = `<path d="${sysSmooth} ${diaSmooth} Z" fill="${bpColor}" stroke="none" opacity="${bpOpacity}" />`;
   }
 
   // Right-edge readouts: resolve overlaps by pushing later (lower) labels
@@ -2495,7 +2513,7 @@ function renderGraph() {
     rhythmUI += `<text x="${padL + badgeW / 2}" y="${padT + 9.5}" font-size="9" fill="#e9d5ff" font-weight="900" text-anchor="middle">${escapeHtml(badgeLabel)}</text>`;
   }
 
-  wrap.innerHTML = `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" style="width:100%;height:100%;display:block;touch-action:none;">${grid}${rhythmUI}${ghostPaths}${paths}${hitPaths}${overrideMarkers}${playhead}${pendingUI}${edgeReadouts}${inspectUI}${inspectCatcher}${rewindCatcher}</svg>`;
+  wrap.innerHTML = `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" style="width:100%;height:100%;display:block;touch-action:none;">${grid}${rhythmUI}${ghostPaths}${bpBandMarkup}${paths}${hitPaths}${overrideMarkers}${playhead}${pendingUI}${edgeReadouts}${inspectUI}${inspectCatcher}${rewindCatcher}</svg>`;
   renderMiniGraph();
 }
 
@@ -2515,7 +2533,10 @@ function renderGraph() {
 // to graphSeriesOn (the main graph's user-configurable toggles): there's no
 // room here for toggle controls, and tapping the mini graph opens the real,
 // fully-configurable one in a modal instead (see openFullGraphModal()).
-const MINI_GRAPH_KEYS = ['HR', 'BPsys', 'BPdia', 'SpO2', 'health'];
+// BP is drawn separately as a band (see bpBandMarkup in renderMiniGraph),
+// not as two lines here — this list is just what still gets an actual
+// line stroke.
+const MINI_GRAPH_KEYS = ['HR', 'SpO2', 'health'];
 const MINI_GRAPH_WINDOW_MIN = 10;
 
 function renderMiniGraph() {
@@ -2573,6 +2594,30 @@ function renderMiniGraph() {
     grid += `<text x="${x}" y="${H - 4}" font-size="9" fill="#6b8299" text-anchor="middle">${Math.round(m)}m</text>`;
   }
 
+  // BP: a solid green band between systolic and diastolic (matching the
+  // main graph's own bpBandMarkup — see renderGraph()) instead of two
+  // lines, built first and kept in its own variable so it can be placed
+  // ahead of every other series' line in the final markup below rather
+  // than wherever it'd fall in MINI_GRAPH_KEYS order.
+  let bpBandMarkup = '';
+  const bpSys = GRAPH_SERIES.find(g => g.key === 'BPsys');
+  const bpDia = GRAPH_SERIES.find(g => g.key === 'BPdia');
+  if (bpSys && bpDia) {
+    const sysPts = sampleMins.map(m => {
+      const tMs = liveConfig.startTimeMs + m * 60000;
+      const val = bpSys.get(SimEngine.getVitalsRaw(liveConfig, tMs), liveConfig, tMs);
+      return [xForMin(m), yFor(bpSys, val)];
+    });
+    const diaPts = sampleMins.map(m => {
+      const tMs = liveConfig.startTimeMs + m * 60000;
+      const val = bpDia.get(SimEngine.getVitalsRaw(liveConfig, tMs), liveConfig, tMs);
+      return [xForMin(m), yFor(bpDia, val)];
+    });
+    const sysSmooth = pointsToSmoothPath(sysPts);
+    const diaSmooth = pointsToSmoothPath(diaPts.slice().reverse()).replace(/^M/, 'L');
+    bpBandMarkup = `<path d="${sysSmooth} ${diaSmooth} Z" fill="${bpSys.color}" stroke="none" opacity="0.5" />`;
+  }
+
   let paths = '';
   MINI_GRAPH_KEYS.forEach(key => {
     const s = GRAPH_SERIES.find(g => g.key === key);
@@ -2611,7 +2656,7 @@ function renderMiniGraph() {
     playhead = `<line x1="${x}" y1="${padT}" x2="${x}" y2="${padT + plotH}" stroke="#0369a1" stroke-width="1.5" stroke-dasharray="3,2" />`;
   }
 
-  wrap.innerHTML = `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" style="width:100%;height:100%;display:block;">${grid}${paths}${playhead}</svg>`;
+  wrap.innerHTML = `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" style="width:100%;height:100%;display:block;">${grid}${bpBandMarkup}${paths}${playhead}</svg>`;
 
   if (legendWrap) {
     const nowTMs = liveConfig.startTimeMs + Math.min(elapsedMin, viewEnd) * 60000;
