@@ -943,7 +943,15 @@ function weightedRandomName(gender) {
   return { first, last, full: `${first} ${last}`, ethnicity: chosenKey };
 }
 
-function randomAustralianPatient(category) {
+// ageOverride/genderOverride (optional) come from
+// parseExplicitDemographicsFromComplaint() below — when the user typed an
+// explicit age/gender into the complaint/seed box, that wins over the
+// random roll below rather than being silently discarded. Applied AFTER
+// the category-specific roll (including paediatric's own age-range logic)
+// so an explicit age deliberately overrides even the category's own
+// range — if the user typed "58yo" while "Paediatric" was selected, the
+// stated age wins; we don't silently second-guess it.
+function randomAustralianPatient(category, ageOverride, genderOverride) {
   // ABS 2021: 49.3% male, 50.7% female; include small non-binary weight for representation
   const genderRoll = Math.random();
   let gender, age;
@@ -979,8 +987,45 @@ function randomAustralianPatient(category) {
     age = Math.floor(Math.random() * 70) + 18;
   }
 
+  if (genderOverride) gender = genderOverride;
+  if (ageOverride != null) age = ageOverride;
+
   const name = weightedRandomName(gender);
   return { name: name.full, gender, age, ethnicity: name.ethnicity };
+}
+
+// Best-effort extraction of an explicit age/gender the user typed into the
+// complaint/seed box (e.g. "58yo male with facial droop and arm
+// weakness") — feeds randomAustralianPatient()'s ageOverride/genderOverride
+// above. Confirmed-real bug this fixes: the AI is separately instructed to
+// honour explicit seed demographics in its free text (see seedSection
+// below) and does so correctly, but nothing previously told
+// randomAustralianPatient() about the seed at all — it just rolled
+// randomly regardless — so patient_meta (name/gender/age/ethnicity,
+// always code-generated, never touched by AI output afterward) could end
+// up describing a totally different person than the one the AI actually
+// wrote into the scenario (e.g. the user asks for "58yo male", the AI's
+// title/dispatch/hx correctly says 58yo male, but patient_meta — and
+// therefore the avatar and TTS voice — is some unrelated random age/
+// gender the roll happened to land on).
+// Scoped deliberately narrow: only a bare "male"/"female" (word-boundary
+// matched, so it can't match inside "female") plus a "NNyo"/"NN year(s)
+// old"-style number, found anywhere in the text. Broader words like
+// "man"/"woman"/"boy"/"girl" are deliberately excluded — those are more
+// likely to describe a bystander ("found by a man walking his dog") than
+// the patient themselves, and getting this wrong the other way (silently
+// overriding the correct random roll with a bystander's demographics)
+// would just be the same class of bug from a different direction. Never
+// blocks generation — returns nulls when nothing reliable is found, same
+// as every other best-effort check in this file.
+function parseExplicitDemographicsFromComplaint(complaint) {
+  if (!complaint) return { age: null, gender: null };
+  const ageMatch = complaint.match(/\b(\d{1,3})\s*(?:yo\b|y\/o\b|yrs?\b|years?[\s-]?old\b)/i);
+  const age = ageMatch ? parseInt(ageMatch[1], 10) : null;
+  let gender = null;
+  if (/\bfemale\b/i.test(complaint)) gender = 'Female';
+  else if (/\bmale\b/i.test(complaint)) gender = 'Male';
+  return { age, gender };
 }
 
 // Skin tone swatch (light to dark). Weighted by the ethnicity the name pool
@@ -1300,7 +1345,8 @@ async function generateAIScenario() {
   const patientCategory = SPECIFIC_CATS.includes(cat2ForPatient) ? cat2ForPatient
     : SPECIFIC_CATS.includes(category) ? category
     : category;
-  const patient = randomAustralianPatient(patientCategory);
+  const explicitDemo = parseExplicitDemographicsFromComplaint(complaint);
+  const patient = randomAustralianPatient(patientCategory, explicitDemo.age, explicitDemo.gender);
   const complexityNote = {
     standard:     'Standard, core presentation with typical management.',
     complex:      'Include a complicating factor — comorbidity, atypical feature, or medication interaction.',
