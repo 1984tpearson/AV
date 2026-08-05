@@ -36,7 +36,20 @@ body { display: flex; flex-direction: column; }
 @media (min-width: 800px) { #main { flex-direction: row; } }
 .panel { background: #ffffff; border: 1px solid #d7dee6; border-radius: 8px; padding: 10px; }
 #monitor-col { background: #0a0e16 !important; border-color: #142235 !important; min-height: 0; position: relative; }
-#info-col { flex: 1; max-width: 280px; display: flex; flex-direction: column; gap: 10px; min-width: 0; min-height: 0; }
+/* No max-width by default — #main is a column (stacked) below 800px, so
+   #info-col already gets the full available width there with nothing to cap
+   it against; this matters most in Avatar Only mode (see below), the whole
+   point of which is letting the avatar use the full phone screen instead of
+   being squeezed to a fraction of it. The 280px sidebar cap only makes sense
+   once #main switches to a row layout (see the @media block) and #info-col
+   is genuinely sitting next to a wide monitor column, not stacked above/
+   below it. */
+#info-col { flex: 1; display: flex; flex-direction: column; gap: 10px; min-width: 0; min-height: 0; }
+/* Scoped to Standard specifically (not just the width breakpoint) — Avatar
+   Only never has a #monitor-col to share the row with (it's hidden), so
+   there's nothing for this cap to protect there even if someone forces
+   Avatar Only on a wide screen. */
+@media (min-width: 800px) { body.mode-standard #info-col { max-width: 280px; } }
 /* Display mode (Standard / Monitor Only / Avatar Only) — see setDisplayMode()
    for why this exists: splitting the "patient" role across two physical
    devices when one of them can't do voice reliably. Monitor Only also hides
@@ -380,7 +393,6 @@ body.mode-avatar #monitor-col { display: none !important; }
     </div>
     <button type="button" id="voice-input-mode-btn" onclick="toggleInputMode()">&#8996; Switch to Text</button>
     <button type="button" id="wake-word-toggle-btn" onclick="toggleWakeWord()">🎤 Auto-listen: Off</button>
-    <img src="https://1984tpearson.github.io/AV/Body_map.jpg" alt="Patient body map">
   </div>
   </div>
 </div>
@@ -3246,7 +3258,15 @@ Reply as the patient.`;
   const response = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' },
-    body: JSON.stringify({ model: 'claude-haiku-4-5-20251001', max_tokens: 300, system: systemPrompt, messages: [{ role: 'user', content: userPrompt }] })
+    // max_tokens tightened from 300 -> 120 as a latency lever, not just a
+    // safety cap: this call isn't streamed (see the "Trade-offs" comment
+    // above), so nothing plays until the FULL completion lands — every
+    // token Haiku is allowed to generate is added wait time, not just a
+    // worst-case ceiling. 120 is still comfortable headroom over what the
+    // prompt actually asks for ("1-3 short sentences" is realistically
+    // 60-80 tokens), so this shouldn't visibly truncate real replies, only
+    // cut off the rare runaway completion faster.
+    body: JSON.stringify({ model: 'claude-haiku-4-5-20251001', max_tokens: 120, system: systemPrompt, messages: [{ role: 'user', content: userPrompt }] })
   });
   if (!response.ok) throw new Error(`Anthropic call failed (${response.status})`);
   const data = await response.json();
