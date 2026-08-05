@@ -3020,7 +3020,28 @@ async function startRealtimeCapture() {
   const socket = new WebSocket(dgUrl, ['token', dgKey]);
   _rtSocket = socket;
 
+  // Connect timeout: a WebSocket handshake that a network security layer is
+  // silently swallowing (rather than cleanly rejecting) never fires onopen,
+  // onerror, OR onclose — it just hangs forever, which is indistinguishable
+  // from "still connecting" without a timer of our own. Confirmed happening
+  // in the wild: a managed device running Microsoft Defender for Endpoint's
+  // content filter hit this exact hang on BOTH this page and Deepgram's own
+  // Playground, on every network tried (device-level filter, not
+  // network-specific) — see git history around this comment for the
+  // investigation. Chrome (MediaRecorder) already gates entry above, so
+  // getting this far means the browser itself is fine; a hang past this
+  // point is a network/security-policy problem outside this page's control,
+  // and the least this code can do is say so instead of imitating the same
+  // silent hang Deepgram's own product shows in that situation.
+  const RT_CONNECT_TIMEOUT_MS = 8000;
+  const connectTimer = setTimeout(() => {
+    if (callId !== _rtCallId) return;
+    try { socket.close(); } catch (e) {}
+    statusEl.textContent = 'Couldn’t connect (timed out) — this can happen on networks with security filtering that blocks realtime voice traffic. Try Standard Voice instead, or check with IT if this keeps happening.';
+  }, RT_CONNECT_TIMEOUT_MS);
+
   socket.onopen = () => {
+    clearTimeout(connectTimer);
     if (callId !== _rtCallId) { try { socket.close(); } catch (e) {} return; }
     statusEl.textContent = 'Listening… (you can interrupt anytime)';
     const recorder = new MediaRecorder(stream, { mimeType: 'audio/webm;codecs=opus' });
@@ -3078,8 +3099,14 @@ async function startRealtimeCapture() {
     }
   };
 
-  socket.onerror = () => { if (callId === _rtCallId) statusEl.textContent = 'Connection error — check the network and try again.'; };
-  socket.onclose = () => { /* no-op — endRealtimeCall() is the only place that tears state down; a server-initiated close just leaves the modal showing whatever status was last set */ };
+  socket.onerror = () => {
+    clearTimeout(connectTimer);
+    if (callId === _rtCallId) statusEl.textContent = 'Connection error — check the network and try again.';
+  };
+  socket.onclose = () => {
+    clearTimeout(connectTimer);
+    /* otherwise no-op — endRealtimeCall() is the only place that tears state down; a server-initiated close just leaves the modal showing whatever status was last set */
+  };
 }
 
 // --- One question/answer exchange -----------------------------------------
