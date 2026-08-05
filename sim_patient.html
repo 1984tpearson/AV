@@ -2791,11 +2791,8 @@ async function speakPatientReply(text, resumeIfConversing, isConversation, useHq
 //   getDeepgramKey() below. Until an admin adds a 'deepgram_api_key' row
 //   there, the toggle can be switched on but every call attempt fails
 //   closed with a clear status message.
-// - DEEPGRAM_TTS_VOICE_POOL below has only ONE voice name independently
-//   confirmed against Deepgram's own documentation search results
-//   ('aura-2-thalia-en') — the rest follow Aura-2's mythological/celestial
-//   naming convention but aren't individually verified. Check them against
-//   Deepgram's "TTS Voices and Languages" docs page before relying on them.
+// - DEEPGRAM_TTS_VOICE_POOL below's six voice names/genders are confirmed
+//   against Deepgram's own published voice descriptions (see its comment).
 
 // --- Config/keys -----------------------------------------------------------
 // Mirrors sim_control.html's getAnthropicKey() exactly (same table, same
@@ -2846,19 +2843,18 @@ let PATIENT_VOICE_CONFUSED_NOTE = "This patient’s GCS Verbal score is 4 (confu
 // a DIFFERENT hash suffix and a different namespace of IDs than
 // PIPER_VOICE_POOL, since Aura-2's model names (format
 // "aura-2-<voicename>-<language>", e.g. "aura-2-thalia-en") are a
-// completely separate catalogue from Piper's. Only 'aura-2-thalia-en' was
-// independently confirmed in documentation while writing this — the rest
-// follow Aura-2's mythological/celestial naming convention but are NOT
-// individually verified, so double-check the full list (and each voice's
-// actual gender/tone) against Deepgram's "TTS Voices and Languages" docs
-// page before relying on them. Only two demographic buckets for now
-// (matching what patientGender already gives us) — a finer age-aware pick
-// (matching how the avatar's ageRamp() already varies pediatric/elderly
-// appearance) is a natural follow-up once the full voice list is
-// confirmed, via avatarBuild.ageYears the same way youthVoiceRate() reads it.
+// completely separate catalogue from Piper's. All six names below are
+// independently confirmed (name + gender + description, e.g. "orion:
+// approachable American male", "thalia: clear, confident, energetic
+// American female") via Deepgram's own published voice descriptions —
+// not guessed. Only two demographic buckets for now (matching what
+// patientGender already gives us) — a finer age-aware pick (matching how
+// the avatar's ageRamp() already varies pediatric/elderly appearance) is
+// a natural follow-up, via avatarBuild.ageYears the same way
+// youthVoiceRate() reads it.
 let DEEPGRAM_TTS_VOICE_POOL = {
-  male: ['aura-2-orion-en', 'aura-2-zeus-en'],
-  female: ['aura-2-thalia-en', 'aura-2-luna-en'],
+  male: ['aura-2-orion-en', 'aura-2-zeus-en', 'aura-2-apollo-en'],
+  female: ['aura-2-thalia-en', 'aura-2-luna-en', 'aura-2-hera-en'],
 };
 function deepgramVoiceIdFor(gender) {
   const pool = DEEPGRAM_TTS_VOICE_POOL[gender] || DEEPGRAM_TTS_VOICE_POOL.male;
