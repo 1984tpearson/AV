@@ -2776,15 +2776,16 @@ async function speakPatientReply(text, resumeIfConversing, isConversation, useHq
 //   Source Extensions — for the short (max_tokens 300) replies this engine
 //   generates, the difference is small, but a longer reply would benefit
 //   from real chunked playback later.
-// - True mid-sentence barge-in is DISABLED for now, not just unreliable:
-//   the browser's own echo cancellation wasn't enough to stop Deepgram's
-//   VAD from reading the patient's own TTS audio (bleeding from speaker
-//   back into mic, no headset) as the student interrupting — first
-//   real-device test cut every reply off after a word or two. Fixed by
-//   pausing the mic entirely while a reply plays (see speakRealtimeReply())
-//   rather than trying to filter the false positive, which trades away
-//   genuine interruption for correctness. SpeechStarted can now only ever
-//   fire between exchanges, never during one.
+// - Mid-sentence barge-in is enabled but mitigated, not naively trusted:
+//   the browser's own echo cancellation wasn't enough on its own to stop
+//   Deepgram's VAD from reading the patient's own TTS audio (bleeding from
+//   speaker back into mic, no headset) as the student interrupting — first
+//   real-device test cut every reply off after a word or two. Fixed with a
+//   grace period + confirmation window (see the "Barge-in tuning" comment
+//   above _rtBargeInArmedAt) instead of pausing the mic outright, so real
+//   interruption still works. Untested against real echo/hardware since
+//   this pass — see that comment for what to retune if false cutoffs (or
+//   sluggish real ones) come back.
 // - Requires Chrome (MediaRecorder) — same constraint the legacy path
 //   already has, see getSpeechRecognitionCtor()'s comment above.
 // - Requires one more API key (Deepgram — used for BOTH the STT
@@ -2924,6 +2925,33 @@ let _rtStream = null;
 let _rtSpeaking = false; // true while the Deepgram Aura-2 reply audio is actually playing — gates whether a SpeechStarted VAD event counts as a barge-in
 let _rtPendingText = ''; // accumulated is_final fragments since the last speech_final
 
+// --- Barge-in tuning (see startRealtimeCapture()'s SpeechStarted handler
+// and speakRealtimeReply() for how these are used) ------------------------
+// The mic stays live throughout playback now (an earlier version paused it
+// entirely to eliminate a real echo-triggered false-cutoff bug — see git
+// history — which worked but made genuine interruption impossible). This
+// re-enables it with two mitigations real voice-agent platforms (LiveKit
+// Agents, Pipecat) use for exactly this problem, since browser echo
+// cancellation alone wasn't enough:
+// - GRACE_MS: ignore SpeechStarted entirely for this long after a reply
+//   starts playing. Acoustic echo cancellation is an ADAPTIVE filter — it
+//   needs a moment to learn the room/speaker/mic echo path, and is weakest
+//   in exactly this opening window, which is exactly when the original bug
+//   fired (cut off after 1-2 words = VAD reacting before AEC converged).
+// - CONFIRM_MS: past the grace period, a SpeechStarted only ARMS a
+//   possible barge-in — it does NOT cut the audio by itself. The cut only
+//   happens if real transcribed text actually follows within this window;
+//   a bare VAD blip with nothing behind it is treated as an AEC residual/
+//   noise false-positive and ignored, audio keeps playing.
+// Untested against real echo/hardware — these numbers are a reasonable
+// starting point, not a validated tuning. If false cutoffs return, try
+// raising GRACE_MS first (that's the more likely culprit); if genuine
+// interruptions feel sluggish to register, lower CONFIRM_MS.
+const BARGE_IN_GRACE_MS = 600;
+const BARGE_IN_CONFIRM_MS = 600;
+let _rtPlaybackStartedAt = 0; // Date.now() when _rtSpeaking last became true — grace period is measured from here
+let _rtBargeInArmedAt = null; // Date.now() a SpeechStarted armed a possible barge-in, or null if none pending
+
 function startRealtimeCall() {
   unlockSpeechSynthesis(); // the TTS-failure fallback in speakRealtimeReply() still needs this unlocked
   unlockRealtimeAudio(); // must happen here, inside the tap handler, to count as a user gesture
@@ -2948,10 +2976,8 @@ function endRealtimeCall() {
 
 function stopRealtimeAudio() {
   _rtSpeaking = false;
+  _rtBargeInArmedAt = null; // any pending barge-in arm/confirm cycle ends with the audio it was about
   if (_rtAudioEl) { try { _rtAudioEl.pause(); } catch (e) {} }
-  // Resume listening — see speakRealtimeReply()'s pause() for why the
-  // recorder was paused in the first place.
-  if (_rtRecorder && _rtRecorder.state === 'paused') { try { _rtRecorder.resume(); } catch (e) {} }
   stopTalkAnimation();
 }
 
@@ -2996,7 +3022,7 @@ async function startRealtimeCapture() {
 
   socket.onopen = () => {
     if (callId !== _rtCallId) { try { socket.close(); } catch (e) {} return; }
-    statusEl.textContent = 'Listening… (just talk)';
+    statusEl.textContent = 'Listening… (you can interrupt anytime)';
     const recorder = new MediaRecorder(stream, { mimeType: 'audio/webm;codecs=opus' });
     _rtRecorder = recorder;
     recorder.ondataavailable = (ev) => {
@@ -3010,18 +3036,29 @@ async function startRealtimeCapture() {
     let msg;
     try { msg = JSON.parse(ev.data); } catch (e) { return; }
     if (msg.type === 'SpeechStarted') {
-      // In practice this should now only ever fire BETWEEN exchanges — the
-      // recorder is paused for the whole time _rtSpeaking is true (see
-      // speakRealtimeReply()), so there's no mic audio reaching Deepgram
-      // for it to (mis)detect during playback anymore. Left as a guard
-      // rather than removed outright, in case a message that was already
-      // in flight when the pause took effect still lands.
-      if (_rtSpeaking) stopRealtimeAudio();
+      // Not a cut by itself — see the "Barge-in tuning" comment above
+      // _rtBargeInArmedAt. Outside playback (!_rtSpeaking) there's nothing
+      // to interrupt, so this is a no-op then. During the grace window
+      // (playback just started, AEC hasn't converged yet) it's ignored
+      // outright. Otherwise it ARMS — the actual cut happens below, in the
+      // Results branch, only if real transcribed text follows within
+      // BARGE_IN_CONFIRM_MS.
+      if (_rtSpeaking && !_rtBargeInArmedAt && (Date.now() - _rtPlaybackStartedAt) > BARGE_IN_GRACE_MS) {
+        _rtBargeInArmedAt = Date.now();
+      }
       return;
     }
     if (msg.type !== 'Results') return;
     const alt = msg.channel && msg.channel.alternatives && msg.channel.alternatives[0];
     const text = (alt && alt.transcript) || '';
+    if (_rtBargeInArmedAt) {
+      if (Date.now() - _rtBargeInArmedAt > BARGE_IN_CONFIRM_MS) {
+        _rtBargeInArmedAt = null; // confirmation window expired with nothing behind it — AEC residual/noise, false alarm, keep playing
+      } else if (text) {
+        _rtBargeInArmedAt = null;
+        stopRealtimeAudio(); // confirmed — real transcribed speech followed the VAD trigger, treat as a genuine interruption
+      }
+    }
     // is_final and speech_final are independent flags — a message can be
     // is_final (this fragment's words are locked in) without speech_final
     // (more speech is still coming), and Deepgram often sends the actual
@@ -3060,7 +3097,7 @@ async function handleRealtimeUtterance(text, callId) {
   if (callId !== _rtCallId) return; // call ended/superseded while the AI call was in flight
   if (!reply) {
     // GCS V<=1 — no verbal response at all, same as the legacy path.
-    statusEl.textContent = 'Listening… (just talk)';
+    statusEl.textContent = 'Listening… (you can interrupt anytime)';
     return;
   }
   statusEl.textContent = 'Patient replied:';
@@ -3074,7 +3111,7 @@ async function handleRealtimeUtterance(text, callId) {
   }).catch(() => {});
   await speakRealtimeReply(reply, callId);
   if (callId !== _rtCallId) return;
-  statusEl.textContent = 'Listening… (just talk)';
+  statusEl.textContent = 'Listening… (you can interrupt anytime)';
   replyEl.style.display = 'none';
 }
 
@@ -3158,26 +3195,17 @@ async function speakRealtimeReply(text, callId) {
     const audio = _rtAudioEl || new Audio();
     audio.src = URL.createObjectURL(blob);
     _rtSpeaking = true;
-    // Pause the mic BEFORE playing — without a real headset, the patient's
-    // own reply bleeds out of the speaker and back into the mic, and
-    // Deepgram's VAD reads that as the student interrupting (see
-    // onmessage's SpeechStarted branch in startRealtimeCapture()), cutting
-    // the reply off after a word or two. Pausing means no audio reaches
-    // Deepgram while the reply plays, so there's nothing for the VAD to
-    // (mis)detect — resumed in stopRealtimeAudio() once playback ends.
-    // Trade-off: this makes true mid-sentence barge-in impossible for now
-    // (the mic is genuinely deaf while the patient is talking, not just
-    // ignored) — SpeechStarted can now only ever fire between exchanges,
-    // never during one. Revisit if real interruption turns out to matter
-    // more than eliminating the self-cutoff bug; a headset/proper echo
-    // cancellation would let both coexist.
-    if (_rtRecorder && _rtRecorder.state === 'recording') { try { _rtRecorder.pause(); } catch (e) {} }
+    // Mic stays live (recorder is never paused) — see the "Barge-in tuning"
+    // comment above _rtBargeInArmedAt for the grace-period + confirmation
+    // mitigation that replaces the old pause-the-mic approach.
+    _rtPlaybackStartedAt = Date.now();
+    _rtBargeInArmedAt = null;
     await new Promise((resolve, reject) => {
       audio.onended = resolve;
       audio.onerror = () => reject(new Error('Deepgram TTS audio playback error'));
       audio.play().then(startTalkAnimation).catch(reject);
     });
-    stopRealtimeAudio(); // clears _rtSpeaking, stops talk animation, AND resumes the recorder — see its comment
+    stopRealtimeAudio(); // clears _rtSpeaking, stops talk animation
   } catch (e) {
     stopRealtimeAudio();
     if (callId !== _rtCallId) return;
