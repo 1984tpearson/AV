@@ -634,6 +634,121 @@
     return { parsedOverrides, parsedRhythm, note, vitalsNow, outcome: resultOutcome, followUpDelayMin };
   }
 
+  // ---- CPR (shared, deterministic — no AI call) ----------------------------
+  // Same reasoning as defibrillation above: chest-compression physiology is
+  // well-established/predictable enough not to need per-patient AI reasoning,
+  // and a quick-action button needs to feel instant, not wait on a round trip.
+  //
+  // The key modelling decision: while compressions are in progress on a
+  // non-perfusing rhythm, HR is repurposed as a COMPRESSION-DRIVEN pulse rate
+  // (matching the compression rate — effective CPR does generate a real,
+  // palpable pulse, just not from intrinsic cardiac activity) rather than
+  // being left at the arrest-cascade's 0. This piggybacks on something this
+  // engine already does deliberately (see CLAUDE.md, "Rhythm — separate from
+  // vitals"): HR is just a number, and the true state of the heart lives in
+  // `overrides.rhythm` instead — so HR can show the CPR-generated rate while
+  // the rhythm timeline keeps showing the real underlying arrest rhythm
+  // (VF/pulseless VT/asystole/PEA) untouched, which is what the ECG waveform
+  // and the "CURRENT RHYTHM" badge both key off. A monitor's numeric HR tile
+  // and its rhythm strip disagreeing (a rate reading alongside a flatline or
+  // fibrillating trace) is itself the correct teaching picture: it's what a
+  // real monitor during effective CPR looks like, and exactly why the
+  // rhythm strip, not the HR number, is what confirms genuine ROSC.
+  // BP is similarly bumped to a PARTIAL value, deliberately never fully
+  // normotensive — real compressions generate a fraction of normal cardiac
+  // output; systolic in the 70-90 range with a low diastolic is a defensible
+  // "effective CPR" picture, not the "circulation is restored" picture a
+  // normotensive reading would wrongly imply. EtCO2 also rises modestly — a
+  // well-known real bedside sign of compression quality (rising from
+  // near-zero at arrest toward ~15-25 with genuinely effective compressions).
+  //
+  // Every override below is a SINGLE short entry, not the two-entry
+  // ramp+explicit-hold pairs the AI-authored prompts are told to write —
+  // because rawTrendDeltasAt() always returns a flat baseline in this engine
+  // (see the top of this file), applyOverrides' "override complete — shift
+  // the curve to pass through target at endMs" branch already makes a single
+  // completed entry hold at its target FOREVER on its own (verified against
+  // computeDefibrillationEffect above, which relies on the exact same
+  // property for its ROSC/asystole/induced-VF cascades). CPR's plateau holds
+  // until Start/Insert LMA/Stop CPR splices something new in, or a treatment/
+  // scripted event explicitly overrides one of these keys itself (e.g. an
+  // adrenaline push during the code, or a defib conversion) — no admin-
+  // editable duration config needed, unlike the defib constants above; if
+  // that changes later, follow the same _cfg.SURVIVABILITY/_cfg.ENERGY_FACTOR
+  // pattern for _cfg.CPR below.
+  //
+  // cfg.overrides.cpr holds a single CURRENT-STATE object (not a vitals array,
+  // not a step-function history like rhythm) — { active, lmaInserted,
+  // startedAtMs, ratioLabel } — so callers can drive Start/Stop CPR button
+  // labels and an "Insert LMA" gate. Every place that generically iterates
+  // cfg.overrides' keys (sim_control.html's treatment/scripted-event context
+  // builders) must skip 'cpr' the same way they already skip 'rhythm'.
+  _cfg.CPR = {
+    compressionRateLow: 100, compressionRateHigh: 120, // guideline compression rate — reused as the CPR-driven "pulse" rate
+    bpSysLow: 70, bpSysHigh: 90, bpDiaLow: 20, bpDiaHigh: 35, // partial perfusion, deliberately short of normotensive
+    etco2Low: 15, etco2High: 25, // recognised bedside sign of reasonably effective compressions
+    lmaEtco2BumpLow: 2, lmaEtco2BumpHigh: 5 // further modest rise once ventilation stops pausing compressions
+  };
+  function computeCprEffect(cfg, givenAtMs, mode) {
+    const c = _cfg.CPR;
+    const vitalsNow = getVitalsRaw(cfg, givenAtMs);
+    const rhythmLabel = getRhythmAt(cfg, givenAtMs) || deriveRhythmFromHR(vitalsNow.HR);
+    const rhythmClass = classifyRhythmForDefib(rhythmLabel);
+    const priorCpr = (cfg.overrides && cfg.overrides.cpr) || { active: false, lmaInserted: false, startedAtMs: null, ratioLabel: null };
+
+    const parsedOverrides = {};
+    let note;
+    let cprState = priorCpr;
+
+    if (mode === 'start') {
+      if (priorCpr.active) {
+        note = 'CPR is already in progress — no change.';
+      } else if (rhythmClass === 'organized') {
+        note = `CPR not started — ${rhythmLabel} is a perfusing rhythm; compressions aren't indicated here and no effect is modelled (hardcoded, no AI call).`;
+      } else {
+        const rate = Math.round(c.compressionRateLow + Math.random() * (c.compressionRateHigh - c.compressionRateLow));
+        const bpSys = Math.round(c.bpSysLow + Math.random() * (c.bpSysHigh - c.bpSysLow));
+        const bpDia = Math.round(c.bpDiaLow + Math.random() * (c.bpDiaHigh - c.bpDiaLow));
+        const etco2 = Math.round(c.etco2Low + Math.random() * (c.etco2High - c.etco2Low));
+        parsedOverrides.HR = [{ targetValue: rate, startMin: 0, endMin: 0.1 }];
+        parsedOverrides.BPsys = [{ targetValue: bpSys, startMin: 0, endMin: 0.2 }];
+        parsedOverrides.BPdia = [{ targetValue: bpDia, startMin: 0, endMin: 0.2 }];
+        parsedOverrides.EtCO2 = [{ targetValue: etco2, startMin: 0, endMin: 0.3 }];
+        cprState = { active: true, lmaInserted: false, startedAtMs: givenAtMs, ratioLabel: '30:2' };
+        note = `CPR commenced (30:2) — compressions generating a palpable, compression-driven pulse at ~${rate}/min and partial perfusion (~${bpSys}/${bpDia} mmHg, EtCO₂ ~${etco2} mmHg). This is compression-generated circulation, not ROSC — the underlying rhythm remains ${rhythmLabel}. (Hardcoded, no AI call.)`;
+      }
+    } else if (mode === 'lma') {
+      if (!priorCpr.active) {
+        note = 'LMA logged — CPR is not currently active, so a compression:ventilation ratio doesn’t apply.';
+      } else if (priorCpr.lmaInserted) {
+        note = 'LMA is already in place — no change.';
+      } else {
+        cprState = { active: true, lmaInserted: true, startedAtMs: priorCpr.startedAtMs, ratioLabel: '15:1' };
+        const bump = Math.round(c.lmaEtco2BumpLow + Math.random() * (c.lmaEtco2BumpHigh - c.lmaEtco2BumpLow));
+        const etco2 = Math.round(vitalsNow.EtCO2 + bump);
+        parsedOverrides.EtCO2 = [{ targetValue: etco2, startMin: 0, endMin: 0.2 }];
+        note = `LMA inserted — compressions now continuous with asynchronous ventilation (displayed as ${cprState.ratioLabel}); fewer compression pauses, modest EtCO₂ improvement to ~${etco2} mmHg. (Hardcoded, no AI call.)`;
+      }
+    } else if (mode === 'stop') {
+      if (!priorCpr.active) {
+        note = 'CPR is already stopped — no change.';
+      } else {
+        cprState = { active: false, lmaInserted: priorCpr.lmaInserted, startedAtMs: null, ratioLabel: null };
+        if (rhythmClass === 'organized') {
+          note = `CPR stopped — ${rhythmLabel} is a perfusing rhythm; no vitals change (the displayed circulation was already genuine, not compression-driven).`;
+        } else {
+          parsedOverrides.HR = [{ targetValue: 0, startMin: 0, endMin: 0.05 }];
+          parsedOverrides.BPsys = [{ targetValue: 0, startMin: 0, endMin: 0.1 }];
+          parsedOverrides.BPdia = [{ targetValue: 0, startMin: 0, endMin: 0.1 }];
+          parsedOverrides.EtCO2 = [{ targetValue: Math.round(5 + Math.random() * 5), startMin: 0, endMin: 0.5 }];
+          note = `CPR stopped — compression-driven pulse and perfusion lost immediately; ${rhythmLabel} confirmed with no cardiac output. (Hardcoded, no AI call.)`;
+        }
+      }
+    }
+
+    return { parsedOverrides, note, vitalsNow, cprState };
+  }
+
   // Splices a computed override plan (AI-authored, or the hardcoded defib
   // plan above) into the session's existing overrides. For every vital key
   // the plan actually returned entries for: anything already fully in the
@@ -743,6 +858,16 @@
     // whatever was showing at the fork stays showing until something new
     // schedules a change (getRhythmAt: last entry at-or-before now wins).
     freshOverrides.rhythm = (freshOverrides.rhythm || []).filter(ev => ev.startMs < givenAtMs);
+    // CPR state (see computeCprEffect) is a single current-state object, not
+    // a vitals array or the rhythm step-function, so neither loop above
+    // touches it — but if CPR was started AFTER this fork point (i.e. in the
+    // now-discarded future), leaving it "active" would be stale: those
+    // compressions never happened on this branch. A CPR session that started
+    // BEFORE the fork is still genuinely in progress and is left alone.
+    const cpr = freshOverrides.cpr;
+    if (cpr && cpr.active && cpr.startedAtMs != null && cpr.startedAtMs >= givenAtMs) {
+      freshOverrides.cpr = { active: false, lmaInserted: cpr.lmaInserted, startedAtMs: null, ratioLabel: null };
+    }
   }
 
   // ---- Live appearance state (derived from vitals, no AI) -----------------
@@ -1173,7 +1298,7 @@
     getActionDurationSec, getVitals, getVitalsRaw, getSimNow, getStaticVitalAt, getRhythmAt, getAppearanceState,
     parseTimeOfDay, getScenarioFictionalNow,
     getHealthScore, getHealthTrendLevel, getDisplayHealthScore, getDisplayHealthTrendLevel,
-    deriveRhythmFromHR, classifyRhythmForDefib, computeSurvivabilityScore, computeDefibrillationEffect, spliceAiOverridePlan, spliceRhythmPlan, clearFutureFromFork,
+    deriveRhythmFromHR, classifyRhythmForDefib, computeSurvivabilityScore, computeDefibrillationEffect, computeCprEffect, spliceAiOverridePlan, spliceRhythmPlan, clearFutureFromFork,
     parseAgeFromScenario, parseScenarioMood, cleanSpontaneousLines,
     hrSeverity, rrSeverity, spo2Severity, painSeverity, bpSysSeverity,
     applyConfigOverrides

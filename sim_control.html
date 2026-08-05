@@ -214,6 +214,13 @@ select, input[type=number], input[type=text] { font-family: 'Courier New', monos
             <button class="btn btn-start" id="run-btn" onclick="toggleRun()">Start Scenario</button>
             <label style="margin:0;"><input type="checkbox" id="instant-toggle" onchange="updateInstantMode()"> Instant Mode</label>
           </div>
+          <div class="row" style="margin-top:12px;flex-wrap:wrap;">
+            <button class="btn btn-secondary" id="cpr-toggle-btn" onclick="toggleCpr()">Start CPR</button>
+            <button class="btn btn-secondary" id="lma-btn" onclick="insertLma()" disabled title="Start CPR first">Insert LMA</button>
+            <button class="btn btn-secondary" id="arrest-btn" onclick="putPatientInCardiacArrest()">Cardiac Arrest</button>
+            <button class="btn btn-secondary" id="seizure-btn" onclick="putPatientInSeizure()">Seizure</button>
+          </div>
+          <div id="cpr-status" class="muted" style="margin-top:4px;"></div>
           <div class="row" style="justify-content:space-between;align-items:center;margin:12px 0 10px;">
             <h2 style="margin-bottom:0;">Log Treatment / Management</h2>
             <button class="btn btn-secondary toolbtn iconbtn" id="undo-action-btn" onclick="undoLastAction()" disabled aria-label="Undo last action" title="Nothing to undo">
@@ -1264,6 +1271,7 @@ function applySessionRow(row) {
   updatePatientStatus();
   renderLog();
   renderPendingActionsStack();
+  renderCprStatus();
 }
 
 async function updateInstantMode() {
@@ -2849,6 +2857,7 @@ function tickVitals() {
   if (Object.keys(patientActions).some(k => patientActions[k].status === 'pending')) renderPendingActionsStack(); // live countdown while anything's mid-timer
   renderGraph();
   renderLog(); // keeps the log's "not yet" greying (see renderLog) live as replay after a rewind naturally passes each entry's original timestamp again
+  renderCprStatus(); // keeps the "running Xm" readout live between actions
 }
 
 // Friendlier wording for the Log's completed-action lines than the raw
@@ -2944,6 +2953,7 @@ async function undoLastAction() {
     expandedTreatmentIdx = null;
     renderLog();
     renderGraph();
+    renderCprStatus();
   } catch (e) {
     alert('Could not undo — check the connection and try again.');
   }
@@ -3527,6 +3537,110 @@ async function applyDefibrillation(joules, givenAtMs) {
   return note;
 }
 
+// --- CPR / cardiac arrest / seizure quick actions --------------------------
+// CPR (Start/Stop, Insert LMA) is fully hardcoded, same reasoning and same
+// read/write plumbing pattern as applyDefibrillation above — see
+// SimEngine.computeCprEffect for why this is deterministic rather than
+// routed through Sonnet. Cardiac Arrest and Seizure, in contrast, reuse the
+// existing "Script an Event" AI pathway (regenerateTimelineForScriptedEvent,
+// via runAssessorCommand) — SCRIPTED_EVENT_PROMPT already has a
+// well-exercised worked example for exactly "put the patient into cardiac
+// arrest", cascading every implied vital correctly, so these buttons are
+// just canned command text rather than a second hardcoded model.
+function cprState() {
+  return (liveConfig && liveConfig.overrides && liveConfig.overrides.cpr) || { active: false, lmaInserted: false, startedAtMs: null, ratioLabel: null };
+}
+
+async function applyCprAction(mode, actionLabel) {
+  if (!sessionCode || !currentScenario) return;
+  snapshotForUndo();
+  maybeHandleActionInitiated();
+  const givenAtMs = simNow();
+  const rows = await sbFetch(`sim_sessions?session_code=eq.${sessionCode}&select=overrides`, { method: 'GET' });
+  const freshOverrides = (rows[0] && rows[0].overrides) || {};
+  const previousSnapshot = JSON.parse(JSON.stringify(freshOverrides));
+  const cfg = { ...liveConfig, overrides: freshOverrides };
+  const { parsedOverrides, note, vitalsNow, cprState: newCprState } = SimEngine.computeCprEffect(cfg, givenAtMs, mode);
+
+  if (Object.keys(parsedOverrides).length) {
+    SimEngine.spliceAiOverridePlan(freshOverrides, parsedOverrides, vitalsNow, givenAtMs);
+    autoEnableGraphSeriesFromOverrides(parsedOverrides);
+  }
+  freshOverrides.cpr = newCprState;
+
+  const givenAtMin = (givenAtMs - liveConfig.startTimeMs) / 60000;
+  const newEntry = { action: actionLabel, givenAtMin, source: 'assessor_command', assumptions: [note] };
+  const preEntryTreatments = treatments;
+  appendTreatmentEntry(newEntry);
+
+  try {
+    await sbFetch(`sim_sessions?session_code=eq.${sessionCode}`, {
+      method: 'PATCH', prefer: 'return=minimal',
+      body: JSON.stringify({ overrides: freshOverrides, previous_overrides: previousSnapshot, treatments, updated_at: new Date().toISOString() })
+    });
+  } catch (e) {
+    treatments = preEntryTreatments;
+    liveConfig.treatments = treatments;
+    alert('Could not apply — check the connection and try again.');
+    return;
+  }
+  liveConfig.overrides = freshOverrides;
+  liveConfig.previousOverrides = previousSnapshot;
+  renderLog();
+  renderGraph();
+  renderCprStatus();
+}
+
+function toggleCpr() {
+  if (!sessionCode) return;
+  const active = cprState().active;
+  applyCprAction(active ? 'stop' : 'start', active ? 'CPR stopped' : 'CPR commenced (30:2)');
+}
+
+function insertLma() {
+  if (!sessionCode) return;
+  const s = cprState();
+  if (!s.active || s.lmaInserted) return;
+  applyCprAction('lma', 'LMA inserted — ventilation 15:1');
+}
+
+// Randomised between the four genuinely pulseless arrest rhythms — named
+// explicitly in the command text (rather than left for the AI to pick) so
+// the resulting rhythm is exactly what the button promised, not whatever
+// SCRIPTED_EVENT_PROMPT's own "pick based on the scenario" fallback lands on.
+function putPatientInCardiacArrest() {
+  if (!sessionCode) return;
+  if (!confirm('Put the patient into cardiac arrest now?')) return;
+  const rhythms = ['pulseless electrical activity (PEA)', 'ventricular fibrillation', 'pulseless ventricular tachycardia', 'asystole'];
+  const rhythm = rhythms[Math.floor(Math.random() * rhythms.length)];
+  runAssessorCommand(`Put the patient into cardiac arrest immediately, in ${rhythm}.`);
+}
+
+function putPatientInSeizure() {
+  if (!sessionCode) return;
+  if (!confirm('Put the patient into a seizure now?')) return;
+  runAssessorCommand('The patient suddenly has a generalised tonic-clonic seizure.');
+}
+
+// Called from tickVitals() (so the running-time readout stays live) and
+// after anything that can change CPR state (applyCprAction, applySessionRow,
+// undoLastAction) — cheap and idempotent, safe to call often.
+function renderCprStatus() {
+  const btn = document.getElementById('cpr-toggle-btn');
+  const lmaBtn = document.getElementById('lma-btn');
+  const statusEl = document.getElementById('cpr-status');
+  if (!btn || !lmaBtn || !statusEl) return;
+  const s = cprState();
+  btn.textContent = s.active ? 'Stop CPR' : 'Start CPR';
+  btn.classList.toggle('btn-pause', s.active); // amber while running — same "ongoing, tap to stop" language as the scenario Pause/Resume button
+  lmaBtn.disabled = !s.active || s.lmaInserted;
+  lmaBtn.title = !s.active ? 'Start CPR first' : (s.lmaInserted ? 'LMA already in place' : '');
+  lmaBtn.textContent = s.lmaInserted ? 'LMA In' : 'Insert LMA';
+  if (!s.active) { statusEl.textContent = ''; return; }
+  const elapsedMin = s.startedAtMs != null ? Math.max(0, (simNow() - s.startedAtMs) / 60000) : 0;
+  statusEl.textContent = `CPR in progress — ${s.ratioLabel || '30:2'} — running ${elapsedMin.toFixed(1)} min`;
+}
+
 // Appends a new log entry, dropping any later entries this one supersedes —
 // relevant after a rewind: if givenAtMin is earlier than something already
 // logged (that entry sits in the "future" relative to this point, from a
@@ -3731,6 +3845,20 @@ async function giveTreatment(providedText, opts) {
 const DIVERGENCE_NOTE = `
 IMPORTANT — the scenario was rewound to this moment and a different action taken, so the entire previously-projected future has been DISCARDED: nothing at all is scheduled beyond this point now (which is why the two 'currently scheduled' lines above read 'none'). Anything you omit will hold flat at its current value for the rest of the scenario, which is very unlikely to be clinically right. Project the COMPLETE forward picture for every vital that will realistically change from here — including any continued deterioration from the underlying untreated condition that this action does NOT address, and including a 'rhythm' entry if the rhythm will change (or needs to change back — e.g. a previously projected arrest that this action now prevents must NOT be left scheduled, and an arrest that is still coming must be re-stated here or it will not happen at all).`;
 
+// CPR (see SimEngine.computeCprEffect) drives HR/BPsys/BPdia/EtCO2 directly,
+// with no AI call — so without this note, a treatment/event call firing
+// WHILE compressions are in progress would see e.g. HR ~110 in "vitals at
+// the moment this was given" and could easily mistake compression-driven
+// numbers for a genuine pulse/ROSC. Appended to both trajectory prompts'
+// user messages whenever overrides.cpr.active is true; empty string (i.e.
+// no mention at all) otherwise, same "say nothing unless it's relevant"
+// pattern as DIVERGENCE_NOTE.
+function cprPromptNote(freshOverrides) {
+  const cpr = freshOverrides && freshOverrides.cpr;
+  if (!cpr || !cpr.active) return '';
+  return `\nNOTE — CPR is currently in progress (compression:ventilation ratio ${cpr.ratioLabel || '30:2'}). The HR, BP and EtCO2 given below as "vitals at the moment this was given" are COMPRESSION-DRIVEN — generated by chest compressions, not by intrinsic cardiac activity — the underlying cardiac rhythm given above has NOT changed because of CPR alone. Do not interpret these numbers as a pulse or ROSC unless this action itself achieves that (e.g. successful defibrillation, or a rhythm-converting antiarrhythmic) — reason from the true underlying rhythm instead.`;
+}
+
 // Recalculates the patient's future trajectory in response to a specific
 // treatment/management action, using the AI to reason about THIS action on
 // THIS patient's THIS condition — replaces the old generic per-drug effect
@@ -3753,7 +3881,7 @@ async function regenerateTimelineAfterTreatment(action, givenAtMs, opts) {
   const previousSnapshot = JSON.parse(JSON.stringify(freshOverrides)); // exact pre-treatment state, for the "previous trajectory" ghost line
   const scheduledSummary = {};
   Object.entries(freshOverrides).forEach(([key, arr]) => {
-    if (key === 'rhythm') return; // different shape (label/startMs, no target/end) — summarised separately below
+    if (key === 'rhythm' || key === 'cpr') return; // different shape — 'rhythm' summarised separately below, 'cpr' is a current-state object, not a vitals array (see cprPromptNote)
     const future = (arr || [])
       .filter(ov => ov.startMs >= givenAtMs)
       .map(ov => ({ targetValue: ov.targetValue, startsInMin: +((ov.startMs - givenAtMs) / 60000).toFixed(1), endsInMin: +((ov.endMs - givenAtMs) / 60000).toFixed(1) }));
@@ -3782,7 +3910,7 @@ Current cardiac rhythm on the monitor: ${currentRhythmLabel || 'none scripted ye
 Currently scheduled future changes (minutes from now; not binding — see rules): ${Object.keys(scheduledSummary).length ? JSON.stringify(scheduledSummary) : 'none'}
 Currently scheduled future rhythm changes (minutes from now; not binding): ${scheduledRhythmSummary.length ? JSON.stringify(scheduledRhythmSummary) : 'none'}
 Remaining scenario time available to project (minutes; project less if the outcome resolves sooner): ${Math.round(remainingMin)}
-${opts.diverged ? DIVERGENCE_NOTE : ''}
+${opts.diverged ? DIVERGENCE_NOTE : ''}${cprPromptNote(freshOverrides)}
 Project how this patient's vitals change from here, given this specific action.`;
 
   // System prompt is now fully static per model (the one dynamic value,
@@ -3936,7 +4064,7 @@ async function regenerateTimelineForScriptedEvent(command, givenAtMs, opts) {
   const previousSnapshot = JSON.parse(JSON.stringify(freshOverrides));
   const scheduledSummary = {};
   Object.entries(freshOverrides).forEach(([key, arr]) => {
-    if (key === 'rhythm') return; // different shape (label/startMs, no target/end) — summarised separately below
+    if (key === 'rhythm' || key === 'cpr') return; // different shape — 'rhythm' summarised separately below, 'cpr' is a current-state object, not a vitals array (see cprPromptNote)
     const future = (arr || [])
       .filter(ov => ov.startMs >= givenAtMs)
       .map(ov => ({ targetValue: ov.targetValue, startsInMin: +((ov.startMs - givenAtMs) / 60000).toFixed(1), endsInMin: +((ov.endMs - givenAtMs) / 60000).toFixed(1) }));
@@ -3963,7 +4091,7 @@ Current cardiac rhythm on the monitor: ${currentRhythmLabel || 'none scripted ye
 Currently scheduled future changes (minutes from now; not binding \u2014 see rules): ${Object.keys(scheduledSummary).length ? JSON.stringify(scheduledSummary) : 'none'}
 Currently scheduled future rhythm changes (minutes from now; not binding): ${scheduledRhythmSummary.length ? JSON.stringify(scheduledRhythmSummary) : 'none'}
 Remaining scenario time available to project (minutes; project less if the outcome resolves sooner): ${Math.round(remainingMin)}
-${opts.diverged ? DIVERGENCE_NOTE : ''}
+${opts.diverged ? DIVERGENCE_NOTE : ''}${cprPromptNote(freshOverrides)}
 Project how this patient's vitals change from here, given this command.`;
 
   const systemParam = promptCachingEnabled
