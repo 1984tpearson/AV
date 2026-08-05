@@ -209,7 +209,7 @@ body { display: flex; flex-direction: column; }
       <input type="checkbox" id="hq-voice-checkbox" onchange="setHqVoiceEnabled(this.checked)">HQ Voice
     </label>
     <span id="hq-voice-status"></span>
-    <label id="rt-voice-label" title="Experimental: continuous, low-latency &quot;Talk to Patient&quot; conversation — streams speech straight to Claude and speaks back via Cartesia TTS, entirely from this device (no dependency on the assessor's tab being open/polling). Requires Deepgram + Cartesia API keys configured by the admin; falls back to the standard hold-to-talk flow if unavailable. Chrome only.">
+    <label id="rt-voice-label" title="Experimental: continuous, low-latency &quot;Talk to Patient&quot; conversation — streams speech straight to Claude and speaks back via Deepgram Aura-2 TTS, entirely from this device (no dependency on the assessor's tab being open/polling). Requires a Deepgram API key configured by the admin; falls back to the standard hold-to-talk flow if unavailable. Chrome only.">
       <input type="checkbox" id="rt-voice-checkbox" onchange="setRtVoiceEnabled(this.checked)">&#9889; Realtime Voice (beta)
     </label>
     <span id="rt-voice-status"></span>
@@ -2198,7 +2198,7 @@ document.addEventListener('visibilitychange', () => {
 // This description no longer covers "Talk to Patient" when Realtime Voice
 // (beta) is armed — see the large comment block above startRealtimeCall()
 // (search for "Realtime Voice (beta)") for that separate, faster path,
-// which DOES call Anthropic (plus Deepgram/Cartesia) directly from this
+// which DOES call Anthropic and Deepgram directly from this
 // device instead of queuing through sim_control.html. Give
 // Treatment/Assessment are untouched either way.
 let _voiceMode = null;
@@ -2753,8 +2753,13 @@ async function speakPatientReply(text, resumeIfConversing, isConversation, useHq
 // model, same prompt, same GCS-tiering as sim_control.html's
 // callPatientAI()/answerPatientQuestion() — duplicated here rather than
 // shared, see the PATIENT_VOICE_PROMPT comment in loadSimConfig() above)
-// -> Cartesia TTS, played back immediately. No Supabase round trip, no
-// dependency on sim_control.html polling.
+// -> Deepgram Aura-2 TTS, played back immediately. No Supabase round trip,
+// no dependency on sim_control.html polling. Deepgram covers BOTH halves
+// of the voice loop (STT and TTS) deliberately — one vendor/one API key
+// instead of two, and Aura-2 turned out cheaper per minute than the
+// TTS-specialist alternative (Cartesia) that an earlier pass of this code
+// used, at the cost of an unverified (not benchmarked here) latency gap
+// versus Cartesia's ~40ms-TTFB-optimized architecture.
 //
 // Trade-offs accepted for this first pass, deliberately not fixed yet:
 // - Assessor-side Log visibility: sim_control.html's `actionLog` is
@@ -2765,8 +2770,8 @@ async function speakPatientReply(text, resumeIfConversing, isConversation, useHq
 //   to the row's `patient_reply` field — see handleRealtimeUtterance()).
 //   A future pass could patch a proper audit record onto the session row
 //   for sim_control.html to pick up; out of scope for this first cut.
-// - TTS playback fetches the full Cartesia response before playing (a
-//   single <audio> element, same pattern as the legacy Piper path in
+// - TTS playback fetches the full Deepgram Aura-2 response before playing
+//   (a single <audio> element, same pattern as the legacy Piper path in
 //   speakPatientReply()) rather than true streaming playback via Media
 //   Source Extensions — for the short (max_tokens 300) replies this engine
 //   generates, the difference is small, but a longer reply would benefit
@@ -2780,15 +2785,17 @@ async function speakPatientReply(text, resumeIfConversing, isConversation, useHq
 //   testing, this is the first place to look.
 // - Requires Chrome (MediaRecorder) — same constraint the legacy path
 //   already has, see getSpeechRecognitionCtor()'s comment above.
-// - Requires two more API keys (Deepgram, Cartesia) configured in the same
+// - Requires one more API key (Deepgram — used for BOTH the STT
+//   WebSocket and the TTS REST call below) configured in the same
 //   Supabase app_config table the Anthropic key already lives in — see
-//   getDeepgramKey()/getCartesiaKey() below. Until an admin adds
-//   'deepgram_api_key'/'cartesia_api_key' rows there, the toggle can be
-//   switched on but every call attempt fails closed with a clear status
-//   message.
-// - CARTESIA_VOICE_POOL below is placeholder text, not real voice IDs —
-//   see its comment. Nothing here can actually speak until those are
-//   replaced with real IDs from Cartesia's voice library.
+//   getDeepgramKey() below. Until an admin adds a 'deepgram_api_key' row
+//   there, the toggle can be switched on but every call attempt fails
+//   closed with a clear status message.
+// - DEEPGRAM_TTS_VOICE_POOL below has only ONE voice name independently
+//   confirmed against Deepgram's own documentation search results
+//   ('aura-2-thalia-en') — the rest follow Aura-2's mythological/celestial
+//   naming convention but aren't individually verified. Check them against
+//   Deepgram's "TTS Voices and Languages" docs page before relying on them.
 
 // --- Config/keys -----------------------------------------------------------
 // Mirrors sim_control.html's getAnthropicKey() exactly (same table, same
@@ -2825,19 +2832,6 @@ async function getDeepgramKey() {
   throw new Error('Realtime Voice needs a Deepgram API key — ask the administrator to add one (app_config key "deepgram_api_key").');
 }
 
-let _cachedCartesiaKey = null;
-async function getCartesiaKey() {
-  if (_cachedCartesiaKey) return _cachedCartesiaKey;
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/app_config?key=eq.cartesia_api_key&select=value`, {
-    headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
-  });
-  if (res.ok) {
-    const data = await res.json();
-    if (data && data[0] && data[0].value) { _cachedCartesiaKey = data[0].value; return _cachedCartesiaKey; }
-  }
-  throw new Error('Realtime Voice needs a Cartesia API key — ask the administrator to add one (app_config key "cartesia_api_key").');
-}
-
 // Default text is a plain copy of sim_control.html's own PATIENT_VOICE_PROMPT
 // / PATIENT_VOICE_CONFUSED_NOTE defaults — see the loadSimConfig() override
 // above for why both files can still stay in sync via the admin config even
@@ -2846,26 +2840,30 @@ async function getCartesiaKey() {
 let PATIENT_VOICE_PROMPT = "You are voicing the PATIENT in a paramedic training scenario, answering a question the crew just asked out loud. Reply only as the patient would speak — first person, in character, brief (1-3 short sentences), plain lay language, no clinical terms the patient wouldn't use.\n\nOnly say what this patient could plausibly know or perceive themselves (their own symptoms, feelings, what happened to them, basic personal details) — never reveal the provisional diagnosis, clinical reasoning, vital sign numbers, or anything a real patient wouldn't know or say. If asked something the patient wouldn't know or that's irrelevant to them, answer in character as a confused/unsure patient would.\n\nLet their current condition colour HOW they answer: e.g. short of breath = short, breathless sentences; distressed/in pain = anxious tone. Never break character, never mention this being a simulation.\n\nYour name is {{patientName}}. If asked your name, or anything requiring you to refer to yourself, you MUST use this exact name — never invent or substitute a different one.\n{{confusedNote}}\n\nReturn ONLY the spoken reply text — no quotation marks, no stage directions, no prose about the answer.";
 let PATIENT_VOICE_CONFUSED_NOTE = "This patient’s GCS Verbal score is 4 (confused conversation) — they are disoriented. Every reply must be rambling, tangential, and only loosely connected to what was actually asked (may drift to an unrelated memory, misidentify the crew, or answer a different question than the one asked) — never a clear, accurate, on-topic answer, no matter what is asked.";
 
-// --- Cartesia voice selection -----------------------------------------
+// --- Deepgram TTS (Aura-2) voice selection ---------------------------
 // Same per-scenario-stable pick as piperVoiceIdFor() (hashStr(seed +
 // ':voice') % pool.length, seeded off avatarBuild.voiceSeed) — deliberately
 // a DIFFERENT hash suffix and a different namespace of IDs than
-// PIPER_VOICE_POOL, since these are Cartesia catalogue voice IDs, not
-// Piper model IDs. PLACEHOLDERS BELOW ARE NOT REAL VOICE IDS — browse
-// Cartesia's voice library (their console lets you preview voices) and
-// replace these before this mode can actually speak. Only two demographic
-// buckets for now (matching what patientGender already gives us) — a
-// finer age-aware pick (matching how the avatar's ageRamp() already varies
-// pediatric/elderly appearance) is a natural follow-up once real voice IDs
-// are in hand, via avatarBuild.ageYears the same way youthVoiceRate() reads it.
-let CARTESIA_VOICE_POOL = {
-  male: ['REPLACE_WITH_CARTESIA_VOICE_ID_MALE_1', 'REPLACE_WITH_CARTESIA_VOICE_ID_MALE_2'],
-  female: ['REPLACE_WITH_CARTESIA_VOICE_ID_FEMALE_1', 'REPLACE_WITH_CARTESIA_VOICE_ID_FEMALE_2'],
+// PIPER_VOICE_POOL, since Aura-2's model names (format
+// "aura-2-<voicename>-<language>", e.g. "aura-2-thalia-en") are a
+// completely separate catalogue from Piper's. Only 'aura-2-thalia-en' was
+// independently confirmed in documentation while writing this — the rest
+// follow Aura-2's mythological/celestial naming convention but are NOT
+// individually verified, so double-check the full list (and each voice's
+// actual gender/tone) against Deepgram's "TTS Voices and Languages" docs
+// page before relying on them. Only two demographic buckets for now
+// (matching what patientGender already gives us) — a finer age-aware pick
+// (matching how the avatar's ageRamp() already varies pediatric/elderly
+// appearance) is a natural follow-up once the full voice list is
+// confirmed, via avatarBuild.ageYears the same way youthVoiceRate() reads it.
+let DEEPGRAM_TTS_VOICE_POOL = {
+  male: ['aura-2-orion-en', 'aura-2-zeus-en'],
+  female: ['aura-2-thalia-en', 'aura-2-luna-en'],
 };
-function cartesiaVoiceIdFor(gender) {
-  const pool = CARTESIA_VOICE_POOL[gender] || CARTESIA_VOICE_POOL.male;
+function deepgramVoiceIdFor(gender) {
+  const pool = DEEPGRAM_TTS_VOICE_POOL[gender] || DEEPGRAM_TTS_VOICE_POOL.male;
   const seed = avatarBuild.voiceSeed || sessionCode || 'default';
-  return pool[hashStr(seed + ':cartesia-voice') % pool.length];
+  return pool[hashStr(seed + ':deepgram-tts-voice') % pool.length];
 }
 
 // --- Toggle ------------------------------------------------------------
@@ -2887,8 +2885,8 @@ function updateRtVoiceStatusLabel() {
 
 // Same unlock trick as unlockPiperAudio() (see its comment above) —
 // Safari/iOS require play() to happen synchronously inside a real user
-// gesture, and the actual Cartesia audio only becomes available later from
-// an async fetch. Reuses the same primed-<audio>-element pattern with its
+// gesture, and the actual Deepgram Aura-2 audio only becomes available
+// later from an async fetch. Reuses the same primed-<audio>-element pattern with its
 // own element (not _piperAudioEl) — the two TTS paths never run
 // concurrently, but keeping them distinct avoids any chance of one
 // clobbering the other's src mid-flight.
@@ -2909,11 +2907,11 @@ let _rtCallId = 0; // bumped on every start/end — every async callback checks 
 let _rtSocket = null;
 let _rtRecorder = null;
 let _rtStream = null;
-let _rtSpeaking = false; // true while Cartesia audio is actually playing — gates whether a SpeechStarted VAD event counts as a barge-in
+let _rtSpeaking = false; // true while the Deepgram Aura-2 reply audio is actually playing — gates whether a SpeechStarted VAD event counts as a barge-in
 let _rtPendingText = ''; // accumulated is_final fragments since the last speech_final
 
 function startRealtimeCall() {
-  unlockSpeechSynthesis(); // the Cartesia-failure fallback in speakRealtimeReply() still needs this unlocked
+  unlockSpeechSynthesis(); // the TTS-failure fallback in speakRealtimeReply() still needs this unlocked
   unlockRealtimeAudio(); // must happen here, inside the tap handler, to count as a user gesture
   stopWakeListening();
   hideWakePanel();
@@ -3105,39 +3103,36 @@ Reply as the patient.`;
   return text || "...sorry, I didn't catch that.";
 }
 
-// --- TTS: Cartesia ---------------------------------------------------------
+// --- TTS: Deepgram Aura-2 ---------------------------------------------------
 // Fetches the FULL audio before playing (see the "Trade-offs" comment at
-// the top of this section) — a single POST to /tts/bytes, played through
+// the top of this section) — a single POST to /v1/speak, played through
 // the element unlockRealtimeAudio() already primed inside a real tap.
-// Falls back to speakPatientReply()'s existing Piper-then-Web-Speech chain
-// on any failure (missing key, network error, bad voice ID) rather than
-// leaving the reply silent — same "never leave the training exercise
-// stuck" principle the legacy path already follows.
+// Unlike the STT WebSocket above, this is a plain REST POST, so the API
+// key travels as a normal Authorization header (`Token <key>`, Deepgram's
+// own convention — NOT `Bearer`) rather than needing the
+// Sec-WebSocket-Protocol trick. model/encoding are query-string
+// parameters (Deepgram's documented pattern, e.g.
+// "?model=aura-2-thalia-en&encoding=mp3"), NOT JSON body fields — only
+// `text` goes in the body. mp3 is the REST endpoint's own default encoding,
+// requested explicitly here anyway for clarity/future-proofing. Falls back
+// to speakPatientReply()'s existing Piper-then-Web-Speech chain on any
+// failure (missing key, network error, bad voice name) rather than leaving
+// the reply silent — same "never leave the training exercise stuck"
+// principle the legacy path already follows.
 async function speakRealtimeReply(text, callId) {
   try {
-    const apiKey = await getCartesiaKey();
+    const apiKey = await getDeepgramKey();
     if (callId !== _rtCallId) return;
-    const voiceId = cartesiaVoiceIdFor(patientGender);
-    const res = await fetch('https://api.cartesia.ai/tts/bytes', {
+    const voiceModel = deepgramVoiceIdFor(patientGender);
+    const res = await fetch(`https://api.deepgram.com/v1/speak?model=${encodeURIComponent(voiceModel)}&encoding=mp3`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`,
-        // Cartesia requires a dated version header on every request — bump
-        // this if Cartesia's API starts returning a version-related error.
-        'Cartesia-Version': '2025-11-04'
+        'Authorization': `Token ${apiKey}`
       },
-      body: JSON.stringify({
-        model_id: 'sonic-2',
-        transcript: text,
-        voice: { mode: 'id', id: voiceId },
-        // NOT independently verified against Cartesia's schema for the mp3
-        // container specifically (only a wav/pcm example was available
-        // while writing this) — first thing to check if this call 400s.
-        output_format: { container: 'mp3', sample_rate: 44100 }
-      })
+      body: JSON.stringify({ text })
     });
-    if (!res.ok) throw new Error(`Cartesia call failed (${res.status})`);
+    if (!res.ok) throw new Error(`Deepgram TTS call failed (${res.status})`);
     if (callId !== _rtCallId) return;
     const blob = await res.blob();
     if (callId !== _rtCallId) return;
@@ -3146,7 +3141,7 @@ async function speakRealtimeReply(text, callId) {
     _rtSpeaking = true;
     await new Promise((resolve, reject) => {
       audio.onended = resolve;
-      audio.onerror = () => reject(new Error('Cartesia audio playback error'));
+      audio.onerror = () => reject(new Error('Deepgram TTS audio playback error'));
       audio.play().then(startTalkAnimation).catch(reject);
     });
     _rtSpeaking = false;
