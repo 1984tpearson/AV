@@ -26,6 +26,15 @@ body { display: flex; flex-direction: column; }
    it) stays above #management-row.mgmt-fullscreen's fixed inset:0 overlay
    below — otherwise there'd be no way back out of fullscreen. */
 #topbar { flex-shrink: 0; position: relative; z-index: 45; background: var(--navy); box-shadow: 0 2px 8px rgba(0,0,0,0.25); padding: 8px 14px; display: flex; align-items: center; justify-content: space-between; }
+/* sim_combo.html hides this page's own topbar and surfaces the same
+   controls (mode switch, AI indicators, join button) in its own single
+   shared topbar instead, proxying clicks/values across the iframe
+   boundary — see that file. Gated on an explicit ?embed=1 query param
+   rather than window.self!==window.top so an incidental iframe embed
+   elsewhere doesn't silently hide navigation with no way back. #main is
+   already flex:1 in a flex-column body, so hiding #topbar just lets it
+   fill the freed space, no other layout change needed. */
+body.embed #topbar { display: none; }
 #topbar .title { font-size: 12px; font-weight: 900; letter-spacing: 1px; color: #ffffff; text-transform: uppercase; }
 #topbar label { color: rgba(255,255,255,0.85); }
 #run-status { font-size: 11px; font-weight: 700; }
@@ -164,6 +173,10 @@ select, input[type=number], input[type=text] { font-family: 'Courier New', monos
     </button>
   </div>
 </div>
+<script>
+  // See the body.embed CSS rule above this topbar for why.
+  if (new URLSearchParams(location.search).get('embed') === '1') document.body.classList.add('embed');
+</script>
 <div id="main">
 
   <div class="panel" id="create-panel">
