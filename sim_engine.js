@@ -63,7 +63,8 @@
     gcs: 5,
     bgl: 15,
     ketones: 15,
-    pain: 3
+    pain: 3,
+    pulse: 10 // manual palpation at a chosen site (radial/brachial/carotid) — quicker than a full RR count, see getPulseState
   };
   function getActionDurationSec(key, context) {
     const d = _cfg.ACTION_DURATIONS[key];

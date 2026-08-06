@@ -111,6 +111,9 @@ body.mode-avatar #monitor-col { display: none !important; }
 .oo-tap-again { font-size: 8px; color: #4fc3f7; margin-top: 2px; font-style: italic; }
 .oo-pending { font-size: 10px; color: #4fc3f7; margin-top: 2px; }
 .oo-queued { font-size: 9px; color: #6b8299; margin-top: 2px; font-style: italic; }
+.pulse-site-row { display: flex; gap: 3px; margin-top: 2px; flex-wrap: wrap; }
+.pulse-site-btn { font-size: 8px; padding: 2px 4px; border-radius: 3px; border: 1px solid #2a4a6a; background: #16283d; color: #c0d4e8; cursor: pointer; font-family: inherit; }
+.pulse-site-btn:active { background: #1e3a5a; }
 
 /* Defib strip — bottom row of the monitor. Four blank placeholder keys for
    now, then Charge/Shock. The joule tower is an overlay (not part of flex
@@ -1498,7 +1501,7 @@ function applySessionRow(row) {
 let MAX_CONCURRENT = 2;
 let actionQueue = [];
 const actionState = {};
-['ecg','ecg12lead','spo2','etco2','bp','temp','gcs','bgl','ketones','pain'].forEach(k => {
+['ecg','ecg12lead','spo2','etco2','bp','temp','gcs','bgl','ketones','pain','pulse'].forEach(k => {
   actionState[k] = { status: 'idle' };
 });
 
@@ -1509,13 +1512,16 @@ const oneOffDefs = {
   ketones: { label: 'Ketones', unit: 'mmol/L' },
   pain:    { label: 'Pain',    unit: '/10' }
 };
+// 'pulse' is deliberately NOT in oneOffDefs — like 'bp' it needs its own
+// bespoke idle-state markup (a site picker, not a plain "Tap to Assess")
+// and its own handlers, see startPulseCheck()/pulseCardHtml() below.
 
 // Human-readable labels for every actionState key — used when pushing state
 // to Supabase for sim_control.html's Actions tab (see pushActionState()).
 let ACTION_LABELS = {
   ecg: 'ECG (Lead II)', ecg12lead: '12-Lead ECG', spo2: 'SpO\u2082',
   etco2: 'EtCO\u2082', bp: 'Blood Pressure', temp: 'Temperature', gcs: 'GCS',
-  bgl: 'BGL', ketones: 'Ketones', pain: 'Pain Score'
+  bgl: 'BGL', ketones: 'Ketones', pain: 'Pain Score', pulse: 'Pulse Check'
 };
 function formatStaticVital(key, val) {
   if (val == null) return '\u2014';
@@ -1584,11 +1590,47 @@ function onActionComplete(key, now) {
     const v = extendedVitalsNow();
     actionState[key].value = key === 'gcs' ? Math.round(v.gcsE + v.gcsV + v.gcsM) : v[key];
   }
+  if (key === 'pulse') {
+    // The whole point of checking a SPECIFIC site: present only if that
+    // exact site is in getPulseState's palpableSites, not just "is there a
+    // pulse anywhere" — a weak/CPR-driven pulse might only reach carotid,
+    // so checking radial correctly comes back absent even though the
+    // patient does have some pulse. See SimEngine.getPulseState.
+    const ps = SimEngine.getPulseState(testConfig, SimEngine.getSimNow(testConfig, now));
+    const site = actionState.pulse.site;
+    const found = ps.present && ps.palpableSites.includes(site);
+    actionState.pulse.result = { site, present: found, rate: found ? ps.rate : null };
+  }
 }
 
 function reassess(key) {
   actionState[key].status = 'idle';
   startAction(key);
+}
+
+// Pulse doesn't go through startAction()/reassess() — those assume idle
+// simply means "not yet begun," but a pulse check needs a SITE chosen
+// first (see pulseCardHtml's site-picker below), so it gets its own small
+// start function instead. Otherwise identical to beginPending's queueing
+// rule (MAX_CONCURRENT crew members busy at once).
+const PULSE_SITES = [
+  { key: 'radial', label: 'Radial' },
+  { key: 'brachial', label: 'Brachial' },
+  { key: 'carotid', label: 'Carotid' }
+];
+function startPulseCheck(site) {
+  const st = actionState.pulse;
+  if (!st || st.status !== 'idle') return;
+  st.site = site;
+  if (countPending() < MAX_CONCURRENT) beginPending('pulse');
+  else { st.status = 'queued'; actionQueue.push('pulse'); }
+}
+function handlePulseCardTap() {
+  const st = actionState.pulse;
+  if (st.status !== 'done') return; // idle is handled by the per-site buttons, pending/queued ignore taps like every other action
+  st.status = 'idle';
+  st.result = null;
+  renderOneOff();
 }
 
 // Applies assessor pause/skip commands (see actionControls, polled every
@@ -1991,7 +2033,33 @@ function renderOneOff() {
       body = `<div class="oo-value">${formatStaticVital(key, st.value)}${def.unit ? `<span style="font-size:9px"> ${def.unit}</span>` : ''}</div><div class="oo-tap-again">tap to reassess</div>`;
     }
     return `<div class="oo-card" onclick="handleOneOffTap('${key}')"><div class="oo-label">${def.label}</div>${body}</div>`;
-  }).join('');
+  }).join('') + pulseCardHtml();
+}
+
+// Pulse's own card, appended after the generic oneOffDefs strip — kept out
+// of that loop because idle state needs a site picker (three buttons), not
+// a single "Tap to Assess" target, and a completed check reports
+// present/absent at a specific site rather than one plain number. See
+// startPulseCheck()/handlePulseCardTap() above.
+function pulseCardHtml() {
+  const st = actionState.pulse;
+  let body;
+  if (st.status === 'idle') {
+    body = `<div class="pulse-site-row">${PULSE_SITES.map(s =>
+      `<button class="pulse-site-btn" onclick="event.stopPropagation(); startPulseCheck('${s.key}')">${s.label}</button>`
+    ).join('')}</div>`;
+  } else if (st.status === 'queued') {
+    body = `<div class="oo-queued">Queued…</div>`;
+  } else if (st.status === 'pending') {
+    body = `<div class="oo-pending">${countdownRemain(st)}s…</div>`;
+  } else {
+    const r = st.result || {};
+    const siteLabel = (PULSE_SITES.find(s => s.key === r.site) || {}).label || r.site || '';
+    body = r.present
+      ? `<div class="oo-value">${siteLabel}: Present<span style="font-size:9px"> ~${r.rate}/min</span></div><div class="oo-tap-again">tap to reassess</div>`
+      : `<div class="oo-value">${siteLabel}: Absent</div><div class="oo-tap-again">tap to reassess</div>`;
+  }
+  return `<div class="oo-card" onclick="handlePulseCardTap()"><div class="oo-label">Pulse</div>${body}</div>`;
 }
 
 // --- Defibrillation --------------------------------------------------------

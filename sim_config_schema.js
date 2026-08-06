@@ -100,7 +100,8 @@
               gcs: 5,
               bgl: 15,
               ketones: 15,
-              pain: 3
+              pain: 3,
+              pulse: 10
             }
           },
           NO_EFFECT_ACTIONS: {
@@ -157,7 +158,7 @@
             default: {
               ecg: 'ECG (Lead II) applied', ecg12lead: '12-Lead ECG applied', rr: 'Resp Rate assessed', spo2: 'SpO₂ assessed',
               etco2: 'EtCO₂ assessed', bp: 'BP taken', temp: 'Temperature assessed', gcs: 'GCS assessed',
-              bgl: 'BGL taken', ketones: 'Ketones taken', pain: 'Pain score assessed'
+              bgl: 'BGL taken', ketones: 'Ketones taken', pain: 'Pain score assessed', pulse: 'Pulse checked'
             }
           },
           ACTION_LABELS: {
@@ -167,7 +168,7 @@
             default: {
               ecg: 'ECG (Lead II)', ecg12lead: '12-Lead ECG', spo2: 'SpO₂',
               etco2: 'EtCO₂', bp: 'Blood Pressure', temp: 'Temperature', gcs: 'GCS',
-              bgl: 'BGL', ketones: 'Ketones', pain: 'Pain Score'
+              bgl: 'BGL', ketones: 'Ketones', pain: 'Pain Score', pulse: 'Pulse Check'
             }
           },
           HIGH_RISK_CONDITION_KEYWORDS: {
