@@ -1509,13 +1509,12 @@ function applySessionRow(row) {
 let MAX_CONCURRENT = 2;
 let actionQueue = [];
 const actionState = {};
-['ecg','ecg12lead','spo2','etco2','bp','temp','gcs','bgl','ketones','pain','pulse'].forEach(k => {
+['ecg','ecg12lead','spo2','etco2','bp','temp','bgl','ketones','pain','pulse'].forEach(k => {
   actionState[k] = { status: 'idle' };
 });
 
 const oneOffDefs = {
   temp:    { label: 'Temp',    unit: '\u00b0C' },
-  gcs:     { label: 'GCS',     unit: '/15' },
   bgl:     { label: 'BGL',     unit: 'mmol/L' },
   ketones: { label: 'Ketones', unit: 'mmol/L' },
   pain:    { label: 'Pain',    unit: '/10' }
@@ -1530,12 +1529,11 @@ const oneOffDefs = {
 // to Supabase for sim_control.html's Actions tab (see pushActionState()).
 let ACTION_LABELS = {
   ecg: 'ECG (Lead II)', ecg12lead: '12-Lead ECG', spo2: 'SpO\u2082',
-  etco2: 'EtCO\u2082', bp: 'Blood Pressure', temp: 'Temperature', gcs: 'GCS',
+  etco2: 'EtCO\u2082', bp: 'Blood Pressure', temp: 'Temperature',
   bgl: 'BGL', ketones: 'Ketones', pain: 'Pain Score', pulse: 'Pulse Check'
 };
 function formatStaticVital(key, val) {
   if (val == null) return '\u2014';
-  if (key === 'gcs') return `${val}`; // already summed to a total before this is called
   if (key === 'temp' || key === 'bgl' || key === 'ketones') return val.toFixed(1);
   return `${Math.round(val)}`;
 }

@@ -755,13 +755,6 @@ function renderScenarioInfoPanel() {
     '<div class="info-block"><div class="info-label">Appearance</div><div class="info-value" id="info-dyn-appearance">—</div></div>' +
     '<div class="info-block"><div class="info-label">Skin</div><div class="info-value" id="info-dyn-skin">—</div></div>' +
     '<div class="info-block"><div class="info-label">Work of Breathing</div><div class="info-value" id="info-dyn-wob">—</div></div>' +
-    // GCS moved off the main monitor grid (replaced there by the Pulse
-    // tile) but is otherwise completely unchanged — same tile markup, same
-    // Edit Mode arming, same tap-to-open three-input E/V/M modal, see
-    // vitalTileHtml/tickVitals. display:flex here restores the flex
-    // context .vtile's own flex:1/min-width:80px expect, since this isn't
-    // sitting inside #vitals-grid's flex row any more.
-    '<div class="info-block"><div class="info-label">GCS</div><div style="display:flex;max-width:140px;" id="info-gcs-tile-slot"></div></div>' +
     infoSubheading('Respiratory Assessment') +
     '<div class="info-block"><div class="info-label">Speech</div><div class="info-value" id="info-dyn-speech">—</div></div>' +
     infoBlock('Breath Sounds', rsa.breath_sounds) +
@@ -2874,10 +2867,8 @@ function updateDynamicAppearance(v) {
 // on/off dot, and manual-entry-modal click behaviour all intact) can be
 // rendered in more than one place. Currently that's just GCS: it moved off
 // the main monitor grid (replaced by the Pulse tile below — see
-// pulseTileHtml) but keeps everything else about it exactly as it was
-// (still arm-able for graph Edit Mode, still opens the same three-input
-// E/V/M modal) — it's just rendered into the Appearance info tab instead,
-// see the #info-gcs-tile-slot element in renderScenarioInfoPanel().
+// pulseTileHtml, added as a genuinely new tile rather than replacing GCS —
+// GCS stays on the main grid exactly as it always was, see tickVitals().
 function vitalTileHtml(def, v) {
   let val;
   if (def.key === 'BP') val = `${Math.round(v.BPsys)}/${Math.round(v.BPdia)}`;
@@ -2954,16 +2945,12 @@ function tickVitals() {
   const v = SimEngine.getVitalsRaw(liveConfig, simNow());
   updateDynamicAppearance(v);
   const grid = document.getElementById('vitals-grid');
-  // Same visual slot GCS used to occupy (second-to-last, right before
-  // Health) — see vitalTileHtml's comment for where GCS itself went.
-  const tiles = VITAL_DEFS.filter(def => def.key !== 'GCS').map(def => vitalTileHtml(def, v));
+  // GCS stays a normal VITAL_DEFS tile on the main grid, unchanged from
+  // before Pulse existed — Pulse is inserted as an extra tile (right
+  // before Health) rather than taking GCS's place.
+  const tiles = VITAL_DEFS.map(def => vitalTileHtml(def, v));
   tiles.splice(Math.max(0, tiles.length - 1), 0, pulseTileHtml(simNow()));
   grid.innerHTML = tiles.join('');
-  const gcsSlot = document.getElementById('info-gcs-tile-slot');
-  if (gcsSlot) {
-    const gcsDef = VITAL_DEFS.find(d => d.key === 'GCS');
-    if (gcsDef) gcsSlot.innerHTML = vitalTileHtml(gcsDef, v);
-  }
   if (Object.keys(patientActions).some(k => patientActions[k].status === 'pending')) renderPendingActionsStack(); // live countdown while anything's mid-timer
   renderGraph();
   renderLog(); // keeps the log's "not yet" greying (see renderLog) live as replay after a rewind naturally passes each entry's original timestamp again
