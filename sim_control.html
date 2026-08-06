@@ -723,6 +723,13 @@ function renderScenarioInfoPanel() {
     '<div class="info-block"><div class="info-label">Appearance</div><div class="info-value" id="info-dyn-appearance">—</div></div>' +
     '<div class="info-block"><div class="info-label">Skin</div><div class="info-value" id="info-dyn-skin">—</div></div>' +
     '<div class="info-block"><div class="info-label">Work of Breathing</div><div class="info-value" id="info-dyn-wob">—</div></div>' +
+    // GCS moved off the main monitor grid (replaced there by the Pulse
+    // tile) but is otherwise completely unchanged — same tile markup, same
+    // Edit Mode arming, same tap-to-open three-input E/V/M modal, see
+    // vitalTileHtml/tickVitals. display:flex here restores the flex
+    // context .vtile's own flex:1/min-width:80px expect, since this isn't
+    // sitting inside #vitals-grid's flex row any more.
+    '<div class="info-block"><div class="info-label">GCS</div><div style="display:flex;max-width:140px;" id="info-gcs-tile-slot"></div></div>' +
     infoSubheading('Respiratory Assessment') +
     '<div class="info-block"><div class="info-label">Speech</div><div class="info-value" id="info-dyn-speech">—</div></div>' +
     infoBlock('Breath Sounds', rsa.breath_sounds) +
@@ -2830,30 +2837,74 @@ function updateDynamicAppearance(v) {
   document.getElementById('info-dyn-speech').textContent = computeSpeechText(v);
 }
 
-function tickVitals() {
-  if (!liveConfig) return;
-  const v = SimEngine.getVitalsRaw(liveConfig, simNow());
-  updateDynamicAppearance(v);
-  const grid = document.getElementById('vitals-grid');
-  grid.innerHTML = VITAL_DEFS.map(def => {
-    let val;
-    if (def.key === 'BP') val = `${Math.round(v.BPsys)}/${Math.round(v.BPdia)}`;
-    else if (def.isGCS) val = Math.round(v.gcsE + v.gcsV + v.gcsM);
-    else if (def.isHealth) val = Math.round(SimEngine.getDisplayHealthScore(liveConfig, simNow()));
-    else if (['Temp', 'BGL', 'Ketones'].includes(def.key)) val = v[def.overrideKeys[0]].toFixed(1);
-    else val = Math.round(v[def.overrideKeys[0]]);
-    const armedStyle = (vitalsEditMode && armedTileKey === def.key) ? 'border-color:#0369a1;box-shadow:0 0 0 2px #bae0fd inset;' : '';
-    const graphKeys = vtileGraphKeys(def);
-    const isOn = graphKeys.length && graphSeriesOn[graphKeys[0]];
-    const dotColor = def.isHealth ? healthLineColor(val) : (graphKeys.length ? GRAPH_SERIES.find(s => s.key === graphKeys[0]).color : '#cbd5e1');
-    const clickFn = vitalsEditMode ? `handleVtileClick('${def.key}')` : `toggleVitalVisibility('${def.key}')`;
-    return `<div class="vtile" style="${armedStyle}" onclick="${clickFn}">
+// Renders one vitals-grid tile's markup for a VITAL_DEFS entry — extracted
+// out of tickVitals() so the same tile (with its Edit Mode arming, graph
+// on/off dot, and manual-entry-modal click behaviour all intact) can be
+// rendered in more than one place. Currently that's just GCS: it moved off
+// the main monitor grid (replaced by the Pulse tile below — see
+// pulseTileHtml) but keeps everything else about it exactly as it was
+// (still arm-able for graph Edit Mode, still opens the same three-input
+// E/V/M modal) — it's just rendered into the Appearance info tab instead,
+// see the #info-gcs-tile-slot element in renderScenarioInfoPanel().
+function vitalTileHtml(def, v) {
+  let val;
+  if (def.key === 'BP') val = `${Math.round(v.BPsys)}/${Math.round(v.BPdia)}`;
+  else if (def.isGCS) val = Math.round(v.gcsE + v.gcsV + v.gcsM);
+  else if (def.isHealth) val = Math.round(SimEngine.getDisplayHealthScore(liveConfig, simNow()));
+  else if (['Temp', 'BGL', 'Ketones'].includes(def.key)) val = v[def.overrideKeys[0]].toFixed(1);
+  else val = Math.round(v[def.overrideKeys[0]]);
+  const armedStyle = (vitalsEditMode && armedTileKey === def.key) ? 'border-color:#0369a1;box-shadow:0 0 0 2px #bae0fd inset;' : '';
+  const graphKeys = vtileGraphKeys(def);
+  const isOn = graphKeys.length && graphSeriesOn[graphKeys[0]];
+  const dotColor = def.isHealth ? healthLineColor(val) : (graphKeys.length ? GRAPH_SERIES.find(s => s.key === graphKeys[0]).color : '#cbd5e1');
+  const clickFn = vitalsEditMode ? `handleVtileClick('${def.key}')` : `toggleVitalVisibility('${def.key}')`;
+  return `<div class="vtile" style="${armedStyle}" onclick="${clickFn}">
       <span class="vtile-dot" style="background:${isOn ? dotColor : '#cbd5e1'};"></span>
       <div class="vlabel">${def.label}</div>
       <div class="vval">${val}</div>
       <div class="muted">${def.unit}</div>
     </div>`;
-  }).join('');
+}
+
+// The Pulse tile is NOT a VITAL_DEFS entry — unlike every other tile it has
+// no independent overrides array of its own to arm/edit (see
+// SimEngine.getPulseState: it's derived fresh from rhythm + whichever BP
+// source is actually generating output), so there's nothing for Edit
+// Mode's Add/Move/Remove tools to act on. Purely a live readout: rate (or
+// "—" if no pulse), the best (most distal) palpable site, and a
+// source-coded dot — green for a genuine intrinsic pulse, amber for a
+// compression-generated one (so a glance at the dot alone tells you which
+// kind you're looking at), red for none.
+function pulseTileHtml(nowMs) {
+  const ps = SimEngine.getPulseState(liveConfig, nowMs);
+  const dotColor = !ps.present ? '#dc2626' : (ps.source === 'cpr' ? '#f59e0b' : '#22c55e');
+  const valText = ps.present ? ps.rate : '—';
+  const siteText = ps.present
+    ? (ps.palpableSites[ps.palpableSites.length - 1] || 'weak') + (ps.source === 'cpr' ? ' (CPR)' : '')
+    : 'none';
+  return `<div class="vtile" style="cursor:default;">
+      <span class="vtile-dot" style="background:${dotColor};"></span>
+      <div class="vlabel">Pulse</div>
+      <div class="vval">${valText}</div>
+      <div class="muted">${siteText}</div>
+    </div>`;
+}
+
+function tickVitals() {
+  if (!liveConfig) return;
+  const v = SimEngine.getVitalsRaw(liveConfig, simNow());
+  updateDynamicAppearance(v);
+  const grid = document.getElementById('vitals-grid');
+  // Same visual slot GCS used to occupy (second-to-last, right before
+  // Health) — see vitalTileHtml's comment for where GCS itself went.
+  const tiles = VITAL_DEFS.filter(def => def.key !== 'GCS').map(def => vitalTileHtml(def, v));
+  tiles.splice(Math.max(0, tiles.length - 1), 0, pulseTileHtml(simNow()));
+  grid.innerHTML = tiles.join('');
+  const gcsSlot = document.getElementById('info-gcs-tile-slot');
+  if (gcsSlot) {
+    const gcsDef = VITAL_DEFS.find(d => d.key === 'GCS');
+    if (gcsDef) gcsSlot.innerHTML = vitalTileHtml(gcsDef, v);
+  }
   if (Object.keys(patientActions).some(k => patientActions[k].status === 'pending')) renderPendingActionsStack(); // live countdown while anything's mid-timer
   renderGraph();
   renderLog(); // keeps the log's "not yet" greying (see renderLog) live as replay after a rewind naturally passes each entry's original timestamp again
