@@ -130,15 +130,32 @@
 <div id="combo-body">
   <div class="pane control-pane">
     <div class="pane-label">Control (assessor)</div>
-    <iframe id="control-frame" src="sim_control.html?embed=1" title="Sim Control"></iframe>
+    <iframe id="control-frame" title="Sim Control"></iframe>
   </div>
   <div class="pane patient-pane">
     <div class="pane-label">Patient (student)</div>
-    <iframe id="patient-frame" src="sim_patient.html?embed=1" title="Sim Patient" allow="microphone; autoplay"></iframe>
+    <iframe id="patient-frame" title="Sim Patient" allow="microphone; autoplay"></iframe>
   </div>
 </div>
 
 <script>
+// Cache-buster: reloading THIS page force-revalidates its own document
+// with the server, but the iframes it loads are just subresources —
+// browsers fetch those via normal HTTP caching, not that same forced
+// revalidation, so an iframe can keep serving a stale cached copy of
+// sim_control.html/sim_patient.html well after a push to main, even
+// though visiting either page directly (as its own top-level
+// navigation) picks up the change immediately on reload. A fresh
+// timestamp per page load busts that every time. This is an
+// instructor/admin tool, not high-traffic, so trading away the iframe
+// document's own caching for "always current" is the right call here.
+// Scripts/assets those documents load via their own absolute
+// <script src> URLs (sim_engine.js, ecg_engine.js, nav.js, etc.) are
+// untouched by this — only the two main HTML documents lose caching.
+const CACHE_BUST = Date.now();
+document.getElementById('control-frame').src = 'sim_control.html?embed=1&v=' + CACHE_BUST;
+document.getElementById('patient-frame').src = 'sim_patient.html?embed=1&v=' + CACHE_BUST;
+
 // Declared up top, ahead of restoreMode()'s IIFE call below (which reads
 // it via refreshProxyRowVisibility) — as a `let` it's in the temporal
 // dead zone until this line runs, so it has to execute before anything
@@ -213,9 +230,10 @@ function pairPatientFrame(code) {
     } else {
       // patient page hasn't finished loading its script yet — fall back
       // to a src navigation with ?code=, which sim_patient.html's own
-      // startup already knows how to consume. Keep embed=1 too, or the
-      // reloaded page would come back up with its own topbar showing.
-      frame.src = 'sim_patient.html?embed=1&code=' + encodeURIComponent(code);
+      // startup already knows how to consume. Keep embed=1 (or the
+      // reloaded page would come back up with its own topbar showing)
+      // and the same cache-buster this frame was already loaded with.
+      frame.src = 'sim_patient.html?embed=1&v=' + CACHE_BUST + '&code=' + encodeURIComponent(code);
     }
     setPairStatus(true, 'Paired — code ' + code);
   } catch (e) {
