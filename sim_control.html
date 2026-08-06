@@ -360,6 +360,25 @@ select, input[type=number], input[type=text] { font-family: 'Courier New', monos
   </div>
 </div>
 
+<!-- Opened by the Cardiac Arrest quick action — see putPatientInCardiacArrest()/
+     confirmCardiacArrest(). Picking PEA while the patient is currently in a
+     genuinely perfusing VT (bare "ventricular tachycardia", not "pulseless")
+     is silently corrected to pulseless VT instead — PEA can't emerge out of
+     an ongoing VT, it just loses its pulse and stays VT. -->
+<div id="arrest-modal" style="display:none;position:fixed;inset:0;background:rgba(20,30,45,0.6);align-items:center;justify-content:center;z-index:50;">
+  <div class="panel" style="width:300px;">
+    <h2 style="margin-bottom:8px;">Cardiac Arrest</h2>
+    <p class="muted" style="margin-bottom:12px;">Choose the arrest rhythm to script.</p>
+    <div class="row" style="flex-wrap:wrap;margin-top:0;">
+      <button class="btn btn-secondary" style="flex:1;min-width:110px;" onclick="confirmCardiacArrest('pea')">PEA</button>
+      <button class="btn btn-secondary" style="flex:1;min-width:110px;" onclick="confirmCardiacArrest('vf')">VF</button>
+      <button class="btn btn-secondary" style="flex:1;min-width:110px;" onclick="confirmCardiacArrest('vt')">Pulseless VT</button>
+      <button class="btn btn-secondary" style="flex:1;min-width:110px;" onclick="confirmCardiacArrest('asystole')">Asystole</button>
+    </div>
+    <button class="btn btn-secondary" style="width:100%;margin-top:10px;" onclick="closeArrestModal()">Cancel</button>
+  </div>
+</div>
+
 <!-- Opened by tapping the mini graph in the Basic (fullscreen management)
      view — see openFullGraphModal(). Deliberately empty of its own graph
      markup: it borrows the real #graph-panel element (toolbar, edit tools,
@@ -2879,10 +2898,13 @@ function vitalTileHtml(def, v) {
   let unitText = def.unit;
   const cpr = (liveConfig.overrides && liveConfig.overrides.cpr) || null;
   if (cpr && cpr.active) {
+    // Same dark body-text colour as .info-value (#1e2a36) rather than the
+    // amber used for the Pulse tile's CPR-driven dot — this is a value
+    // annotation like any other tile's unit text, not a status indicator.
     if (def.key === 'HR' && Math.round(v.HR) <= 0 && cpr.pulseRate != null) {
-      unitText = `<span style="color:#f59e0b;">CPR ~${cpr.pulseRate}</span>`;
+      unitText = `<span style="color:#1e2a36;">CPR ~${cpr.pulseRate}</span>`;
     } else if (def.key === 'BP' && Math.round(v.BPsys) <= 0 && cpr.perfusionSys != null) {
-      unitText = `<span style="color:#f59e0b;">CPR ~${cpr.perfusionSys}/${cpr.perfusionDia}</span>`;
+      unitText = `<span style="color:#1e2a36;">CPR ~${cpr.perfusionSys}/${cpr.perfusionDia}</span>`;
     }
   }
 
@@ -3697,15 +3719,47 @@ function insertLma() {
   applyCprAction('lma', 'LMA inserted — ventilation 15:1');
 }
 
-// Randomised between the four genuinely pulseless arrest rhythms — named
-// explicitly in the command text (rather than left for the AI to pick) so
-// the resulting rhythm is exactly what the button promised, not whatever
-// SCRIPTED_EVENT_PROMPT's own "pick based on the scenario" fallback lands on.
+// Opens #arrest-modal for the assessor to pick which of the four genuinely
+// pulseless arrest rhythms to script — named explicitly in the command text
+// (rather than left for the AI to pick) so the resulting rhythm is exactly
+// what was chosen, not whatever SCRIPTED_EVENT_PROMPT's own "pick based on
+// the scenario" fallback lands on. See confirmCardiacArrest() for the
+// PEA-on-a-perfusing-VT correction.
 function putPatientInCardiacArrest() {
   if (!sessionCode) return;
-  if (!confirm('Put the patient into cardiac arrest now?')) return;
-  const rhythms = ['pulseless electrical activity (PEA)', 'ventricular fibrillation', 'pulseless ventricular tachycardia', 'asystole'];
-  const rhythm = rhythms[Math.floor(Math.random() * rhythms.length)];
+  document.getElementById('arrest-modal').style.display = 'flex';
+}
+function closeArrestModal() {
+  document.getElementById('arrest-modal').style.display = 'none';
+}
+
+// choice: 'pea' | 'vf' | 'vt' | 'asystole' — from the arrest-modal buttons.
+// PEA gets one silent correction: if the patient is currently in a
+// genuinely perfusing VT (bare "ventricular tachycardia", classified
+// 'organized' by SimEngine.classifyRhythmForDefib — never "pulseless"),
+// PEA can't just replace it out of nowhere — an ongoing VT that loses its
+// pulse IS pulseless VT, not a spontaneous switch to a different organized
+// rhythm. Every other choice/starting-rhythm combination is scripted
+// exactly as picked.
+function confirmCardiacArrest(choice) {
+  closeArrestModal();
+  if (!sessionCode) return;
+  const labels = {
+    pea: 'pulseless electrical activity (PEA)',
+    vf: 'ventricular fibrillation',
+    vt: 'pulseless ventricular tachycardia',
+    asystole: 'asystole'
+  };
+  let rhythm = labels[choice];
+  if (choice === 'pea') {
+    const currentLabel = SimEngine.getRhythmAt(liveConfig, simNow()) || '';
+    const s = currentLabel.toLowerCase();
+    const isPerfusingVt = /ventricular tach|torsades|polymorphic/.test(s) && !/pulseless/.test(s);
+    if (isPerfusingVt) {
+      rhythm = labels.vt;
+      alert(`Patient is currently in ${currentLabel} (a perfusing rhythm) — PEA can't emerge out of an ongoing VT, so this is scripted as pulseless VT instead.`);
+    }
+  }
   runAssessorCommand(`Put the patient into cardiac arrest immediately, in ${rhythm}.`);
 }
 
