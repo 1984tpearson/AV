@@ -1540,8 +1540,24 @@ function formatStaticVital(key, val) {
   return `${Math.round(val)}`;
 }
 
+// BP is the one action where "pending" doesn't mean a crew member's hands
+// are tied up for the whole duration: only the cuff-application LEAD-IN
+// (see bpLeadInMs — 0 once the cuff's already on from an earlier
+// application, ~20s for the very first one) needs a person. The inflate/
+// hold/deflate cycle itself runs on the machine, unattended, same as a
+// real NIBP cuff — so it must not keep occupying one of only
+// MAX_CONCURRENT crew slots for its whole 35-55s, blocking other actions
+// from starting the way every other action's full duration correctly
+// does. bp.status stays 'pending' throughout (renderBPCell still shows
+// the live cuff pressure/countdown) — this only changes what counts
+// against the concurrency limit.
 function countPending() {
-  return Object.values(actionState).filter(s => s.status === 'pending').length;
+  const now = Date.now();
+  return Object.values(actionState).filter(s => {
+    if (s.status !== 'pending') return false;
+    if (s === actionState.bp) return (now - s.startedAt) < bpLeadInMs(s);
+    return true;
+  }).length;
 }
 
 function tryStartQueued() {
@@ -2221,6 +2237,12 @@ function tick() {
   checkActionTimers(now); // local action-delay timers stay real-time — a scenario
                            // pause freezes the patient's physiology, not the
                            // real-world time it takes a crew member to do something
+  // A queued action's slot can free up mid-BP now (once BP's own lead-in
+  // ends — see countPending), not just at another action's start/complete
+  // event — cheap no-op when the queue's empty or slots are still full, so
+  // safe to just check every tick rather than threading a new event
+  // through beginPending/countPending's lead-in transition.
+  tryStartQueued();
 
   const v = SimEngine.getVitals(testConfig, simNow);
   renderMonitor(v, now);
