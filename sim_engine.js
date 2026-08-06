@@ -379,15 +379,33 @@
     return Math.max(s.clampMin, Math.min(s.clampMax, Math.round(score)));
   }
 
-  // Buckets a rhythm label into what matters for a defib decision — NOT the
-  // same bucketing as ecg_engine.js's mapRhythm(), which is purely about
+  // Buckets a rhythm label into what matters for a defib decision (also
+  // reused wherever else in this file "is there any cardiac output at all"
+  // needs deciding — see healthLevelAt, computeCprEffect) — NOT the same
+  // bucketing as ecg_engine.js's mapRhythm(), which is purely about
   // waveform rendering and conflates clinically distinct things (e.g. PEA
   // and sinus bradycardia both render as its 'sbrad' key, but PEA is
-  // pulseless arrest and sinus brady isn't — defib logic cannot use that
+  // pulseless arrest and sinus brady isn't — this logic cannot use that
   // mapping).
+  //
+  // VF is unambiguous (there is no such thing as "VF with a pulse") but VT/
+  // torsades/polymorphic-VT are NOT — a bare "ventricular tachycardia" is a
+  // real, dangerous, but genuinely PERFUSING rhythm (the patient has a
+  // pulse; management is synchronised cardioversion, not defibrillation +
+  // CPR), and only counts as an arrest rhythm when explicitly "pulseless".
+  // Requires that qualifier before treating VT/torsades/polymorphic as
+  // shockable-arrest — see classifyRhythmForPulse below, which needs the
+  // exact same distinction and was the reason this got tightened. The AI
+  // prompts (TREATMENT_UPDATE_PROMPT/SCRIPTED_EVENT_PROMPT/
+  // UNTREATED_PROJECTION_PROMPT in sim_control.html) are written to always
+  // say "pulseless ventricular tachycardia" explicitly when they mean an
+  // arrest, never a bare "ventricular tachycardia" — see the cardiac-arrest
+  // cascade rules there for why this needed fixing together, not
+  // separately.
   function classifyRhythmForDefib(label) {
     const s = (label || '').toLowerCase();
-    if (/torsades|polymorphic|\bvt\b|ventricular tach|\bvf\b|ventricular fib/.test(s)) return 'shockable';
+    if (/\bvf\b|ventricular fib/.test(s)) return 'shockable';
+    if (/pulseless/.test(s) && /(torsades|polymorphic|\bvt\b|ventricular tach)/.test(s)) return 'shockable';
     if (/asystole|\bpea\b|pulseless electrical/.test(s)) return 'nonshockable-arrest';
     return 'organized';
   }
@@ -681,14 +699,15 @@
   };
 
   // Distinct from classifyRhythmForDefib just above — that bucketing is
-  // purely about shock decisions (and, deliberately, is NOT being touched
-  // in this pass — see the note above computeCprEffect below), this one is
-  // purely about whether/how a beat generates a palpable pulse. 'pea' is
-  // its own category, separate from 'nonperfusing-arrest': PEA has
-  // organized, often unremarkable-looking electrical activity — the trap is
-  // exactly that the rate can look fine while there's no pulse — whereas
-  // VF/asystole/pulseless VT have no organized mechanical activity to begin
-  // with, so there's no rate-based trap to model there.
+  // purely about shock decisions, this one is purely about whether/how a
+  // beat generates a palpable pulse — but both require the same "pulseless"
+  // qualifier before treating VT/torsades/polymorphic as an arrest rhythm,
+  // for the same reason. 'pea' is its own category, separate from
+  // 'nonperfusing-arrest': PEA has organized, often unremarkable-looking
+  // electrical activity — the trap is exactly that the rate can look fine
+  // while there's no pulse — whereas VF/asystole/pulseless VT have no
+  // organized mechanical activity to begin with, so there's no rate-based
+  // trap to model there.
   function classifyRhythmForPulse(label) {
     const s = (label || '').toLowerCase();
     if (/pulseless electrical|\bpea\b/.test(s)) return 'pea';
@@ -786,17 +805,16 @@
   // treatment/scripted-event context builders) must skip 'cpr' the same
   // way they already skip 'rhythm'.
   //
-  // NOT touched in this pass, deliberately: classifyRhythmForDefib still
-  // treats any bare "ventricular tachycardia" mention as shockable, with no
-  // pulsed/pulseless distinction — the same disambiguation gap
-  // classifyRhythmForPulse above has to solve cleanly because it's new
-  // code, but fixing it on the defib side has backward-compat risk (some
-  // already-saved sessions may have used a bare "ventricular tachycardia"
-  // to mean an arrest rhythm, per the AI prompts' own terminology list not
-  // requiring "pulseless"). That fix belongs in the same later pass as the
-  // AI prompt wording change (see CLAUDE.md-style task notes), so both are
-  // corrected together consistently rather than leaving old and new AI
-  // output disagreeing on what a bare "VT" means.
+  // classifyRhythmForDefib now requires "pulseless" before treating VT/
+  // torsades/polymorphic as an arrest rhythm (see its own comment) — a bare
+  // "ventricular tachycardia" correctly classifies as 'organized' here, so
+  // Start CPR on a perfusing (if dangerous) VT goes through the same
+  // arrhythmia-risk/warning-note branch below as any other perfusing
+  // rhythm, not the genuine-arrest branch. Old sessions that may have used
+  // a bare "ventricular tachycardia" to mean an arrest (from before the AI
+  // prompts were tightened to always say "pulseless") are the one residual
+  // risk this doesn't retroactively fix — a data-migration concern, not a
+  // code one.
   //
   // CPR started on a genuinely perfusing rhythm is handled inside
   // computeCprEffect's 'start' branch below, not a separate function — it
