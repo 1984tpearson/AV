@@ -634,67 +634,184 @@
     return { parsedOverrides, parsedRhythm, note, vitalsNow, outcome: resultOutcome, followUpDelayMin };
   }
 
+  // ---- Pulse (derived — never independently stored) -----------------------
+  // A pulse is NOT the same thing as the monitor's HR. HR reflects
+  // ELECTRICAL activity (what a real monitor actually derives its rate
+  // from — QRS detection, not a felt or oximeter pulse); a pulse reflects
+  // genuine MECHANICAL/perfusing output. The two can legitimately disagree —
+  // PEA is organized electrical activity with NO pulse (the entire clinical
+  // trap: the monitor can look reassuring while there's nothing to feel),
+  // and conversely effective CPR can generate a real pulse from a heart
+  // that's electrically doing nothing useful at all (VF) or nothing at all
+  // (asystole). There is no independent overrides array for "pulse" the way
+  // there is for HR/BP/etc — nothing is ever authored onto a pulse timeline
+  // directly; it's a pure function of the rhythm plus whichever blood
+  // pressure source (the patient's own, or CPR's) is actually generating
+  // output right now, recomputed fresh on every call exactly like
+  // getRhythmAt/getVitalsRaw already are.
+  _cfg.PULSE = {
+    // Standard (approximate) teaching thresholds for which site is
+    // palpable at a given systolic pressure — deliberately ONE table used
+    // for both genuine and CPR-driven pressure. An earlier draft of this
+    // capped CPR-generated pressure at carotid-only on the theory that
+    // compression-generated flow can't reach a radial pulse — real,
+    // reported clinical experience says otherwise (a good, deep compression
+    // absolutely can produce a palpable radial pulse), so there's no
+    // source-based cap here: whichever pressure is in effect is judged the
+    // same way. The genuinely reliable real-world teaching point isn't
+    // "which site is reachable" but "manual pulse checks of any site are
+    // unreliable to PERFORM during active compressions" (motion artifact,
+    // brief pauses, feeling your own pulse) — that's a UI/interaction
+    // concern for the pulse-check action (not built yet), not a constraint
+    // on what's physiologically possible here.
+    radialSys: 90, brachialSys: 70, carotidSys: 60,
+    // Ectopy-heavy rhythms don't perfuse on every QRS — a PVC often fires
+    // before the ventricle has adequately filled, so only a fraction of
+    // beats generate a real stroke volume/palpable beat, even though the
+    // monitor's HR counts every complex. Regex tested against the rhythm
+    // label (first match wins); anything organized and not listed here is
+    // assumed fully perfusing (fraction 1). Approximate teaching figures,
+    // not measured — reasonable enough for a training tool.
+    ECTOPY_FRACTIONS: [
+      { match: 'bigeminy', fraction: 0.5 },
+      { match: 'trigeminy', fraction: 0.67 },
+      { match: 'frequent (?:pvc|premature ventricular)', fraction: 0.75 }
+    ]
+  };
+
+  // Distinct from classifyRhythmForDefib just above — that bucketing is
+  // purely about shock decisions (and, deliberately, is NOT being touched
+  // in this pass — see the note above computeCprEffect below), this one is
+  // purely about whether/how a beat generates a palpable pulse. 'pea' is
+  // its own category, separate from 'nonperfusing-arrest': PEA has
+  // organized, often unremarkable-looking electrical activity — the trap is
+  // exactly that the rate can look fine while there's no pulse — whereas
+  // VF/asystole/pulseless VT have no organized mechanical activity to begin
+  // with, so there's no rate-based trap to model there.
+  function classifyRhythmForPulse(label) {
+    const s = (label || '').toLowerCase();
+    if (/pulseless electrical|\bpea\b/.test(s)) return 'pea';
+    if (/asystole/.test(s)) return 'nonperfusing-arrest';
+    if (/ventricular fib|\bvf\b/.test(s)) return 'nonperfusing-arrest';
+    if (/pulseless/.test(s) && /(torsades|polymorphic|\bvt\b|ventricular tach)/.test(s)) return 'nonperfusing-arrest';
+    // A bare "ventricular tachycardia"/torsades/etc with no "pulseless"
+    // qualifier is a genuinely perfusing (if dangerous) rhythm — falls
+    // through to the ectopy check and then the perfusing default below,
+    // same as any other organized rhythm.
+    const ectopy = _cfg.PULSE.ECTOPY_FRACTIONS.find(e => new RegExp(e.match).test(s));
+    if (ectopy) return 'partial-perfusion';
+    return 'perfusing';
+  }
+
+  // The single entry point for "is there a pulse right now, where can you
+  // feel it, and what rate": rhythm class decides whether there's any
+  // mechanical output at all (and, for ectopy, what fraction of beats
+  // count), and whichever blood pressure is actually driving output right
+  // now — the patient's own (perfusing/partial-perfusion) or CPR's hidden
+  // compression-generated numbers (pea/nonperfusing-arrest, only while
+  // cfg.overrides.cpr.active) — decides which sites are palpable.
+  function getPulseState(cfg, nowMs) {
+    const vitalsNow = getVitalsRaw(cfg, nowMs);
+    const rhythmLabel = getRhythmAt(cfg, nowMs) || deriveRhythmFromHR(vitalsNow.HR);
+    const pulseClass = classifyRhythmForPulse(rhythmLabel);
+    const cpr = (cfg.overrides && cfg.overrides.cpr) || null;
+    const p = _cfg.PULSE;
+
+    function sitesFor(sys) {
+      const sites = [];
+      if (sys >= p.carotidSys) sites.push('carotid');
+      if (sys >= p.brachialSys) sites.push('brachial');
+      if (sys >= p.radialSys) sites.push('radial');
+      return sites;
+    }
+    const none = { present: false, source: null, rate: 0, palpableSites: [] };
+
+    if (pulseClass === 'perfusing' || pulseClass === 'partial-perfusion') {
+      const fraction = pulseClass === 'partial-perfusion'
+        ? ((p.ECTOPY_FRACTIONS.find(e => new RegExp(e.match).test(rhythmLabel.toLowerCase())) || {}).fraction || 1)
+        : 1;
+      const rate = Math.round(vitalsNow.HR * fraction);
+      if (rate <= 0 || vitalsNow.BPsys <= 0) return none; // e.g. mid-transition into/out of another state
+      return { present: true, source: 'intrinsic', rate, palpableSites: sitesFor(vitalsNow.BPsys) };
+    }
+
+    // 'pea' or 'nonperfusing-arrest' — no intrinsic mechanical output
+    // regardless of what the electrical rate/rhythm looks like. Only CPR
+    // (the hidden compression-generated numbers) can produce a pulse here.
+    if (cpr && cpr.active && cpr.pulseRate) {
+      return { present: true, source: 'cpr', rate: cpr.pulseRate, palpableSites: sitesFor(cpr.perfusionSys || 0) };
+    }
+    return none;
+  }
+
   // ---- CPR (shared, deterministic — no AI call) ----------------------------
   // Same reasoning as defibrillation above: chest-compression physiology is
-  // well-established/predictable enough not to need per-patient AI reasoning,
-  // and a quick-action button needs to feel instant, not wait on a round trip.
+  // well-established/predictable enough not to need per-patient AI
+  // reasoning, and a quick-action button needs to feel instant, not wait on
+  // a round trip.
   //
-  // The key modelling decision: while compressions are in progress on a
-  // non-perfusing rhythm, HR is repurposed as a COMPRESSION-DRIVEN pulse rate
-  // (matching the compression rate — effective CPR does generate a real,
-  // palpable pulse, just not from intrinsic cardiac activity) rather than
-  // being left at the arrest-cascade's 0. This piggybacks on something this
-  // engine already does deliberately (see CLAUDE.md, "Rhythm — separate from
-  // vitals"): HR is just a number, and the true state of the heart lives in
-  // `overrides.rhythm` instead — so HR can show the CPR-generated rate while
-  // the rhythm timeline keeps showing the real underlying arrest rhythm
-  // (VF/pulseless VT/asystole/PEA) untouched, which is what the ECG waveform
-  // and the "CURRENT RHYTHM" badge both key off. A monitor's numeric HR tile
-  // and its rhythm strip disagreeing (a rate reading alongside a flatline or
-  // fibrillating trace) is itself the correct teaching picture: it's what a
-  // real monitor during effective CPR looks like, and exactly why the
-  // rhythm strip, not the HR number, is what confirms genuine ROSC.
-  // BP is similarly bumped to a PARTIAL value, deliberately never fully
-  // normotensive — real compressions generate a fraction of normal cardiac
-  // output; systolic in the 70-90 range with a low diastolic is a defensible
-  // "effective CPR" picture, not the "circulation is restored" picture a
-  // normotensive reading would wrongly imply. EtCO2 also rises modestly — a
-  // well-known real bedside sign of compression quality (rising from
-  // near-zero at arrest toward ~15-25 with genuinely effective compressions).
+  // The monitor's HR/BPsys/BPdia are deliberately NEVER written here — an
+  // earlier version of this function repurposed HR into a compression-driven
+  // rate, which conflated the same two things getPulseState above exists to
+  // keep separate (electrical vs mechanical). The monitor keeps showing
+  // whatever the true rhythm/perfusion state already is (0 for a genuine
+  // arrest, same as before CPR started) — the compression-generated pulse
+  // and pressure are hidden values, stored only on cfg.overrides.cpr
+  // (pulseRate/perfusionSys/perfusionDia), surfaced to the crew through a
+  // deliberate pulse-check action rather than continuously on the monitor.
+  // EtCO2 is the one exception and IS written directly: capnography reads
+  // exhaled CO2 regardless of whether there's a pulse, so it's a real,
+  // continuously-observable monitor value, and it genuinely does rise with
+  // effective compressions (a recognised bedside sign of CPR quality) and
+  // fall sharply the moment compressions stop.
   //
-  // Every override below is a SINGLE short entry, not the two-entry
-  // ramp+explicit-hold pairs the AI-authored prompts are told to write —
-  // because rawTrendDeltasAt() always returns a flat baseline in this engine
-  // (see the top of this file), applyOverrides' "override complete — shift
-  // the curve to pass through target at endMs" branch already makes a single
-  // completed entry hold at its target FOREVER on its own (verified against
-  // computeDefibrillationEffect above, which relies on the exact same
-  // property for its ROSC/asystole/induced-VF cascades). CPR's plateau holds
-  // until Start/Insert LMA/Stop CPR splices something new in, or a treatment/
-  // scripted event explicitly overrides one of these keys itself (e.g. an
-  // adrenaline push during the code, or a defib conversion) — no admin-
-  // editable duration config needed, unlike the defib constants above; if
-  // that changes later, follow the same _cfg.SURVIVABILITY/_cfg.ENERGY_FACTOR
-  // pattern for _cfg.CPR below.
+  // The hidden pulse/perfusion numbers are stored as flat values, not an
+  // interpolated override chain — there's no monitor-facing ramp to animate
+  // for a value nothing displays continuously, and real compressions
+  // generate pressure within the first cycle or two, not gradually.
+  // EtCO2's single-entry overrides below still rely on the same trick
+  // computeDefibrillationEffect's cascades do: since rawTrendDeltasAt()
+  // always returns a flat baseline in this engine, a single completed
+  // entry holds at its target FOREVER on its own (see applyOverrides'
+  // "override complete — shift the curve to pass through target at endMs"
+  // branch) — no second explicit hold entry needed.
   //
-  // cfg.overrides.cpr holds a single CURRENT-STATE object (not a vitals array,
-  // not a step-function history like rhythm) — { active, lmaInserted,
-  // startedAtMs, ratioLabel } — so callers can drive Start/Stop CPR button
-  // labels and an "Insert LMA" gate. Every place that generically iterates
-  // cfg.overrides' keys (sim_control.html's treatment/scripted-event context
-  // builders) must skip 'cpr' the same way they already skip 'rhythm'.
+  // cfg.overrides.cpr holds a single CURRENT-STATE object (not a vitals
+  // array, not a step-function history like rhythm) — { active,
+  // lmaInserted, startedAtMs, ratioLabel, pulseRate, perfusionSys,
+  // perfusionDia } — so callers can drive Start/Stop CPR button labels, an
+  // "Insert LMA" gate, and getPulseState above. Every place that
+  // generically iterates cfg.overrides' keys (sim_control.html's
+  // treatment/scripted-event context builders) must skip 'cpr' the same
+  // way they already skip 'rhythm'.
+  //
+  // NOT touched in this pass, deliberately: classifyRhythmForDefib still
+  // treats any bare "ventricular tachycardia" mention as shockable, with no
+  // pulsed/pulseless distinction — the same disambiguation gap
+  // classifyRhythmForPulse above has to solve cleanly because it's new
+  // code, but fixing it on the defib side has backward-compat risk (some
+  // already-saved sessions may have used a bare "ventricular tachycardia"
+  // to mean an arrest rhythm, per the AI prompts' own terminology list not
+  // requiring "pulseless"). That fix belongs in the same later pass as the
+  // AI prompt wording change (see CLAUDE.md-style task notes), so both are
+  // corrected together consistently rather than leaving old and new AI
+  // output disagreeing on what a bare "VT" means.
+  //
+  // Also NOT touched here: what happens when CPR is started on a genuinely
+  // perfusing rhythm (still a simple block below) — that's Phase 2's
+  // arrhythmia-risk/warning-note rework, not this pass.
   _cfg.CPR = {
-    compressionRateLow: 100, compressionRateHigh: 120, // guideline compression rate — reused as the CPR-driven "pulse" rate
-    bpSysLow: 70, bpSysHigh: 90, bpDiaLow: 20, bpDiaHigh: 35, // partial perfusion, deliberately short of normotensive
-    etco2Low: 15, etco2High: 25, // recognised bedside sign of reasonably effective compressions
+    compressionRateLow: 100, compressionRateHigh: 120, // guideline compression rate — the hidden CPR-driven pulse rate
+    bpSysLow: 70, bpSysHigh: 90, bpDiaLow: 20, bpDiaHigh: 35, // hidden CPR-driven perfusion pressure, deliberately short of normotensive
+    etco2Low: 15, etco2High: 25, // recognised bedside sign of reasonably effective compressions — the one value CPR writes to the monitor directly
     lmaEtco2BumpLow: 2, lmaEtco2BumpHigh: 5 // further modest rise once ventilation stops pausing compressions
   };
   function computeCprEffect(cfg, givenAtMs, mode) {
     const c = _cfg.CPR;
     const vitalsNow = getVitalsRaw(cfg, givenAtMs);
     const rhythmLabel = getRhythmAt(cfg, givenAtMs) || deriveRhythmFromHR(vitalsNow.HR);
-    const rhythmClass = classifyRhythmForDefib(rhythmLabel);
-    const priorCpr = (cfg.overrides && cfg.overrides.cpr) || { active: false, lmaInserted: false, startedAtMs: null, ratioLabel: null };
+    const rhythmClass = classifyRhythmForDefib(rhythmLabel); // still just gating "is this genuinely an arrest" — see the Phase 2 note above
+    const priorCpr = (cfg.overrides && cfg.overrides.cpr) || { active: false, lmaInserted: false, startedAtMs: null, ratioLabel: null, pulseRate: null, perfusionSys: null, perfusionDia: null };
 
     const parsedOverrides = {};
     let note;
@@ -710,12 +827,9 @@
         const bpSys = Math.round(c.bpSysLow + Math.random() * (c.bpSysHigh - c.bpSysLow));
         const bpDia = Math.round(c.bpDiaLow + Math.random() * (c.bpDiaHigh - c.bpDiaLow));
         const etco2 = Math.round(c.etco2Low + Math.random() * (c.etco2High - c.etco2Low));
-        parsedOverrides.HR = [{ targetValue: rate, startMin: 0, endMin: 0.1 }];
-        parsedOverrides.BPsys = [{ targetValue: bpSys, startMin: 0, endMin: 0.2 }];
-        parsedOverrides.BPdia = [{ targetValue: bpDia, startMin: 0, endMin: 0.2 }];
         parsedOverrides.EtCO2 = [{ targetValue: etco2, startMin: 0, endMin: 0.3 }];
-        cprState = { active: true, lmaInserted: false, startedAtMs: givenAtMs, ratioLabel: '30:2' };
-        note = `CPR commenced (30:2) — compressions generating a palpable, compression-driven pulse at ~${rate}/min and partial perfusion (~${bpSys}/${bpDia} mmHg, EtCO₂ ~${etco2} mmHg). This is compression-generated circulation, not ROSC — the underlying rhythm remains ${rhythmLabel}. (Hardcoded, no AI call.)`;
+        cprState = { active: true, lmaInserted: false, startedAtMs: givenAtMs, ratioLabel: '30:2', pulseRate: rate, perfusionSys: bpSys, perfusionDia: bpDia };
+        note = `CPR commenced (30:2) — compressions generating a palpable, compression-driven pulse at ~${rate}/min (~${bpSys}/${bpDia} mmHg) and EtCO₂ ~${etco2} mmHg. This pulse is compression-generated, not ROSC — the monitor's HR/BP keep reflecting the true underlying rhythm (${rhythmLabel}), not this number. (Hardcoded, no AI call.)`;
       }
     } else if (mode === 'lma') {
       if (!priorCpr.active) {
@@ -723,7 +837,7 @@
       } else if (priorCpr.lmaInserted) {
         note = 'LMA is already in place — no change.';
       } else {
-        cprState = { active: true, lmaInserted: true, startedAtMs: priorCpr.startedAtMs, ratioLabel: '15:1' };
+        cprState = { ...priorCpr, lmaInserted: true, ratioLabel: '15:1' };
         const bump = Math.round(c.lmaEtco2BumpLow + Math.random() * (c.lmaEtco2BumpHigh - c.lmaEtco2BumpLow));
         const etco2 = Math.round(vitalsNow.EtCO2 + bump);
         parsedOverrides.EtCO2 = [{ targetValue: etco2, startMin: 0, endMin: 0.2 }];
@@ -733,13 +847,14 @@
       if (!priorCpr.active) {
         note = 'CPR is already stopped — no change.';
       } else {
-        cprState = { active: false, lmaInserted: priorCpr.lmaInserted, startedAtMs: null, ratioLabel: null };
+        cprState = { active: false, lmaInserted: priorCpr.lmaInserted, startedAtMs: null, ratioLabel: null, pulseRate: null, perfusionSys: null, perfusionDia: null };
         if (rhythmClass === 'organized') {
-          note = `CPR stopped — ${rhythmLabel} is a perfusing rhythm; no vitals change (the displayed circulation was already genuine, not compression-driven).`;
+          note = `CPR stopped — ${rhythmLabel} is a perfusing rhythm; no monitor change (the circulation was already genuine, not compression-driven).`;
         } else {
-          parsedOverrides.HR = [{ targetValue: 0, startMin: 0, endMin: 0.05 }];
-          parsedOverrides.BPsys = [{ targetValue: 0, startMin: 0, endMin: 0.1 }];
-          parsedOverrides.BPdia = [{ targetValue: 0, startMin: 0, endMin: 0.1 }];
+          // EtCO2 is the one monitor value CPR was actually driving directly
+          // — it genuinely does fall sharply the moment compressions stop.
+          // HR/BP were never touched by CPR under this model, so there is
+          // nothing to revert there.
           parsedOverrides.EtCO2 = [{ targetValue: Math.round(5 + Math.random() * 5), startMin: 0, endMin: 0.5 }];
           note = `CPR stopped — compression-driven pulse and perfusion lost immediately; ${rhythmLabel} confirmed with no cardiac output. (Hardcoded, no AI call.)`;
         }
@@ -866,7 +981,7 @@
     // BEFORE the fork is still genuinely in progress and is left alone.
     const cpr = freshOverrides.cpr;
     if (cpr && cpr.active && cpr.startedAtMs != null && cpr.startedAtMs >= givenAtMs) {
-      freshOverrides.cpr = { active: false, lmaInserted: cpr.lmaInserted, startedAtMs: null, ratioLabel: null };
+      freshOverrides.cpr = { active: false, lmaInserted: cpr.lmaInserted, startedAtMs: null, ratioLabel: null, pulseRate: null, perfusionSys: null, perfusionDia: null };
     }
   }
 
@@ -1298,7 +1413,7 @@
     getActionDurationSec, getVitals, getVitalsRaw, getSimNow, getStaticVitalAt, getRhythmAt, getAppearanceState,
     parseTimeOfDay, getScenarioFictionalNow,
     getHealthScore, getHealthTrendLevel, getDisplayHealthScore, getDisplayHealthTrendLevel,
-    deriveRhythmFromHR, classifyRhythmForDefib, computeSurvivabilityScore, computeDefibrillationEffect, computeCprEffect, spliceAiOverridePlan, spliceRhythmPlan, clearFutureFromFork,
+    deriveRhythmFromHR, classifyRhythmForDefib, classifyRhythmForPulse, getPulseState, computeSurvivabilityScore, computeDefibrillationEffect, computeCprEffect, spliceAiOverridePlan, spliceRhythmPlan, clearFutureFromFork,
     parseAgeFromScenario, parseScenarioMood, cleanSpontaneousLines,
     hrSeverity, rrSeverity, spo2Severity, painSeverity, bpSysSeverity,
     applyConfigOverrides
