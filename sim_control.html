@@ -3560,12 +3560,17 @@ async function applyCprAction(mode, actionLabel) {
   const freshOverrides = (rows[0] && rows[0].overrides) || {};
   const previousSnapshot = JSON.parse(JSON.stringify(freshOverrides));
   const cfg = { ...liveConfig, overrides: freshOverrides };
-  const { parsedOverrides, note, vitalsNow, cprState: newCprState } = SimEngine.computeCprEffect(cfg, givenAtMs, mode);
+  const { parsedOverrides, parsedRhythm, note, vitalsNow, cprState: newCprState } = SimEngine.computeCprEffect(cfg, givenAtMs, mode);
 
   if (Object.keys(parsedOverrides).length) {
     SimEngine.spliceAiOverridePlan(freshOverrides, parsedOverrides, vitalsNow, givenAtMs);
     autoEnableGraphSeriesFromOverrides(parsedOverrides);
   }
+  // Only non-empty when Start CPR on a perfusing rhythm rolled the induced-
+  // VF outcome (see computeCprEffect) — spliceRhythmPlan is itself a no-op
+  // for an empty/absent array, same "omission means don't touch it" rule
+  // used everywhere else in this file.
+  SimEngine.spliceRhythmPlan(freshOverrides, parsedRhythm, givenAtMs);
   freshOverrides.cpr = newCprState;
 
   const givenAtMin = (givenAtMs - liveConfig.startTimeMs) / 60000;

@@ -797,9 +797,10 @@
   // corrected together consistently rather than leaving old and new AI
   // output disagreeing on what a bare "VT" means.
   //
-  // Also NOT touched here: what happens when CPR is started on a genuinely
-  // perfusing rhythm (still a simple block below) — that's Phase 2's
-  // arrhythmia-risk/warning-note rework, not this pass.
+  // CPR started on a genuinely perfusing rhythm is handled inside
+  // computeCprEffect's 'start' branch below, not a separate function — it
+  // shares the same hidden-state bookkeeping, it's just a different note/
+  // risk path once rhythmClass comes back 'organized'.
   _cfg.CPR = {
     compressionRateLow: 100, compressionRateHigh: 120, // guideline compression rate — the hidden CPR-driven pulse rate
     bpSysLow: 70, bpSysHigh: 90, bpDiaLow: 20, bpDiaHigh: 35, // hidden CPR-driven perfusion pressure, deliberately short of normotensive
@@ -814,22 +815,69 @@
     const priorCpr = (cfg.overrides && cfg.overrides.cpr) || { active: false, lmaInserted: false, startedAtMs: null, ratioLabel: null, pulseRate: null, perfusionSys: null, perfusionDia: null };
 
     const parsedOverrides = {};
+    const parsedRhythm = [];
     let note;
     let cprState = priorCpr;
 
     if (mode === 'start') {
       if (priorCpr.active) {
         note = 'CPR is already in progress — no change.';
-      } else if (rhythmClass === 'organized') {
-        note = `CPR not started — ${rhythmLabel} is a perfusing rhythm; compressions aren't indicated here and no effect is modelled (hardcoded, no AI call).`;
       } else {
+        // The hidden compression-generated numbers are computed and stored
+        // regardless of rhythm class — compressions genuinely do produce
+        // this contribution mechanically, whether or not it's clinically
+        // indicated right now. This matters for a case getPulseState's own
+        // rhythm-class check already makes harmless: if CPR is started on a
+        // perfusing rhythm (below) and that rhythm LATER genuinely arrests
+        // (from a separate event, with the crew never re-pressing Start
+        // since the button already reads "Stop CPR"), the hidden numbers
+        // are already in place and getPulseState picks them straight up —
+        // no gap. While the rhythm stays perfusing, getPulseState's
+        // 'perfusing'/'partial-perfusion' branch is checked FIRST and never
+        // looks at cpr at all, so storing these here changes nothing about
+        // what's derived while they're not needed.
         const rate = Math.round(c.compressionRateLow + Math.random() * (c.compressionRateHigh - c.compressionRateLow));
         const bpSys = Math.round(c.bpSysLow + Math.random() * (c.bpSysHigh - c.bpSysLow));
         const bpDia = Math.round(c.bpDiaLow + Math.random() * (c.bpDiaHigh - c.bpDiaLow));
-        const etco2 = Math.round(c.etco2Low + Math.random() * (c.etco2High - c.etco2Low));
-        parsedOverrides.EtCO2 = [{ targetValue: etco2, startMin: 0, endMin: 0.3 }];
         cprState = { active: true, lmaInserted: false, startedAtMs: givenAtMs, ratioLabel: '30:2', pulseRate: rate, perfusionSys: bpSys, perfusionDia: bpDia };
-        note = `CPR commenced (30:2) — compressions generating a palpable, compression-driven pulse at ~${rate}/min (~${bpSys}/${bpDia} mmHg) and EtCO₂ ~${etco2} mmHg. This pulse is compression-generated, not ROSC — the monitor's HR/BP keep reflecting the true underlying rhythm (${rhythmLabel}), not this number. (Hardcoded, no AI call.)`;
+
+        if (rhythmClass === 'organized') {
+          // Compressing an already-beating heart isn't inert — it's a real,
+          // if usually survivable, assessment error. Mechanically similar
+          // in kind to an inappropriate/unsynchronised shock landing on a
+          // vulnerable part of the cycle (see computeOrganizedShockOutcome
+          // above), just from a blunter, lower-energy insult — so the risk
+          // here is calibrated meaningfully lower than defib's equivalent,
+          // not "compressions usually cause arrest" (that would over-punish
+          // the standard, correctly-taught "if unsure, start CPR" default).
+          // No EtCO2 override here: the CPR-quality EtCO2 rise specifically
+          // reflects restoring flow during a NO-FLOW state, which doesn't
+          // apply when the heart's already pumping on its own.
+          const s = rhythmLabel.toLowerCase();
+          const isIschaemic = /stemi|nstemi|ischaemia|ischemia/.test(s);
+          const induceVfChance = isIschaemic ? 0.05 : 0.015;
+          if (Math.random() < induceVfChance) {
+            parsedRhythm.push({ label: 'ventricular fibrillation', startMin: 0.05 });
+            parsedOverrides.HR = [{ targetValue: 0, startMin: 0.05, endMin: 0.15 }];
+            parsedOverrides.BPsys = [{ targetValue: 0, startMin: 0.05, endMin: 0.25 }];
+            parsedOverrides.BPdia = [{ targetValue: 0, startMin: 0.05, endMin: 0.25 }];
+            parsedOverrides.SpO2 = [{ targetValue: 0, startMin: 0.05, endMin: 1 }];
+            parsedOverrides.EtCO2 = [{ targetValue: Math.round(5 + Math.random() * 5), startMin: 0.05, endMin: 0.5 }];
+            parsedOverrides.RR = [{ targetValue: 0, startMin: 0.05, endMin: 0.15 }];
+            parsedOverrides.gcsE = [{ targetValue: 1, startMin: 0.05, endMin: 0.15 }];
+            parsedOverrides.gcsV = [{ targetValue: 1, startMin: 0.05, endMin: 0.15 }];
+            parsedOverrides.gcsM = [{ targetValue: 1, startMin: 0.05, endMin: 0.15 }];
+            parsedOverrides.pain = [{ targetValue: 0, startMin: 0.05, endMin: 0.15 }];
+            parsedOverrides.nausea = [{ targetValue: 0, startMin: 0.05, endMin: 0.15 }];
+            note = `⚠ CPR started on a perfusing rhythm (${rhythmLabel}) — compressions precipitated ventricular fibrillation (~${Math.round(induceVfChance * 100)}% chance modelled). This is a genuine consequence of the assessment error, not random bad luck alone — a pulse check first would have caught it. (Hardcoded, no AI call.)`;
+          } else {
+            note = `⚠ CPR started, but a pulse WAS present (${rhythmLabel}) at the time — compressions aren't indicated here. No cardiac effect this time, but this reflects a genuine assessment error, not a null action — a pulse check first would have caught it. (Hardcoded, no AI call.)`;
+          }
+        } else {
+          const etco2 = Math.round(c.etco2Low + Math.random() * (c.etco2High - c.etco2Low));
+          parsedOverrides.EtCO2 = [{ targetValue: etco2, startMin: 0, endMin: 0.3 }];
+          note = `CPR commenced (30:2) — compressions generating a palpable, compression-driven pulse at ~${rate}/min (~${bpSys}/${bpDia} mmHg) and EtCO₂ ~${etco2} mmHg. This pulse is compression-generated, not ROSC — the monitor's HR/BP keep reflecting the true underlying rhythm (${rhythmLabel}), not this number. (Hardcoded, no AI call.)`;
+        }
       }
     } else if (mode === 'lma') {
       if (!priorCpr.active) {
@@ -861,7 +909,7 @@
       }
     }
 
-    return { parsedOverrides, note, vitalsNow, cprState };
+    return { parsedOverrides, parsedRhythm, note, vitalsNow, cprState };
   }
 
   // Splices a computed override plan (AI-authored, or the hardcoded defib
