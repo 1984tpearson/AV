@@ -2866,6 +2866,26 @@ function vitalTileHtml(def, v) {
   else if (def.isHealth) val = Math.round(SimEngine.getDisplayHealthScore(liveConfig, simNow()));
   else if (['Temp', 'BGL', 'Ketones'].includes(def.key)) val = v[def.overrideKeys[0]].toFixed(1);
   else val = Math.round(v[def.overrideKeys[0]]);
+
+  // The big number stays the real (0) value while CPR compresses a truly
+  // pulseless rhythm — see SimEngine.computeCprEffect, which deliberately
+  // never writes to HR/BPsys/BPdia — but the hidden compression-generated
+  // numbers driving the Pulse tile were otherwise invisible anywhere on
+  // this page. Surface them here, replacing the unit text, only when the
+  // real value genuinely is 0 and CPR actually has a number to show — never
+  // while CPR is merely active on a genuinely perfusing rhythm (Phase 2's
+  // assessment-error case), where the real value is already meaningful and
+  // a CPR annotation would be actively misleading.
+  let unitText = def.unit;
+  const cpr = (liveConfig.overrides && liveConfig.overrides.cpr) || null;
+  if (cpr && cpr.active) {
+    if (def.key === 'HR' && Math.round(v.HR) <= 0 && cpr.pulseRate != null) {
+      unitText = `<span style="color:#f59e0b;">CPR ~${cpr.pulseRate}</span>`;
+    } else if (def.key === 'BP' && Math.round(v.BPsys) <= 0 && cpr.perfusionSys != null) {
+      unitText = `<span style="color:#f59e0b;">CPR ~${cpr.perfusionSys}/${cpr.perfusionDia}</span>`;
+    }
+  }
+
   const armedStyle = (vitalsEditMode && armedTileKey === def.key) ? 'border-color:#0369a1;box-shadow:0 0 0 2px #bae0fd inset;' : '';
   const graphKeys = vtileGraphKeys(def);
   const isOn = graphKeys.length && graphSeriesOn[graphKeys[0]];
@@ -2875,7 +2895,7 @@ function vitalTileHtml(def, v) {
       <span class="vtile-dot" style="background:${isOn ? dotColor : '#cbd5e1'};"></span>
       <div class="vlabel">${def.label}</div>
       <div class="vval">${val}</div>
-      <div class="muted">${def.unit}</div>
+      <div class="muted">${unitText}</div>
     </div>`;
 }
 
